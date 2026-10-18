@@ -17,6 +17,7 @@
       categories: ['restaurant', 'food'],
       shopName: '美而美早餐',
       signColor: '#d9482b',
+      xpMult: 1.3, // 經驗值補正（營業時數不同）
       cash: 320000,
       rent: 38000,
       open: 330, // 05:30
@@ -53,6 +54,7 @@
       categories: ['restaurant', 'food'],
       shopName: '老張麵館',
       signColor: '#b8342a',
+      xpMult: 1, // 經驗值補正（營業時數不同）
       cash: 360000,
       rent: 45000,
       open: 660, // 11:00
@@ -88,6 +90,7 @@
       categories: ['drinks', 'food'],
       shopName: '茶湯會館',
       signColor: '#2f8f6b',
+      xpMult: 1, // 經驗值補正（營業時數不同）
       cash: 300000,
       rent: 40000,
       open: 600, // 10:00
@@ -122,6 +125,7 @@
       categories: ['service'],
       shopName: '阿芬家庭理髮',
       signColor: '#3b6fb6',
+      xpMult: 0.8, // 經驗值補正（營業時數不同）
       cash: 280000,
       rent: 30000,
       open: 570, // 09:30
@@ -155,6 +159,7 @@
       categories: ['service'],
       shopName: '順發機車行',
       signColor: '#e2a12a',
+      xpMult: 1.1, // 經驗值補正（營業時數不同）
       cash: 420000,
       rent: 42000,
       open: 540, // 09:00
@@ -190,6 +195,7 @@
       categories: ['store'],
       shopName: '好鄰居便利店',
       signColor: '#1f8a4c',
+      xpMult: 0.7, // 經驗值補正（營業時數不同）
       cash: 380000,
       rent: 55000,
       open: 420, // 07:00
@@ -307,7 +313,8 @@
   };
 
   // 店家等級：累積毛利換算的經驗值
-  const LEVELS = [0, 1500, 4000, 8000, 14000, 22000, 32000, 45000, 60000, 80000];
+  // 早餐店的節奏大約是：第 1 天 Lv.2、第 3 天 Lv.3、第 2 週 Lv.5、三個月左右 Lv.10
+  const LEVELS = [0, 250, 900, 2000, 3800, 6500, 10000, 15000, 22000, 31000];
 
   // 可以開分店的地方
   const DISTRICTS = ['板橋', '新莊', '台中北屯', '台南東區', '高雄左營', '新竹東區', '桃園中壢'];

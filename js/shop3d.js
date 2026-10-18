@@ -359,6 +359,9 @@
     },
   };
 
+  const footMat = new THREE.MeshBasicMaterial({ color: '#3a2a1e', transparent: true, opacity: 0.16, depthWrite: false });
+  const footLine = new THREE.LineBasicMaterial({ color: '#3a2a1e', transparent: true, opacity: 0.45 });
+
   function stool(g, x, z) {
     C(g, 0.16, 0.19, 0.42, '#d6342b', x, 0, z, 14);
     C(g, 0.17, 0.17, 0.03, '#e8463d', x, 0.42, z, 14);
@@ -380,8 +383,12 @@
     B(g, 0.5, 0.04, 0.05, mat('#333'), 0, 0.72, 0.42);
     // 外送箱
     if (box) B(g, 0.42, 0.38, 0.38, mat('#e0478a'), 0, 0.5, -0.3);
+    People.mergeGroup(g);
     return g;
   }
+
+  const staffRingGeo = new THREE.RingGeometry(0.24, 0.31, 24);
+  const staffRingMat = new THREE.MeshBasicMaterial({ color: '#2fbf71', transparent: true, opacity: 0.85, depthWrite: false });
 
   function umbrellaModel(color) {
     const g = new THREE.Group();
@@ -402,8 +409,11 @@
       this.container = container;
       this.opts = opts;
       const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: false });
-      r.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      r.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
       r.shadowMap.enabled = true;
+      // 陰影不用每一幀重畫：家具變動或太陽移動時才更新
+      r.shadowMap.autoUpdate = false;
+      r.shadowMap.needsUpdate = true;
       r.shadowMap.type = THREE.PCFSoftShadowMap;
       r.outputEncoding = THREE.sRGBEncoding;
       this.renderer = r;
@@ -423,7 +433,7 @@
       this.hemi = new THREE.HemisphereLight('#ffffff', '#8a7d70', 0.7);
       this.sun = new THREE.DirectionalLight('#fff3e0', 0.9);
       this.sun.castShadow = true;
-      this.sun.shadow.mapSize.set(2048, 2048);
+      this.sun.shadow.mapSize.set(1536, 1536);
       this.sun.shadow.bias = -0.0006;
       this.indoor = new THREE.PointLight('#fff1d6', 0, 18, 1.6);
       this.world.add(this.hemi, this.sun, this.sun.target, this.indoor);
@@ -537,7 +547,17 @@
       this._move = (e) => {
         if (pts.has(e.pointerId)) pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
         if (this.opts.onHover && !drag) this.opts.onHover(this.pickTile(e.clientX, e.clientY));
-        if (!drag) return;
+        if (!drag) {
+          // 滑鼠指到可以點的東西時顯示框框（節流，免得太吃效能）
+          const now = performance.now();
+          if (e.pointerType === 'mouse' && now - (this._hoverT || 0) > 80) {
+            this._hoverT = now;
+            const h = this.opts.dragLocked?.() ? null : this.pick(e.clientX, e.clientY);
+            this.hoverPick = h && h.kind !== 'tile' ? h : null;
+            this.dom.style.cursor = this.hoverPick ? 'pointer' : 'default';
+          }
+          return;
+        }
         if (pts.size === 2 && drag.pinch) {
           const [a, b] = [...pts.values()];
           this.setZoom((drag.zoom0 * Math.hypot(a.x - b.x, a.y - b.y)) / drag.pinch);
@@ -575,6 +595,8 @@
       el.addEventListener('pointerup', this._up);
       el.addEventListener('pointercancel', this._up);
       el.addEventListener('wheel', this._wheel, { passive: false });
+      this._leave = () => (this.hoverPick = null);
+      el.addEventListener('pointerleave', this._leave);
     }
 
     unbind() {
@@ -677,6 +699,21 @@
           c.fillStyle = cols[(x + y) % 2];
           c.fillRect(x * 32, y * 32, 32, 32);
         }
+        // 格線：看得出每一格的邊界
+        c.strokeStyle = 'rgba(60,40,20,0.16)';
+        c.lineWidth = 1;
+        for (let x = 0; x <= W; x++) {
+          c.beginPath();
+          c.moveTo(x * 32 + 0.5, 0);
+          c.lineTo(x * 32 + 0.5, H * 32);
+          c.stroke();
+        }
+        for (let y = 0; y <= H; y++) {
+          c.beginPath();
+          c.moveTo(0, y * 32 + 0.5);
+          c.lineTo(W * 32, y * 32 + 0.5);
+          c.stroke();
+        }
       });
       floorTex.magFilter = THREE.NearestFilter;
       const floor = new THREE.Mesh(new THREE.PlaneGeometry(W, H), new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.6 }));
@@ -686,7 +723,7 @@
       g.add(floor);
 
       // 牆
-      const wallMat = mat('#f4efe7', { roughness: 0.95 });
+      const wallMat = mat('#e8ddcf', { roughness: 0.95 });
       const trim = mat('#9a8572');
       B(this.walls.back, W + 0.3, WALL_H, 0.15, wallMat, W / 2, 0, -0.08);
       B(this.walls.back, W + 0.3, 0.15, 0.17, trim, W / 2, 0, -0.08);
@@ -761,6 +798,10 @@
         g.add(light);
         this.lamps.push(light);
       }
+      // 合併靜態場景：牆、隔壁店家、柱子、路邊的機車
+      for (const gr of [...Object.values(this.walls), ...Object.values(this.neighbors), this.frontProps]) People.mergeGroup(gr);
+      People.mergeGroup(g, [...Object.values(this.walls), ...Object.values(this.neighbors), this.frontProps, this.sign]);
+      if (this.renderer) this.renderer.shadowMap.needsUpdate = true;
       this.updateCamera();
     }
 
@@ -798,12 +839,8 @@
       this.neighbors.right.visible = !near.includes('right');
       // 從正面看的時候，招牌和柱子會擋住店裡：變透明、變矮
       const frontNear = near.includes('front');
-      if (this.signMat) {
-        this.signMat.opacity = frontNear ? 0.3 : 1;
-        this.signSide.opacity = frontNear ? 0.3 : 1;
-        this.signMat.depthWrite = !frontNear;
-        this.signSide.depthWrite = !frontNear;
-      }
+      // 半透明的招牌疊在人身上反而更亂，正面看的時候直接收起來
+      if (this.sign) this.sign.visible = !frontNear;
       if (this.awning) this.awning.visible = !frontNear;
       if (this.frontProps) this.frontProps.scale.y = frontNear ? 0.15 : 1;
     }
@@ -844,6 +881,19 @@
       const inner = new THREE.Group();
       g.add(inner);
       (MODELS[o.def.model] || MODELS.plant)(inner, this);
+      if (!o.def.wall) {
+        // 佔地框：深色底板加外框，看得出這件東西佔哪幾格
+        const w = o.def.w || 1;
+        const plate = new THREE.Mesh(new THREE.PlaneGeometry(w - 0.06, 0.94), footMat);
+        plate.rotation.x = -Math.PI / 2;
+        plate.position.set((w - 1) / 2, 0.015, 0);
+        plate.renderOrder = -1;
+        g.add(plate);
+        const edge = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.PlaneGeometry(w - 0.06, 0.94)), footLine);
+        edge.rotation.x = -Math.PI / 2;
+        edge.position.set((w - 1) / 2, 0.018, 0);
+        g.add(edge);
+      }
       if (o.def.pro) {
         // 高級設備：金色飾條
         const trim = new THREE.Mesh(boxGeo((o.def.w || 1) - 0.05, 0.05, 0.05), mat('#d4a017', { metalness: 0.8, roughness: 0.25 }));
@@ -852,6 +902,8 @@
       }
       g.userData.pick = { kind: 'object', obj: o };
       Object.assign(g.userData, inner.userData);
+      const u = inner.userData;
+      People.mergeGroup(inner, [u.wave, u.spin, u.liftScooter, ...(u.fish || [])]);
       this.placeGroup(g, o);
       return g;
     }
@@ -882,17 +934,20 @@
           m = { group: this.buildObject(o), key: '' };
           this.objMeshes.set(o.id, m);
           this.world.add(m.group);
+          this.renderer.shadowMap.needsUpdate = true;
         }
         const key = `${o.x},${o.z},${o.rot}`;
         if (m.key !== key) {
           m.key = key;
           this.placeGroup(m.group, o);
+          this.renderer.shadowMap.needsUpdate = true;
         }
       }
       for (const [id, m] of this.objMeshes) {
         if (!seen.has(id)) {
           this.world.remove(m.group);
           this.objMeshes.delete(id);
+          this.renderer.shadowMap.needsUpdate = true;
         }
       }
     }
@@ -939,7 +994,8 @@
         if (!seen.has(id)) {
           this.world.remove(v.root);
           v.root.traverse((o) => {
-            if (o.geometry && !o.geometry.parameters?.cached) o.geometry.dispose?.();
+            // 合併出來的網格是每個人獨有的，要釋放；共用的幾何不能動
+            if (o.geometry && o.material === People.vcMat) o.geometry.dispose();
           });
           if (v.p.faceTex) v.p.faceTex.dispose();
           this.agents.delete(id);
@@ -982,6 +1038,18 @@
         p.group.position.y = 0.25;
       }
       if (sitting) y = kind === 'customer' && a.state === 'eating' ? 0.0 : 0.05;
+      // 站著不動的人稍微錯開，不會完全疊在一起
+      if (!a.moving && kind === 'customer' && !sitting) {
+        x += (((a.id * 37) % 7) - 3) * 0.035;
+        z += (((a.id * 53) % 7) - 3) * 0.035;
+      }
+      if (kind === 'staff' && !v.ring) {
+        // 員工腳下的綠色圓圈，一眼分得出誰是員工
+        v.ring = new THREE.Mesh(staffRingGeo, staffRingMat);
+        v.ring.rotation.x = -Math.PI / 2;
+        v.ring.position.y = 0.02;
+        p.group.add(v.ring);
+      }
       v.root.position.set(x, kind === 'scooter' ? 0 : y, z);
       if (a.dir !== undefined) {
         let diff = a.dir - v.root.rotation.y;
@@ -1125,6 +1193,12 @@
       this.syncObjects();
       this.syncAgents(dt, now);
       this.updateLight();
+      this._shadowT = (this._shadowT || 0) + dt;
+      if (this._shadowT > 2) {
+        // 太陽慢慢移動，每兩秒更新一次陰影就夠了
+        this._shadowT = 0;
+        this.renderer.shadowMap.needsUpdate = true;
+      }
       this.updateRain(dt);
       this.animateProps(now);
       this.renderer.render(this.world, this.camera);
@@ -1161,7 +1235,7 @@
       this.steam = this.steam.filter((st) => {
         if (st.life > 1.3) {
           this.world.remove(st.mesh);
-          st.mesh.material.dispose();
+          this.steamPool.push(st.mesh);
           return false;
         }
         return true;
@@ -1169,9 +1243,12 @@
     }
 
     spawnSteam(pos) {
-      if (this.steam.length > 40) return;
-      const m = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.45, depthWrite: false }));
+      if (this.steam.length > 30) return;
+      this.steamPool = this.steamPool || [];
+      this.steamGeo = this.steamGeo || new THREE.SphereGeometry(0.07, 8, 6);
+      const m = this.steamPool.pop() || new THREE.Mesh(this.steamGeo, new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.45, depthWrite: false }));
       m.position.copy(pos);
+      m.scale.setScalar(1);
       this.world.add(m);
       this.steam.push({ mesh: m, life: 0 });
     }
@@ -1204,8 +1281,18 @@
       const s = this.sim;
       for (const el of this.labels.values()) el.dataset.seen = '';
       const zoomShow = this.zoom >= 1.15;
+      // 會互相擋到的泡泡先收集起來，最後統一排開
+      const items = [];
+      const add = (el, x, y, z, w, h, pri) => {
+        const p = this.project(x, y, z);
+        items.push({ el, x: p.x, y: p.y, w, h, pri });
+      };
 
-      // 員工：名字、想法泡泡、事件驚嘆號
+      // 員工：事件驚嘆號、想法泡泡（最多 4 個，最新的優先）
+      const thinkers = s.staff
+        .filter((e) => e.state !== 'off' && e.thought && e.thought.until > s.minute && !s.activeEvents.some((x) => x.staff === e))
+        .sort((a, b) => (b === this.selected) - (a === this.selected) || b.thought.until - a.thought.until)
+        .slice(0, 4);
       for (const e of s.staff) {
         if (e.state === 'off') continue;
         const ev = s.activeEvents.find((x) => x.staff === e);
@@ -1215,11 +1302,11 @@
           if (!el.firstChild) el.innerHTML = '<span>!</span>';
           el.classList.toggle('urgent', ev.deadline - s.minute < (ev.deadline - ev.spawnedAt) * 0.3);
           el.dataset.ev = ev.id;
-          this.place(el, e.x + 0.5, 2.15, e.z + 0.5);
-        } else if (e.thought && e.thought.until > s.minute) {
+          add(el, e.x + 0.5, 2.15, e.z + 0.5, 40, 40, 3);
+        } else if (thinkers.includes(e)) {
           const el = this.label(`th-${e.id}`, 'thought3d');
           if (el.textContent !== e.thought.text) el.textContent = e.thought.text;
-          this.place(el, e.x + 0.5, 2.0, e.z + 0.5);
+          add(el, e.x + 0.5, 2.0, e.z + 0.5, Math.min(160, e.thought.text.length * 12 + 18), 22, 1);
         }
         if (zoomShow || this.selected === e) {
           const n = this.label(`nm-${e.id}`, 'tag-name');
@@ -1236,8 +1323,8 @@
         el.dataset.ev = ev.id;
         if (ev.where === 'phone') {
           const st = s.stations[0];
-          if (st) this.place(el, st.x + 0.5, 1.8, st.z + 0.5);
-        } else this.place(el, s.doorX + 1, 2.1, s.H + 0.5);
+          if (st) add(el, st.x + 0.5, 1.8, st.z + 0.5, 40, 40, 3);
+        } else add(el, s.doorX + 1, 2.1, s.H + 0.5, 40, 40, 3);
       }
       // 服務進度
       for (const c of s.customers) {
@@ -1248,21 +1335,66 @@
             el.dataset.icon = c.product.icon;
             el.innerHTML = `<i>${c.product.icon}${c.qty > 1 ? `×${c.qty}` : ''}</i><b></b>`;
           }
-          this.place(el, c.x + 0.5, 1.75, c.z + 0.5);
+          add(el, c.x + 0.5, 1.75, c.z + 0.5, 42, 28, 2);
         }
       }
-      // 金額與表情
-      s.popups.forEach((p) => {
+      // 金額與表情（最多 10 個）
+      s.popups.slice(-10).forEach((p) => {
         const el = this.label(`pp-${p.id}`, `popup3d ${p.kind}`);
         if (el.textContent !== p.text) el.textContent = p.text;
         el.style.opacity = String(Math.max(0, 1 - p.t / 3));
-        this.place(el, p.x + 0.5, 1.9 + p.t * 0.35, p.z + 0.5);
+        add(el, p.x + 0.5, 1.9 + p.t * 0.35, p.z + 0.5, p.text.length * 9 + 8, 20, 0);
       });
-      // 選取框
+
+      // 排開重疊的泡泡：重要的先放，後面的往上推
+      items.sort((a, b) => b.pri - a.pri || b.y - a.y);
+      const placed = [];
+      for (const it of items) {
+        let top = it.y - it.h;
+        const left = it.x - it.w / 2;
+        for (let tries = 0; tries < 8; tries++) {
+          const hit = placed.find((q) => left < q.left + q.w && left + it.w > q.left && top < q.top + q.h && top + it.h > q.top);
+          if (!hit) break;
+          top = hit.top - it.h - 2;
+        }
+        placed.push({ left, top, w: it.w, h: it.h });
+        const t = `translate(${(left + it.w / 2).toFixed(1)}px, ${(top + it.h).toFixed(1)}px) translate(-50%, -100%)`;
+        if (it.el.style.transform !== t) it.el.style.transform = t;
+      }
+
+      // 選取框與滑鼠指著的東西
       if (this.selected) {
         const a = this.selected;
         const el = this.label('sel', 'select-ring');
         this.place(el, (a.x ?? 0) + 0.5, 0, (a.z ?? 0) + 0.5, '-50%', '-50%');
+      }
+      const hp = this.hoverPick;
+      if (hp && !(this.selected && (hp.staff === this.selected || hp.customer === this.selected))) {
+        const h = hp;
+        const el = this.label('hover', `hover-box ${h.kind}`);
+        if (h.kind === 'object') {
+          const o = h.obj;
+          const xs = o.cells.map((c) => c.x);
+          const zs = o.cells.map((c) => c.z);
+          const a = this.project(Math.min(...xs), 0, Math.min(...zs));
+          const b = this.project(Math.max(...xs) + 1, 0, Math.max(...zs) + 1);
+          const c2 = this.project(Math.min(...xs), 0, Math.max(...zs) + 1);
+          const d = this.project(Math.max(...xs) + 1, 0, Math.min(...zs));
+          const minX = Math.min(a.x, b.x, c2.x, d.x);
+          const maxX = Math.max(a.x, b.x, c2.x, d.x);
+          const minY = Math.min(a.y, b.y, c2.y, d.y);
+          const maxY = Math.max(a.y, b.y, c2.y, d.y);
+          el.style.width = `${maxX - minX}px`;
+          el.style.height = `${(maxY - minY) * 2.2}px`;
+          el.style.transform = `translate(${minX}px, ${maxY - (maxY - minY) * 2.2}px)`;
+          el.dataset.label = o.def.name;
+        } else {
+          const a = h.staff || h.customer;
+          el.style.width = '';
+          el.style.height = '';
+          el.dataset.label = h.staff ? h.staff.name : '客人';
+          this.place(el, a.x + 0.5, 1.15, a.z + 0.5, '-50%', '-50%');
+        }
       }
       for (const [k, el] of this.labels) {
         if (!el.dataset.seen) {

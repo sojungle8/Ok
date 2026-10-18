@@ -12,7 +12,7 @@
     settings: { industry: 'breakfast', gender: 'm', mode: 'normal', shopName: '' },
     sim: null,
     view: null,
-    speed: 1,
+    speed: 2,
     tab: null,
     buildCat: 'station',
     build: null, // { type, rot } 或 { move: obj, rot }
@@ -122,7 +122,7 @@
     window.BossAudio.init();
     ui.sim = sim;
     ui.phase = 'game';
-    ui.speed = 1;
+    ui.speed = 2;
     ui.tab = null;
     ui.build = null;
     ui.inspect = null;
@@ -172,8 +172,15 @@
       },
       dayEnd: (r) => toast(`🌙 今天服務 ${r.served} 位客人，營收 ${money(r.revenue)}${r.angry ? `，${r.angry} 位等到生氣離開` : ''}${r.holiday ? '（國定假日薪水加倍）' : ''}`),
       festival: (f) => toast(f.news, 'event'),
-      levelUp: () => {
+      levelUp: (lv, items) => {
         if (ui.tab === 'build' || ui.tab === 'goals') renderDrawer();
+        const vp = document.querySelector('.viewport');
+        if (!vp) return;
+        const b = document.createElement('div');
+        b.className = 'level-banner';
+        b.innerHTML = `<b>⭐ Lv.${lv}</b><div>店家升級了！<small>${items.length ? `解鎖：${esc(items.join('、'))}` : '繼續加油'}</small></div>`;
+        vp.appendChild(b);
+        setTimeout(() => b.remove(), 4200);
       },
       weekEnd: (r) => {
         save();
@@ -208,7 +215,7 @@
     if (!blocked && ui.speed > 0 && !sim.over) {
       // 打烊、沒人在店裡時自動快轉
       const empty = !sim.isOpen && !sim.customers.length && !sim.staff.some((e) => e.state !== 'off') && !sim.activeEvents.length;
-      const mult = empty ? 90 : ui.speed;
+      const mult = empty ? 150 : ui.speed;
       ui.nightSkip = empty;
       sim.tick(dt * mult);
     }
@@ -244,25 +251,71 @@
     ui.raf = requestAnimationFrame(loop);
   }
 
+  // 速度：遊戲每秒經過幾分鐘
+  const SPEEDS = [
+    [0, '⏸', '暫停（空白鍵）'],
+    [2, '▶', '正常（1）'],
+    [5, '▶▶', '快（2）'],
+    [12, '▶▶▶', '超快（3）'],
+  ];
+
+  // 上方資訊列：骨架只建一次，之後只改有變動的文字，不整塊重畫
   function renderTopbar() {
     const s = ui.sim;
     const el = document.getElementById('topbar');
     if (!el) return;
+    if (!el.dataset.built) {
+      el.dataset.built = '1';
+      el.innerHTML = `
+        <div class="tb-shop"><span class="tb-icon">${s.ind.icon}</span><div><b>${esc(s.shopName)}</b><small data-f="date"></small></div></div>
+        <div class="tb-weather"><span data-f="wicon"></span><small data-f="wtext"></small></div>
+        <div class="tb-clock" data-f="clockbox"><b data-f="clock"></b><small data-f="status"></small></div>
+        <div class="tb-speed">${SPEEDS.map(([v, l, t]) => `<button data-action="speed" data-v="${v}" title="${t}">${l}</button>`).join('')}</div>
+        <div class="tb-level" title="店家等級"><small data-f="lv"></small><div class="bar"><div class="bar-fill skill" data-f="lvbar"></div></div></div>
+        <div class="tb-stat"><small>現金</small><b data-f="cash"></b></div>
+        <div class="tb-stat"><small data-f="rcount"></small><b class="stars" data-f="rating"></b></div>
+        <div class="tb-meter"><small data-f="mortext"></small><div class="bar"><div class="bar-fill morale" data-f="morbar"></div></div></div>
+        <div class="tb-meter"><small data-f="jerktext"></small><div class="bar"><div class="bar-fill jerk" data-f="jerkbar"></div></div></div>
+        <div class="tb-menu"><button data-action="music" title="背景音樂">🎵</button><button data-action="sfx" title="音效">🔊</button><button data-action="save" title="存檔">💾</button><button data-action="quit" title="回主選單">🚪</button></div>`;
+    }
+    const f = (k) => el.querySelector(`[data-f="${k}"]`);
+    const txt = (k, v) => {
+      const n = f(k);
+      if (n && n.textContent !== v) n.textContent = v;
+    };
+    const width = (k, v) => {
+      const n = f(k);
+      const w = `${Math.max(0, Math.min(100, v))}%`;
+      if (n && n.style.width !== w) n.style.width = w;
+    };
     const jerk = Math.round(s.jerk);
     const mor = Math.round(s.morale);
-    el.innerHTML = `
-      <div class="tb-shop"><span class="tb-icon">${s.ind.icon}</span><div><b>${esc(s.shopName)}</b><small>${s.dateLabel}</small></div></div>
-      <div class="tb-weather" title="${s.weather.name}${s.festival ? `・${s.festival.name}` : ''}"><span>${s.weather.icon}</span><small>${s.weather.name}${s.festival ? `<br>${s.festival.icon} ${s.festival.name}` : ''}</small></div>
-      <div class="tb-clock ${s.isOpen ? 'open' : 'closed'}"><b>${s.clockLabel}</b><small>${ui.nightSkip ? '⏩ 打烊中，快轉' : s.isOpen ? '營業中' : s.openToday ? '休息中' : '今天公休'}</small></div>
-      <div class="tb-speed">
-        ${[[0, '⏸'], [1, '▶'], [3, '▶▶'], [8, '▶▶▶']].map(([v, l]) => `<button data-action="speed" data-v="${v}" class="${ui.speed === v ? 'active' : ''}" title="${v ? `${v} 倍速` : '暫停'}（${v === 0 ? '空白鍵' : v === 1 ? '1' : v === 3 ? '2' : '3'}）">${l}</button>`).join('')}
-      </div>
-      <div class="tb-level" title="店家等級"><small>Lv.${s.level}</small><div class="bar"><div class="bar-fill skill" style="width:${Math.round(s.levelProgress * 100)}%"></div></div></div>
-      <div class="tb-stat"><small>現金</small><b class="${s.cash < 0 ? 'neg' : ''}">${money(s.cash)}</b></div>
-      <div class="tb-stat"><small>評價（${s.reviews.length}）</small><b class="stars">${s.rating.toFixed(1)} ★</b></div>
-      <div class="tb-meter"><small>😊 員工心情 ${mor}</small><div class="bar"><div class="bar-fill morale" style="width:${mor}%"></div></div></div>
-      <div class="tb-meter"><small>😈 慣老闆指數 ${jerk}</small><div class="bar"><div class="bar-fill jerk" style="width:${jerk}%"></div></div></div>
-      <div class="tb-menu"><button data-action="music" title="背景音樂" class="${window.BossAudio.prefs.music ? '' : 'off'}">🎵</button><button data-action="sfx" title="音效" class="${window.BossAudio.prefs.sfx ? '' : 'off'}">${window.BossAudio.prefs.sfx ? '🔊' : '🔇'}</button><button data-action="save" title="存檔">💾</button><button data-action="quit" title="回主選單">🚪</button></div>`;
+    txt('date', s.dateLabel);
+    txt('wicon', s.weather.icon);
+    txt('wtext', `${s.weather.name}${s.festival ? `・${s.festival.icon}${s.festival.name}` : ''}`);
+    txt('clock', s.clockLabel);
+    txt('status', ui.nightSkip ? '⏩ 打烊中，快轉' : s.isOpen ? '營業中' : s.openToday ? '休息中' : '今天公休');
+    f('clockbox').classList.toggle('open', s.isOpen);
+    txt('lv', `Lv.${s.level}`);
+    width('lvbar', s.levelProgress * 100);
+    txt('cash', money(s.cash));
+    f('cash').classList.toggle('neg', s.cash < 0);
+    txt('rcount', `評價（${s.reviews.length}）`);
+    txt('rating', `${s.rating.toFixed(1)} ★`);
+    txt('mortext', `😊 員工心情 ${mor}`);
+    width('morbar', mor);
+    txt('jerktext', `😈 慣老闆指數 ${jerk}`);
+    width('jerkbar', jerk);
+    el.querySelectorAll('[data-action="speed"]').forEach((b) => b.classList.toggle('active', Number(b.dataset.v) === ui.speed));
+    const mu = el.querySelector('[data-action="music"]');
+    mu.classList.toggle('off', !window.BossAudio.prefs.music);
+    const sf = el.querySelector('[data-action="sfx"]');
+    sf.classList.toggle('off', !window.BossAudio.prefs.sfx);
+    txt2(sf, window.BossAudio.prefs.sfx ? '🔊' : '🔇');
+  }
+
+  function txt2(n, v) {
+    if (n.textContent !== v) n.textContent = v;
   }
 
   function toast(text, kind = '') {
@@ -487,6 +540,21 @@
       el.dataset.html = html;
     }
     el.hidden = false;
+    fitInspector();
+  }
+
+  // 檢視面板不要蓋到底部的抽屜
+  function fitInspector() {
+    const insp = document.getElementById('inspector');
+    const drawer = document.getElementById('drawer');
+    if (!insp || insp.hidden) return;
+    const vp = insp.parentElement.getBoundingClientRect();
+    if (drawer && !drawer.hidden) {
+      const d = drawer.getBoundingClientRect();
+      insp.style.maxHeight = `${Math.max(140, d.top - vp.top - 20)}px`;
+      insp.style.bottom = 'auto';
+      insp.style.top = '10px';
+    } else insp.style.maxHeight = '';
   }
 
   // ───── 底部抽屜 ─────
@@ -502,12 +570,14 @@
     if (!el) return;
     if (!ui.tab) {
       el.hidden = true;
+      fitInspector();
       return;
     }
     el.hidden = false;
     const fn = { build: drawerBuild, staff: drawerStaff, manage: drawerManage, ledger: drawerLedger, reviews: drawerReviews, goals: drawerGoals }[ui.tab];
     ui.drawerHtml = fn();
     el.innerHTML = `<button class="x drawer-x" data-action="tab" data-tab="${ui.tab}" aria-label="關閉">✕</button>${ui.drawerHtml}`;
+    fitInspector();
   }
 
   function refreshDrawerLive() {
@@ -1207,10 +1277,10 @@
       if (ui.speed > 0) {
         ui.prevSpeed = ui.speed;
         ui.speed = 0;
-      } else ui.speed = ui.prevSpeed || 1;
+      } else ui.speed = ui.prevSpeed || 2;
       renderTopbar();
     } else if (k === '1' || k === '2' || k === '3') {
-      ui.speed = { 1: 1, 2: 3, 3: 8 }[k];
+      ui.speed = { 1: 2, 2: 5, 3: 12 }[k];
       ui.prevSpeed = ui.speed;
       renderTopbar();
     } else if (k === 'r') rotateGhost();

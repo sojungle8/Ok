@@ -9,7 +9,66 @@
     return cache.get(key);
   };
 
+  // ───── 合併網格：把很多個單色零件合成一個網格（顏色寫在頂點上），大幅減少繪圖次數 ─────
+  const vcMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.72, metalness: 0.05 });
+  const tmpColor = new THREE.Color();
+
+  function mergeMeshes(meshes, root) {
+    const pos = [];
+    const nor = [];
+    const col = [];
+    root.updateWorldMatrix(true, true);
+    const inv = new THREE.Matrix4().copy(root.matrixWorld).invert();
+    for (const m of meshes) {
+      const g = (m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone());
+      m.updateWorldMatrix(true, false);
+      g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, m.matrixWorld));
+      if (!g.attributes.normal) g.computeVertexNormals();
+      tmpColor.copy(m.material.color);
+      const p = g.attributes.position.array;
+      const n = g.attributes.normal.array;
+      for (let i = 0; i < p.length; i += 3) {
+        pos.push(p[i], p[i + 1], p[i + 2]);
+        nor.push(n[i], n[i + 1], n[i + 2]);
+        col.push(tmpColor.r, tmpColor.g, tmpColor.b);
+      }
+      g.dispose();
+    }
+    const out = new THREE.BufferGeometry();
+    out.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    out.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+    out.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    out.computeBoundingSphere();
+    return out;
+  }
+
+  // 可以合併的：不透明、沒有貼圖、標準材質、沒有被標記要單獨動的
+  function mergeable(m) {
+    const mt = m.material;
+    return m.isMesh && !Array.isArray(mt) && mt.isMeshStandardMaterial && !mt.map && !mt.transparent && !mt.vertexColors && !m.userData.keep;
+  }
+
+  // 把 group 底下可以合併的零件合成一個網格；skip 裡的物件（含子孫）保留原樣
+  function mergeGroup(group, skip = [], { cast = true } = {}) {
+    const skipSet = new Set();
+    for (const o of skip) if (o) o.traverse((x) => skipSet.add(x));
+    const list = [];
+    group.traverse((o) => {
+      if (o !== group && !skipSet.has(o) && mergeable(o)) list.push(o);
+    });
+    if (list.length < 2) return null;
+    const geo = mergeMeshes(list, group);
+    for (const m of list) m.parent.remove(m);
+    const merged = new THREE.Mesh(geo, vcMat);
+    merged.castShadow = cast;
+    merged.receiveShadow = true;
+    group.add(merged);
+    return merged;
+  }
+
   const People = {
+    mergeGroup,
+    vcMat,
     make(look, { boss = false } = {}) {
       const group = new THREE.Group();
       const skin = mat(look.skin);
@@ -120,13 +179,28 @@
       }
 
       group.add(...parts, armL, armR, head);
+      // 合併零件：每個人只剩頭、身體、四肢、臉幾個網格
+      mergeGroup(head, [face]);
+      for (const limb of [legL, legR]) mergeLimb(limb);
+      for (const limb of [armL, armR]) mergeLimb(limb, [carry]);
+      const torso = parts.filter((m) => m !== legL && m !== legR);
+      if (torso.length > 1) {
+        const holder = new THREE.Group();
+        group.add(holder);
+        const geo = mergeMeshes(torso, group);
+        torso.forEach((m) => group.remove(m));
+        holder.add(new THREE.Mesh(geo, vcMat));
+      }
       // Q 版比例：頭大一點，遠遠看也認得出表情
       head.scale.setScalar(1.35);
       head.position.y = 0.97;
       group.scale.setScalar(1.25);
-      group.traverse((o) => {
-        if (o.isMesh && o !== face) o.castShadow = true;
-      });
+      // 人物不投射即時陰影，改用腳下的圓形陰影（比較省效能，也比較好分辨位置）
+      const blob = new THREE.Mesh(blobGeo, blobMat);
+      blob.rotation.x = -Math.PI / 2;
+      blob.position.y = 0.012;
+      blob.renderOrder = -1;
+      group.add(blob);
       const person = { group, legL, legR, armL, armR, head, faceCanvas, faceTex, mood: null, boss, phase: Math.random() * 6, carry };
       People.setMood(person, boss ? 'smug' : 'neutral');
       return person;
@@ -279,6 +353,24 @@
     }
 
   };
+
+  function mergeLimb(limb, skip = []) {
+    // 四肢會擺動：把手腳本身和鞋子、手掌合在四肢自己的座標系裡
+    const skipSet = new Set();
+    for (const o of skip) if (o) o.traverse((x) => skipSet.add(x));
+    const list = [];
+    limb.traverse((o) => {
+      if (!skipSet.has(o) && mergeable(o)) list.push(o);
+    });
+    if (list.length < 2) return;
+    const geo = mergeMeshes(list, limb);
+    for (const m of list) if (m !== limb) m.parent.remove(m);
+    limb.geometry = geo;
+    limb.material = vcMat;
+  }
+
+  const blobGeo = new THREE.CircleGeometry(0.26, 16);
+  const blobMat = new THREE.MeshBasicMaterial({ color: '#000000', transparent: true, opacity: 0.22, depthWrite: false });
 
   root.BossPeople = People;
 })(typeof window !== 'undefined' ? window : globalThis);

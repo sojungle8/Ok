@@ -2346,3 +2346,74 @@ kbd {
 .tb-menu button.off {
   opacity: 0.4;
 }
+
+.hover-box {
+  border: 2px dashed rgba(255, 216, 74, 0.95);
+  border-radius: 8px;
+  pointer-events: none;
+}
+
+.hover-box.staff,
+.hover-box.customer {
+  width: 46px;
+  height: 70px;
+  border-radius: 999px;
+}
+
+.hover-box::after {
+  content: attr(data-label);
+  position: absolute;
+  left: 50%;
+  top: -22px;
+  transform: translateX(-50%);
+  background: rgba(30, 24, 20, 0.85);
+  color: #fff;
+  font-size: 0.72rem;
+  padding: 1px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.level-banner {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 20px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #4f7cac, #6c5ce7);
+  color: #fff;
+  box-shadow: 0 8px 24px rgba(40, 30, 80, 0.4);
+  animation: banner-in 0.4s ease-out, banner-out 0.5s ease-in 3.6s forwards;
+  pointer-events: none;
+  max-width: calc(100% - 24px);
+}
+
+.level-banner b {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+}
+
+.level-banner small {
+  display: block;
+  font-size: 0.8rem;
+  opacity: 0.9;
+}
+
+@keyframes banner-in {
+  from {
+    transform: translate(-50%, -20px) scale(0.9);
+    opacity: 0;
+  }
+}
+
+@keyframes banner-out {
+  to {
+    opacity: 0;
+    transform: translate(-50%, -10px);
+  }
+}

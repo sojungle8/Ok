@@ -907,7 +907,7 @@
         e.served++;
         e.skill = clamp(e.skill + 0.08 * (e.traits.includes('rookie') ? TRAITS.rookie.learn : 1), 0, 100);
       }
-      this.gainXp((price - cost) / 50);
+      this.gainXp(((price - cost) / 25) * (this.ind.xpMult || 1));
       this.popup(c, `+$${price}`, 'money');
       this.sound('coin');
 
@@ -963,6 +963,7 @@
 
     addReview(stars, text) {
       this.reviews.push({ stars, text, day: this.day });
+      if (stars >= 5) this.gainXp(3);
       if (this.reviews.length > 200) this.reviews.shift();
       if (this.reviews.length >= 30 && this.rating >= 4.5) this.achieve('rating');
     }
@@ -1002,6 +1003,7 @@
       if (a) {
         this.cash += a.reward;
         this.ledger.other += a.reward;
+        this.gainXp(300);
         this.notify(`🏆 成就達成：${a.name}（獎勵 $${a.reward.toLocaleString()}）`, 'achieve');
       }
     }
