@@ -15,7 +15,8 @@
       wage: 30000,
       rps: 62000, // 每位員工每月可創造的營收（產能）
       demand: 420000, // 市場每月需求上限
-      fixed: 165000, // 房租、原物料、水電等固定成本
+      costs: { rent: 50000, materials: 85000, utilities: 22000, fuel: 8000 }, // 每月固定成本
+      costLabels: { materials: '原物料（茶葉、珍珠、鮮奶）' },
       volatility: 0.08,
       season: [0.85, 0.9, 0.95, 1, 1.1, 1.2, 1.25, 1.2, 1.05, 0.95, 0.9, 0.85],
     },
@@ -31,7 +32,8 @@
       wage: 60000,
       rps: 124000,
       demand: 840000,
-      fixed: 330000,
+      costs: { rent: 110000, materials: 160000, utilities: 45000, fuel: 15000 },
+      costLabels: { materials: '雲端與軟體訂閱' },
       volatility: 0.15,
       season: null,
     },
@@ -47,7 +49,8 @@
       wage: 29500,
       rps: 46000,
       demand: 400000,
-      fixed: 108000,
+      costs: { rent: 40000, materials: 15000, utilities: 45000, fuel: 8000 },
+      costLabels: { rent: '房租與加盟金', materials: '耗材', utilities: '水電（冷藏冷凍 24 小時）', fuel: '物流運費' },
       volatility: 0.05,
       season: [1.1, 1.1, 1, 1, 1, 1.05, 1.1, 1.1, 1, 1, 1, 1.05],
     },
@@ -63,7 +66,8 @@
       wage: 34000,
       rps: 60000,
       demand: 520000,
-      fixed: 178000,
+      costs: { rent: 55000, materials: 90000, utilities: 25000, fuel: 8000 },
+      costLabels: { materials: '食材', utilities: '水電瓦斯' },
       volatility: 0.1,
       season: [1.15, 1.2, 0.95, 1, 1, 0.95, 1, 1, 0.95, 1, 1, 1.15],
     },
@@ -79,11 +83,15 @@
       wage: 40000,
       rps: 85000,
       demand: 460000,
-      fixed: 194000,
+      costs: { rent: 110000, materials: 40000, utilities: 34000, fuel: 10000 },
+      costLabels: { materials: '教材與講義', fuel: '交通車油資' },
       volatility: 0.07,
       season: [1.2, 1.25, 0.95, 0.95, 1, 1.05, 1.25, 1.25, 0.9, 0.9, 0.95, 1],
     },
   ];
+
+  // 固定成本的預設名稱，產業可以用 costLabels 覆寫
+  const COST_LABELS = { rent: '房租', materials: '原物料', utilities: '水電', fuel: '油資與運輸' };
 
   // 經營方針：每月結算時套用
   const POLICIES = {
@@ -417,7 +425,7 @@
       title: '房東要漲房租',
       text: '房東通知下個月起房租調漲。',
       choices: [
-        { label: '接受漲價', note: '之後每月固定成本 +10%', effects: { fixedMult: 0.1 }, result: '房東很滿意，你的固定開銷又多了一筆。' },
+        { label: '接受漲價', note: '之後每月房租 +10%', effects: { costMult: { rent: 0.1 } }, result: '房東很滿意，你的固定開銷又多了一筆。' },
         { label: '搬到便宜一點的地方', effects: { cash: -80000, morale: -3, demand: { mult: 0.95, months: 2 } }, result: '搬家很累，老客人也要時間適應新地點。' },
       ],
     },
@@ -434,6 +442,59 @@
           quote: '自己人比較放心。',
           effects: (g) => ({ staff: g.staff < g.industry.maxStaff ? 1 : 0, morale: -10, jerk: 6 }),
           result: '做了三年的組長，現在要向一個什麼都不會的新人報告。',
+        },
+      ],
+    },
+    {
+      id: 'oil_shock',
+      icon: '🛢️',
+      title: '國際油價飆漲',
+      text: '中東情勢緊張，國際油價一週內大漲。新聞說加油站排滿了人，騎車上班的員工也在抱怨油錢。',
+      cond: (g) => g.month >= 3,
+      choices: [
+        { label: '發交通補貼給員工', note: '油價 +15%', effects: (g) => ({ index: { oil: 0.15 }, cash: -1500 * g.staff, morale: 4, jerk: -2 }), result: '員工說這筆補貼剛好打平這個月多出來的油錢。' },
+        { label: '公司自己吸收油資上漲', note: '油價 +15%', effects: { index: { oil: 0.15 } }, result: '運費和油資變貴了，員工那邊沒什麼變化。' },
+        {
+          label: '「送貨跑腿騎自己的車，油錢自己出」',
+          quote: '油價又不是我能控制的。',
+          note: '油價 +15%',
+          effects: { index: { oil: 0.15 }, cash: 6000, morale: -6, jerk: 7 },
+          result: '員工騎自己的機車幫公司跑腿，油錢、保養都自己吸收。',
+          tip: '員工因執行職務而支出的必要費用（例如公務用車的油資），一般應由雇主負擔，不應轉嫁給勞工。',
+        },
+      ],
+    },
+    {
+      id: 'power_bill',
+      icon: '🔌',
+      title: '夏月電費帳單嚇死人',
+      text: '這個月的電費帳單比冬天多了快一半，會計拿著帳單在你辦公室門口徘徊。',
+      months: [6, 7, 8, 9],
+      choices: [
+        { label: '換變頻冷氣和節能設備', note: '之後每月水電 -15%', effects: { cash: -60000, costMult: { utilities: -0.15 } }, result: '前期花了一筆錢，之後每個月的電費都會少一點。' },
+        { label: '冷氣照開，大家舒服最重要', effects: { morale: 1 }, result: '電費照付，大家照樣涼爽。' },
+        {
+          label: '「冷氣只能開 28 度，下午兩點以後才能開」',
+          quote: '電費很貴，大家要有成本概念。',
+          effects: { cash: 8000, morale: -6, jerk: 6 },
+          result: '大家流著汗上班，有人偷偷帶了小電扇，還被你罵浪費電。',
+        },
+      ],
+    },
+    {
+      id: 'living_cost',
+      icon: '🧺',
+      title: '「薪水不夠用了」',
+      text: '午休時你聽到員工在聊：房租漲了、便當從 90 漲到 120、雞蛋又缺貨……有人說薪水根本不夠用。',
+      cond: (g) => g.month >= 4 && g.realWage < 1.01,
+      choices: [
+        { label: '全員調薪 3%', note: '之後每月薪資成本 +3%', effects: { wageMult: 0.03, morale: 5, jerk: -2 }, result: '大家覺得老闆有聽到他們的聲音。' },
+        { label: '發一次性的物價津貼', effects: (g) => ({ cash: -3000 * g.staff, morale: 3 }), result: '大家很開心，不過下個月物價還是會繼續漲。' },
+        {
+          label: '「大家都很辛苦，要懂得節省」',
+          quote: '少喝一杯手搖就省下來了啊。',
+          effects: { morale: -5, jerk: 6 },
+          result: '說這句話的時候，你手上正拿著一杯星巴克。',
         },
       ],
     },
@@ -457,6 +518,80 @@
       ],
     },
 
+    {
+      id: 'r_vegetables',
+      icon: '🥬',
+      title: '颱風過後菜價飆漲',
+      text: '颱風過後，高麗菜一顆漲到 200 元，蛋也開始限量供應。',
+      industries: ['restaurant', 'drinks'],
+      months: [7, 8, 9, 10],
+      choices: [
+        { label: '菜單全面調漲 5%', note: '售價 +5%', effects: { price: 0.05, cash: -15000 }, result: '有老客人碎念了幾句，大部分人還是理解。' },
+        { label: '自己吸收這波漲價', effects: { cash: -40000 }, result: '這個月的毛利很難看，但客人完全沒感覺。' },
+        {
+          label: '「員工餐改成白飯配醬油」',
+          quote: '菜這麼貴，省一點是應該的。',
+          effects: { cash: -25000, morale: -5, jerk: 5 },
+          result: '客人的菜一樣不少，員工的便當只剩白飯。',
+        },
+      ],
+    },
+    {
+      id: 't_cloud',
+      icon: '☁️',
+      title: '雲端服務漲價',
+      text: '雲端服務商宣布調漲價格，加上台幣走貶，下個月起帳單會多一成多。',
+      industries: ['tech'],
+      choices: [
+        { label: '花一個月優化架構', note: '之後每月雲端與軟體 -5%', effects: { cash: -40000, costMult: { materials: -0.05 } }, result: '工程師把沒在用的機器都關了，還順便修好幾個效能問題。' },
+        { label: '直接接受漲價', note: '之後每月雲端與軟體 +12%', effects: { costMult: { materials: 0.12 } }, result: '帳單照付。' },
+        {
+          label: '「下班後自己找時間優化」',
+          quote: '這是你們工程師的責任吧。',
+          note: '之後每月雲端與軟體 -5%',
+          effects: { costMult: { materials: -0.05 }, morale: -6, jerk: 8, flag: 'unpaidOT' },
+          result: '架構是優化了，大家也連續兩週加班到半夜。',
+        },
+      ],
+    },
+    {
+      id: 's_logistics',
+      icon: '🚚',
+      title: '總部調漲物流費',
+      text: '總部說油價上漲，配送費要跟著調整，還「建議」各店把部分商品漲價。',
+      industries: ['store'],
+      cond: (g) => g.idx.oil > 1.03,
+      choices: [
+        { label: '照總部建議調漲售價', note: '物流 +20%、售價 +4%', effects: { costMult: { fuel: 0.2 }, price: 0.04 }, result: '客人抱怨東西又變貴了，但大多還是照買。' },
+        { label: '只接受物流費，售價不動', note: '之後每月物流 +20%', effects: { costMult: { fuel: 0.2 } }, result: '你的利潤又少了一點。' },
+        {
+          label: '「減少排班人力來省成本」',
+          quote: '一個人顧店也是可以的嘛。',
+          note: '之後每月物流 +20%',
+          effects: { costMult: { fuel: 0.2 }, staff: -1, morale: -6, jerk: 6 },
+          result: '尖峰時段只剩一個人顧店，結帳排到門口。',
+        },
+      ],
+    },
+    {
+      id: 'c_tuition',
+      icon: '🏫',
+      title: '要不要調漲學費？',
+      text: '房租、電費、教材都在漲，附近幾家補習班已經調漲學費了。',
+      industries: ['cram'],
+      cond: (g) => g.month >= 3,
+      choices: [
+        { label: '調漲學費 5%', note: '售價 +5%', effects: { price: 0.05 }, result: '有幾位家長在 LINE 群組抱怨，但多數人覺得合理。' },
+        { label: '學費不漲，老師薪水照調', note: '之後每月薪資成本 +3%', effects: { wageMult: 0.03, morale: 4 }, result: '老師們很感動，你的利潤被壓縮了。' },
+        {
+          label: '學費照漲，老師薪水不動',
+          quote: '漲價是為了公司的永續經營。',
+          note: '售價 +5%',
+          effects: { price: 0.05, morale: -5, jerk: 5 },
+          result: '老師們發現學費漲了，自己的鐘點費卻一塊都沒漲。',
+        },
+      ],
+    },
     // ───────── 手搖飲店 ─────────
     {
       id: 'd_summer',
@@ -533,8 +668,8 @@
       text: '茶葉、珍珠、鮮奶的進貨價全部漲了一成。',
       industries: ['drinks'],
       choices: [
-        { label: '每杯漲價 5 元', effects: { demand: { mult: 0.92, months: 3 } }, result: '少了一些價格敏感的客人。' },
-        { label: '自己吸收成本', effects: { cash: -50000 }, result: '客人沒感覺，你的帳戶有感覺。' },
+        { label: '每杯漲價 5 元', note: '原物料 +10%、售價 +8%', effects: { costMult: { materials: 0.1 }, price: 0.08 }, result: '少了一些價格敏感的客人，但每杯賺得回來。' },
+        { label: '自己吸收成本', note: '之後每月原物料成本 +10%', effects: { costMult: { materials: 0.1 } }, result: '客人沒感覺，你的帳戶有感覺。' },
       ],
     },
 
@@ -905,5 +1040,5 @@
     },
   ];
 
-  root.BossData = { INDUSTRIES, POLICIES, VIOLATIONS, EVENTS };
+  root.BossData = { INDUSTRIES, COST_LABELS, POLICIES, VIOLATIONS, EVENTS };
 })(typeof window !== 'undefined' ? window : globalThis);

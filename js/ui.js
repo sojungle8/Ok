@@ -1,7 +1,7 @@
 // 畫面渲染與操作
 (function () {
-  const { INDUSTRIES, POLICIES } = window.BossData;
-  const { Game, MAX_MONTH } = window.BossEngine;
+  const { INDUSTRIES, COST_LABELS, POLICIES } = window.BossData;
+  const { Game, MAX_MONTH, ECONOMY } = window.BossEngine;
   const app = document.getElementById('app');
 
   const ui = {
@@ -14,6 +14,10 @@
   const money = (n) => `${n < 0 ? '-' : ''}$${Math.abs(Math.round(n)).toLocaleString('zh-TW')}`;
   const signed = (n) => (n > 0 ? `+${n}` : `${n}`);
   const signedMoney = (n) => (n > 0 ? `+${money(n)}` : money(n));
+  const pct = (v) => `${v >= 0 ? '+' : ''}${(v * 100).toFixed(1)}%`;
+
+  const costLabel = (g, key) => (g.industry.costLabels && g.industry.costLabels[key]) || COST_LABELS[key];
+  const costRows = (g, costs) => Object.keys(COST_LABELS).map((k) => [costLabel(g, k), -costs[k]]);
 
   function jerkHint(j) {
     if (j < 30) return '員工覺得你人還不錯';
@@ -174,7 +178,7 @@
       ['薪資', -r.wageBill],
       ['加班費', -r.otCost],
       ['員工福利', -r.benefitCost],
-      ['固定成本', -r.fixed],
+      ...costRows(g, r.costs),
     ].filter(([, v]) => v !== 0);
     let inspection = '';
     if (r.inspection) {
@@ -209,6 +213,52 @@
       </article>`;
   }
 
+  function renderEconomy(g) {
+    const locked = g.over;
+    const summer = ECONOMY.summerMonths.includes(g.month);
+    const rel = g.price / g.idx.cpi;
+    let priceHint;
+    if (rel > ECONOMY.overpriceAt) priceHint = '<span class="warn">比同業貴太多，客人在流失</span>';
+    else if (rel < 0.98) priceHint = '比同業便宜，客人多但利潤薄';
+    else priceHint = '跟物價差不多，客人可以接受';
+    const wageGap = g.realWage;
+    let wageHint;
+    if (wageGap < 0.97) wageHint = '<span class="warn">薪水追不上物價，員工在抱怨</span>';
+    else if (wageGap < 1) wageHint = '稍微落後市場行情';
+    else wageHint = '跟上或超過市場行情';
+    return `
+      <section class="card economy">
+        <h3>物價與售價 <small>和年初相比</small></h3>
+        <div class="econ-grid">
+          <div><span>📈 物價</span><b>${pct(g.idx.cpi - 1)}</b></div>
+          <div><span>⛽ 油價（每公升）</span><b>${(g.idx.oil * ECONOMY.gasPrice).toFixed(1)} 元</b></div>
+          <div><span>⚡ 電價${summer ? '（夏月）' : ''}</span><b>${pct(g.idx.power * (summer ? ECONOMY.summerPower : 1) - 1)}</b></div>
+          <div><span>👛 市場薪資</span><b>${pct(g.idx.wage - 1)}</b></div>
+        </div>
+        <div class="policy">
+          <div class="policy-label">你的售價 <b>${pct(g.price - 1)}</b></div>
+          <div class="hr-buttons">
+            <button data-action="price" data-step="-0.03" ${locked || g.price <= 0.8 ? 'disabled' : ''}>－ 降價 3%</button>
+            <button data-action="price" data-step="0.03" ${locked || g.price >= 1.6 ? 'disabled' : ''}>＋ 漲價 3%</button>
+          </div>
+          <div class="policy-desc">${priceHint}</div>
+        </div>
+        <div class="policy">
+          <div class="policy-label">你的調薪幅度 <b>${pct(g.wageMult - 1)}</b></div>
+          <div class="policy-desc">${wageHint}</div>
+        </div>
+      </section>`;
+  }
+
+  function renderNews(g) {
+    if (!g.news.length) return '';
+    return `
+      <section class="card news">
+        <h3>📰 第 ${g.month} 月新聞</h3>
+        <ul>${g.news.map((n) => `<li>${n}</li>`).join('')}</ul>
+      </section>`;
+  }
+
   function renderPolicies(g) {
     const p = g.projection();
     const locked = g.over;
@@ -238,6 +288,9 @@
             <button data-action="hire" ${locked || g.staff >= g.industry.maxStaff ? 'disabled' : ''}>＋ 招募一人<small>${money(g.hireCost)}</small></button>
             <button data-action="layoff" ${locked || g.staff <= 1 ? 'disabled' : ''}>－ 依法資遣一人<small>${money(g.severance)}</small></button>
           </div>
+          <div class="hr-buttons">
+            <button data-action="raise" ${locked || g.raisedThisMonth ? 'disabled' : ''}>💵 全員調薪 3%<small>${g.raisedThisMonth ? '這個月已經調過了' : `每月薪資 +${money(g.staff * g.wage * 0.03)}`}</small></button>
+          </div>
         </div>
         <h3>本月預估</h3>
         <table class="ledger compact">
@@ -245,7 +298,9 @@
           <tr><th>薪資（每人 ${money(g.wage)}）</th><td class="neg">-${money(p.wageBill)}</td></tr>
           ${p.otCost ? `<tr><th>加班費</th><td class="neg">-${money(p.otCost)}</td></tr>` : ''}
           ${p.benefitCost ? `<tr><th>員工福利</th><td class="neg">-${money(p.benefitCost)}</td></tr>` : ''}
-          <tr><th>固定成本</th><td class="neg">-${money(p.fixed)}</td></tr>
+          ${costRows(g, p.costs)
+            .map(([k, v]) => `<tr><th>${k}</th><td class="neg">${money(v)}</td></tr>`)
+            .join('')}
           <tr class="total"><th>營業損益</th><td class="${p.profit < 0 ? 'neg' : 'pos'}">${signedMoney(p.profit)}</td></tr>
         </table>
       </section>`;
@@ -304,8 +359,12 @@
     app.innerHTML = `
       ${renderStats(g)}
       <div class="layout">
-        <div class="main-col">${main}</div>
+        <div class="main-col">
+          ${ui.phase === 'event' ? renderNews(g) : ''}
+          ${main}
+        </div>
         <aside class="side-col">
+          ${renderEconomy(g)}
           ${renderPolicies(g)}
           ${renderHistory(g)}
         </aside>
@@ -359,6 +418,12 @@
         break;
       case 'hire':
         g.hire();
+        break;
+      case 'raise':
+        g.raiseWages();
+        break;
+      case 'price':
+        g.changePrice(Number(btn.dataset.step));
         break;
       case 'layoff':
         if (!confirm(`確定要資遣一位員工嗎？需支付資遣費 ${money(g.severance)}，其他人的士氣也會下降。`)) return;

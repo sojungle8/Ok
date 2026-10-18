@@ -51,6 +51,9 @@ const STRATEGIES = {
       }),
     adjust: (g) => {
       g.setPolicy('overtime', g.cash < g.industry.cash * 0.3 ? 'paid' : 'none');
+      // 售價跟著物價走，薪水落後市場就調薪
+      while (g.price < g.idx.cpi - 0.015) g.changePrice(0.03);
+      if (g.realWage < 0.98) g.raiseWages();
     },
   },
   random: {
