@@ -1,9 +1,9 @@
 // 遊戲邏輯（不碰 DOM，方便在 Node 裡做平衡測試）
 (function (root) {
-  const { INDUSTRIES, POLICIES, VIOLATIONS, EVENTS } = root.BossData;
+  const { INDUSTRIES, POLICIES, VIOLATIONS, EVENTS, IGNORE } = root.BossData;
 
   const MAX_MONTH = 12;
-  const EVENTS_PER_MONTH = 2;
+  const EVENTS_PER_MONTH = 3;
   const JERK_LIMIT = 100;
 
   // 總體經濟時間線
@@ -28,11 +28,12 @@
   const round = (v, step = 100) => Math.round(v / step) * step;
 
   class Game {
-    constructor(industryId, rng = Math.random) {
+    constructor(industryId, rng = Math.random, opts = {}) {
       const ind = INDUSTRIES.find((i) => i.id === industryId);
       if (!ind) throw new Error(`未知產業：${industryId}`);
       this.industry = ind;
       this.rng = rng;
+      this.eventsPerMonth = opts.eventsPerMonth || EVENTS_PER_MONTH;
       this.month = 1;
       this.cash = ind.cash;
       this.staff = ind.staff;
@@ -199,10 +200,10 @@
       );
       const forced = eligible.filter((e) => e.forced);
       let pool = eligible.filter((e) => !e.forced && !this.usedEvents.has(e.id));
-      if (pool.length < EVENTS_PER_MONTH) pool = eligible.filter((e) => !e.forced);
+      if (pool.length < this.eventsPerMonth) pool = eligible.filter((e) => !e.forced);
 
       const picked = [...forced];
-      while (picked.length < EVENTS_PER_MONTH && pool.length) {
+      while (picked.length < this.eventsPerMonth && pool.length) {
         const weights = pool.map((e) => (e.industries ? 1.6 : 1));
         const total = weights.reduce((a, b) => a + b, 0);
         let r = this.rng() * total;
@@ -225,14 +226,27 @@
     }
 
     choose(index) {
-      const ev = this.currentEvent;
-      if (!ev || this.over) return null;
-      const choice = ev.choices[index];
+      return this.resolve(this.currentEvent, index);
+    }
+
+    // 即時模式下事件可以不照順序處理
+    resolve(ev, index) {
+      if (!ev || this.over || !this.queue.includes(ev)) return null;
+      return this.applyChoice(ev, ev.choices[index]);
+    }
+
+    // 拖太久沒處理：套用事件自己的 ignore，沒有就用該地點的預設
+    ignore(ev) {
+      if (!ev || this.over || !this.queue.includes(ev)) return null;
+      return this.applyChoice(ev, ev.ignore || IGNORE[ev.where || 'staff']);
+    }
+
+    applyChoice(ev, choice) {
       const fx = this.resolveEffects(choice);
       const before = this.snapshot();
       this.applyEffects(fx);
       this.monthEventCash += fx.cash || 0;
-      this.queue.shift();
+      this.queue = this.queue.filter((e) => e !== ev);
       const result = {
         event: ev,
         choice,

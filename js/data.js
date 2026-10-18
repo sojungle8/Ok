@@ -5,11 +5,12 @@
   const INDUSTRIES = [
     {
       id: 'drinks',
+      workers: ['🧑‍🍳', '👩‍🍳', '👨‍🍳'], desk: '🧋', theme: '#fdf0e1',
       name: '手搖飲店',
       icon: '🧋',
       desc: '利潤薄、工讀生多，夏天排隊排到馬路上。',
       scale: 1,
-      cash: 450000,
+      cash: 540000,
       staff: 6,
       maxStaff: 12,
       wage: 30000,
@@ -22,11 +23,12 @@
     },
     {
       id: 'tech',
+      workers: ['🧑‍💻', '👩‍💻', '👨‍💻'], desk: '💻', theme: '#e8eefc',
       name: '科技新創',
       icon: '💻',
       desc: '薪水高、燒錢快，投資人永遠覺得你不夠拚。',
       scale: 2,
-      cash: 900000,
+      cash: 1080000,
       staff: 6,
       maxStaff: 12,
       wage: 60000,
@@ -39,11 +41,12 @@
     },
     {
       id: 'store',
+      workers: ['🧑‍💼', '👩‍💼', '👨‍💼'], desk: '🛒', theme: '#e7f6ee',
       name: '便利商店（加盟）',
       icon: '🏪',
       desc: '24 小時全年無休，大夜班永遠缺人。',
       scale: 1.1,
-      cash: 450000,
+      cash: 540000,
       staff: 8,
       maxStaff: 14,
       wage: 29500,
@@ -56,11 +59,12 @@
     },
     {
       id: 'restaurant',
+      workers: ['🧑‍🍳', '👩‍🍳', '👨‍🍳'], desk: '🍳', theme: '#fbe9e4',
       name: '餐廳',
       icon: '🍜',
       desc: '廚房 50 度、連假最忙，人手永遠不夠。',
       scale: 1.3,
-      cash: 600000,
+      cash: 720000,
       staff: 8,
       maxStaff: 14,
       wage: 34000,
@@ -73,11 +77,12 @@
     },
     {
       id: 'cram',
+      workers: ['🧑‍🏫', '👩‍🏫', '👨‍🏫'], desk: '📚', theme: '#f3ecfb',
       name: '補習班',
       icon: '📚',
       desc: '寒暑假是旺季，家長的 LINE 半夜也會響。',
       scale: 1.2,
-      cash: 550000,
+      cash: 660000,
       staff: 5,
       maxStaff: 10,
       wage: 40000,
@@ -89,6 +94,32 @@
       season: [1.2, 1.25, 0.95, 0.95, 1, 1.05, 1.25, 1.25, 0.9, 0.9, 0.95, 1],
     },
   ];
+
+  // 拖太久沒處理時的預設結果（依事件發生的地點）
+  const IGNORE = {
+    staff: { effects: { morale: -4, jerk: 4 }, result: '你一直沒過去處理，對方默默回到座位，跟同事抱怨了整個下午。' },
+    phone: { effects: { cash: -12000, jerk: 1 }, result: '電話響到斷掉都沒人接，事情就這樣被耽誤，最後還是花了一筆錢收拾。' },
+    door: { effects: { cash: -6000, morale: -2, jerk: 2 }, result: '門口的人等不到你，最後是員工硬著頭皮去處理，還被罵了一頓。' },
+  };
+
+  // 辦公室地圖（20 × 12）
+  // # 牆  . 地板  D 員工座位  B 老闆桌（電話）  C 咖啡機  F 冰箱便當  S 沙發  E 大門  T 桌子  P 盆栽
+  const MAP = [
+    '####################',
+    '#P....T..T..T....CF#',
+    '#.D..D..D..D..D....#',
+    '#..................#',
+    '#.D..D..D..D..D....#',
+    '#..................#',
+    '#.TTT..TTT..TTT..S.#',
+    '#.D..D..D..D.......#',
+    '#..............B...#',
+    '#..................#',
+    '#P................P#',
+    '#########EE#########',
+  ];
+
+  const STAFF_NAMES = ['小美', '阿宏', '佳穎', '志明', '春嬌', '阿翔', '怡君', '家豪', '雅婷', '俊傑', '淑芬', 'Kevin', '詩涵', '建宏'];
 
   // 固定成本的預設名稱，產業可以用 costLabels 覆寫
   const COST_LABELS = { rent: '房租', materials: '原物料', utilities: '水電', fuel: '油資與運輸' };
@@ -144,6 +175,7 @@
       title: '颱風來襲，政府宣布停班',
       text: '氣象局發布陸上颱風警報，你所在的縣市宣布停止上班。店裡的群組一片安靜，大家都在等你開口。',
       months: [6, 7, 8, 9, 10],
+      ignore: { effects: { cash: 10000, morale: -8, jerk: 9, flag: 'typhoonAbsence' }, result: '你一直沒宣布，大家不敢不來，只好冒著風雨來上班。' },
       choices: [
         { label: '依規定放假，薪水照發', effects: { cash: -12000, morale: 5, jerk: -2 }, result: '員工在家追劇吃泡麵，群組裡出現一排「老闆讚」貼圖。' },
         { label: '照常營業，自願來的給加班費', effects: { cash: 5000, morale: -1, jerk: 1 }, result: '有兩個人冒雨來上班，沒有人被逼，大家也沒話說。' },
@@ -161,6 +193,7 @@
       icon: '🤰',
       title: '員工懷孕了',
       text: '一位表現很好的員工開心地告訴你她懷孕了，預產期在半年後，到時需要請產假。',
+      ignore: { effects: { morale: -5, jerk: 6 }, result: '她等了一整天都沒等到你回應，只好默默上網查「懷孕被老闆冷處理怎麼辦」。' },
       choices: [
         {
           label: '恭喜！依法給產假，提早安排代理人',
@@ -182,6 +215,7 @@
       icon: '🤒',
       title: '員工發燒請病假',
       text: '早上七點，一位員工傳訊息說燒到 39 度，今天沒辦法上班。',
+      ignore: { effects: { morale: -4, jerk: 5 }, result: '他傳的訊息你已讀不回，他只好吃了退燒藥硬撐著來上班。' },
       choices: [
         { label: '准假，叫他好好休息', effects: { cash: -3000, morale: 2, jerk: -1 }, result: '他回了一個感動的貼圖，隔兩天就生龍活虎地回來了。' },
         {
@@ -270,6 +304,7 @@
     },
     {
       id: 'recession',
+      where: 'phone',
       icon: '📉',
       title: '景氣變差，生意明顯下滑',
       text: '最近客人少了一大截，看起來會持續好幾個月。股東問你打算怎麼辦。',
@@ -310,6 +345,7 @@
       icon: '🩹',
       title: '員工在工作時受傷',
       text: '一位員工搬貨時閃到腰，醫生說要休息兩週，還要做復健。',
+      ignore: { effects: { cash: -10000, morale: -8, jerk: 10, flag: 'injuryCover' }, result: '你一直沒出現，受傷的員工只好自己叫車去醫院，還被要求「先別報職災」。' },
       choices: [
         {
           label: '依法負擔醫療費、給公傷假',
@@ -327,6 +363,7 @@
     },
     {
       id: 'viral',
+      where: 'door',
       icon: '🔥',
       title: '突然在網路上爆紅！',
       text: '有網紅推薦了你們，客人和訂單一口氣暴增，這週大家可能忙不過來。',
@@ -365,6 +402,7 @@
     },
     {
       id: 'minwage',
+      where: 'phone',
       icon: '📈',
       title: '最低工資調漲',
       text: '政府公告明年最低工資調漲。基層員工的薪水勢必要跟著調，資深員工也在看你怎麼做。',
@@ -421,6 +459,7 @@
     },
     {
       id: 'rent',
+      where: 'door',
       icon: '🏠',
       title: '房東要漲房租',
       text: '房東通知下個月起房租調漲。',
@@ -431,6 +470,7 @@
     },
     {
       id: 'nepotism',
+      where: 'phone',
       icon: '👨‍👩‍👦',
       title: '親戚的小孩想來上班',
       text: '阿姨打電話來：「我兒子剛退伍，在你那邊安插一個位子嘛。」',
@@ -447,6 +487,7 @@
     },
     {
       id: 'oil_shock',
+      where: 'phone',
       icon: '🛢️',
       title: '國際油價飆漲',
       text: '中東情勢緊張，國際油價一週內大漲。新聞說加油站排滿了人，騎車上班的員工也在抱怨油錢。',
@@ -505,6 +546,7 @@
       text: '一年就要結束了，大家都在偷偷討論今年的年終。',
       months: [12],
       forced: true,
+      ignore: { effects: { morale: -10, jerk: 12 }, result: '你沒有出面，年終的事就這樣不了了之。大家心裡都有數了。' },
       choices: [
         { label: '年終 1.5 個月，尾牙加碼抽獎', effects: (g) => ({ cash: -48000 * g.staff, morale: 10, jerk: -8 }), result: '尾牙上有人抽到 iPhone，全場尖叫。' },
         { label: '年終 1 個月，簡單吃一頓', effects: (g) => ({ cash: -30000 * g.staff, morale: 4, jerk: -3 }), result: '中規中矩，大家都覺得還可以。' },
@@ -520,6 +562,7 @@
 
     {
       id: 'r_vegetables',
+      where: 'phone',
       icon: '🥬',
       title: '颱風過後菜價飆漲',
       text: '颱風過後，高麗菜一顆漲到 200 元，蛋也開始限量供應。',
@@ -538,6 +581,7 @@
     },
     {
       id: 't_cloud',
+      where: 'phone',
       icon: '☁️',
       title: '雲端服務漲價',
       text: '雲端服務商宣布調漲價格，加上台幣走貶，下個月起帳單會多一成多。',
@@ -556,6 +600,7 @@
     },
     {
       id: 's_logistics',
+      where: 'phone',
       icon: '🚚',
       title: '總部調漲物流費',
       text: '總部說油價上漲，配送費要跟著調整，還「建議」各店把部分商品漲價。',
@@ -630,6 +675,7 @@
     },
     {
       id: 'd_karen',
+      where: 'door',
       icon: '😡',
       title: '奧客把店員罵哭了',
       text: '客人堅持自己點的是「微糖」不是「半糖」，對著工讀生大吼了五分鐘。',
@@ -663,6 +709,7 @@
     },
     {
       id: 'd_material',
+      where: 'phone',
       icon: '🫘',
       title: '原物料大漲',
       text: '茶葉、珍珠、鮮奶的進貨價全部漲了一成。',
@@ -676,6 +723,7 @@
     // ───────── 科技新創 ─────────
     {
       id: 't_demo',
+      where: 'phone',
       icon: '🚀',
       title: '投資人下週要看 Demo',
       text: '投資人臨時把會議提前，產品還有一堆 bug 沒修。',
@@ -759,6 +807,7 @@
     },
     {
       id: 't_client',
+      where: 'phone',
       icon: '📞',
       title: '客戶要求明天上線',
       text: '大客戶突然要求功能明天就要上線，不然要扣款。',
@@ -812,6 +861,7 @@
     },
     {
       id: 's_quota',
+      where: 'phone',
       icon: '🍱',
       title: '總部要求衝年菜業績',
       text: '總部下達年菜預購目標，每家店都要達標。',
@@ -920,6 +970,7 @@
     },
     {
       id: 'r_chef',
+      where: 'staff',
       icon: '👨‍🍳',
       title: '二廚被挖角',
       text: '對面新開的餐廳開了更高的薪水挖你的二廚。',
@@ -1040,5 +1091,5 @@
     },
   ];
 
-  root.BossData = { INDUSTRIES, COST_LABELS, POLICIES, VIOLATIONS, EVENTS };
+  root.BossData = { INDUSTRIES, COST_LABELS, POLICIES, VIOLATIONS, EVENTS, IGNORE, MAP, STAFF_NAMES };
 })(typeof window !== 'undefined' ? window : globalThis);

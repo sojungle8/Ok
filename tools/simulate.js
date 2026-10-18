@@ -1,11 +1,12 @@
 // 平衡測試：用幾種固定策略跑很多局，看勝率與結局分布。
-// 用法：node tools/simulate.js [每種策略局數]
+// 用法：node tools/simulate.js [每種策略局數] [每月事件數]
 require('../js/data.js');
 require('../js/engine.js');
 const { INDUSTRIES } = globalThis.BossData;
 const { Game } = globalThis.BossEngine;
 
 const N = Number(process.argv[2]) || 2000;
+const EVENTS = Number(process.argv[3]) || 3; // 每月事件數：普通 3、爆肝 5
 
 function pick(game, scoreFn) {
   const ev = game.currentEvent;
@@ -69,7 +70,7 @@ const STRATEGIES = {
 };
 
 function play(industryId, strat) {
-  const g = new Game(industryId);
+  const g = new Game(industryId, Math.random, { eventsPerMonth: EVENTS });
   if (strat.policy) Object.entries(strat.policy).forEach(([k, v]) => g.setPolicy(k, v));
   while (!g.over) {
     if (strat.adjust) strat.adjust(g);
