@@ -17,7 +17,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #1b1916;
     --card: #26231f;
     --text: #efe9e2;
@@ -31,7 +31,25 @@
     --bad-bg: #44231f;
     --tip-bg: #3a321c;
     --shadow: none;
+    color-scheme: dark;
   }
+}
+
+:root[data-theme="dark"] {
+  --bg: #1b1916;
+  --card: #26231f;
+  --text: #efe9e2;
+  --muted: #a69c92;
+  --line: #3a352f;
+  --accent: #f08a52;
+  --accent-ink: #1b1916;
+  --good: #6fd29a;
+  --good-bg: #1f3a2a;
+  --bad: #ff8a80;
+  --bad-bg: #44231f;
+  --tip-bg: #3a321c;
+  --shadow: none;
+  color-scheme: dark;
 }
 
 * {
@@ -59,7 +77,9 @@ button:disabled {
 
 .site-header {
   text-align: center;
-  padding: 20px 16px 4px;
+  padding-block: 20px 4px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
 }
 
 .site-header h1 {
@@ -70,7 +90,9 @@ button:disabled {
 #app {
   max-width: 1080px;
   margin: 0 auto;
-  padding: 16px;
+  padding-block: 16px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
 }
 
 .card {
@@ -980,7 +1002,9 @@ body.in-day #app {
 /* 手機橫放：數值列壓成一行 */
 @media (max-height: 520px) {
   body.in-day #app {
-    padding: 6px 10px;
+    padding-block: 6px;
+    padding-left: max(10px, env(safe-area-inset-left, 0px));
+    padding-right: max(10px, env(safe-area-inset-right, 0px));
     max-width: none;
   }
 
@@ -1040,4 +1064,22 @@ body.in-day #app {
   .rotate-hint {
     display: block;
   }
+}
+
+.copy-box {
+  width: 100%;
+  margin-top: 12px;
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--text);
+  resize: none;
+}
+
+.hr-buttons button.danger {
+  border-color: var(--bad);
+  color: var(--bad);
 }

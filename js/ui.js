@@ -461,7 +461,7 @@
           <div class="policy-label">人事</div>
           <div class="hr-buttons">
             <button data-action="hire" ${g.staff >= g.industry.maxStaff ? 'disabled' : ''}>＋ 招募一人<small>${money(g.hireCost)}</small></button>
-            <button data-action="layoff" ${g.staff <= 1 ? 'disabled' : ''}>－ 依法資遣一人<small>${money(g.severance)}</small></button>
+            <button data-action="layoff" class="${ui.confirmLayoff ? 'danger' : ''}" ${g.staff <= 1 ? 'disabled' : ''}>${ui.confirmLayoff ? '再按一次確認資遣' : '－ 依法資遣一人'}<small>${ui.confirmLayoff ? `資遣費 ${money(g.severance)}，士氣會下降` : money(g.severance)}</small></button>
           </div>
           <div class="hr-buttons">
             <button data-action="raise" ${g.raisedThisMonth ? 'disabled' : ''}>💵 全員調薪 3%<small>${g.raisedThisMonth ? '這個月已經調過了' : `每月薪資 +${money(g.staff * g.wage * 0.03)}`}</small></button>
@@ -623,6 +623,7 @@
     if (!btn || btn.disabled) return;
     const g = ui.game;
     const a = btn.dataset.action;
+    if (a !== 'layoff') ui.confirmLayoff = false;
     switch (a) {
       case 'set': {
         const nameInput = document.getElementById('boss-name');
@@ -667,12 +668,29 @@
         ui.phase = 'start';
         ui.game = null;
         break;
-      case 'copy':
-        navigator.clipboard?.writeText(resultText(g)).then(
-          () => (btn.textContent = '✅ 已複製'),
-          () => (btn.textContent = '複製失敗')
-        );
+      case 'copy': {
+        const text = resultText(g);
+        const fallback = () => {
+          btn.textContent = '請手動複製下面的文字';
+          let box = document.querySelector('.copy-box');
+          if (!box) {
+            box = document.createElement('textarea');
+            box.className = 'copy-box';
+            box.id = 'copy-box';
+            box.readOnly = true;
+            box.rows = 5;
+            btn.closest('.ending').appendChild(box);
+          }
+          box.value = text;
+          box.select();
+        };
+        try {
+          navigator.clipboard.writeText(text).then(() => (btn.textContent = '✅ 已複製'), fallback);
+        } catch (err) {
+          fallback();
+        }
         return;
+      }
       case 'policy':
         g.setPolicy(btn.dataset.key, btn.dataset.value);
         break;
@@ -686,9 +704,11 @@
         g.changePrice(Number(btn.dataset.step));
         break;
       case 'layoff':
-        if (!confirm(`確定要資遣一位員工嗎？需支付資遣費 ${money(g.severance)}，其他人的士氣也會下降。`)) return;
-        g.layoff();
-        break;
+        // 按兩次才確認（嵌入的網頁不能跳出 confirm 視窗）
+        if (ui.confirmLayoff) g.layoff();
+        ui.confirmLayoff = !ui.confirmLayoff;
+        render();
+        return;
     }
     render();
   });
