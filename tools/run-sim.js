@@ -1,6 +1,7 @@
 // 無畫面跑模擬：每個產業用預設配置跑 N 天，看每日來客、營收與成本
 // 用法：node tools/run-sim.js [天數] [產業id]
 require('../js/data.js');
+require('../js/fun.js');
 require('../js/portraits.js');
 require('../js/industries.js');
 require('../js/sim.js');

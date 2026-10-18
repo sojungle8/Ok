@@ -285,7 +285,95 @@
     });
   }
 
+  // ───── 奧客擂台：三回合，每回合從三句回嘴挑一句；觀眾笑聲夠多就贏 ─────
+  function roast(host, spec) {
+    return new Promise((resolve) => {
+      const k = (root.BossFun.KARENS || []).find((x) => x.id === spec.karen) || root.BossFun.KARENS[0];
+      const need = spec.need || 4;
+      const secs = spec.seconds || 9;
+      const wrap = shell(
+        host,
+        { ...spec, kicker: spec.kicker || '奧客擂台・用嘴巴贏回尊嚴' },
+        `<p class="mg-help">選一句回嘴：<b>又好笑又有分寸</b>的觀眾最買單；太超過反而會被錄下來罵。每回合 ${secs} 秒。</p>
+         <div class="roast-stage">
+           <div class="roast-karen"><span class="roast-icon">${k.icon}</span><div class="roast-bubble"></div></div>
+           <div class="roast-meter"><span>😂 觀眾笑聲</span><div class="bar"><div class="bar-fill morale roast-fill"></div></div><b class="roast-score">0</b>/${need}</div>
+           <div class="roast-react"></div>
+         </div>
+         <div class="roast-options"></div>`
+      );
+      const bubble = wrap.querySelector('.roast-bubble');
+      const opts = wrap.querySelector('.roast-options');
+      const react = wrap.querySelector('.roast-react');
+      let round = 0;
+      let score = 0;
+      let timer = null;
+      let locked = false;
+      const pts = { great: 2, ok: 1, over: 0 };
+      const reactions = {
+        great: ['全店爆笑！有人開始拍手 👏', '排隊的客人笑到蹲下 🤣', '有人大喊「老闆說得好！」'],
+        ok: ['幾個客人點點頭', '還算得體', '奧客愣了一下'],
+        over: ['全場倒抽一口氣……😬', '有人小聲說「這樣講有點過分」', '前排的客人默默把手機轉過來錄'],
+        slow: ['你愣住了，奧客更得意了 😤'],
+      };
+      const keys = (e) => {
+        const n = Number(e.key);
+        if (n >= 1 && n <= 3) pick(n - 1);
+      };
+      const cleanup = () => {
+        if (timer) timer.stop();
+        window.removeEventListener('keydown', keys);
+      };
+      let order = [];
+      function show() {
+        const r = k.rounds[round];
+        bubble.textContent = `「${r.line}」`;
+        order = ['great', 'ok', 'over'].sort(() => Math.random() - 0.5);
+        opts.innerHTML = order.map((t, i) => `<button class="roast-opt" data-i="${i}"><kbd>${i + 1}</kbd>${r[t]}</button>`).join('');
+        locked = false;
+        timer = countdown(wrap, secs, null, () => answer(null));
+      }
+      function pick(i) {
+        if (locked || !order[i]) return;
+        answer(order[i], i);
+      }
+      function answer(type, i) {
+        if (locked) return;
+        locked = true;
+        timer.stop();
+        const t = type || 'slow';
+        score += pts[type] || 0;
+        wrap.querySelector('.roast-score').textContent = score;
+        wrap.querySelector('.roast-fill').style.width = `${Math.min(100, (score / need) * 100)}%`;
+        const list = reactions[t];
+        react.textContent = list[Math.floor(Math.random() * list.length)];
+        react.className = `roast-react ${t}`;
+        opts.querySelectorAll('.roast-opt').forEach((b, j) => {
+          b.disabled = true;
+          b.classList.add(order[j]);
+          if (j === i) b.classList.add('picked');
+        });
+        if (root.BossAudio) root.BossAudio.play(t === 'great' ? 'level' : t === 'over' || t === 'slow' ? 'bad' : 'click');
+        setTimeout(() => {
+          round++;
+          if (round >= k.rounds.length || score >= need + 2) {
+            const ok = score >= need;
+            return finish(wrap, ok, ok ? `嗆贏了！觀眾笑聲 ${score} 分` : `觀眾笑聲只有 ${score} 分……`, cleanup, resolve);
+          }
+          show();
+        }, 1500);
+      }
+      opts.addEventListener('click', (e) => {
+        const b = e.target.closest('.roast-opt');
+        if (b) pick(Number(b.dataset.i));
+      });
+      window.addEventListener('keydown', keys);
+      show();
+    });
+  }
+
   function run(host, spec, industryId) {
+    if (spec.type === 'roast') return roast(host, spec);
     if (spec.type === 'orders') return orders(host, spec, industryId);
     if (spec.type === 'needle') return needle(host, spec);
     return mash(host, spec);

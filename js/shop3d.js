@@ -416,6 +416,10 @@
   const dirtMats = {};
   const dirtMat = (kind) => (dirtMats[kind] ||= new THREE.MeshBasicMaterial({ color: DIRT_COLORS[kind] || '#8a6a3e', transparent: true, opacity: kind === 'oil' ? 0.7 : 0.6, depthWrite: false }));
 
+  const hitGeoBig = new THREE.CylinderGeometry(0.42, 0.42, 1.6, 8);
+  const hitGeo = new THREE.CylinderGeometry(0.3, 0.3, 1.5, 8);
+  const hitMat = new THREE.MeshBasicMaterial({ visible: false });
+
   const staffRingGeo = new THREE.RingGeometry(0.24, 0.31, 24);
   const staffRingMat = new THREE.MeshBasicMaterial({ color: '#2fbf71', transparent: true, opacity: 0.85, depthWrite: false });
 
@@ -687,11 +691,16 @@
       for (const a of this.agents.values()) if (a.pickable) targets.push(a.p.group);
       for (const m of this.objMeshes.values()) targets.push(m.group);
       const hits = rc.intersectObjects(targets, true);
+      const found = [];
       for (const h of hits) {
         let o = h.object;
         while (o && !o.userData.pick) o = o.parent;
-        if (o) return o.userData.pick;
+        if (o) found.push(o.userData.pick);
       }
+      // 人比家具優先（員工會走動，比較難點到）
+      const pri = { staff: 0, customer: 1, object: 2 };
+      found.sort((a, b) => pri[a.kind] - pri[b.kind]);
+      if (found.length) return found[0];
       const t = this.pickTile(clientX, clientY);
       return t ? { kind: 'tile', ...t } : null;
     }
@@ -752,11 +761,23 @@
       for (const x of [-OUT_W, 0, W, W + OUT_W]) B(this.frontProps, 0.35, WALL_H + 0.6, 0.35, '#e3d9cb', x, 0, H + 0.95);
 
       // 店內地板
+      const fstyle = root.BossIndustries.FLOORS[s.style.floor] || {};
       const floorTex = canvasTex(W * 32, H * 32, (c) => {
-        const cols = { breakfast: ['#f2ead8', '#e6dcc7'], noodle: ['#e9dfd0', '#dccfbd'], drinks: ['#eef3ee', '#e1eae2'], barber: ['#ececec', '#3a3a3a'], scooter: ['#9a9a9a', '#8f8f8f'], store: ['#f4f6f8', '#e8ecef'] }[ind.id] || ['#eee', '#ddd'];
-        for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-          c.fillStyle = cols[(x + y) % 2];
-          c.fillRect(x * 32, y * 32, 32, 32);
+        const cols = fstyle.colors || { breakfast: ['#f2ead8', '#e6dcc7'], noodle: ['#e9dfd0', '#dccfbd'], drinks: ['#eef3ee', '#e1eae2'], barber: ['#ececec', '#3a3a3a'], scooter: ['#9a9a9a', '#8f8f8f'], store: ['#f4f6f8', '#e8ecef'] }[ind.id] || ['#eee', '#ddd'];
+        const n = fstyle.small ? 2 : 1;
+        for (let y = 0; y < H * n; y++) for (let x = 0; x < W * n; x++) {
+          c.fillStyle = cols[s.style.floor === 'wood' ? y % 2 : (x + y) % 2];
+          c.fillRect((x * 32) / n, (y * 32) / n, 32 / n, 32 / n);
+        }
+        if (s.style.floor === 'wood') {
+          c.strokeStyle = 'rgba(80,50,20,0.25)';
+          for (let y = 0; y < H * 2; y++) for (let x = -1; x < W; x++) c.strokeRect(x * 32 + (y % 2) * 16, y * 16, 32, 16);
+        }
+        if (fstyle.speckle) {
+          for (let i = 0; i < W * H * 14; i++) {
+            c.fillStyle = ['#b9ad98', '#8f8676', '#d9b48c', '#9fb7a0'][i % 4];
+            c.fillRect(Math.random() * W * 32, Math.random() * H * 32, 2, 2);
+          }
         }
         // 格線：看得出每一格的邊界
         c.strokeStyle = 'rgba(60,40,20,0.16)';
@@ -783,7 +804,7 @@
       g.add(floor);
 
       // 牆
-      const wallMat = mat('#e8ddcf', { roughness: 0.95 });
+      const wallMat = mat(s.style.wall || '#e8ddcf', { roughness: 0.95 });
       const trim = mat('#9a8572');
       B(this.walls.back, W + 0.3, WALL_H, 0.15, wallMat, W / 2, 0, -0.08);
       B(this.walls.back, W + 0.3, 0.15, 0.17, trim, W / 2, 0, -0.08);
@@ -800,11 +821,12 @@
       B(this.walls.front, W - rx, WALL_H - 0.45, 0.06, glass, rx + (W - rx) / 2, 0.45, H + 0.02);
       B(this.walls.front, W + 0.3, 0.35, 0.18, trim, W / 2, WALL_H - 0.05, H + 0.02);
       // 招牌
+      const signColor = s.style.sign || ind.signColor;
       this.signTex = canvasTex(1024, 192, (c, w, h) => {
         const grad = c.createLinearGradient(0, 0, 0, h);
-        grad.addColorStop(0, ind.signColor);
+        grad.addColorStop(0, signColor);
         grad.addColorStop(1, '#00000033');
-        c.fillStyle = ind.signColor;
+        c.fillStyle = signColor;
         c.fillRect(0, 0, w, h);
         c.fillStyle = grad;
         c.fillRect(0, 0, w, h);
@@ -818,7 +840,7 @@
         c.fillText(s.shopName, w / 2, h / 2 + 6);
       });
       this.signMat = new THREE.MeshStandardMaterial({ map: this.signTex, emissive: '#ffffff', emissiveMap: this.signTex, emissiveIntensity: 0.15, transparent: true });
-      this.signSide = new THREE.MeshStandardMaterial({ color: ind.signColor, transparent: true });
+      this.signSide = new THREE.MeshStandardMaterial({ color: signColor, transparent: true });
       const sign = new THREE.Mesh(new THREE.BoxGeometry(Math.min(W, 7), 0.95, 0.12), [this.signSide, this.signSide, this.signSide, this.signSide, this.signMat, this.signSide]);
       sign.position.set(W / 2, WALL_H + 0.6, H + 0.15);
       g.add(sign);
@@ -1178,6 +1200,12 @@
           const p = People.make(a.look);
           p.group.userData.pick = kind === 'staff' ? { kind: 'staff', staff: a } : kind === 'customer' ? { kind: 'customer', customer: a } : null;
           v = { p, kind, pickable: kind === 'staff' || kind === 'customer' };
+          if (v.pickable) {
+            // 看不見、大一點的點擊範圍，走動中的人也點得到
+            const hit = new THREE.Mesh(kind === 'staff' ? hitGeoBig : hitGeo, hitMat);
+            hit.position.y = 0.75;
+            p.group.add(hit);
+          }
           if (kind === 'scooter' || (kind === 'customer' && a.scooter)) {
             const sc = a.supplier ? scooterModel('#ecf0f1', true, '#2f6db5') : a.rider ? scooterModel('#3a3a3a', true) : scooterModel(['#c0392b', '#ecf0f1', '#2c3e50', '#2980b9', '#f1c40f'][a.id % 5]);
             sc.rotation.y = 0;
@@ -1402,8 +1430,9 @@
     render(now) {
       const dt = Math.min(0.05, (now - this.lastNow) / 1000);
       this.lastNow = now;
-      if (this.sim.W !== this._lastW) {
+      if (this.sim.W !== this._lastW || (this.sim.styleVer || 0) !== this._styleVer) {
         this._lastW = this.sim.W;
+        this._styleVer = this.sim.styleVer || 0;
         this.buildStatic();
       }
       this.syncObjects();
@@ -1656,6 +1685,14 @@
           }
           add(el, c.x + 0.5, 1.75, c.z + 0.5, 42, 28, 2);
         }
+      }
+      // 奧客在大聲嚷嚷
+      for (const c of s.customers) {
+        if (!c.karen || c.state === 'leaving') continue;
+        const el = this.label(`kr-${c.id}`, 'karen3d');
+        const text = c.thought && c.thought.until > s.minute ? `😤 ${c.thought.text}` : `😤 ${c.karen.name}`;
+        if (el.textContent !== text) el.textContent = text;
+        add(el, c.x + 0.5, 2.0, c.z + 0.5, Math.min(200, text.length * 12 + 18), 24, 2);
       }
       // 金額與表情（最多 10 個）
       s.popups.slice(-10).forEach((p) => {

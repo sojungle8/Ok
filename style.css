@@ -3024,3 +3024,689 @@ kbd {
   font-size: 0.84rem;
   margin-top: 2px;
 }
+
+/* ───── 奧客擂台 ───── */
+.roast-stage {
+  display: grid;
+  gap: 8px;
+  margin: 6px 0 10px;
+}
+
+.roast-karen {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.roast-icon {
+  font-size: 2.4rem;
+  line-height: 1;
+}
+
+.roast-bubble {
+  flex: 1;
+  background: var(--bad-bg);
+  color: var(--text);
+  border-radius: 14px 14px 14px 4px;
+  padding: 10px 14px;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  animation: slide-in 0.25s ease-out;
+}
+
+.roast-meter {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+}
+
+.roast-react {
+  min-height: 1.4em;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.roast-react.great {
+  color: var(--good);
+  font-weight: 700;
+}
+
+.roast-react.over,
+.roast-react.slow {
+  color: var(--bad);
+}
+
+.roast-options {
+  display: grid;
+  gap: 6px;
+}
+
+.roast-opt {
+  text-align: left;
+  border: 1px solid var(--line);
+  background: var(--card);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.roast-opt kbd {
+  flex-shrink: 0;
+}
+
+.roast-opt.great {
+  border-color: var(--good);
+}
+
+.roast-opt.over {
+  border-color: var(--bad);
+}
+
+.roast-opt.picked {
+  box-shadow: 0 0 0 3px var(--accent-soft);
+  font-weight: 700;
+}
+
+/* ───── 店長建議 ───── */
+.tb-advice {
+  position: relative;
+}
+
+.tb-advice i {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  background: var(--bad);
+  color: #fff;
+  font-style: normal;
+  font-size: 0.66rem;
+  line-height: 16px;
+  padding: 0 4px;
+}
+
+.tb-advice i:empty {
+  display: none;
+}
+
+.advice-list {
+  display: grid;
+  gap: 8px;
+}
+
+.advice {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 10px;
+  align-items: center;
+  background: var(--bg);
+  border-radius: 12px;
+  padding: 8px 12px;
+}
+
+.advice > span {
+  font-size: 1.4rem;
+}
+
+.advice p {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.advice button {
+  border: 1px solid var(--line);
+  background: var(--card);
+  border-radius: 10px;
+  padding: 4px 10px;
+}
+
+/* ───── 員工總覽 ───── */
+.drawer.tall {
+  max-height: min(68vh, 620px);
+}
+
+.staff-sum {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: 0.84rem;
+  margin-bottom: 8px;
+}
+
+.staff-sum .warn,
+.sched-table .warn {
+  color: #b7791f;
+}
+
+.staff-table {
+  display: grid;
+  gap: 4px;
+}
+
+.st-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 1.4fr) minmax(130px, 1.4fr) repeat(4, minmax(60px, 0.7fr)) auto auto;
+  gap: 8px;
+  align-items: center;
+  background: var(--bg);
+  border-radius: 12px;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+}
+
+.st-row.sel {
+  border-color: var(--accent);
+}
+
+.st-row.risk {
+  background: var(--bad-bg);
+}
+
+.st-head {
+  background: none;
+  font-size: 0.72rem;
+  color: var(--muted);
+  padding-block: 0;
+}
+
+.st-who {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  background: none;
+  text-align: left;
+  padding: 0;
+  min-width: 0;
+}
+
+.st-who b {
+  display: block;
+  font-size: 0.9rem;
+}
+
+.st-who small,
+.st-now small {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.st-now {
+  min-width: 0;
+}
+
+.st-now b {
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.st-bar {
+  position: relative;
+  height: 18px;
+  background: var(--line);
+  border-radius: 9px;
+  overflow: hidden;
+}
+
+.st-bar i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 9px;
+  transition: width 0.4s;
+}
+
+.st-bar i.m {
+  background: var(--morale);
+}
+
+.st-bar i.e {
+  background: var(--energy);
+}
+
+.st-bar i.h {
+  background: var(--hunger);
+}
+
+.st-bar i.s {
+  background: var(--skill);
+}
+
+.st-bar b {
+  position: relative;
+  display: block;
+  text-align: center;
+  font-size: 0.72rem;
+  line-height: 18px;
+  color: var(--text);
+}
+
+.st-bar.low b {
+  color: var(--bad);
+}
+
+.st-wage {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.st-wage button,
+.st-act button {
+  border: 1px solid var(--line);
+  background: var(--card);
+  border-radius: 8px;
+  min-width: 30px;
+  height: 30px;
+  padding: 0 4px;
+}
+
+.st-wage b {
+  min-width: 46px;
+  text-align: center;
+  font-size: 0.84rem;
+}
+
+.st-act {
+  display: inline-flex;
+  gap: 4px;
+}
+
+@media (max-width: 900px) {
+  .st-head {
+    display: none;
+  }
+
+  .st-row {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-areas:
+      'who who now now'
+      'm e h s'
+      'wage wage act act';
+  }
+
+  .st-who {
+    grid-area: who;
+  }
+
+  .st-now {
+    grid-area: now;
+  }
+
+  .st-wage {
+    grid-area: wage;
+  }
+
+  .st-act {
+    grid-area: act;
+    justify-content: flex-end;
+  }
+}
+
+/* 排班表 */
+.sched-table {
+  display: grid;
+  gap: 4px;
+  overflow-x: auto;
+}
+
+.sc-row {
+  display: grid;
+  grid-template-columns: 110px 82px repeat(7, 38px) 86px minmax(130px, 1fr);
+  gap: 4px;
+  align-items: center;
+  background: var(--bg);
+  border-radius: 10px;
+  padding: 4px 6px;
+  min-width: 620px;
+  font-size: 0.8rem;
+}
+
+.sc-head {
+  background: none;
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-align: center;
+}
+
+.sc-who {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sc-who .mini-face {
+  width: 26px;
+  height: 26px;
+}
+
+.sc-row select {
+  font-size: 0.78rem;
+  padding: 3px;
+  min-width: 0;
+}
+
+.sc-day {
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  font-size: 0.78rem;
+  padding: 0;
+}
+
+.sc-day.on {
+  background: var(--good-bg);
+  color: var(--good);
+}
+
+.sc-day.off {
+  background: var(--card);
+  color: var(--muted);
+}
+
+.link {
+  border: none;
+  background: none;
+  color: var(--accent);
+  text-decoration: underline;
+  font-size: 0.72rem;
+  padding: 0 0 0 4px;
+}
+
+/* ───── 裝潢樣式 ───── */
+.style-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.style-row > span {
+  min-width: 70px;
+  font-size: 0.84rem;
+}
+
+.style-row > span small {
+  display: block;
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.style-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  border-radius: 10px;
+  padding: 4px 8px;
+  font-size: 0.76rem;
+}
+
+.style-chip i {
+  width: 34px;
+  height: 20px;
+  border-radius: 5px;
+  border: 1px solid var(--line);
+}
+
+.style-chip small {
+  color: var(--muted);
+  font-size: 0.66rem;
+}
+
+.style-chip.active,
+.swatch.active {
+  outline: 3px solid var(--accent);
+}
+
+.swatch {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  padding: 0;
+}
+
+.price-row.locked {
+  opacity: 0.85;
+  border: 1px dashed var(--line);
+}
+
+.price-row.locked button {
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  background: var(--card);
+  border-radius: 10px;
+  padding: 3px 10px;
+  font-size: 0.8rem;
+}
+
+/* ───── 小編 ───── */
+.trend-card {
+  background: linear-gradient(135deg, var(--accent-soft), var(--bg));
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+}
+
+.trend-card small {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.trend-card b {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+}
+
+.trend-card p {
+  margin: 4px 0;
+  font-size: 0.84rem;
+}
+
+.post-step {
+  margin-bottom: 8px;
+}
+
+.post-step > small {
+  color: var(--muted);
+  font-size: 0.74rem;
+}
+
+.post-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 3px;
+}
+
+.post-chip {
+  border: 1px solid var(--line);
+  background: var(--card);
+  border-radius: 12px;
+  padding: 5px 9px;
+  font-size: 0.78rem;
+  text-align: left;
+  line-height: 1.35;
+}
+
+.post-chip.trend {
+  border-color: var(--energy);
+}
+
+.post-chip.risky {
+  border-style: dashed;
+}
+
+.post-chip.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+.post-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px;
+  margin-bottom: 12px;
+  box-shadow: var(--shadow);
+}
+
+.post-head {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.post-head small {
+  display: block;
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.post-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 1.2rem;
+}
+
+.post-text {
+  font-size: 0.92rem;
+  line-height: 1.55;
+  margin: 10px 0;
+}
+
+.post-list {
+  display: grid;
+  gap: 8px;
+}
+
+.post-old {
+  background: var(--bg);
+  border-radius: 12px;
+  padding: 8px 10px;
+  font-size: 0.82rem;
+}
+
+.post-old p {
+  margin: 4px 0;
+}
+
+.post-old small {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.post-old.viral {
+  border-left: 4px solid var(--good);
+}
+
+.post-old.fire {
+  border-left: 4px solid var(--bad);
+}
+
+.post-comments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin-top: 4px;
+  font-size: 0.76rem;
+}
+
+.headlines {
+  background: var(--bg);
+  border-radius: 12px;
+  padding: 8px 12px;
+  margin: 8px 0;
+}
+
+.headlines small {
+  color: var(--muted);
+}
+
+.headlines p {
+  margin: 4px 0;
+  font-size: 0.86rem;
+}
+
+/* 奧客頭上的對白 */
+.karen3d {
+  position: absolute;
+  left: 0;
+  top: 0;
+  white-space: nowrap;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: #c43d3d;
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  pointer-events: none;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  animation: karen-shake 0.6s ease-in-out infinite;
+}
+
+@keyframes karen-shake {
+  0%,
+  100% {
+    rotate: 0deg;
+  }
+  25% {
+    rotate: -2deg;
+  }
+  75% {
+    rotate: 2deg;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .karen3d {
+    animation: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .toolbar button {
+    padding: 4px 3px;
+    font-size: 0.7rem;
+  }
+
+  .tb-advice i {
+    top: -2px;
+    right: -2px;
+  }
+}
+
+.post-inline {
+  display: none;
+  margin-top: 6px;
+}
+
+@media (max-width: 900px) {
+  .post-inline {
+    display: inline-block;
+  }
+}

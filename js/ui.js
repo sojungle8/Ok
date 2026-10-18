@@ -1,7 +1,8 @@
 // 介面：開始畫面、上方資訊列、底部工具列與抽屜、檢視面板、事件對話、週報、結局
 (function () {
   const { Sim, CATALOG, catalogById, ACHIEVEMENTS, MIN_WAGE, WEEKDAYS, INS, TAX_LABEL, CUSTOMER_TYPES } = window.BossSim;
-  const { INDUSTRIES, CAT_LABELS, LOTS, TRAITS, LEVELS, DISTRICTS, DISTRICT_INFO } = window.BossIndustries;
+  const { INDUSTRIES, CAT_LABELS, LOTS, TRAITS, LEVELS, DISTRICTS, DISTRICT_INFO, DIFFICULTY, FLOORS, WALLS, SIGNS } = window.BossIndustries;
+  const Fun = window.BossFun;
   const { portraitSVG, bossLook, VISITORS } = window.BossLooks;
   const app = document.getElementById('app');
   const LEGACY_KEY = 'boss-sim-save-v1';
@@ -59,6 +60,9 @@
     tut: null, // 新手教學：{ step }
     tutFlags: {},
     quality: store.get(QUALITY_KEY) || 'auto',
+    autoPause: store.get('boss-sim-autopause') !== '0',
+    staffTab: 'overview',
+    post: { hook: 'confess', body: null, end: 'tag' },
   };
   ui.settings.tutorial = !store.get(TUT_KEY);
 
@@ -67,6 +71,48 @@
   const signedMoney = (n) => (n > 0 ? `+${money(n)}` : money(n));
   const signed = (n) => (n > 0 ? `+${n}` : `${n}`);
   const stars = (r) => '★'.repeat(Math.round(r)) + '☆'.repeat(5 - Math.round(r));
+  // 只更新有變動的節點：按鈕不會在手指下被換掉，捲動位置也不會跳回最上面
+  function morph(target, html) {
+    const tpl = document.createElement('template');
+    tpl.innerHTML = html;
+    syncChildren(target, tpl.content);
+  }
+  function syncChildren(a, b) {
+    const an = [...a.childNodes];
+    const bn = [...b.childNodes];
+    for (let i = 0; i < bn.length; i++) {
+      const x = an[i];
+      const y = bn[i];
+      if (!x) {
+        a.appendChild(y.cloneNode(true));
+        continue;
+      }
+      if (x.nodeType !== y.nodeType || x.nodeName !== y.nodeName) {
+        a.replaceChild(y.cloneNode(true), x);
+        continue;
+      }
+      if (x.nodeType !== 1) {
+        if (x.nodeValue !== y.nodeValue) x.nodeValue = y.nodeValue;
+        continue;
+      }
+      for (const at of [...x.attributes]) if (!y.hasAttribute(at.name)) x.removeAttribute(at.name);
+      for (const at of [...y.attributes]) if (x.getAttribute(at.name) !== at.value) x.setAttribute(at.name, at.value);
+      if (x.nodeName === 'INPUT') {
+        x.checked = y.hasAttribute('checked');
+        if (x.type !== 'file' && x !== document.activeElement && x.value !== y.getAttribute('value') && y.hasAttribute('value')) x.value = y.getAttribute('value');
+        continue;
+      }
+      if (x.nodeName === 'SELECT') {
+        if (x === document.activeElement) continue;
+        syncChildren(x, y);
+        const sel = y.querySelector('option[selected]');
+        if (sel && x.value !== sel.value) x.value = sel.value;
+        continue;
+      }
+      syncChildren(x, y);
+    }
+    for (let i = an.length - 1; i >= bn.length; i--) a.removeChild(an[i]);
+  }
   const hhmm = (m) => `${String(Math.floor(((m % 1440) + 1440) % 1440 / 60)).padStart(2, '0')}:${String(((m % 60) + 60) % 60).padStart(2, '0')}`;
   const loadSlot = (n) => store.get(slotKey(n));
   function slotInfo(n) {
@@ -188,8 +234,7 @@
           <div class="setup-row">
             <span class="setup-label">難度</span>
             <div class="segmented small">
-              <button data-action="set" data-key="mode" data-value="normal" class="${st.mode === 'normal' ? 'active' : ''}">一般<small>客人比較有耐心</small></button>
-              <button data-action="set" data-key="mode" data-value="hell" class="${st.mode === 'hell' ? 'active' : ''}">🔥 地獄<small>事件多、客人急、員工容易累</small></button>
+              ${Object.entries(DIFFICULTY).map(([id, d]) => `<button data-action="set" data-key="mode" data-value="${id}" class="${st.mode === id ? 'active' : ''}">${id === 'hell' ? '🔥 ' : id === 'easy' ? '🌱 ' : ''}${d.name}<small>${d.desc}</small></button>`).join('')}
             </div>
           </div>
           <div class="setup-row">
@@ -254,6 +299,7 @@
             ['stock', '📦', '庫存'],
             ['manage', '⚙️', '經營'],
             ['ledger', '📊', '帳本'],
+            ['social', '📱', '小編'],
             ['reviews', '⭐', '評論'],
             ['goals', '🏙️', '成長'],
           ]
@@ -333,8 +379,8 @@
     { title: '調整進貨量', short: '按＋或－改一種食材的進貨量',  text: () => '按「＋」或「－」改一種食材的每天進貨量。也可以打開「依昨天用量自動調整」。', target: '[data-action="par"]', done: () => ui.tutFlags.par || ui.sim.policy.autoStock },
     { title: '定價', short: '在「菜單與價格」按＋或－改一個價格',  text: () => '打開「⚙️ 經營」，在「菜單與價格」按＋／－改一個品項的價格。太貴學生和長輩會不想來，太便宜又賺不到錢。', target: '[data-tab="manage"], [data-action="price"]', done: () => ui.tutFlags.price },
     { title: '擺設', short: '建造 → 選一樣東西 → 點地板放下',  text: () => '打開「🏗️ 建造」，買一盆盆栽（或任何東西），點地板放下去。店面漂亮，路人比較願意進來。', target: '[data-tab="build"]', done: () => ui.sim.objects.length > ui.tutObjs },
-    { title: '招人', short: '在「應徵者」錄取一位',  text: () => '打開「👥 員工」，錄取一位應徵者。人手不夠，客人會等到生氣離開。', target: '[data-tab="staff"], [data-action="hire"]', done: () => ui.sim.staff.length > ui.tutStaff },
-    { title: '開門營業', short: '按右上角的 ▶ 讓時間開始走',  text: () => '按右上角的 ▶ 讓時間開始走。客人會走進來點餐，員工沒事做的時候會拿拖把打掃。', target: '[data-action="speed"][data-v="2"]', done: () => ui.speed > 0 && ui.sim.today.served > 0 },
+    { title: '招人', short: '員工 →「🙋 應徵者」→ 錄取', text: () => '打開「👥 員工」，切到「🙋 應徵者」分頁錄取一位。人手不夠，客人會等到生氣離開。旁邊的「👥 總覽」一眼就能看到所有人的心情和體力。', target: '[data-tab="staff"], [data-v="hire"], [data-action="hire"]', done: () => ui.sim.staff.length > ui.tutStaff },
+    { title: '開門營業', short: '關掉面板，按右上角的 ▶', text: () => '先把下面的面板關起來（打開面板時時間會暫停），再按右上角的 ▶ 讓時間開始走。客人會走進來點餐，員工沒事做的時候會拿拖把打掃。', target: '[data-action="speed"][data-v="2"]', done: () => ui.speed > 0 && ui.sim.today.served > 0 },
     { title: '看看員工', short: '點一位腳下有綠圈的員工',  text: () => '點一位員工（腳下有綠色圓圈的人），看他的心情、精力和想法。', done: () => ui.inspect && ui.inspect.kind === 'staff' },
     { title: '教學完成！', text: () => '最後提醒：要給加班費、要排休、勞健保要保。店裡太髒會被衛生局開罰，附近也可能開競爭對手。慣老闆指數到 100，店就會收起來。祝生意興隆！', next: true },
   ];
@@ -392,7 +438,9 @@
     ui.last = now;
     const sim = ui.sim;
     if (!sim) return;
-    const blocked = !!ui.dialog;
+    // 打開員工、庫存、經營這些面板時自動暫停（可以在選單關掉）
+    ui.panelPause = ui.autoPause && ['staff', 'stock', 'manage', 'social', 'goals', 'ledger'].includes(ui.tab);
+    const blocked = !!ui.dialog || ui.panelPause;
     if (!blocked && ui.speed > 0 && !sim.over) {
       // 打烊、沒人在店裡時自動快轉
       const empty = !sim.isOpen && !sim.customers.length && !sim.staff.some((e) => e.state !== 'off') && !sim.activeEvents.length;
@@ -427,7 +475,7 @@
       updateMusic();
     }
     ui.drawerT = (ui.drawerT || 0) + dt;
-    if (ui.drawerT > 1 && (ui.tab === 'staff' || ui.tab === 'ledger' || ui.tab === 'stock')) {
+    if (ui.drawerT > 0.5 && ['staff', 'ledger', 'stock', 'social'].includes(ui.tab)) {
       ui.drawerT = 0;
       refreshDrawerLive();
     }
@@ -469,7 +517,7 @@
         <div class="tb-stat"><small data-f="rcount"></small><b class="stars" data-f="rating"></b></div>
         <div class="tb-meter"><small data-f="mortext"></small><div class="bar"><div class="bar-fill morale" data-f="morbar"></div></div></div>
         <div class="tb-meter"><small data-f="jerktext"></small><div class="bar"><div class="bar-fill jerk" data-f="jerkbar"></div></div></div>
-        <div class="tb-menu"><button data-action="music" title="背景音樂">🎵</button><button data-action="sfx" title="音效">🔊</button><button data-action="sys-menu" title="選單：存檔、匯出、畫質">☰</button><button data-action="quit" title="存檔並回主選單">🚪</button></div>`;
+        <div class="tb-menu"><button data-action="advice" class="tb-advice" title="店長建議：現在最該處理的事">💡<i data-f="advn"></i></button><button data-action="music" title="背景音樂">🎵</button><button data-action="sfx" title="音效">🔊</button><button data-action="sys-menu" title="選單：存檔、匯出、畫質">☰</button><button data-action="quit" title="存檔並回主選單">🚪</button></div>`;
     }
     const f = (k) => el.querySelector(`[data-f="${k}"]`);
     const txt = (k, v) => {
@@ -487,10 +535,13 @@
     txt('wicon', s.weather.icon);
     txt('wtext', `${s.weather.name}${s.festival ? `・${s.festival.icon}${s.festival.name}` : ''}`);
     txt('clock', s.clockLabel);
+    ui.adviceT = (ui.adviceT || 0) + 1;
+    if (ui.adviceT % 8 === 1) ui.adviceList = s.advice();
+    txt('advn', ui.adviceList && ui.adviceList.length ? String(ui.adviceList.length) : '');
     const cl = Math.round(s.cleanliness);
     txt('clean', `🧽 ${cl}`);
     f('clean').classList.toggle('neg', cl < 60);
-    txt('status', ui.nightSkip ? '⏩ 打烊中，快轉' : s.isOpen ? '營業中' : s.openToday ? '休息中' : '今天公休');
+    txt('status', ui.panelPause ? '⏸ 看面板中，暫停' : ui.nightSkip ? '⏩ 打烊中，快轉' : s.isOpen ? '營業中' : s.openToday ? '休息中' : '今天公休');
     f('clockbox').classList.toggle('open', s.isOpen);
     txt('lv', `Lv.${s.level}`);
     width('lvbar', s.levelProgress * 100);
@@ -660,7 +711,11 @@
   function closeInspector() {
     ui.inspect = null;
     const el = document.getElementById('inspector');
-    if (el) el.hidden = true;
+    if (el) {
+      el.hidden = true;
+      el.dataset.key = '';
+      el.dataset.html = '';
+    }
   }
 
   function bar(label, v, cls) {
@@ -769,7 +824,10 @@
         </div>`;
     }
     if (el.dataset.html !== html) {
-      el.innerHTML = html;
+      const key = `${kind}-${ref.id}`;
+      if (el.dataset.key !== key) el.innerHTML = html;
+      else morph(el, html);
+      el.dataset.key = key;
       el.dataset.html = html;
     }
     el.hidden = false;
@@ -803,27 +861,33 @@
     if (!el) return;
     if (!ui.tab) {
       el.hidden = true;
+      el.dataset.key = '';
       fitInspector();
       return;
     }
     el.hidden = false;
-    const fn = { build: drawerBuild, staff: drawerStaff, stock: drawerStock, manage: drawerManage, ledger: drawerLedger, reviews: drawerReviews, goals: drawerGoals }[ui.tab];
+    const fn = { build: drawerBuild, staff: drawerStaff, stock: drawerStock, manage: drawerManage, ledger: drawerLedger, reviews: drawerReviews, goals: drawerGoals, social: drawerSocial }[ui.tab];
     ui.drawerHtml = fn();
-    el.innerHTML = `<button class="x drawer-x" data-action="tab" data-tab="${ui.tab}" aria-label="關閉">✕</button>${ui.drawerHtml}`;
+    const html = `<button class="x drawer-x" data-action="tab" data-tab="${ui.tab}" aria-label="關閉">✕</button>${ui.drawerHtml}`;
+    const key = `${ui.tab}-${ui.tab === 'build' ? ui.buildCat : ui.tab === 'staff' ? ui.staffTab : ''}`;
+    el.classList.toggle('tall', ui.tab === 'staff' || ui.tab === 'social');
+    if (el.dataset.key === key) morph(el, html);
+    else {
+      el.innerHTML = html;
+      el.dataset.key = key;
+    }
     fitInspector();
   }
 
   function refreshDrawerLive() {
-    // 員工和帳本的數字一直在變：內容有變才重畫，剛點過抽屜就先不動，免得按鈕在手指下被換掉
+    // 數字一直在變：只更新有變的地方（按鈕和捲動位置都不動）；手指剛按下去的那一下先不動
     const el = document.getElementById('drawer');
-    if (!el || el.hidden || performance.now() - (ui.drawerTouched || 0) < 1500) return;
-    const fn = { staff: drawerStaff, ledger: drawerLedger, stock: drawerStock }[ui.tab];
+    if (!el || el.hidden || performance.now() - (ui.drawerTouched || 0) < 400) return;
+    const fn = { staff: drawerStaff, ledger: drawerLedger, stock: drawerStock, social: drawerSocial, goals: drawerGoals }[ui.tab];
+    if (!fn) return;
     const html = fn();
     if (html === ui.drawerHtml) return;
-    const scroll = el.querySelector('.drawer-body')?.scrollTop;
     renderDrawer();
-    const body = el.querySelector('.drawer-body');
-    if (body && scroll) body.scrollTop = scroll;
   }
 
   function drawerBuild() {
@@ -834,7 +898,7 @@
     return `
       <div class="drawer-tabs">
         ${cats.map((c) => `<button data-action="build-cat" data-cat="${c}" class="${ui.buildCat === c ? 'active' : ''}">${CAT_LABELS[c]}</button>`).join('')}
-        <button data-action="build-cat" data-cat="lot" class="${ui.buildCat === 'lot' ? 'active' : ''}">店面</button>
+        <button data-action="build-cat" data-cat="lot" class="${ui.buildCat === 'lot' ? 'active' : ''}">店面與裝潢</button>
       </div>
       <div class="drawer-body">
         ${
@@ -848,7 +912,13 @@
                        <button class="primary" data-action="upgrade-lot" ${s.cash < lotNext.cost || (lotNext.lv && s.level < lotNext.lv) ? 'disabled' : ''}>擴建（${money(lotNext.cost)}）</button>`
                     : '<p>已經是最大的店面了。</p>'
                 }
-              </div>`
+              </div>
+              <h3>裝潢樣式 <small>地板買過一次就能隨時換回來</small></h3>
+              <div class="style-row"><span>地板</span>${Object.entries(FLOORS)
+                .map(([id, f]) => `<button class="style-chip ${s.style.floor === id ? 'active' : ''}" data-action="style" data-kind="floor" data-value="${id}" ${!s.ownedFloors.has(id) && s.cash < f.price ? 'disabled' : ''}><i style="background:${f.colors ? `linear-gradient(135deg, ${f.colors[0]} 50%, ${f.colors[1]} 50%)` : 'var(--bg)'}"></i>${f.name}<small>${s.ownedFloors.has(id) ? '已擁有' : money(f.price)}</small></button>`)
+                .join('')}</div>
+              <div class="style-row"><span>牆面 <small>$3,000</small></span>${WALLS.map((c) => `<button class="swatch ${(s.style.wall || WALLS[0]) === c ? 'active' : ''}" style="background:${c}" data-action="style" data-kind="wall" data-value="${c}" aria-label="牆面顏色"></button>`).join('')}</div>
+              <div class="style-row"><span>招牌 <small>$5,000</small></span>${SIGNS.map((c) => `<button class="swatch ${(s.style.sign || s.ind.signColor) === c ? 'active' : ''}" style="background:${c}" data-action="style" data-kind="sign" data-value="${c}" aria-label="招牌顏色"></button>`).join('')}</div>`
             : `<div class="catalog">${items
                 .map((d) => {
                   const tags = [];
@@ -875,40 +945,169 @@
       </div>`;
   }
 
+  const STATE_LABEL = { off: '下班', arriving: '上班路上', working: '工作中', break: '☕ 休息中', leaving: '下班中' };
+  function nowDoing(e) {
+    if (e.state !== 'working') return STATE_LABEL[e.state];
+    if (e.task && e.task.type === 'clean') return '🧹 打掃中';
+    if (e.task && e.task.lane && e.task.lane.customer && e.task.lane.customer.state === 'atLane') return `🔥 ${e.task.obj ? e.task.obj.def.name : ''}服務中`;
+    if (e.task && e.task.obj) return `在${e.task.obj.def.name}待命`;
+    return '工作中';
+  }
+
+  // 員工：總覽（一眼看完所有人的狀態）、排班表、應徵者
   function drawerStaff() {
     const s = ui.sim;
+    const tab = ui.staffTab || 'overview';
+    const tabs = [['overview', `👥 總覽（${s.staff.length}）`], ['schedule', '📅 排班與崗位'], ['hire', `🙋 應徵者（${s.candidates.length}）`]];
+    const head = `<div class="drawer-tabs">${tabs.map(([id, l]) => `<button data-action="staff-tab" data-v="${id}" class="${tab === id ? 'active' : ''}">${l}</button>`).join('')}</div>`;
+    if (tab === 'schedule') return head + staffSchedule();
+    if (tab === 'hire') return head + staffHire();
+    const here = s.staff.filter((e) => e.state === 'working' || e.state === 'break');
+    const risk = s.staff.filter((e) => e.mood < 30 || e.lowMoodDays > 0);
+    const tired = s.staff.filter((e) => e.state !== 'off' && e.energy < 30);
+    const cell = (v, cls) => `<span class="st-bar ${v < 30 && cls !== 's' ? 'low' : ''}"><i class="${cls}" style="width:${Math.max(0, Math.min(100, v))}%"></i><b>${Math.round(v)}</b></span>`;
+    return `${head}
+      <div class="drawer-body">
+        <div class="staff-sum">
+          <span>🟢 在店裡 <b>${here.length}</b> 人</span>
+          <span>😊 平均心情 <b>${Math.round(s.morale)}</b></span>
+          <span>💵 行情時薪 <b>${money(s.marketWage)}</b></span>
+          ${risk.length ? `<span class="neg">⚠️ 快撐不住：${risk.map((e) => esc(e.name)).join('、')}</span>` : ''}
+          ${tired.length ? `<span class="warn">😮‍💨 很累：${tired.map((e) => esc(e.name)).join('、')}</span>` : ''}
+        </div>
+        <div class="staff-table">
+          <div class="st-row st-head"><span>員工</span><span>現在</span><span>心情</span><span>精力</span><span>飽足</span><span>技能</span><span>時薪</span><span>動作</span></div>
+          ${s.staff
+            .map((e) => {
+              const sh = s.shiftOf(e);
+              const sel = ui.inspect && ui.inspect.ref === e;
+              return `<div class="st-row ${sel ? 'sel' : ''} ${e.mood < 30 ? 'risk' : ''}">
+                <button class="st-who" data-action="insp-staff" data-id="${e.id}"><span class="mini-face">${portraitSVG(e.look, moodOf(e))}</span><span><b>${esc(e.name)}</b><small>${e.traits.map((t) => TRAITS[t].name).join('・')}</small><small>${sh ? `${hhmm(sh.start)}～${hhmm(sh.end)}` : '今天休假'}</small></span></button>
+                <span class="st-now"><b>${nowDoing(e)}</b><small>${e.thought && e.thought.until > s.minute ? `💭 ${esc(e.thought.text)}` : `今天服務 ${e.served} 人`}</small></span>
+                ${cell(e.mood, 'm')}${cell(e.energy, 'e')}${cell(e.hunger, 'h')}${cell(e.skill, 's')}
+                <span class="st-wage"><button data-action="wage" data-id="${e.id}" data-d="-5" aria-label="減薪">－</button><b class="${e.wage < s.marketWage ? 'neg' : e.wage > s.marketWage * 1.05 ? 'pos' : ''}">${money(e.wage)}</b><button data-action="wage" data-id="${e.id}" data-d="5" aria-label="加薪">＋</button></span>
+                <span class="st-act">
+                  <button data-action="praise" data-id="${e.id}" ${e.praiseDay === s.day ? 'disabled' : ''} title="稱讚">👍</button>
+                  <button data-action="sendhome" data-id="${e.id}" ${e.state === 'off' || e.sentHomeDay === s.day ? 'disabled' : ''} title="先下班">🏠</button>
+                  <button data-action="insp-staff" data-id="${e.id}" title="詳細">🔍</button>
+                </span>
+              </div>`;
+            })
+            .join('') || '<p class="muted">一個員工都沒有，店開不起來。到「應徵者」分頁招人！</p>'}
+        </div>
+        <p class="drawer-tip">點名字可以看詳細資料和人際關係；時薪＋／－一次 $5，減薪會讓員工不開心。</p>
+      </div>`;
+  }
+
+  function staffSchedule() {
+    const s = ui.sim;
+    const n = s.policy.shifts;
+    const shiftNames = n === 1 ? ['全天'] : n === 2 ? ['早班', '晚班'] : ['早班', '晚班', '大夜'];
+    const stations = s.objects.filter((o) => o.def.cat === 'station' && !o.def.selfServe);
+    const count = {};
+    return `<div class="drawer-body">
+      <div class="sched-table">
+        <div class="sc-row sc-head"><span>員工</span><span>班別</span>${WEEKDAYS.map((d, i) => `<span class="${s.policy.closedDay === i ? 'muted' : ''}">${d}</span>`).join('')}<span>每週休</span><span>固定崗位</span></div>
+        ${s.staff
+          .map((e) => {
+            const rest = s.restCount(e);
+            return `<div class="sc-row">
+              <span class="sc-who"><span class="mini-face">${portraitSVG(e.look, moodOf(e))}</span><b>${esc(e.name)}</b></span>
+              <select data-action="sched" data-id="${e.id}" data-key="shiftPref">
+                <option value="auto" ${e.shiftPref === 'auto' ? 'selected' : ''}>自動</option>
+                ${shiftNames.map((nm, i) => `<option value="${i}" ${e.shiftPref === i ? 'selected' : ''}>${nm}</option>`).join('')}
+              </select>
+              ${WEEKDAYS.map((d, i) => {
+                const p = s.plannedShift(e, i);
+                const closed = s.policy.closedDay === i;
+                return `<button class="sc-day ${p === null ? 'off' : 'on'}" data-action="rest-day" data-id="${e.id}" data-d="${i}" ${closed ? 'disabled' : ''} title="點一下切換上班／休假">${closed ? '公休' : p === null ? '休' : p === 'auto' ? '班' : shiftNames[p] ? shiftNames[p][0] : '班'}</button>`;
+              }).join('')}
+              <span class="${rest < 1 ? 'neg' : rest < 2 ? 'warn' : ''}">${rest} 天${rest < 1 ? '⚠️' : ''}${Array.isArray(e.restDays) ? `<button class="link" data-action="rest-auto" data-id="${e.id}">改回輪休</button>` : ''}</span>
+              <select data-action="sched" data-id="${e.id}" data-key="post">
+                <option value="" ${!e.post ? 'selected' : ''}>不限（哪裡忙去哪）</option>
+                ${stations
+                  .map((o) => {
+                    count[o.def.id] = (count[o.def.id] || 0) + 1;
+                    return `<option value="${o.id}" ${e.post === o.id ? 'selected' : ''}>${o.def.icon} ${o.def.name}${stations.filter((x) => x.def.id === o.def.id).length > 1 ? ` #${count[o.def.id]}` : ''}</option>`;
+                  })
+                  .join('')}
+              </select>
+            </div>`;
+          })
+          .join('')}
+      </div>
+      <p class="drawer-tip">點星期幾可以切換上班／休假（改了今天馬上生效）。勞基法規定每 7 天至少要有 1 天例假、1 天休息日，每週休不到 1 天就違法；休 2 天最好。<br>班別和一天幾班在「⚙️ 經營」設定；固定崗位的員工只會在那台設備工作。</p>
+    </div>`;
+  }
+
+  function staffHire() {
+    const s = ui.sim;
+    return `<div class="drawer-body">
+      <div class="cand-list">
+        ${s.candidates
+          .map(
+            (c, i) => `<div class="cand card">
+              <span class="mini-face">${portraitSVG(c.look, 'neutral')}</span>
+              <div><b>${esc(c.name)}</b><div class="chips">${c.traits.map((t) => `<span class="chip" title="${TRAITS[t].desc}">${TRAITS[t].name}</span>`).join('')}</div>
+              <small>技能 ${c.skill}・希望時薪 ${money(c.wage)}</small><small class="muted">${c.traits.map((t) => TRAITS[t].desc).join('；')}</small></div>
+              <button class="primary" data-action="hire" data-i="${i}">錄取</button>
+            </div>`
+          )
+          .join('')}
+      </div>
+      <p class="drawer-tip">應徵者每週換一批・刊登徵才 $1,500・時薪不能低於最低時薪 $${MIN_WAGE}。</p>
+    </div>`;
+  }
+
+  // 小編：看時事、拼一篇貼文、看網友留言
+  function drawerSocial() {
+    const s = ui.sim;
+    const t = s.social.trend;
+    const P = ui.post;
+    const bodies = Fun.POST_BODIES.filter((b) => !b.trend || b.trend === (t && t.id));
+    if (!P.body || !bodies.some((b) => b.id === P.body)) P.body = (bodies.find((b) => b.trend) || bodies[0]).id;
+    const h = Fun.POST_HOOKS.find((x) => x.id === P.hook);
+    const b = Fun.POST_BODIES.find((x) => x.id === P.body);
+    const en = Fun.POST_ENDINGS.find((x) => x.id === P.end);
+    const preview = s.fillPost(`${h.text}${b.text}\n${en.text}`);
+    const heat = s.trendHeat;
+    const chips = (list, key) => list.map((x) => `<button class="post-chip ${P[key] === x.id ? 'active' : ''} ${x.trend ? 'trend' : ''} ${x.risky ? 'risky' : ''}" data-action="post-part" data-key="${key}" data-value="${x.id}">${x.trend ? '🔥 ' : ''}${esc(s.fillPost(x.text)).slice(0, 40)}${s.fillPost(x.text).length > 40 ? '…' : ''}${x.cost ? `<small>（$${x.cost}）</small>` : ''}</button>`).join('');
     return `
       <div class="drawer-body two-col">
         <div>
-          <h3>員工（${s.staff.length} 人）</h3>
-          <div class="staff-list">
-            ${s.staff
-              .map((e) => {
-                const sh = s.shiftOf(e);
-                return `<button class="staff-row" data-action="insp-staff" data-id="${e.id}">
-                  <span class="mini-face">${portraitSVG(e.look, moodOf(e))}</span>
-                  <span class="staff-info"><b>${esc(e.name)}</b><small>${e.traits.map((t) => TRAITS[t].name).join('・')}・時薪 ${money(e.wage)}</small><small>${sh ? `${hhmm(sh.start)}～${hhmm(sh.end)}` : '今天休假'}・${{ off: '下班', arriving: '上班中', working: '工作中', break: '休息中', leaving: '下班中' }[e.state]}</small></span>
-                  <span class="staff-bars"><i style="--v:${e.mood}%" class="m"></i><i style="--v:${e.energy}%" class="e"></i></span>
-                </button>`;
-              })
-              .join('') || '<p class="muted">一個員工都沒有，店開不起來。快招人！</p>'}
+          <div class="trend-card">
+            <small>本週時事</small>
+            <b>${t ? `${t.icon} ${t.name}` : '—'}</b>
+            <p>${t ? t.desc : ''}</p>
+            <div class="ibar"><span>熱度</span><div class="bar"><div class="bar-fill jerk" style="width:${Math.min(100, (heat / 1.6) * 100)}%"></div></div><b class="heat-label">${heat >= 1.2 ? '正熱' : heat >= 0.7 ? '還行' : '退燒'}</b></div>
+            ${t && t.risky ? '<p class="neg">⚠️ 這是敏感話題，蹭不好會被罵。</p>' : ''}
           </div>
+          <h3>寫一篇貼文 <small>${s.canPost ? '一天可以發一篇' : '今天已經發過了，明天再來'}</small></h3>
+          <div class="post-step"><small>① 開頭</small><div class="post-chips">${chips(Fun.POST_HOOKS, 'hook')}</div></div>
+          <div class="post-step"><small>② 內容（🔥 是蹭時事）</small><div class="post-chips">${chips(bodies, 'body')}</div></div>
+          <div class="post-step"><small>③ 結尾</small><div class="post-chips">${chips(Fun.POST_ENDINGS, 'end')}</div></div>
+          <button class="primary post-inline" data-action="post" ${s.canPost ? '' : 'disabled'}>📤 發文（預覽在下面）</button>
         </div>
         <div>
-          <h3>應徵者 <small>每週會換一批・刊登徵才 $1,500</small></h3>
-          <div class="cand-list">
-            ${s.candidates
+          <div class="post-card">
+            <div class="post-head"><span class="post-avatar" style="background:${s.style.sign || s.ind.signColor}">${s.ind.icon}</span><div><b>${esc(s.shopName)}</b><small>粉絲 ${s.social.followers.toLocaleString()}・剛剛</small></div></div>
+            <p class="post-text">${esc(preview).replace(/\n/g, '<br>')}</p>
+            <button class="primary" data-action="post" ${s.canPost ? '' : 'disabled'}>📤 發文</button>
+          </div>
+          <h3>之前的貼文</h3>
+          <div class="post-list">
+            ${s.social.posts
               .map(
-                (c, i) => `<div class="cand card">
-                  <span class="mini-face">${portraitSVG(c.look, 'neutral')}</span>
-                  <div><b>${esc(c.name)}</b><div class="chips">${c.traits.map((t) => `<span class="chip" title="${TRAITS[t].desc}">${TRAITS[t].name}</span>`).join('')}</div>
-                  <small>技能 ${c.skill}・希望時薪 ${money(c.wage)}</small><small class="muted">${c.traits.map((t) => TRAITS[t].desc).join('；')}</small></div>
-                  <button class="primary" data-action="hire" data-i="${i}">錄取</button>
+                (p) => `<div class="post-old ${p.tier}">
+                  <small>第 ${p.day} 天${p.trend ? `・蹭「${esc(p.trend)}」` : ''}・${{ viral: '🚀 爆紅', good: '👍 不錯', meh: '😐 普通', flop: '🧊 好冷', fire: '🔥 炎上' }[p.tier]}</small>
+                  <p>${esc(p.text).replace(/\n/g, '<br>')}</p>
+                  <small>❤️ ${p.likes.toLocaleString()}・🔁 ${p.shares.toLocaleString()}・粉絲 ${p.gain >= 0 ? '+' : ''}${p.gain.toLocaleString()}</small>
+                  ${p.fire ? `<p class="neg">🔥 ${esc(p.fire)}</p>` : ''}
+                  <div class="post-comments">${p.comments.map((c) => `<span>💬 ${esc(c)}</span>`).join('')}</div>
                 </div>`
               )
-              .join('')}
+              .join('') || '<p class="muted">還沒發過文。小訣竅：蹭剛出來的時事最紅，同一種內容一直發大家會膩。</p>'}
           </div>
-          <p class="drawer-tip">一天要排幾班、要不要輪休，在「⚙️ 經營」裡設定。時薪不能低於最低時薪 $${MIN_WAGE}。</p>
         </div>
       </div>`;
   }
@@ -1017,6 +1216,10 @@
           <div class="price-list">
             ${s.ind.products
               .map((pr) => {
+                if (pr.rd && !s.recipes.has(pr.id)) {
+                  const can = s.level >= (pr.lv || 1);
+                  return `<div class="price-row locked"><span class="price-name">🧪 ${pr.icon} ${pr.name}</span><button data-action="research" data-id="${pr.id}" ${!can || s.cash < pr.rd ? 'disabled' : ''}>${can ? `研發 ${money(pr.rd)}` : `Lv.${pr.lv} 才能研發`}</button><small>新品・建議價 $${Math.round((pr.price * s.idx.cpi) / 5) * 5}・菜單越豐富，客人越多</small></div>`;
+                }
                 const sug = Math.round((pr.price * s.idx.cpi) / 5) * 5;
                 const cur = s.prices[pr.id];
                 const margin = Math.round((1 - (pr.cost * s.idx.cpi * s.costMult.materials) / cur) * 100);
@@ -1088,7 +1291,7 @@
             <div><span>⚡ 電價</span><b>+${((s.idx.power - 1) * 100).toFixed(1)}%${s.isSummer ? '（夏月）' : ''}</b></div>
             <div><span>👛 行情時薪</span><b>${money(s.marketWage)}</b></div>
           </div>
-          <ul class="news-list">${s.news.map((n) => `<li>${n}</li>`).join('')}</ul>
+          <ul class="news-list">${s.news.map((n) => `<li>${n}</li>`).join('')}${(s.headlines || []).map((h) => `<li>${esc(h)}</li>`).join('')}</ul>
         </div>
       </div>`;
   }
@@ -1274,6 +1477,13 @@
       );
     } else if (d.type === 'week') {
       inner = weekReport(d.report);
+    } else if (d.type === 'advice') {
+      const list = s.advice();
+      inner = `<div class="card menu-card">
+        <button class="x" data-action="close-dialog" aria-label="關閉">✕</button>
+        <h2>💡 店長建議</h2>
+        ${list.length ? `<div class="advice-list">${list.map((a) => `<div class="advice"><span>${a.icon}</span><p>${a.text}</p>${a.tab ? `<button data-action="advice-go" data-tab="${a.tab}">前往</button>` : ''}</div>`).join('')}</div>` : '<p class="calc">目前一切順利，繼續保持！</p>'}
+      </div>`;
     } else if (d.type === 'menu') {
       const infos = Object.fromEntries(SLOTS.map((n) => [n, slotInfo(n)]));
       const q = ui.quality;
@@ -1289,6 +1499,8 @@
         <div class="segmented small">
           ${[['auto', '自動'], ['high', '高'], ['medium', '中'], ['low', '低（省電）']].map(([v, l]) => `<button data-action="quality" data-value="${v}" class="${q === v ? 'active' : ''}">${l}</button>`).join('')}
         </div>
+        <h3>操作</h3>
+        <button class="toggle ${ui.autoPause ? 'on' : 'off'} neutral" data-action="autopause"><span class="knob"></span><span>${ui.autoPause ? '打開員工、庫存、經營等面板時，時間自動暫停' : '打開面板時時間照走'}</span></button>
         <p class="calc">🎵 正在播放：${window.BossAudio.trackName ? window.BossAudio.trackName() : ''}（會跟著時段、天氣和忙碌程度換曲）</p>
         <div class="insp-actions"><button data-action="tut-restart">📘 重新看新手教學</button><button data-action="quit" class="warn">🚪 存檔並回主選單</button></div>
       </div>`;
@@ -1306,7 +1518,7 @@
         <div class="ending-actions"><button class="primary" data-action="quit">回主選單</button></div>
       </div>`;
     }
-    box.innerHTML = d.type === 'minigame' ? '' : `<div class="dialog-backdrop ${d.type === 'week' || d.type === 'ending' || d.type === 'menu' ? 'center' : ''}">${inner}</div>`;
+    box.innerHTML = d.type === 'minigame' ? '' : `<div class="dialog-backdrop ${['week', 'ending', 'menu', 'advice'].includes(d.type) ? 'center' : ''}">${inner}</div>`;
     ui.dialogShownAt = performance.now();
   }
 
@@ -1331,6 +1543,8 @@
       ${r.inspection ? (r.inspection.violations.length ? `<div class="alert bad">🔍 <b>勞動檢查！</b>查到：${r.inspection.violations.join('、')}，罰鍰 ${money(r.inspection.fine)}。</div>` : '<div class="alert good">🔍 勞動檢查：沒有發現違規。</div>') : ''}
       ${s.cash < 0 ? `<div class="alert bad">⚠️ 現金是負的！下週結算前要轉正，不然只能跟銀行借錢（目前借了 ${money(s.loan)}，上限 $600,000）。</div>` : ''}
       ${r.news.length ? `<ul class="news-list">${r.news.map((n) => `<li>${n}</li>`).join('')}</ul>` : ''}
+      ${r.headlines ? `<div class="headlines"><small>📰 本週網路熱門</small>${r.headlines.map((h) => `<p>${esc(h)}</p>`).join('')}</div>` : ''}
+      <p class="calc">📱 粉絲 ${(r.followers || 0).toLocaleString()} 人・下週時事：${s.social.trend ? `${s.social.trend.icon} ${s.social.trend.name}` : '—'}</p>
       <button class="primary" data-action="close-dialog">繼續經營</button>
     </div>`;
   }
@@ -1608,23 +1822,83 @@
         break;
       case 'insp-staff':
         inspect('staff', s.staff.find((x) => String(x.id) === btn.dataset.id));
+        if (ui.tab === 'staff') renderDrawer();
         break;
       case 'raise':
         s.raise(ui.inspect.ref);
         renderInspector();
         break;
-      case 'praise':
-        s.praise(ui.inspect.ref);
-        renderInspector();
+      case 'praise': {
+        const who = btn.dataset.id ? s.staff.find((x) => String(x.id) === btn.dataset.id) : ui.inspect.ref;
+        if (who && s.praise(who)) toast(`👍 稱讚了${who.name}`);
+        if (ui.inspect) renderInspector();
+        if (ui.tab === 'staff') renderDrawer();
+        break;
+      }
+      case 'wage': {
+        const who = s.staff.find((x) => String(x.id) === btn.dataset.id);
+        if (who) s.setWage(who, who.wage + Number(btn.dataset.d));
+        renderDrawer();
+        break;
+      }
+      case 'staff-tab':
+        ui.staffTab = btn.dataset.v;
+        renderDrawer();
+        break;
+      case 'rest-day': {
+        const who = s.staff.find((x) => String(x.id) === btn.dataset.id);
+        if (who) s.setSchedule(who, 'restDay', btn.dataset.d);
+        renderDrawer();
+        break;
+      }
+      case 'rest-auto': {
+        const who = s.staff.find((x) => String(x.id) === btn.dataset.id);
+        if (who) s.setSchedule(who, 'restAuto');
+        renderDrawer();
+        break;
+      }
+      case 'research':
+        s.research(btn.dataset.id);
+        renderDrawer();
+        break;
+      case 'style':
+        if (!s.setStyle(btn.dataset.kind, btn.dataset.value)) toast('錢不夠', 'bad');
+        renderDrawer();
+        break;
+      case 'post-part':
+        ui.post[btn.dataset.key] = btn.dataset.value;
+        renderDrawer();
+        break;
+      case 'post': {
+        const r = s.post(ui.post.hook, ui.post.body, ui.post.end);
+        if (r) renderDrawer();
+        break;
+      }
+      case 'advice':
+        ui.dialog = { type: 'advice' };
+        renderDialog();
+        break;
+      case 'advice-go':
+        closeDialog();
+        if (ui.tab !== btn.dataset.tab) openTab(btn.dataset.tab);
+        break;
+      case 'autopause':
+        ui.autoPause = !ui.autoPause;
+        store.set('boss-sim-autopause', ui.autoPause ? '1' : '0');
+        renderDialog();
         break;
       case 'scold':
         s.scold(ui.inspect.ref);
         renderInspector();
         break;
-      case 'sendhome':
-        s.sendHome(ui.inspect.ref);
-        toast(`🏠 ${ui.inspect.ref.name} 今天先下班了`);
+      case 'sendhome': {
+        const who = btn.dataset.id ? s.staff.find((x) => String(x.id) === btn.dataset.id) : ui.inspect.ref;
+        if (!who) break;
+        s.sendHome(who);
+        toast(`🏠 ${who.name} 今天先下班了`);
+        if (ui.tab === 'staff') renderDrawer();
         break;
+      }
       case 'fire':
         if (ui.confirmFire === ui.inspect.ref) {
           s.fire(ui.inspect.ref);
@@ -1719,6 +1993,10 @@
       renderDrawer();
     } else if (t.dataset.action === 'menu') {
       s.menu[t.dataset.id] = t.checked;
+      renderDrawer();
+    } else if (t.dataset.action === 'sched') {
+      const who = s.staff.find((x) => String(x.id) === t.dataset.id);
+      if (who) s.setSchedule(who, t.dataset.key, t.value);
       renderDrawer();
     }
   });

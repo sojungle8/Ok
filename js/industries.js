@@ -35,6 +35,8 @@
         { id: 'teppan', name: '鐵板麵', icon: '🍝', price: 55, cost: 18, time: 5, station: 'griddle', weight: 2 },
         { id: 'milktea', name: '大冰奶', icon: '🥤', price: 30, cost: 8, time: 1.5, station: 'drinkbar', weight: 3 },
         { id: 'soymilk', name: '豆漿', icon: '🥛', price: 20, cost: 5, time: 1, station: 'drinkbar', weight: 2 },
+        { id: 'cheese', name: '起司蛋餅', icon: '🧀', price: 45, cost: 15, time: 3, station: 'griddle', weight: 2, rd: 8000, lv: 1 },
+        { id: 'club', name: '總匯三明治', icon: '🥪', price: 65, cost: 24, time: 4, station: 'griddle', weight: 2, rd: 18000, lv: 3 },
       ],
       starter: [
         ['griddle', 1, 1, 0],
@@ -46,7 +48,7 @@
       ],
       // 食材：每份品項用掉一份對應的食材；spoil 是每天隔夜報廢的比例
       stock: [
-        { id: 'egg', name: '蛋・餅皮・吐司', icon: '🥚', spoil: 0.12, products: ['danbing', 'burger', 'radish', 'teppan'] },
+        { id: 'egg', name: '蛋・餅皮・吐司', icon: '🥚', spoil: 0.12, products: ['danbing', 'burger', 'radish', 'teppan', 'cheese', 'club'] },
         { id: 'milk', name: '紅茶・豆漿・鮮奶', icon: '🥛', spoil: 0.35, products: ['milktea', 'soymilk'] },
       ],
       rival: { name: '晨光早點', color: '#e67e22' },
@@ -78,6 +80,8 @@
         { id: 'wonton', name: '餛飩湯', icon: '🥟', price: 50, cost: 16, time: 3, station: 'noodlepot', weight: 2 },
         { id: 'greens', name: '燙青菜', icon: '🥬', price: 40, cost: 12, time: 2, station: 'sidecase', weight: 2 },
         { id: 'luwei', name: '滷味拼盤', icon: '🍢', price: 70, cost: 25, time: 2, station: 'sidecase', weight: 2 },
+        { id: 'sesame', name: '麻醬麵', icon: '🥢', price: 55, cost: 16, time: 3, station: 'noodlepot', weight: 2, rd: 10000, lv: 1 },
+        { id: 'tofu', name: '皮蛋豆腐', icon: '🥚', price: 45, cost: 14, time: 1.5, station: 'sidecase', weight: 2, rd: 12000, lv: 2 },
       ],
       starter: [
         ['noodlepot', 1, 1, 0],
@@ -88,9 +92,9 @@
         ['menuboard', 3, 0, 0],
       ],
       stock: [
-        { id: 'noodle', name: '麵條・餛飩・高湯', icon: '🍜', spoil: 0.2, products: ['drynoodle', 'wonton'] },
+        { id: 'noodle', name: '麵條・餛飩・高湯', icon: '🍜', spoil: 0.2, products: ['drynoodle', 'wonton', 'sesame'] },
         { id: 'beef', name: '牛腱肉', icon: '🥩', spoil: 0.1, products: ['beefnoodle'] },
-        { id: 'side', name: '青菜・滷味', icon: '🥬', spoil: 0.4, products: ['greens', 'luwei'] },
+        { id: 'side', name: '青菜・滷味', icon: '🥬', spoil: 0.4, products: ['greens', 'luwei', 'tofu'] },
       ],
       rival: { name: '大碗公麵食館', color: '#8e44ad' },
       mix: { student: 0.9, office: 1.4, elderly: 1, family: 1.1 },
@@ -121,6 +125,8 @@
         { id: 'oolong', name: '四季春', icon: '🍵', price: 35, cost: 7, time: 1.5, station: 'teabar', weight: 3 },
         { id: 'freshmilk', name: '鮮奶茶', icon: '🥛', price: 65, cost: 20, time: 2, station: 'teabar', weight: 2 },
         { id: 'lemon', name: '冬瓜檸檬', icon: '🍋', price: 45, cost: 11, time: 2, station: 'teabar', weight: 2 },
+        { id: 'yakult', name: '多多綠', icon: '🍈', price: 50, cost: 12, time: 2, station: 'teabar', weight: 2, rd: 9000, lv: 1 },
+        { id: 'taro', name: '芋頭鮮奶', icon: '🟣', price: 75, cost: 24, time: 2.5, station: 'teabar', weight: 2, rd: 20000, lv: 3 },
       ],
       starter: [
         ['teabar', 2, 1, 0],
@@ -130,8 +136,8 @@
         ['plant', 7, 5, 0],
       ],
       stock: [
-        { id: 'tea', name: '茶葉・糖漿・檸檬', icon: '🍃', spoil: 0.05, products: ['oolong', 'lemon'] },
-        { id: 'pearl', name: '珍珠・鮮奶', icon: '⚫', spoil: 0.6, products: ['boba', 'freshmilk'] },
+        { id: 'tea', name: '茶葉・糖漿・檸檬', icon: '🍃', spoil: 0.05, products: ['oolong', 'lemon', 'yakult'] },
+        { id: 'pearl', name: '珍珠・鮮奶', icon: '⚫', spoil: 0.6, products: ['boba', 'freshmilk', 'taro'] },
       ],
       rival: { name: '甜心茶舖', color: '#e0478a' },
       mix: { student: 1.6, office: 1.1, elderly: 0.4, family: 1 },
@@ -160,6 +166,8 @@
         { id: 'cut', name: '剪髮', icon: '✂️', price: 250, cost: 15, time: 22, station: 'barberchair', weight: 6 },
         { id: 'wash', name: '洗髮', icon: '🧴', price: 200, cost: 20, time: 15, station: 'washsink', weight: 3 },
         { id: 'dye', name: '染髮', icon: '🎨', price: 1200, cost: 280, time: 70, station: 'barberchair', weight: 1 },
+        { id: 'shave', name: '修容刮鬍', icon: '🪒', price: 200, cost: 10, time: 12, station: 'barberchair', weight: 2, rd: 8000, lv: 1 },
+        { id: 'perm', name: '燙髮', icon: '🌀', price: 1500, cost: 320, time: 85, station: 'barberchair', weight: 1, rd: 25000, lv: 3 },
       ],
       starter: [
         ['barberchair', 1, 1, 0],
@@ -170,8 +178,8 @@
         ['poster', 6, 0, 0],
       ],
       stock: [
-        { id: 'shampoo', name: '洗髮精・毛巾耗材', icon: '🧴', spoil: 0, products: ['cut', 'wash'] },
-        { id: 'dye', name: '染劑', icon: '🎨', spoil: 0, products: ['dye'] },
+        { id: 'shampoo', name: '洗髮精・毛巾耗材', icon: '🧴', spoil: 0, products: ['cut', 'wash', 'shave'] },
+        { id: 'dye', name: '染劑', icon: '🎨', spoil: 0, products: ['dye', 'perm'] },
       ],
       rival: { name: '極速快剪', color: '#2c6fbb' },
       mix: { student: 0.8, office: 1, elderly: 1.7, family: 1 },
@@ -202,6 +210,8 @@
         { id: 'tire', name: '補胎', icon: '🛞', price: 150, cost: 20, time: 18, station: 'lift', weight: 3 },
         { id: 'service', name: '定期保養', icon: '🔧', price: 1200, cost: 450, time: 50, station: 'lift', weight: 2 },
         { id: 'battery', name: '換電瓶', icon: '🔋', price: 1800, cost: 1100, time: 15, station: 'lift', weight: 1 },
+        { id: 'brake', name: '換煞車皮', icon: '🛑', price: 450, cost: 180, time: 14, station: 'lift', weight: 2, rd: 10000, lv: 1 },
+        { id: 'detail', name: '機車美容', icon: '✨', price: 350, cost: 40, time: 30, station: 'lift', weight: 1, rd: 15000, lv: 2 },
       ],
       starter: [
         ['lift', 1, 2, 0],
@@ -212,7 +222,7 @@
         ['shrine', 7, 0, 0],
       ],
       stock: [
-        { id: 'oil', name: '機油・保養耗材', icon: '🛢️', spoil: 0, products: ['oil', 'service'] },
+        { id: 'oil', name: '機油・保養耗材', icon: '🛢️', spoil: 0, products: ['oil', 'service', 'brake', 'detail'] },
         { id: 'tire', name: '內胎・補胎片', icon: '🛞', spoil: 0, products: ['tire'] },
         { id: 'battery', name: '電瓶', icon: '🔋', spoil: 0, products: ['battery'] },
       ],
@@ -244,6 +254,8 @@
         { id: 'bento', name: '便當微波', icon: '🍱', price: 89, cost: 62, time: 2, station: 'register', weight: 3 },
         { id: 'coffee', name: '現煮咖啡', icon: '☕', price: 45, cost: 12, time: 1.5, station: 'register', weight: 2 },
         { id: 'parcel', name: '繳費取貨', icon: '📦', price: 15, cost: 0, time: 1.5, station: 'register', weight: 2 },
+        { id: 'oden', name: '關東煮', icon: '🍢', price: 60, cost: 30, time: 1.5, station: 'register', weight: 2, rd: 12000, lv: 1 },
+        { id: 'icecream', name: '霜淇淋', icon: '🍦', price: 39, cost: 12, time: 1, station: 'register', weight: 2, rd: 20000, lv: 3 },
       ],
       starter: [
         ['register', 2, 1, 0],
@@ -254,7 +266,7 @@
         ['fridge', 7, 2, 3],
       ],
       stock: [
-        { id: 'goods', name: '飲料・零食・便當', icon: '📦', spoil: 0.08, products: ['checkout', 'bento'] },
+        { id: 'goods', name: '飲料・零食・便當', icon: '📦', spoil: 0.08, products: ['checkout', 'bento', 'oden', 'icecream'] },
         { id: 'bean', name: '咖啡豆・鮮奶', icon: '☕', spoil: 0.05, products: ['coffee'] },
       ],
       rival: { name: '全日便利', color: '#c0392b' },
@@ -267,22 +279,22 @@
   // w: 寬（往右的格數）  staff/cust: 店員／客人站的位置（以面向為前方的相對座標）
   const CATALOG = [
     // 設備（只有特定產業能買）
-    { id: 'griddle', name: '煎台', icon: '🍳', cat: 'station', price: 58000, w: 2, kw: 4, serves: ['danbing', 'burger', 'radish', 'teppan'], staff: [[0, -1], [1, -1]], cust: [[0, 1], [1, 1]], industries: ['breakfast'], model: 'griddle' },
+    { id: 'griddle', name: '煎台', icon: '🍳', cat: 'station', price: 58000, w: 2, kw: 4, serves: ['danbing', 'burger', 'radish', 'teppan', 'cheese', 'club'], staff: [[0, -1], [1, -1]], cust: [[0, 1], [1, 1]], industries: ['breakfast'], model: 'griddle' },
     { id: 'drinkbar', name: '飲料台', icon: '🥤', cat: 'station', price: 32000, w: 2, kw: 2, serves: ['milktea', 'soymilk'], staff: [[0, -1]], cust: [[0, 1]], industries: ['breakfast'], model: 'drinkbar' },
-    { id: 'noodlepot', name: '煮麵台', icon: '🍜', cat: 'station', price: 65000, w: 2, kw: 5, serves: ['drynoodle', 'beefnoodle', 'wonton'], staff: [[0, -1], [1, -1]], cust: [[0, 1], [1, 1]], industries: ['noodle'], model: 'noodlepot' },
-    { id: 'sidecase', name: '小菜櫃', icon: '🥬', cat: 'station', price: 28000, w: 2, kw: 1.5, serves: ['greens', 'luwei'], staff: [[0, -1]], cust: [[0, 1]], industries: ['noodle'], model: 'sidecase' },
-    { id: 'teabar', name: '調飲台', icon: '🧋', cat: 'station', price: 45000, w: 2, kw: 3, serves: ['boba', 'oolong', 'freshmilk', 'lemon'], staff: [[0, -1], [1, -1]], cust: [[0, 1], [1, 1]], industries: ['drinks'], model: 'teabar' },
-    { id: 'barberchair', name: '理髮椅', icon: '💺', cat: 'station', price: 38000, w: 1, kw: 0.8, serves: ['cut', 'dye'], staff: [[0, 1]], cust: [[0, 0]], seatCust: true, industries: ['barber'], model: 'barberchair' },
+    { id: 'noodlepot', name: '煮麵台', icon: '🍜', cat: 'station', price: 65000, w: 2, kw: 5, serves: ['drynoodle', 'beefnoodle', 'wonton', 'sesame'], staff: [[0, -1], [1, -1]], cust: [[0, 1], [1, 1]], industries: ['noodle'], model: 'noodlepot' },
+    { id: 'sidecase', name: '小菜櫃', icon: '🥬', cat: 'station', price: 28000, w: 2, kw: 1.5, serves: ['greens', 'luwei', 'tofu'], staff: [[0, -1]], cust: [[0, 1]], industries: ['noodle'], model: 'sidecase' },
+    { id: 'teabar', name: '調飲台', icon: '🧋', cat: 'station', price: 45000, w: 2, kw: 3, serves: ['boba', 'oolong', 'freshmilk', 'lemon', 'yakult', 'taro'], staff: [[0, -1], [1, -1]], cust: [[0, 1], [1, 1]], industries: ['drinks'], model: 'teabar' },
+    { id: 'barberchair', name: '理髮椅', icon: '💺', cat: 'station', price: 38000, w: 1, kw: 0.8, serves: ['cut', 'dye', 'shave', 'perm'], staff: [[0, 1]], cust: [[0, 0]], seatCust: true, industries: ['barber'], model: 'barberchair' },
     { id: 'washsink', name: '洗頭槽', icon: '🚿', cat: 'station', price: 30000, w: 1, kw: 1.5, serves: ['wash'], staff: [[0, 1]], cust: [[0, 0]], seatCust: true, industries: ['barber'], model: 'washsink' },
-    { id: 'lift', name: '維修位', icon: '🛵', cat: 'station', price: 85000, w: 2, kw: 2.5, serves: ['oil', 'tire', 'service', 'battery'], staff: [[0, -1]], cust: [[1, 1]], industries: ['scooter'], model: 'lift' },
-    { id: 'register', name: '收銀台', icon: '🧾', cat: 'station', price: 52000, w: 2, kw: 1.5, serves: ['checkout', 'bento', 'coffee', 'parcel'], staff: [[0, -1]], cust: [[0, 1]], industries: ['store'], model: 'register' },
+    { id: 'lift', name: '維修位', icon: '🛵', cat: 'station', price: 85000, w: 2, kw: 2.5, serves: ['oil', 'tire', 'service', 'battery', 'brake', 'detail'], staff: [[0, -1]], cust: [[1, 1]], industries: ['scooter'], model: 'lift' },
+    { id: 'register', name: '收銀台', icon: '🧾', cat: 'station', price: 52000, w: 2, kw: 1.5, serves: ['checkout', 'bento', 'coffee', 'parcel', 'oden', 'icecream'], staff: [[0, -1]], cust: [[0, 1]], industries: ['store'], model: 'register' },
 
     // 高級設備（等級解鎖）：速度比較快
-    { id: 'griddlePro', name: '雙層大煎台', icon: '🔥', cat: 'station', price: 128000, w: 2, kw: 5, speed: 1.35, beauty: 1, serves: ['danbing', 'burger', 'radish', 'teppan'], staff: [[0, -1], [1, -1]], cust: [[0, 1], [1, 1]], industries: ['breakfast'], model: 'griddle', pro: true, lv: 3 },
-    { id: 'noodlePro', name: '自動煮麵機', icon: '♨️', cat: 'station', price: 145000, w: 2, kw: 6, speed: 1.4, serves: ['drynoodle', 'beefnoodle', 'wonton'], staff: [[0, -1], [1, -1]], cust: [[0, 1], [1, 1]], industries: ['noodle'], model: 'noodlepot', pro: true, lv: 3 },
-    { id: 'teaPro', name: '自動茶飲機', icon: '🤖', cat: 'station', price: 118000, w: 2, kw: 4, speed: 1.45, serves: ['boba', 'oolong', 'freshmilk', 'lemon'], staff: [[0, -1], [1, -1]], cust: [[0, 1], [1, 1]], industries: ['drinks'], model: 'teabar', pro: true, lv: 3 },
-    { id: 'chairPro', name: '電動理髮椅', icon: '💺', cat: 'station', price: 78000, w: 1, kw: 1, speed: 1.25, beauty: 2, serves: ['cut', 'dye'], staff: [[0, 1]], cust: [[0, 0]], seatCust: true, industries: ['barber'], model: 'barberchair', pro: true, lv: 3 },
-    { id: 'liftPro', name: '油壓升降台', icon: '🛠️', cat: 'station', price: 160000, w: 2, kw: 3.5, speed: 1.4, serves: ['oil', 'tire', 'service', 'battery'], staff: [[0, -1]], cust: [[1, 1]], industries: ['scooter'], model: 'lift', pro: true, lv: 3 },
+    { id: 'griddlePro', name: '雙層大煎台', icon: '🔥', cat: 'station', price: 128000, w: 2, kw: 5, speed: 1.35, beauty: 1, serves: ['danbing', 'burger', 'radish', 'teppan', 'cheese', 'club'], staff: [[0, -1], [1, -1]], cust: [[0, 1], [1, 1]], industries: ['breakfast'], model: 'griddle', pro: true, lv: 3 },
+    { id: 'noodlePro', name: '自動煮麵機', icon: '♨️', cat: 'station', price: 145000, w: 2, kw: 6, speed: 1.4, serves: ['drynoodle', 'beefnoodle', 'wonton', 'sesame'], staff: [[0, -1], [1, -1]], cust: [[0, 1], [1, 1]], industries: ['noodle'], model: 'noodlepot', pro: true, lv: 3 },
+    { id: 'teaPro', name: '自動茶飲機', icon: '🤖', cat: 'station', price: 118000, w: 2, kw: 4, speed: 1.45, serves: ['boba', 'oolong', 'freshmilk', 'lemon', 'yakult', 'taro'], staff: [[0, -1], [1, -1]], cust: [[0, 1], [1, 1]], industries: ['drinks'], model: 'teabar', pro: true, lv: 3 },
+    { id: 'chairPro', name: '電動理髮椅', icon: '💺', cat: 'station', price: 78000, w: 1, kw: 1, speed: 1.25, beauty: 2, serves: ['cut', 'dye', 'shave', 'perm'], staff: [[0, 1]], cust: [[0, 0]], seatCust: true, industries: ['barber'], model: 'barberchair', pro: true, lv: 3 },
+    { id: 'liftPro', name: '油壓升降台', icon: '🛠️', cat: 'station', price: 160000, w: 2, kw: 3.5, speed: 1.4, serves: ['oil', 'tire', 'service', 'battery', 'brake', 'detail'], staff: [[0, -1]], cust: [[1, 1]], industries: ['scooter'], model: 'lift', pro: true, lv: 3 },
     { id: 'selfCheckout', name: '自助結帳機', icon: '🖥️', cat: 'station', price: 98000, w: 1, kw: 0.8, speed: 0.75, selfServe: true, serves: ['checkout', 'parcel'], staff: [], cust: [[0, 1]], industries: ['store'], model: 'selfcheckout', lv: 4 },
 
     // 座位與等候
@@ -365,6 +377,25 @@
     family: { id: 'family', name: '一般客人', icon: '🙂', patience: 1, priceSens: 1, speed: 1, basket: 1.2, base: 0.8, weekend: 1.7, hours: {} },
   };
 
+  // 難度：patience 客人耐心、events 事件多寡、cash 開店資金、rival 對手搶客、inspect 稽查頻率、fines 罰款、drain 員工累的速度
+  const DIFFICULTY = {
+    easy: { name: '輕鬆', desc: '資金多、客人有耐心、事件少，適合先熟悉', patience: 1.6, events: 0.5, cash: 1.6, rival: 0.55, inspect: 0.5, fines: 0.5, drain: 0.8, wage: 0.95 },
+    normal: { name: '一般', desc: '有挑戰，但做對事情就能穩穩經營', patience: 1.25, events: 0.85, cash: 1.2, rival: 0.85, inspect: 1, fines: 1, drain: 0.92, wage: 1 },
+    hell: { name: '地獄', desc: '事件多、客人急、員工容易累', patience: 0.75, events: 1.6, cash: 1, rival: 1.2, inspect: 1.4, fines: 1.2, drain: 1.2, wage: 1.05 },
+  };
+
+  // 店面裝潢樣式：地板、牆面、招牌
+  const FLOORS = {
+    default: { name: '原本的地磚', price: 0 },
+    wood: { name: '木地板', price: 12000, colors: ['#c89b6d', '#b8875a'] },
+    terrazzo: { name: '磨石子', price: 9000, colors: ['#e8e2d6', '#ddd5c6'], speckle: true },
+    checker: { name: '黑白格', price: 10000, colors: ['#f3f3f3', '#2f2f35'] },
+    mint: { name: '復古馬賽克', price: 8000, colors: ['#bfe3d6', '#a9d4c6'], small: true },
+    concrete: { name: '工業風水泥', price: 7000, colors: ['#a7a7a2', '#9d9d98'] },
+  };
+  const WALLS = ['#e8ddcf', '#f6f1ea', '#d9e6ef', '#f3dfd0', '#dbe8d4', '#3a3f48', '#f2e2a8', '#e7cfe0'];
+  const SIGNS = ['#d9482b', '#b8342a', '#2f8f6b', '#2c6fbb', '#e2a12a', '#6c5ce7', '#2f2f35', '#e0478a'];
+
   // 可以開分店的地方
   const DISTRICTS = ['板橋', '新莊', '台中北屯', '台南東區', '高雄左營', '新竹東區', '桃園中壢'];
   // 各地的生意好壞（人潮）和房租
@@ -378,5 +409,5 @@
     桃園中壢: { traffic: 0.95, rent: 0.85 },
   };
 
-  root.BossIndustries = { INDUSTRIES, CATALOG, CAT_LABELS, LOTS, NAMES, TRAITS, LEVELS, DISTRICTS, DISTRICT_INFO, CUSTOMER_TYPES };
+  root.BossIndustries = { INDUSTRIES, CATALOG, CAT_LABELS, LOTS, NAMES, TRAITS, LEVELS, DISTRICTS, DISTRICT_INFO, CUSTOMER_TYPES, DIFFICULTY, FLOORS, WALLS, SIGNS };
 })(typeof window !== 'undefined' ? window : globalThis);
