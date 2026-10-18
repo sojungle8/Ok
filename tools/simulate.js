@@ -13,6 +13,7 @@ function pick(game, scoreFn) {
   let best = 0;
   let bestScore = -Infinity;
   ev.choices.forEach((c, i) => {
+    if (c.minigame) return; // 小遊戲要玩家親自操作，自動測試跳過
     const fx = game.resolveEffects(c);
     const s = scoreFn(fx, game);
     if (s > bestScore) {
@@ -59,7 +60,10 @@ const STRATEGIES = {
   },
   random: {
     policy: null,
-    choose: (g) => Math.floor(Math.random() * g.currentEvent.choices.length),
+    choose: (g) => {
+      const opts = g.currentEvent.choices.map((c, i) => i).filter((i) => !g.currentEvent.choices[i].minigame);
+      return opts[Math.floor(Math.random() * opts.length)];
+    },
     adjust: (g) => {
       for (const k of ['salary', 'overtime', 'benefits']) {
         const opts = Object.keys(globalThis.BossData.POLICIES[k].options);

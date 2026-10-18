@@ -1,6 +1,6 @@
 // 即時辦公室場景：地圖、移動、時鐘、老闆的精力與肚子、事件在場景中出現
 (function (root) {
-  const { MAP, STAFF_NAMES } = root.BossData;
+  const { MAP } = root.BossData;
 
   const TILE = 40;
   const DPR = 2; // 畫布用兩倍解析度，高解析螢幕比較清楚
@@ -26,17 +26,13 @@
   }
 
   class DayScene {
-    constructor(game, { canvas, mode, gender, callbacks }) {
+    constructor(game, { container, mode, gender, callbacks }) {
       this.game = game;
-      this.canvas = canvas;
-      this.ctx = canvas.getContext('2d');
       this.mode = MODES[mode] || MODES.normal;
       this.gender = gender;
       this.cb = callbacks;
       this.cols = MAP[0].length;
       this.rows = MAP.length;
-      canvas.width = this.cols * TILE * DPR;
-      canvas.height = this.rows * TILE * DPR;
 
       this.clock = DAY_START;
       this.energy = 100;
@@ -63,12 +59,30 @@
       this.syncStaff();
       this.planEvents();
 
+      // 優先用 3D 辦公室；瀏覽器不支援 WebGL 或 three.js 沒載入時，退回平面地圖
+      try {
+        if (root.THREE && root.BossOffice3D) this.view = new root.BossOffice3D(container, this);
+      } catch (e) {
+        console.warn('3D 場景無法啟動，改用平面地圖', e);
+        this.view = null;
+        container.innerHTML = '';
+      }
+      if (!this.view) {
+        this.canvas = document.createElement('canvas');
+        this.canvas.className = 'flat-map';
+        this.canvas.width = this.cols * TILE * DPR;
+        this.canvas.height = this.rows * TILE * DPR;
+        this.ctx = this.canvas.getContext('2d');
+        container.appendChild(this.canvas);
+      }
+      this.pointerEl = this.view ? this.view.dom : this.canvas;
+
       this.onKeyDown = this.onKeyDown.bind(this);
       this.onKeyUp = this.onKeyUp.bind(this);
       this.onPointer = this.onPointer.bind(this);
       window.addEventListener('keydown', this.onKeyDown);
       window.addEventListener('keyup', this.onKeyUp);
-      canvas.addEventListener('pointerdown', this.onPointer);
+      this.pointerEl.addEventListener('pointerdown', this.onPointer);
       this.last = performance.now();
       this.frame = this.frame.bind(this);
       this.raf = requestAnimationFrame(this.frame);
@@ -78,7 +92,8 @@
       cancelAnimationFrame(this.raf);
       window.removeEventListener('keydown', this.onKeyDown);
       window.removeEventListener('keyup', this.onKeyUp);
-      this.canvas.removeEventListener('pointerdown', this.onPointer);
+      this.pointerEl.removeEventListener('pointerdown', this.onPointer);
+      if (this.view) this.view.destroy();
     }
 
     // ───── 員工與事件 ─────
@@ -87,7 +102,8 @@
       const prev = this.staff || [];
       this.staff = this.seats.slice(0, g.staff).map((seat, i) => ({
         seat,
-        name: STAFF_NAMES[i],
+        look: root.BossLooks.staffLook(i, g.industry.id),
+        name: root.BossLooks.staffLook(i, g.industry.id).name,
         sprite: g.industry.workers[i % g.industry.workers.length],
         moodOffset: prev[i] ? prev[i].moodOffset : Math.round((g.rng() - 0.5) * 24),
         bob: g.rng() * Math.PI * 2,
@@ -195,9 +211,17 @@
 
     onPointer(e) {
       if (this.dialogOpen || this.paused || this.busy || this.ended) return;
-      const rect = this.canvas.getBoundingClientRect();
-      const x = Math.floor(((e.clientX - rect.left) / rect.width) * this.cols);
-      const y = Math.floor(((e.clientY - rect.top) / rect.height) * this.rows);
+      let x;
+      let y;
+      if (this.view) {
+        const t = this.view.pickTile(e.clientX, e.clientY);
+        if (!t) return;
+        ({ x, y } = t);
+      } else {
+        const rect = this.canvas.getBoundingClientRect();
+        x = Math.floor(((e.clientX - rect.left) / rect.width) * this.cols);
+        y = Math.floor(((e.clientY - rect.top) / rect.height) * this.rows);
+      }
       const target = this.targetAt(x, y);
       const goal = target ? target.tile : { x, y };
       const path = this.findPath(goal, !!target || SOLID.has(MAP[y]?.[x]));
@@ -328,7 +352,8 @@
       const dt = Math.min(0.05, (now - this.last) / 1000);
       this.last = now;
       if (!this.ended && !this.paused && !this.dialogOpen) this.update(dt);
-      this.draw(now);
+      if (this.view) this.view.render(now);
+      else this.draw(now);
       if (!this.ended) this.raf = requestAnimationFrame(this.frame);
     }
 
@@ -403,6 +428,7 @@
       this.isMoving = !!(dx || dy);
       if (!this.isMoving) return;
       if (dx) this.boss.facing = dx > 0 ? 1 : -1;
+      this.boss.angle = Math.atan2(dx, dy);
 
       let speed = this.keys.has('shift') ? 6.5 : 4;
       if (this.energy < 20) speed *= 0.5;

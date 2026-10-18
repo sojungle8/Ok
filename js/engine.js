@@ -235,6 +235,12 @@
       return this.applyChoice(ev, ev.choices[index]);
     }
 
+    // 小遊戲的結果：成功或失敗各有一組效果
+    resolveWith(ev, choice) {
+      if (!ev || this.over || !this.queue.includes(ev)) return null;
+      return this.applyChoice(ev, choice);
+    }
+
     // 拖太久沒處理：套用事件自己的 ignore，沒有就用該地點的預設
     ignore(ev) {
       if (!ev || this.over || !this.queue.includes(ev)) return null;

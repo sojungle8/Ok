@@ -3,6 +3,7 @@
   const { INDUSTRIES, COST_LABELS, POLICIES } = window.BossData;
   const { Game, MAX_MONTH, ECONOMY } = window.BossEngine;
   const { DayScene, MODES, fmtClock } = window.BossWorld;
+  const { portraitSVG, bossLook, VISITORS } = window.BossLooks;
   const app = document.getElementById('app');
 
   const ui = {
@@ -60,7 +61,17 @@
   // ───── 開始畫面 ─────
   function renderStart() {
     const st = ui.settings;
+    const ind = INDUSTRIES.find((i) => i.id === st.industry);
+    const cast = [0, 1, 2].map((i) => window.BossLooks.staffLook(i, st.industry));
     app.innerHTML = `
+      <section class="hero">
+        <div class="hero-cast">
+          ${portraitSVG(cast[1], 'worried')}
+          <div class="hero-boss">${portraitSVG(bossLook(st.gender), 'smug')}</div>
+          ${portraitSVG(cast[0], 'happy')}
+        </div>
+        <p class="hero-sub">${ind.icon} ${ind.name}・你是老闆，你是好老闆嗎？</p>
+      </section>
       <section class="intro card">
         <p class="lead">你剛成為一間公司的老闆。</p>
         <p>每個月就是一個上班日。從早上 9 點到下午 6 點，你要在辦公室裡跑來跑去：員工頭上冒出 <b class="bang">!</b> 是有事找你，☎️ 電話響了要去接，🚪 門口有人要去應付。拖太久不處理，就算你<strong>無視</strong>。</p>
@@ -82,8 +93,8 @@
         <div class="setup-row">
           <span class="setup-label">角色</span>
           <div class="segmented small">
-            <button data-action="set" data-key="gender" data-value="m" class="${st.gender === 'm' ? 'active' : ''}">🧑‍💼 男老闆</button>
-            <button data-action="set" data-key="gender" data-value="f" class="${st.gender === 'f' ? 'active' : ''}">👩‍💼 女老闆</button>
+            <button data-action="set" data-key="gender" data-value="m" class="pick-face ${st.gender === 'm' ? 'active' : ''}">${portraitSVG(bossLook('m'), 'smug')}男老闆</button>
+            <button data-action="set" data-key="gender" data-value="f" class="pick-face ${st.gender === 'f' ? 'active' : ''}">${portraitSVG(bossLook('f'), 'smug')}女老闆</button>
           </div>
         </div>
         <div class="setup-row">
@@ -146,7 +157,7 @@
         </div>
       </section>
       <div class="stage">
-        <canvas id="world"></canvas>
+        <div id="world" class="world"></div>
         <div class="toasts" id="toasts"></div>
         <div class="hint-bar" id="hint-bar"></div>
         <button class="touch-e" data-action="interact">E</button>
@@ -160,7 +171,7 @@
       <div id="dialog"></div>`;
 
     ui.scene = new DayScene(g, {
-      canvas: document.getElementById('world'),
+      container: document.getElementById('world'),
       mode: ui.settings.mode,
       gender: ui.settings.gender,
       callbacks: {
@@ -238,6 +249,42 @@
   }
 
   // ───── 對話框 ─────
+  // 視覺小說版面：左邊立繪、右邊對話
+  function vn(look, mood, name, body) {
+    return `
+      <div class="vn">
+        <div class="vn-portrait mood-${mood}">${portraitSVG(look, mood)}<span class="vn-name">${esc(name)}</span></div>
+        <div class="vn-box card">${body}</div>
+      </div>`;
+  }
+
+  function speakerOf(p) {
+    const ev = p.ev;
+    if (p.where === 'staff') {
+      const s = ui.scene.staff[p.staffIdx] || ui.scene.staff[0];
+      return { look: s.look, name: s.name, mood: ev.id === 'resign' || ev.id === 'raise' ? 'neutral' : 'worried' };
+    }
+    const key = (ev.speaker && ev.speaker.look) || (p.where === 'phone' ? 'caller' : 'crowd');
+    const look = VISITORS[key] || VISITORS.caller;
+    const mood = ev.id === 'd_karen' ? 'angry' : key === 'investor' ? 'smug' : p.where === 'phone' ? 'neutral' : 'worried';
+    return { look, name: (ev.speaker && ev.speaker.name) || look.name, mood };
+  }
+
+  // 選完之後員工的反應
+  function reactionOf(d) {
+    const delta = d.result.delta;
+    const p = d.p;
+    const staff = ui.scene.staff;
+    const s = (p.where === 'staff' && staff[p.staffIdx]) || staff[0];
+    if (!s) return { look: bossLook(ui.settings.gender), name: ui.settings.name, mood: 'smug' };
+    let mood = 'neutral';
+    if (delta.jerk >= 10) mood = d.result.event.id.length % 2 ? 'sad' : 'angry';
+    else if (delta.jerk >= 4 || delta.morale <= -4) mood = 'worried';
+    else if (delta.morale >= 3 || delta.jerk <= -2 || d.game === true) mood = 'happy';
+    if (d.game === false && mood === 'neutral') mood = 'shocked';
+    return { look: s.look, name: p.where === 'staff' ? s.name : `${s.name}（員工）`, mood };
+  }
+
   function renderDialog() {
     const box = document.getElementById('dialog');
     if (!box) return;
@@ -246,12 +293,19 @@
       box.innerHTML = '';
       return;
     }
+    if (d.type === 'minigame') {
+      box.innerHTML = '';
+      return;
+    }
     const g = ui.game;
     let inner = '';
     if (d.type === 'briefing') {
       const first = g.month === 1;
-      inner = `
-        <div class="card dialog briefing">
+      inner = vn(
+        { ...VISITORS.hq, phone: false },
+        first ? 'happy' : 'neutral',
+        '會計',
+        `
           <div class="event-kicker">📋 交接單・第 ${g.month} 月・早上 09:00</div>
           <h2>${first ? `${esc(ui.settings.name)}，歡迎上任！` : `早安，${esc(ui.settings.name)}`}</h2>
           ${first ? `<p>會計留了張紙條：「老闆，今天店裡大概會有 ${ui.scene.mode.events} 件事找你。員工頭上有 <b class="bang">!</b> 就是有事，電話響了記得接。不想處理也可以，但大家都會記得。」</p>` : `<p>今天大概會有 ${ui.scene.mode.events} 件事找你。</p>`}
@@ -262,56 +316,61 @@
                  累了去 ☕ 咖啡機，餓了去 🍱 冰箱，🛋️ 沙發可以睡午覺（但時間照跑）。</div>`
               : ''
           }
-          <button class="primary" data-action="begin-day">開始上班（Enter）</button>
-        </div>`;
+          <button class="primary" data-action="begin-day">開始上班（Enter）</button>`
+      );
     } else if (d.type === 'event') {
       const ev = d.p.ev;
-      inner = `
-        <div class="card dialog event">
-          <div class="event-head">
-            <span class="event-icon">${ev.icon}</span>
-            <div>
-              <div class="event-kicker">${ui.scene.actorLabel(d.p)}・${fmtClock(ui.scene.clock)}</div>
-              <h2>${ev.title}</h2>
-            </div>
-          </div>
+      const sp = speakerOf(d.p);
+      inner = vn(
+        sp.look,
+        sp.mood,
+        sp.name,
+        `
+          <div class="event-kicker">${ui.scene.actorLabel(d.p)}・${fmtClock(ui.scene.clock)}</div>
+          <h2>${ev.icon} ${ev.title}</h2>
           <p class="event-text">${ev.text}</p>
           <div class="choices">
             ${ev.choices
               .map((c, i) => {
-                const fx = g.resolveEffects(c);
-                const cost = fx.cash ? `<span class="cost ${fx.cash > 0 ? 'good' : 'bad'}">${signedMoney(fx.cash)}</span>` : '';
+                let meta;
+                if (c.minigame) {
+                  meta = `<span class="cost game">🎮 親自下場・精力 -${c.minigame.energy}</span>`;
+                } else {
+                  const fx = g.resolveEffects(c);
+                  meta = fx.cash ? `<span class="cost ${fx.cash > 0 ? 'good' : 'bad'}">${signedMoney(fx.cash)}</span>` : '';
+                }
                 const note = c.note ? `<span class="cost note">${c.note}</span>` : '';
                 const quote = c.quote ? `<span class="quote">「${c.quote}」</span>` : '';
                 return `
-                  <button class="choice" data-action="choose" data-index="${i}">
+                  <button class="choice ${c.minigame ? 'is-game' : ''}" data-action="choose" data-index="${i}">
                     <span class="choice-label"><kbd>${i + 1}</kbd>${c.label}</span>
                     ${quote}
-                    <span class="choice-meta">${cost}${note}</span>
+                    <span class="choice-meta">${meta}${note}</span>
                   </button>`;
               })
               .join('')}
           </div>
-          <button class="ghost" data-action="later">等一下再說（Esc）</button>
-        </div>`;
+          <button class="ghost" data-action="later">等一下再說（Esc）</button>`
+      );
     } else if (d.type === 'result') {
       const r = d.result;
-      inner = `
-        <div class="card dialog event result">
-          <div class="event-head">
-            <span class="event-icon">${r.event.icon}</span>
-            <div>
-              <div class="event-kicker">你的決定</div>
-              <h2>${r.choice.label}</h2>
-            </div>
-          </div>
+      const re = reactionOf(d);
+      inner = vn(
+        re.look,
+        re.mood,
+        re.name,
+        `
+          <div class="event-kicker">${d.game === true ? '🎮 小遊戲成功！' : d.game === false ? '🎮 小遊戲失敗' : '你的決定'}</div>
+          <h2>${r.choice.label}</h2>
           <p class="event-text">${r.choice.result}</p>
           ${deltaChips(r.delta)}
+          ${d.energy ? `<div class="chips"><span class="chip bad">⚡ 精力 -${d.energy}</span></div>` : ''}
           ${r.choice.tip ? `<div class="tip">📘 <strong>勞動法小知識：</strong>${r.choice.tip}</div>` : ''}
-          <button class="primary" data-action="close-result">${g.over ? '看結局' : '回去工作（Enter）'}</button>
-        </div>`;
+          <button class="primary" data-action="close-result">${g.over ? '看結局' : '回去工作（Enter）'}</button>`
+      );
     }
     box.innerHTML = `<div class="dialog-backdrop">${inner}</div>`;
+    ui.dialogShownAt = performance.now();
   }
 
   function closeDialog() {
@@ -559,7 +618,7 @@
       ${renderStatsCard(g)}
       <div class="overlay">
         <div class="card ending ${win ? 'win' : 'lose'}">
-          <div class="ending-icon">${win ? '🏆' : { jerk: '📰', bankrupt: '💸', empty: '🪑' }[e.type]}</div>
+          <div class="ending-face">${portraitSVG(bossLook(ui.settings.gender), win ? (g.jerk <= 35 ? 'happy' : 'smug') : { jerk: 'shocked', bankrupt: 'sad', empty: 'worried' }[e.type])}<span>${win ? '🏆' : { jerk: '📰', bankrupt: '💸', empty: '🪑' }[e.type]}</span></div>
           <div class="event-kicker">${esc(ui.settings.name)}的結局</div>
           <h2>${e.title}</h2>
           <p>${e.desc}</p>
@@ -605,12 +664,36 @@
 
   function choose(index) {
     const d = ui.dialog;
+    const choice = d.p.ev.choices[index];
+    if (choice && choice.minigame) return playMinigame(d.p, choice);
     const result = ui.game.resolve(d.p.ev, index);
     if (!result) return;
     ui.scene.removeActive(d.p);
-    ui.dialog = { type: 'result', result };
+    ui.dialog = { type: 'result', result, p: d.p };
     updateStats();
     renderDialog();
+  }
+
+  // 老闆親自下場：玩小遊戲，用精力和時間換結果
+  function playMinigame(p, choice) {
+    const spec = choice.minigame;
+    ui.dialog = { type: 'minigame', p };
+    renderDialog();
+    window.BossMinigames.run(document.getElementById('dialog'), spec, ui.game.industry.id).then((ok) => {
+      const sc = ui.scene;
+      sc.energy = Math.max(1, sc.energy - spec.energy);
+      sc.clock += spec.minutes || 0;
+      const outcome = ok
+        ? { label: choice.label, effects: choice.effects, result: choice.result, tip: choice.tip }
+        : { label: choice.label, effects: choice.fail.effects, result: choice.fail.result, tip: choice.tip };
+      const result = ui.game.resolveWith(p.ev, outcome);
+      if (!result) return closeDialog();
+      sc.removeActive(p);
+      ui.dialog = { type: 'result', result, p, game: ok, energy: spec.energy };
+      updateStats();
+      updateHud(sc.hudState());
+      renderDialog();
+    });
   }
 
   function closeResult() {
@@ -624,6 +707,8 @@
     const g = ui.game;
     const a = btn.dataset.action;
     if (a !== 'layoff') ui.confirmLayoff = false;
+    // 手機上點地圖打開對話框後，同一下點擊不要落到剛出現的選項上
+    if (['choose', 'later', 'close-result', 'begin-day'].includes(a) && performance.now() - (ui.dialogShownAt || 0) < 400) return;
     switch (a) {
       case 'set': {
         const nameInput = document.getElementById('boss-name');

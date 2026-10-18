@@ -119,7 +119,6 @@
     '#########EE#########',
   ];
 
-  const STAFF_NAMES = ['小美', '阿宏', '佳穎', '志明', '春嬌', '阿翔', '怡君', '家豪', '雅婷', '俊傑', '淑芬', 'Kevin', '詩涵', '建宏'];
 
   // 固定成本的預設名稱，產業可以用 costLabels 覆寫
   const COST_LABELS = { rent: '房租', materials: '原物料', utilities: '水電', fuel: '油資與運輸' };
@@ -304,6 +303,7 @@
     },
     {
       id: 'recession',
+      speaker: { look: 'shareholder', name: '股東' },
       where: 'phone',
       icon: '📉',
       title: '景氣變差，生意明顯下滑',
@@ -331,6 +331,13 @@
       title: '新人說沒有人教',
       text: '上週剛來的新人私下跟你說：「我不知道該做什麼，問人大家都很忙……」',
       choices: [
+        {
+          label: '老闆親自帶新人',
+          minigame: { type: 'orders', title: '示範給新人看，照步驟來', energy: 10, minutes: 40, target: 4, time: 22 },
+          effects: { morale: 4, jerk: -2 },
+          result: '新人說：「原來老闆也會做！」很快就上手了。',
+          fail: { effects: { morale: 1 }, result: '你示範到一半自己也卡住了，最後還是找資深同事救場。' },
+        },
         { label: '安排資深同事帶，給帶人津貼', effects: { cash: -8000, morale: 3 }, result: '新人很快就上手了，帶人的同事也覺得被看見。' },
         {
           label: '「我們都是做中學，自己看文件」',
@@ -348,6 +355,14 @@
       ignore: { effects: { cash: -10000, morale: -8, jerk: 10, flag: 'injuryCover' }, result: '你一直沒出現，受傷的員工只好自己叫車去醫院，還被要求「先別報職災」。' },
       choices: [
         {
+          label: '親自背他上車送醫',
+          minigame: { type: 'mash', title: '用力！把他背上車', energy: 14, minutes: 40, time: 6 },
+          effects: { cash: -50000, morale: 9, jerk: -6 },
+          result: '你一路把他背上車送到急診，還依法負擔了醫療費和公傷假。大家都看在眼裡。',
+          tip: '依勞基法第 59 條，勞工發生職業災害時，雇主應補償醫療費用，醫療期間不能工作者，應按原領工資補償。',
+          fail: { effects: { cash: -52000, morale: 6, jerk: -4 }, result: '你背不動，最後還是叫了救護車。不過你一路陪到醫院，也負擔了醫療費。' },
+        },
+        {
           label: '依法負擔醫療費、給公傷假',
           effects: { cash: -50000, morale: 6, jerk: -4 },
           result: '他回來後跟大家說：「這間公司真的會照顧人。」',
@@ -363,11 +378,19 @@
     },
     {
       id: 'viral',
+      speaker: { look: 'crowd', name: '排隊的客人' },
       where: 'door',
       icon: '🔥',
       title: '突然在網路上爆紅！',
       text: '有網紅推薦了你們，客人和訂單一口氣暴增，這週大家可能忙不過來。',
       choices: [
+        {
+          label: '老闆親自下場幫忙',
+          minigame: { type: 'orders', title: '人潮湧進來了！照單出貨', energy: 16, minutes: 30, target: 5, time: 22 },
+          effects: { cash: 70000, morale: 5, jerk: -3 },
+          result: '你捲起袖子一起做，大家看老闆都下場了，士氣大振。',
+          fail: { effects: { cash: 30000, morale: 1 }, result: '你手忙腳亂，打翻了好幾單。員工笑著接手：「老闆，你去旁邊休息啦。」' },
+        },
         { label: '加請臨時人手', effects: { cash: 50000, morale: 2 }, result: '順利接住這波人潮，大家累但開心。' },
         {
           label: '全員加班，加班費照付',
@@ -402,6 +425,7 @@
     },
     {
       id: 'minwage',
+      speaker: { look: 'caller', name: '會計' },
       where: 'phone',
       icon: '📈',
       title: '最低工資調漲',
@@ -459,6 +483,7 @@
     },
     {
       id: 'rent',
+      speaker: { look: 'landlord', name: '房東' },
       where: 'door',
       icon: '🏠',
       title: '房東要漲房租',
@@ -470,6 +495,7 @@
     },
     {
       id: 'nepotism',
+      speaker: { look: 'auntie', name: '阿姨' },
       where: 'phone',
       icon: '👨‍👩‍👦',
       title: '親戚的小孩想來上班',
@@ -487,6 +513,7 @@
     },
     {
       id: 'oil_shock',
+      speaker: { look: 'caller', name: '會計' },
       where: 'phone',
       icon: '🛢️',
       title: '國際油價飆漲',
@@ -562,6 +589,7 @@
 
     {
       id: 'r_vegetables',
+      speaker: { look: 'supplier', name: '菜商' },
       where: 'phone',
       icon: '🥬',
       title: '颱風過後菜價飆漲',
@@ -581,6 +609,7 @@
     },
     {
       id: 't_cloud',
+      speaker: { look: 'supplier', name: '雲端業務' },
       where: 'phone',
       icon: '☁️',
       title: '雲端服務漲價',
@@ -600,6 +629,7 @@
     },
     {
       id: 's_logistics',
+      speaker: { look: 'hq', name: '總部窗口' },
       where: 'phone',
       icon: '🚚',
       title: '總部調漲物流費',
@@ -646,6 +676,13 @@
       industries: ['drinks'],
       months: [5, 6, 7, 8],
       choices: [
+        {
+          label: '老闆親自進吧台搖飲料',
+          minigame: { type: 'orders', title: '36 度的下午，照單搖飲料', energy: 15, minutes: 30, target: 5, time: 22 },
+          effects: { cash: 60000, morale: 4, jerk: -2 },
+          result: '你搖到手痠，工讀生們偷偷拍下老闆滿頭大汗的樣子，上了限動。',
+          fail: { effects: { cash: 25000 }, result: '你把半糖做成全糖、去冰做成多冰，被客人退了好幾杯。' },
+        },
         { label: '加排工讀生的班', effects: { cash: 40000, morale: 1 }, result: '人手充足，出杯速度很穩。' },
         { label: '原班人馬撐，給加班費', effects: { cash: 35000, morale: -3 }, result: '大家累得手都在抖，但加班費有到位。' },
         {
@@ -675,12 +712,20 @@
     },
     {
       id: 'd_karen',
+      speaker: { look: 'karen', name: '奧客' },
       where: 'door',
       icon: '😡',
       title: '奧客把店員罵哭了',
       text: '客人堅持自己點的是「微糖」不是「半糖」，對著工讀生大吼了五分鐘。',
       industries: ['drinks', 'restaurant', 'store'],
       choices: [
+        {
+          label: '老闆親自出面安撫客人',
+          minigame: { type: 'needle', title: '冷靜應對奧客', energy: 8, minutes: 15, rounds: 3, need: 2, lines: ['「我明明說微糖！你們聽不懂人話嗎？」', '「叫你們老闆出來！喔你就是？」', '「我要給一星負評！」'] },
+          effects: { cash: -2000, morale: 8, jerk: -4 },
+          result: '你不卑不亢地處理好了，還順手幫工讀生擋下後面的謾罵。',
+          fail: { effects: { cash: -3000, morale: 3 }, result: '客人還是氣呼呼地走了，但員工很感謝你出面。' },
+        },
         { label: '站在員工這邊，請客人離開', effects: { cash: -3000, morale: 7, jerk: -3 }, result: '工讀生擦乾眼淚，全店都覺得老闆很有肩膀。' },
         {
           label: '「顧客永遠是對的，你去道歉」',
@@ -709,6 +754,7 @@
     },
     {
       id: 'd_material',
+      speaker: { look: 'supplier', name: '供應商' },
       where: 'phone',
       icon: '🫘',
       title: '原物料大漲',
@@ -723,12 +769,20 @@
     // ───────── 科技新創 ─────────
     {
       id: 't_demo',
+      speaker: { look: 'investor', name: '投資人' },
       where: 'phone',
       icon: '🚀',
       title: '投資人下週要看 Demo',
       text: '投資人臨時把會議提前，產品還有一堆 bug 沒修。',
       industries: ['tech'],
       choices: [
+        {
+          label: '老闆陪大家一起抓 bug',
+          minigame: { type: 'orders', title: 'Demo 前夜：一起修 bug', energy: 18, minutes: 45, target: 5, time: 22 },
+          effects: { cash: -15000, morale: 5, jerk: -2 },
+          result: '你訂了宵夜還陪大家一起修，Demo 順利過關，加班費也照付。',
+          fail: { effects: { cash: -25000, morale: 1 }, result: '你越修越多 bug，工程師們客氣地請你先回家。' },
+        },
         { label: '跟投資人談延後一週', effects: { cash: -30000, morale: 3 }, result: '投資人有點不高興，但延後一週的 Demo 很穩。' },
         { label: '週末加班，加班費照付', effects: { cash: -25000, morale: -3 }, result: '週末大家一起叫了 pizza，Demo 順利過關。' },
         {
@@ -807,12 +861,20 @@
     },
     {
       id: 't_client',
+      speaker: { look: 'caller', name: '大客戶' },
       where: 'phone',
       icon: '📞',
       title: '客戶要求明天上線',
       text: '大客戶突然要求功能明天就要上線，不然要扣款。',
       industries: ['tech'],
       choices: [
+        {
+          label: '親自打給客戶談延後',
+          minigame: { type: 'needle', title: '抓準時機說服客戶', energy: 8, minutes: 25, rounds: 3, need: 2, lines: ['「明天一定要上線，不然扣款！」', '「延後？你知道我們老闆多急嗎？」', '「……好吧，給你們兩天。」'] },
+          effects: { cash: -8000, morale: 4 },
+          result: '你談到了兩天的緩衝，工程師們不用通宵了。',
+          fail: { effects: { cash: -40000, morale: 3 }, result: '客戶不買單，扣了一筆錢，但至少沒有人要通宵。' },
+        },
         { label: '跟客戶溝通風險，爭取延後', effects: { cash: -40000, morale: 3 }, result: '被扣了一點錢，但沒有人需要通宵。' },
         { label: '通宵趕工，隔天補休加加班費', effects: { cash: -15000, morale: -3 }, result: '上線成功，大家隔天睡到中午。' },
         {
@@ -832,8 +894,14 @@
       text: '大夜班的工讀生離職了，徵人啟事貼了兩週都沒人來。',
       industries: ['store'],
       choices: [
+        {
+          label: '你自己下去顧大夜（親自結帳）',
+          minigame: { type: 'orders', title: '凌晨兩點的櫃台', energy: 22, minutes: 40, target: 5, time: 22 },
+          effects: { cash: -5000, morale: 5, jerk: -3 },
+          result: '你熬了兩週大夜，終於知道員工有多辛苦，也找到了新的大夜同事。',
+          fail: { effects: { cash: -15000, morale: 3 }, result: '你結帳結到收銀機當機，最後還是提高津貼找人。' },
+        },
         { label: '提高大夜津貼來徵人', effects: { cash: -25000, morale: 3 }, result: '終於有人來應徵了，還是個很可靠的大叔。' },
-        { label: '你自己下去顧大夜', effects: { cash: -5000, morale: 4, jerk: -2 }, result: '你熬了兩週大夜，終於知道員工有多辛苦。' },
         {
           label: '叫正職輪大夜，不另外加給',
           quote: '正職本來就要配合排班。',
@@ -861,6 +929,7 @@
     },
     {
       id: 's_quota',
+      speaker: { look: 'hq', name: '總部窗口' },
       where: 'phone',
       icon: '🍱',
       title: '總部要求衝年菜業績',
@@ -926,6 +995,13 @@
       industries: ['restaurant'],
       months: [5, 6, 7, 8, 9],
       choices: [
+        {
+          label: '自己爬上去修',
+          minigame: { type: 'needle', title: '小心鎖緊每一顆螺絲', energy: 10, minutes: 30, rounds: 3, need: 2, lines: ['鎖第一顆螺絲……', '接上冷媒管……', '最後一顆！'] },
+          effects: { cash: -5000, morale: 5 },
+          result: '冷氣轟一聲又動了起來，廚房響起一陣歡呼。',
+          fail: { effects: { cash: -45000, morale: 2 }, result: '越修越壞，最後還是請了師傅，多花了一筆錢。' },
+        },
         { label: '立刻找人來修', effects: { cash: -40000, morale: 5 }, result: '廚房恢復正常，出菜速度也回來了。' },
         {
           label: '「廚房本來就熱，忍一下」',
@@ -1029,6 +1105,13 @@
       text: '有家長晚上十一點傳了一大串訊息給老師，問孩子的作業和成績。',
       industries: ['cram'],
       choices: [
+        {
+          label: '老闆親自回電給家長',
+          minigame: { type: 'needle', title: '耐心跟家長溝通', energy: 8, minutes: 20, rounds: 3, need: 2, lines: ['「我家孩子怎麼又退步了？」', '「老師是不是不認真教？」', '「好啦，謝謝你們這麼用心。」'] },
+          effects: { morale: 6, jerk: -3 },
+          result: '家長被你安撫好了，老師們鬆了一口氣。',
+          fail: { effects: { morale: 2 }, result: '家長還是有點不滿，不過至少不是老師半夜在回訊息了。' },
+        },
         { label: '統一由櫃台處理，老師下班不用回', effects: { cash: -10000, morale: 6, jerk: -3 }, result: '老師們終於能好好睡覺了。' },
         {
           label: '「家長是衣食父母，要秒回」',
@@ -1091,5 +1174,5 @@
     },
   ];
 
-  root.BossData = { INDUSTRIES, COST_LABELS, POLICIES, VIOLATIONS, EVENTS, IGNORE, MAP, STAFF_NAMES };
+  root.BossData = { INDUSTRIES, COST_LABELS, POLICIES, VIOLATIONS, EVENTS, IGNORE, MAP };
 })(typeof window !== 'undefined' ? window : globalThis);

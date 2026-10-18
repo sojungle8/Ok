@@ -804,19 +804,110 @@ button:disabled {
 }
 
 .stage {
+  flex: 1;
+  min-height: 320px;
+}
+
+.world {
+  position: absolute;
+  inset: 0;
   display: flex;
+  align-items: center;
   justify-content: center;
 }
 
-.stage canvas {
+.office-3d,
+.flat-map {
   display: block;
-  width: auto;
-  height: auto;
-  max-width: 100%;
-  max-height: calc(100vh - 210px);
-  max-height: calc(100dvh - 210px);
   touch-action: manipulation;
   cursor: pointer;
+}
+
+.flat-map {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.office-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.office-overlay > * {
+  position: absolute;
+  left: 0;
+  top: 0;
+  will-change: transform;
+}
+
+.tag-name {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #4b3e35;
+  background: rgba(255, 255, 255, 0.78);
+  padding: 0 6px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.bubble3d {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: conic-gradient(#e0703a var(--left), rgba(255, 255, 255, 0.35) 0);
+  animation: bubble-bob 0.9s ease-in-out infinite;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.3));
+}
+
+.bubble3d span {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #fff;
+  color: #d9473f;
+  display: grid;
+  place-items: center;
+  font-weight: 900;
+  font-size: 1.1rem;
+}
+
+.bubble3d.urgent {
+  background: conic-gradient(#d9473f var(--left), rgba(255, 255, 255, 0.35) 0);
+}
+
+.bubble3d.urgent span {
+  background: #d9473f;
+  color: #fff;
+}
+
+@keyframes bubble-bob {
+  50% {
+    margin-top: -5px;
+  }
+}
+
+.boss-status {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+.dest-marker {
+  width: 26px;
+  height: 14px;
+  border: 3px solid rgba(224, 112, 58, 0.85);
+  border-radius: 50%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bubble3d {
+    animation: none;
+  }
 }
 
 .toasts {
@@ -1046,10 +1137,6 @@ body.in-day #app {
     margin-top: 6px;
   }
 
-  body.in-day .stage canvas {
-    max-height: calc(100vh - 80px);
-    max-height: calc(100dvh - 80px);
-  }
 }
 
 .rotate-hint {
@@ -1082,4 +1169,493 @@ body.in-day #app {
 .hr-buttons button.danger {
   border-color: var(--bad);
   color: var(--bad);
+}
+
+/* ───── 上班畫面填滿螢幕 ───── */
+body.in-day #app {
+  max-width: none;
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  padding-block: 8px;
+}
+
+body.in-day .stage {
+  margin-top: 8px;
+}
+
+body.in-day .controls-help {
+  margin-top: 6px;
+}
+
+/* ───── 開始畫面的角色 ───── */
+.hero {
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.hero-cast {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.hero-cast svg {
+  width: 110px;
+  height: auto;
+}
+
+.hero-boss svg {
+  width: 150px;
+}
+
+.hero-sub {
+  margin: 4px 0 0;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.segmented .pick-face {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.pick-face svg {
+  width: 34px;
+  height: 40px;
+}
+
+/* ───── 視覺小說對話框 ───── */
+.dialog-backdrop {
+  align-items: flex-end;
+  background: linear-gradient(to top, rgba(20, 15, 10, 0.75), rgba(20, 15, 10, 0.25) 60%, rgba(20, 15, 10, 0.1));
+}
+
+.vn {
+  display: flex;
+  align-items: flex-end;
+  gap: 0;
+  width: 100%;
+  max-width: 920px;
+  max-height: calc(100vh - 24px);
+  max-height: calc(100dvh - 24px);
+}
+
+.vn-portrait {
+  position: relative;
+  flex: 0 0 auto;
+  width: 250px;
+  margin-right: -20px;
+  z-index: 1;
+  animation: vn-in 0.25s ease-out;
+}
+
+.vn-portrait svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.35));
+}
+
+.vn-portrait.mood-angry svg,
+.vn-portrait.mood-shocked svg {
+  animation: vn-shake 0.4s ease-in-out;
+}
+
+.vn-portrait.mood-happy svg {
+  animation: vn-hop 0.45s ease-out;
+}
+
+.vn-name {
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  transform: translateX(-50%);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 800;
+  padding: 3px 14px;
+  border-radius: 999px;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+.vn-box {
+  flex: 1;
+  min-width: 0;
+  max-height: calc(100vh - 40px);
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+  padding-left: 34px;
+}
+
+.vn-box h2 {
+  margin: 2px 0 0;
+  font-size: 1.25rem;
+}
+
+.choice.is-game {
+  border-style: dashed;
+  border-color: var(--accent);
+}
+
+.cost.game {
+  color: var(--accent);
+}
+
+@keyframes vn-in {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+}
+
+@keyframes vn-shake {
+  25% {
+    transform: translateX(-6px) rotate(-2deg);
+  }
+  75% {
+    transform: translateX(6px) rotate(2deg);
+  }
+}
+
+@keyframes vn-hop {
+  40% {
+    transform: translateY(-14px);
+  }
+}
+
+@media (max-width: 640px) {
+  .vn {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .vn-portrait {
+    width: 130px;
+    margin: 0 0 -26px 10px;
+  }
+
+  .vn-box {
+    width: 100%;
+    padding-left: 18px;
+    padding-top: 30px;
+  }
+}
+
+@media (max-height: 520px) {
+  .vn-portrait {
+    width: 170px;
+  }
+
+  .vn-box {
+    font-size: 0.92rem;
+  }
+
+  .vn-box .choice {
+    padding: 8px 12px;
+  }
+}
+
+/* ───── 小遊戲 ───── */
+.mg-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(20, 15, 10, 0.6);
+}
+
+.mg {
+  width: 100%;
+  max-width: 560px;
+  text-align: center;
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+}
+
+.mg-kicker {
+  font-size: 0.8rem;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.mg-head h2 {
+  margin: 2px 0 10px;
+}
+
+.mg-timer {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.mg-timer-fill {
+  height: 100%;
+  width: 100%;
+  background: var(--good);
+}
+
+.mg-timer-fill.low {
+  background: var(--bad);
+}
+
+.mg-help,
+.mg-line {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.mg-line {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text);
+  min-height: 1.6em;
+}
+
+.mg-score {
+  margin: 8px 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.mg-ticket {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px;
+  margin: 10px auto 14px;
+  max-width: 380px;
+  background: #fffdf5;
+  color: #2b2622;
+  border: 2px dashed #d9c9a8;
+  border-radius: 10px;
+  position: relative;
+}
+
+.mg-ticket-no {
+  position: absolute;
+  top: 4px;
+  left: 10px;
+  font-size: 0.72rem;
+  color: #a08d6b;
+}
+
+.mg-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 2rem;
+  opacity: 0.45;
+}
+
+.mg-step small {
+  font-size: 0.7rem;
+}
+
+.mg-step.now {
+  opacity: 1;
+  transform: scale(1.15);
+}
+
+.mg-step.ok {
+  opacity: 1;
+  filter: grayscale(1);
+}
+
+.mg-arrow {
+  color: #c0b08f;
+}
+
+.mg-ticket.shake {
+  animation: vn-shake 0.3s;
+  border-color: var(--bad);
+}
+
+.mg-ticket.pop {
+  animation: vn-hop 0.3s;
+}
+
+.mg-items {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.mg-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 4px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  font-size: 0.8rem;
+}
+
+.mg-item:active {
+  transform: scale(0.94);
+}
+
+.mg-ic {
+  font-size: 1.7rem;
+}
+
+.mg-track {
+  position: relative;
+  height: 34px;
+  margin: 16px 0;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.mg-zone {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--good);
+  opacity: 0.75;
+}
+
+.mg-zone.hit {
+  background: var(--good);
+  opacity: 1;
+}
+
+.mg-zone.miss {
+  background: var(--bad);
+}
+
+.mg-needle {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 6px;
+  margin-left: -3px;
+  background: var(--text);
+  border-radius: 3px;
+}
+
+.mg-power {
+  height: 26px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+  margin: 16px 0;
+}
+
+.mg-power-fill {
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, #e8b931, var(--accent));
+}
+
+.mg-push.bump {
+  animation: vn-hop 0.15s;
+}
+
+.mg-result {
+  margin-top: 14px;
+  font-weight: 800;
+  font-size: 1.1rem;
+}
+
+.mg-win {
+  box-shadow: 0 0 0 3px var(--good);
+}
+
+.mg-lose {
+  box-shadow: 0 0 0 3px var(--bad);
+}
+
+/* ───── 結局立繪 ───── */
+.ending-face {
+  position: relative;
+  width: 150px;
+  margin: 0 auto;
+}
+
+.ending-face svg {
+  width: 100%;
+  height: auto;
+}
+
+.ending-face span {
+  position: absolute;
+  right: -6px;
+  bottom: 10px;
+  font-size: 2.2rem;
+}
+
+@media (max-width: 480px) {
+  .mg-items {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* 手機橫放：小遊戲壓縮成一個畫面 */
+@media (max-height: 520px) {
+  .mg-backdrop {
+    padding: 8px;
+  }
+
+  .mg {
+    padding: 10px 14px;
+  }
+
+  .mg-head h2 {
+    font-size: 1.05rem;
+    margin: 0 0 6px;
+  }
+
+  .mg-help {
+    display: none;
+  }
+
+  .mg-score {
+    margin: 4px 0;
+    font-size: 0.85rem;
+  }
+
+  .mg-ticket {
+    padding: 6px;
+    margin: 6px auto;
+  }
+
+  .mg-step {
+    font-size: 1.4rem;
+  }
+
+  .mg-item {
+    padding: 4px 2px;
+  }
+
+  .mg-item kbd {
+    display: none;
+  }
+
+  .mg-ic {
+    font-size: 1.3rem;
+  }
+
+  .mg-track,
+  .mg-power {
+    margin: 8px 0;
+  }
+
+  .mg-result {
+    margin-top: 6px;
+  }
 }
