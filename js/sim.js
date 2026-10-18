@@ -74,6 +74,7 @@
         restDays: 'rotate',
         overtimePay: true,
         breaks: true,
+        delivery: false,
         closedDay: -1, // -1：全年無休，0～6：週一～週日公休
       };
       this.idx = { cpi: 1, wage: 1, oil: 1, power: 1 };
@@ -89,6 +90,9 @@
       this.pendingEvents = [];
       this.usedEvents = new Set();
       this.achievements = new Set();
+      this.rel = {}; // 員工之間的好感度：-100～100
+      this.separate = new Set(); // 被排開班的兩個人
+      this.romanced = new Set();
       this.over = false;
       this.ending = null;
       this.cleanWeeks = 0;
@@ -115,8 +119,47 @@
     get hour() {
       return Math.floor(this.minute / 60) % 24;
     }
+    get weekOfMonth() {
+      return ((this.week - 1) % WEEKS_PER_MONTH) + 1;
+    }
     get dateLabel() {
-      return `第 ${this.month} 個月・第 ${((this.week - 1) % WEEKS_PER_MONTH) + 1} 週・週${WEEKDAYS[this.weekday]}`;
+      return `${this.monthOfYear} 月・第 ${this.weekOfMonth} 週・週${WEEKDAYS[this.weekday]}`;
+    }
+
+    // ───── 天氣與節慶 ─────
+    rollWeather() {
+      const m = this.monthOfYear;
+      const r = this.rng();
+      const typhoon = [7, 8, 9, 10].includes(m) ? 0.06 : 0;
+      const rain = m >= 5 && m <= 9 ? 0.26 : m <= 3 || m >= 11 ? 0.2 : 0.18;
+      const cloudy = m <= 3 || m >= 11 ? 0.3 : 0.18;
+      let id = 'sunny';
+      if (r < typhoon) id = 'typhoon';
+      else if (r < typhoon + rain) id = 'rain';
+      else if (r < typhoon + rain + cloudy) id = 'cloudy';
+      if (id === 'sunny' && this.isSummer) id = 'hot';
+      if (id === 'cloudy' && (m === 1 || m === 2 || m === 12) && this.rng() < 0.4) id = 'cold';
+      this.weather = WEATHER[id];
+    }
+
+    get festival() {
+      const m = this.monthOfYear;
+      const w = this.weekOfMonth;
+      return FESTIVALS.find((f) => f.month === m && f.week === w && (!f.days || f.days.includes(this.weekday))) || null;
+    }
+
+    weatherMult(kind = 'walk') {
+      const wx = this.weather || WEATHER.sunny;
+      let k = kind === 'delivery' ? wx.delivery : wx.walk;
+      if (kind === 'walk' && this.ind.id === 'drinks' && wx.id === 'hot') k *= 1.2;
+      if (kind === 'walk' && this.ind.id === 'noodle' && wx.id === 'cold') k *= 1.2;
+      return k;
+    }
+
+    festivalMult() {
+      const f = this.festival;
+      if (!f) return 1;
+      return f.mult[this.ind.id] || f.mult.all || 1;
     }
     get clockLabel() {
       const m = ((Math.floor(this.minute) % DAY) + DAY) % DAY;
@@ -478,6 +521,13 @@
     removeEmployee(e) {
       if (e.task && e.task.lane) e.task.lane.staff = null;
       if (e.task && e.task.type === 'rest' && e.task.obj) e.task.obj.seatTaken[e.task.seat] = null;
+      // 好朋友走了，留下來的人會難過，太難過也可能跟著走
+      for (const o of this.friendsOf(e)) {
+        o.mood = clamp(o.mood - 12, 0, 100);
+        this.say(o, `${e.name}走了，好捨不得……`, 120);
+        if (o.mood < 30) o.lowMoodDays += 1;
+      }
+      for (const k of Object.keys(this.rel)) if (k.split('-').includes(String(e.id))) delete this.rel[k];
       this.staff = this.staff.filter((x) => x !== e);
       for (const ev of this.activeEvents) if (ev.staff === e) ev.staff = this.staff[0] || null;
     }
@@ -522,6 +572,13 @@
         return (this.weekday + i * 3) % 7 >= 2;
       });
       this.roster = new Map(working.map((e, k) => [e.id, k % this.hours.shifts]));
+      // 被排開的兩個人不要同一班
+      if (this.hours.shifts > 1) {
+        for (const pair of this.separate) {
+          const [a, b] = pair.split('-').map(Number);
+          if (this.roster.has(a) && this.roster.has(b) && this.roster.get(a) === this.roster.get(b)) this.roster.set(b, (this.roster.get(b) + 1) % this.hours.shifts);
+        }
+      }
     }
 
     // 員工今天上不上班、上哪一班
@@ -558,7 +615,7 @@
       const summer = this.isSummer ? this.ind.summerBoost || 1 : 1;
       const heat = this.isSummer && !this.cooling ? 0.9 : 1;
       const mods = this.demandMods.reduce((m, d) => m * d.mult, 1);
-      return ratingF * priceF * beautyF * lotF * summer * heat * mods;
+      return ratingF * priceF * beautyF * lotF * summer * heat * mods * this.festivalMult();
     }
 
     availableProducts() {
@@ -567,7 +624,7 @@
       return this.ind.products.filter((p) => this.menu[p.id] && have.has(p.id));
     }
 
-    spawnCustomer() {
+    spawnCustomer(opt = {}) {
       const prods = this.availableProducts();
       if (!prods.length) return;
       const total = prods.reduce((s, p) => s + p.weight, 0);
@@ -586,18 +643,21 @@
         kind: 'customer',
         look: Looks.randomLook(this.rng),
         product,
-        qty: Math.max(1, Math.round(1 + (this.rng() + this.rng()) * ((this.ind.basket || 1) - 1))),
+        qty: Math.max(1, Math.round(1 + (this.rng() + this.rng()) * ((this.ind.basket || 1) - 1))) + (opt.rider ? 1 : 0),
+        rider: !!opt.rider,
         x: fromLeft ? -OUT_W : this.W + OUT_W - 1,
         z: this.H + (this.ind.arriveByScooter ? 1 : 0),
         path: [],
         state: 'arriving',
         waited: 0,
-        patience: 16 * (this.ind.patience || 1) * (this.mode === 'hell' ? 0.75 : 1),
+        patience: 16 * (this.ind.patience || 1) * (this.mode === 'hell' ? 0.75 : 1) * (opt.rider ? 1.4 : 1),
         progress: 0,
-        scooter: !!this.ind.arriveByScooter,
+        scooter: !!this.ind.arriveByScooter || !!opt.rider,
       };
+      if (opt.rider) c.look = { ...c.look, hat: 'cap', hatColor: '#e0478a', shirt: '#e0478a' };
       this.customers.push(c);
       this.today.visitors++;
+      if (opt.rider) this.today.delivery++;
       this.walkTo(c, { x: this.doorX + (this.rng() < 0.5 ? 0 : 1), z: this.H - 1 });
     }
 
@@ -755,7 +815,8 @@
     finishService(c, e) {
       const p = c.product;
       const unit = this.prices[p.id];
-      const price = unit * c.qty;
+      // 外送平台抽成 30%
+      const price = Math.round(unit * c.qty * (c.rider ? 0.7 : 1));
       const cost = p.cost * c.qty * this.idx.cpi * this.costMult.materials * (0.85 + 0.15 * this.idx.oil);
       this.cash += price - cost;
       this.ledger.revenue += price;
@@ -784,9 +845,9 @@
       c.obj = null;
       if (o) o.queue = o.queue.filter((x) => x !== c);
 
-      // 內用：找位子坐
+      // 內用：找位子坐（外送員拿了就走）
       let seated = false;
-      if (this.ind.dineIn && this.rng() < 0.65) {
+      if (this.ind.dineIn && !c.rider && this.rng() < 0.65) {
         const seats = this.objects.filter((s) => s.def.cat === 'seat');
         for (const s of seats) {
           const i = s.seatTaken.findIndex((t) => !t);
@@ -870,7 +931,9 @@
     }
 
     step(dt) {
+      const prevHour = Math.floor(this.minute / 60);
       this.minute += dt;
+      if (Math.floor(this.minute / 60) !== prevHour) this.socialTick();
       if (this.gridDirty) this.rebuildGrid();
 
       // 換日
@@ -881,11 +944,13 @@
 
       // 來客
       if (this.isOpen) {
-        const rate = (this.ind.baseArrivals * this.ind.demand[this.hour] * this.attractiveness()) / 60;
-        if (this.rng() < rate * dt) this.spawnCustomer();
+        const base = (this.ind.baseArrivals * this.ind.demand[this.hour] * this.attractiveness()) / 60;
+        if (this.rng() < base * this.weatherMult('walk') * dt) this.spawnCustomer();
+        // 外送平台的訂單：外送員騎車來取餐
+        if (this.policy.delivery && this.ind.delivery && this.rng() < base * 0.22 * this.weatherMult('delivery') * dt) this.spawnCustomer({ rider: true });
       }
       const daylight = this.hour >= 6 && this.hour < 22 ? 1 : 0.25;
-      if (this.rng() < (0.55 * daylight) * dt) this.spawnPasser();
+      if (this.rng() < 0.55 * daylight * (this.weather ? this.weather.walk : 1) * dt) this.spawnPasser();
 
       // 事件
       while (this.pendingEvents.length && this.pendingEvents[0].at <= this.minute) this.spawnEvent(this.pendingEvents.shift());
@@ -1150,8 +1215,78 @@
       }
     }
 
+    // ───── 人際關係 ─────
+    relKey(a, b) {
+      return a.id < b.id ? `${a.id}-${b.id}` : `${b.id}-${a.id}`;
+    }
+    relOf(a, b) {
+      return this.rel[this.relKey(a, b)] || 0;
+    }
+    addRel(a, b, d) {
+      if (!a || !b || a === b) return;
+      const k = this.relKey(a, b);
+      const before = this.rel[k] || 0;
+      const after = clamp(before + d, -100, 100);
+      this.rel[k] = after;
+      if (before < 40 && after >= 40) {
+        this.notify(`🤝 ${a.name}和${b.name}變成好朋友了`, 'good');
+        this.say(a, `跟${b.name}很聊得來`, 60);
+      }
+      if (before > -30 && after <= -30) {
+        this.notify(`💢 ${a.name}和${b.name}好像處不來`, 'bad');
+        this.say(a, `${b.name}真的很難相處……`, 60);
+      }
+    }
+    relLabel(v) {
+      if (v >= 70) return '超好的朋友';
+      if (v >= 40) return '好朋友';
+      if (v >= 15) return '還不錯';
+      if (v <= -60) return '死對頭';
+      if (v <= -30) return '處不來';
+      if (v <= -15) return '有點摩擦';
+      return '普通同事';
+    }
+    friendsOf(e, min = 40) {
+      return this.staff.filter((o) => o !== e && this.relOf(e, o) >= min);
+    }
+
+    // 每個小時：一起上班的人好感度慢慢變化
+    socialTick() {
+      const here = this.staff.filter((e) => e.state === 'working' || e.state === 'break');
+      for (let i = 0; i < here.length; i++) {
+        for (let j = i + 1; j < here.length; j++) {
+          const a = here[i];
+          const b = here[j];
+          const cur = this.relOf(a, b);
+          // 每一對人有固定的合拍程度：有些人天生就是處不來
+          const h = ((a.id * 73856093) ^ (b.id * 19349663)) >>> 0;
+          const fit = ((h % 1000) / 1000 - 0.5) * 1.4;
+          let d = 0.22 + fit + (this.rng() - 0.5) * 1.2;
+          if (a.traits.includes('chatty') && b.traits.includes('chatty')) d += 0.6;
+          if (a.traits.includes('cheerful') || b.traits.includes('cheerful')) d += 0.3;
+          if ((a.traits.includes('fragile') && b.traits.includes('veteran')) || (b.traits.includes('fragile') && a.traits.includes('veteran'))) d -= 0.7;
+          if (a.mood < 35 || b.mood < 35) d -= 0.8;
+          if (a.energy < 25 && b.energy < 25) d -= 0.4;
+          if (cur < -20) d -= 0.3;
+          if (cur > 20) d += 0.2;
+          this.addRel(a, b, d);
+        }
+      }
+    }
+
     updateMood(e, dt) {
       let target = 62;
+      if (e.state === 'working' || e.state === 'break') {
+        let f = 0;
+        let r = 0;
+        for (const o of this.staff) {
+          if (o === e || (o.state !== 'working' && o.state !== 'break')) continue;
+          const v = this.relOf(e, o);
+          if (v >= 40) f++;
+          else if (v <= -30) r++;
+        }
+        target += Math.min(8, f * 4) - Math.min(10, r * 5);
+      }
       target += (e.wage / this.marketWage - 1) * 60;
       target += Math.min(10, this.beauty / 4);
       if (this.objects.some((o) => o.def.staffMood)) target += 3;
@@ -1183,6 +1318,11 @@
       if (this.customers.filter((c) => c.state === 'queue').length > 6) pool.push('客人好多！', '做不完了啦');
       if (e.mood > 75) pool.push('今天心情不錯', '老闆人很好', '這裡的同事都好好');
       if (this.beauty > 12) pool.push('店裡越來越漂亮了');
+      const here = this.staff.filter((o) => o !== e && (o.state === 'working' || o.state === 'break'));
+      const friend = here.find((o) => this.relOf(e, o) >= 40);
+      const rival = here.find((o) => this.relOf(e, o) <= -30);
+      if (friend) pool.push(`跟${friend.name}一起上班好開心`, `等一下跟${friend.name}去吃宵夜`);
+      if (rival) pool.push(`${rival.name}今天又在擺臭臉`, `為什麼又跟${rival.name}同一班……`);
       if (!pool.length) pool.push('今天也要加油', '……', '晚餐要吃什麼呢');
       this.say(e, pool[Math.floor(this.rng() * pool.length)], 35);
     }
@@ -1191,8 +1331,15 @@
     planDay() {
       this.today = this.emptyDay();
       this.pendingEvents = [];
+      this.rollWeather();
       this.makeRoster();
+      const f = this.festival;
+      if (f && this.cb.festival) this.cb.festival(f);
       if (!this.openToday) return;
+      if (this.weather.id === 'typhoon') {
+        const ty = EVENTS.find((e) => e.id === 'typhoon');
+        if (ty) this.pendingEvents.push({ ev: ty, at: this.hours.open + 20, where: 'staff' });
+      }
       // 平均一天不到一件事
       const count = Math.floor((this.mode === 'hell' ? 0.6 : 0.25) + this.rng() * 1.1);
       const cats = this.ind.categories;
@@ -1219,14 +1366,34 @@
         const ye = EVENTS.find((e) => e.id === 'yearend');
         if (ye) this.pendingEvents.push({ ev: ye, at: this.policy.open + 120, where: 'staff' });
       }
+      this.planSocialEvents();
       this.pendingEvents.sort((a, b) => a.at - b.at);
+    }
+
+    planSocialEvents() {
+      const at = () => this.hours.open + 60 + this.rng() * Math.max(60, Math.min(this.hours.span, 600) - 120);
+      for (let i = 0; i < this.staff.length; i++) {
+        for (let j = i + 1; j < this.staff.length; j++) {
+          const a = this.staff[i];
+          const b = this.staff[j];
+          const v = this.relOf(a, b);
+          const both = this.roster && this.roster.has(a.id) && this.roster.has(b.id) && this.roster.get(a.id) === this.roster.get(b.id);
+          if (!both) continue;
+          if (v <= -35 && this.rng() < 0.3) this.pendingEvents.push({ ev: fightEvent(a, b), at: at(), where: 'staff', staffPref: a });
+          const k = this.relKey(a, b);
+          if (v >= 85 && a.gender !== b.gender && !this.romanced.has(k) && this.rng() < 0.2) {
+            this.romanced.add(k);
+            this.pendingEvents.push({ ev: loveEvent(a, b), at: at(), where: 'staff', staffPref: a });
+          }
+        }
+      }
     }
 
     spawnEvent(p) {
       const working = this.staff.filter((e) => e.state === 'working' || e.state === 'break');
       if (p.where === 'staff') {
         if (!working.length) return;
-        p.staff = working[Math.floor(this.rng() * working.length)];
+        p.staff = p.staffPref && working.includes(p.staffPref) ? p.staffPref : working[Math.floor(this.rng() * working.length)];
       }
       p.spawnedAt = this.minute;
       p.deadline = this.minute + { staff: 150, phone: 50, door: 70 }[p.where];
@@ -1275,6 +1442,10 @@
       }
       if (fx.demand) this.demandMods.push({ mult: fx.demand.mult, days: fx.demand.months * 7 });
       if (fx.flag) this.flags.add(fx.flag);
+      const byId = (id) => this.staff.find((x) => x.id === id);
+      if (fx.rel) this.addRel(byId(fx.rel[0]), byId(fx.rel[1]), fx.rel[2]);
+      if (fx.moodOf) for (const [id, d] of fx.moodOf) if (byId(id)) byId(id).mood = clamp(byId(id).mood + d, 0, 100);
+      if (fx.separate) this.separate.add(fx.separate.join('-'));
       this.activeEvents = this.activeEvents.filter((x) => x !== ev);
       const after = { cash: this.cash, morale: Math.round(this.morale), jerk: Math.round(this.jerk), staff: this.staff.length };
       const delta = Object.fromEntries(Object.keys(after).map((k) => [k, Math.round(after[k] - before[k])]));
@@ -1297,7 +1468,7 @@
     }
 
     emptyDay() {
-      return { visitors: 0, served: 0, angry: 0, balked: 0, revenue: 0 };
+      return { visitors: 0, served: 0, angry: 0, balked: 0, revenue: 0, delivery: 0 };
     }
 
     endDay() {
@@ -1310,6 +1481,8 @@
         const normal = Math.min(8, hours);
         const ot = Math.max(0, hours - 8);
         let pay = normal * e.wage;
+        // 國定假日出勤，工資加倍
+        if (this.festival && this.festival.holiday) pay *= 2;
         if (ot > 0) {
           if (this.policy.overtimePay) pay += Math.min(2, ot) * e.wage * 1.34 + Math.max(0, ot - 2) * e.wage * 1.67;
           else unpaidOT += ot;
@@ -1323,6 +1496,7 @@
       }
       this.cash -= report.wages;
       this.ledger.wages += report.wages;
+      report.holiday = !!(this.festival && this.festival.holiday && report.wages > 0);
 
       // 房租、水電
       const rent = Math.round((this.ind.rent * this.lot.rentMult * this.costMult.rent) / 30);
@@ -1492,6 +1666,8 @@
         history: this.history.slice(-20),
         achievements: [...this.achievements],
         cleanWeeks: this.cleanWeeks,
+        rel: this.rel,
+        separate: [...this.separate],
       });
     }
 
@@ -1503,6 +1679,8 @@
       for (const [t, x, z, r] of d.objects) s.place(t, x, z, r, true);
       Object.assign(s, { day: d.day, cash: d.cash, loan: d.loan, jerk: d.jerk, reviews: d.reviews, prices: d.prices, menu: d.menu, policy: d.policy, idx: d.idx, costMult: d.costMult, history: d.history, cleanWeeks: d.cleanWeeks || 0 });
       s.achievements = new Set(d.achievements);
+      s.rel = d.rel || {};
+      s.separate = new Set(d.separate || []);
       s.staff = d.staff.map((e) => ({ ...e, task: null, path: [], state: 'off', x: -OUT_W, z: s.H }));
       s.minute = s.dayStart;
       s.customers = [];
@@ -1510,6 +1688,69 @@
       s.planDay();
       return s;
     }
+  }
+
+  const WEATHER = {
+    sunny: { id: 'sunny', name: '晴天', icon: '☀️', walk: 1, delivery: 1 },
+    hot: { id: 'hot', name: '炎熱', icon: '🥵', walk: 0.95, delivery: 1.2 },
+    cloudy: { id: 'cloudy', name: '陰天', icon: '☁️', walk: 0.95, delivery: 1.05 },
+    cold: { id: 'cold', name: '寒流', icon: '🥶', walk: 0.85, delivery: 1.4 },
+    rain: { id: 'rain', name: '下雨', icon: '🌧️', walk: 0.72, delivery: 1.8 },
+    typhoon: { id: 'typhoon', name: '颱風', icon: '🌀', walk: 0.3, delivery: 0.6 },
+  };
+
+  // 節慶：月份、第幾週、週幾（0 = 週一）
+  const FESTIVALS = [
+    { id: 'precny', name: '過年前', icon: '🏮', month: 1, week: 4, mult: { barber: 1.8, scooter: 1.4, store: 1.15 }, news: '🏮 過年前大家都要剪頭髮、保養機車準備返鄉。' },
+    { id: 'cny', name: '春節連假', icon: '🧧', month: 2, week: 1, days: [0, 1, 2, 3, 4], holiday: true, mult: { breakfast: 0.6, noodle: 0.7, drinks: 0.8, barber: 0.4, scooter: 0.5, store: 1.35 }, news: '🧧 春節連假！國定假日出勤工資要加倍；很多人回老家，街上比較冷清。' },
+    { id: 'mother', name: '母親節', icon: '💐', month: 5, week: 2, days: [5, 6], mult: { barber: 1.5, noodle: 1.25, breakfast: 1.1, all: 1.1 }, news: '💐 母親節週末，帶媽媽出門的人變多了。' },
+    { id: 'dragon', name: '端午節', icon: '🐉', month: 6, week: 2, days: [4], holiday: true, mult: { all: 1.1, store: 1.2 }, news: '🐉 端午節國定假日，出勤工資加倍。' },
+    { id: 'ghost', name: '中元普渡', icon: '🏮', month: 8, week: 3, mult: { store: 1.25, all: 1 }, news: '🏮 中元普渡，家家戶戶都在買供品。' },
+    { id: 'school', name: '開學季', icon: '🎒', month: 9, week: 1, mult: { breakfast: 1.25, drinks: 1.15, store: 1.1, barber: 1.2 }, news: '🎒 開學了，早上學生多了不少。' },
+    { id: 'moon', name: '中秋烤肉', icon: '🥮', month: 9, week: 3, days: [4, 5, 6], holiday: true, mult: { store: 1.4, drinks: 1.15, all: 0.95 }, news: '🥮 中秋節，大家都在烤肉；國定假日出勤工資加倍。' },
+    { id: 'nye', name: '跨年', icon: '🎆', month: 12, week: 4, days: [6], mult: { drinks: 1.25, store: 1.35, all: 1.05 }, news: '🎆 跨年夜，街上整晚都是人。' },
+  ];
+
+  // 人際關係事件
+  function fightEvent(a, b) {
+    const ids = [a.id, b.id];
+    return {
+      id: 'rel_fight',
+      icon: '💢',
+      title: `${a.name}跟${b.name}吵架了`,
+      text: `${a.name}和${b.name}為了誰該去洗碗、誰又偷懶吵了起來，整間店的氣氛都很僵，客人也在看。`,
+      choices: [
+        { label: '把兩個人找來，私下調解', effects: { rel: [...ids, 30], moodOf: [[a.id, 4], [b.id, 4]], jerk: -1 }, result: '你泡了兩杯茶讓他們把話說開，最後兩個人都笑了出來。' },
+        { label: '把他們排到不同班', note: '之後盡量不排同一班', effects: { rel: [...ids, 5], separate: ids }, result: '眼不見為淨，至少店裡的氣氛恢復正常了。' },
+        {
+          label: '「吵什麼吵，都給我閉嘴做事！」',
+          quote: '上班是來工作的，不是來交朋友的。',
+          effects: { rel: [...ids, -15], moodOf: [[a.id, -10], [b.id, -10]], jerk: 5 },
+          result: '兩個人都不吭聲了，但下班後各自在群組裡抱怨了一個小時。',
+        },
+      ],
+      ignore: { effects: { rel: [...ids, -10], moodOf: [[a.id, -5], [b.id, -5]] }, result: '你假裝沒看到，兩個人冷戰了一整天。' },
+    };
+  }
+
+  function loveEvent(a, b) {
+    return {
+      id: 'rel_love',
+      icon: '💕',
+      title: `${a.name}和${b.name}好像在交往`,
+      text: `大家發現${a.name}和${b.name}下班都一起走，休息時間也坐在一起。店裡開始傳八卦了。`,
+      choices: [
+        { label: '祝福他們，私事不干涉', effects: { moodOf: [[a.id, 8], [b.id, 8]], morale: 1, jerk: -1 }, result: '兩個人有點害羞地道謝，上班的心情好到都在哼歌。' },
+        { label: '提醒上班時間要專心', effects: { moodOf: [[a.id, -1], [b.id, -1]] }, result: '他們點點頭，上班時更專心了。' },
+        {
+          label: '「禁止辦公室戀愛，不然一個人走」',
+          quote: '店裡不是讓你們談戀愛的地方。',
+          effects: { moodOf: [[a.id, -18], [b.id, -18]], jerk: 8 },
+          result: '兩個人臉色都變了。隔天，他們開始一起在網路上找新工作。',
+          tip: '員工交往不是勞基法允許的解僱事由；以此逼迫離職或給予不利對待，可能構成違法解僱。',
+        },
+      ],
+    };
   }
 
   const ACHIEVEMENTS = [
@@ -1526,5 +1767,5 @@
   VIOLATIONS.noRestDay = VIOLATIONS.noRestDay || { label: '未依法排休（七休一）', fine: 60000 };
   VIOLATIONS.noBreak = VIOLATIONS.noBreak || { label: '未給予休息時間', fine: 40000 };
 
-  root.BossSim = { Sim, CATALOG, catalogById, ACHIEVEMENTS, ECON, DAY, OUT_W, STREET, MIN_WAGE, WEEKDAYS, local };
+  root.BossSim = { Sim, CATALOG, catalogById, ACHIEVEMENTS, ECON, DAY, OUT_W, STREET, MIN_WAGE, WEEKDAYS, WEATHER, FESTIVALS, local };
 })(typeof window !== 'undefined' ? window : globalThis);

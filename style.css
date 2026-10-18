@@ -406,6 +406,16 @@ body.in-game::before {
   font-size: 1.6rem;
 }
 
+.tb-weather {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tb-weather span {
+  font-size: 1.4rem;
+}
+
 .tb-clock b {
   font-size: 1.3rem;
 }
@@ -2174,4 +2184,54 @@ kbd {
   .inspector {
     animation: none !important;
   }
+}
+
+.rel-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  margin: 0 0 10px;
+}
+
+.rel-list > small {
+  width: 100%;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.rel {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px 2px 2px;
+  border-radius: 999px;
+  background: var(--bg);
+  font-size: 0.78rem;
+}
+
+.rel-face {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--accent-soft);
+}
+
+.rel-face svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.rel em {
+  font-style: normal;
+  color: var(--muted);
+}
+
+.rel.pos em {
+  color: var(--good);
+}
+
+.rel.neg em {
+  color: var(--bad);
 }

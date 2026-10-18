@@ -667,6 +667,273 @@
         },
       ],
     },
+    // ───────── 早餐店 ─────────
+    {
+      id: 'b_prep',
+      icon: '⏰',
+      title: '凌晨四點的備料時間',
+      text: '早餐店五點半開門，但蛋餅皮、生菜、奶茶都要先備好。有員工問：「四點半來備料，這段算工時嗎？」',
+      industries: ['breakfast'],
+      choices: [
+        { label: '算工時，照付', effects: { cash: -14000, morale: 5, jerk: -3 }, result: '大家備料時不再一直看時鐘，動作也俐落多了。' },
+        { label: '改成開門前一小時到，給早班津貼', effects: { cash: -9000, morale: 3 }, result: '津貼不多，但大家覺得老闆有把早起當一回事。' },
+        {
+          label: '「早餐店本來就要早起，備料不算」',
+          quote: '開店前的準備是你自己的事。',
+          effects: { cash: 12000, morale: -7, jerk: 9, flag: 'unpaidCleaning' },
+          result: '大家每天四點半到，卻從五點半才開始算錢。',
+          tip: '開店前備料是雇主要求的工作，屬於工作時間，應計入工時並給付工資。',
+        },
+      ],
+    },
+    {
+      id: 'b_egg',
+      icon: '🥚',
+      title: '蛋荒來了',
+      text: '禽流感加上天氣太熱，雞蛋一盒難求，供應商說這週只能給一半的量，價格還漲三成。',
+      industries: ['breakfast'],
+      where: 'phone',
+      speaker: { look: 'supplier', name: '雞蛋盤商' },
+      choices: [
+        { label: '蛋類餐點每份漲 5 元', note: '售價 +6%', effects: { price: 0.06 }, result: '客人嘀咕了幾句，但都知道最近蛋很貴。' },
+        { label: '自己吸收，價格不動', note: '之後每月食材成本 +8%', effects: { costMult: { materials: 0.08 } }, result: '這個月的毛利很難看，但熟客都很感謝。' },
+        {
+          label: '「叫員工去各家超市排隊搶蛋，下班時間去」',
+          quote: '大家一起共體時艱嘛。',
+          effects: { morale: -8, jerk: 8, flag: 'unpaidOT' },
+          result: '員工下班後還要跑三家超市排隊買蛋，一毛錢都沒有。',
+        },
+      ],
+    },
+    {
+      id: 'b_student',
+      icon: '🎒',
+      title: '隔壁國中開學了',
+      text: '開學第一天，一大群國中生七點衝進店裡，有人只有十分鐘就要進校門。',
+      industries: ['breakfast'],
+      where: 'door',
+      speaker: { look: 'crowd', name: '趕上學的學生' },
+      months: [2, 9],
+      choices: [
+        {
+          label: '老闆親自進煎台幫忙',
+          minigame: { type: 'orders', title: '七點的學生潮，照單出餐', target: 5, time: 22 },
+          effects: { cash: 30000, morale: 5, jerk: -2 },
+          result: '學生們拿著蛋餅衝去學校，還有人回頭喊「老闆明天見！」',
+          fail: { effects: { cash: 10000, morale: 1 }, result: '你做錯好幾份，員工笑著說：「老闆，你負責收錢就好。」' },
+        },
+        { label: '推出學生套餐，預先做好一批', effects: { cash: 20000, demand: { mult: 1.15, months: 1 } }, result: '學生套餐大受歡迎，之後每天早上都有固定客群。' },
+        { label: '照平常的節奏做', effects: { cash: 6000 }, result: '有些學生等不及就走了。' },
+      ],
+    },
+
+    // ───────── 麵店 ─────────
+    {
+      id: 'n_burn',
+      icon: '🔥',
+      title: '員工被熱湯燙傷',
+      text: '尖峰時間太趕，一位員工撈麵時被滾燙的湯潑到手臂，起了一大片水泡。',
+      industries: ['noodle'],
+      choices: [
+        {
+          label: '馬上送醫，依法給公傷病假',
+          effects: { cash: -40000, morale: 7, jerk: -4 },
+          result: '你陪他去急診，回來後大家都說：「這間店真的會照顧人。」',
+          tip: '依勞基法第 59 條，職業災害的醫療費用由雇主補償，醫療期間不能工作者應按原領工資補償。',
+        },
+        {
+          label: '「擦個燙傷藥，繼續做」',
+          quote: '我們這行誰沒被燙過？',
+          effects: { morale: -10, jerk: 14, flag: 'injuryCover' },
+          result: '他忍著痛做完整個晚餐時段。隔天水泡破了，傷口感染。',
+        },
+      ],
+    },
+    {
+      id: 'n_broth',
+      icon: '🍲',
+      title: '大骨湯要熬六個小時',
+      text: '招牌湯頭要凌晨開始熬，負責的員工每天都比別人早來三個小時。',
+      industries: ['noodle'],
+      choices: [
+        { label: '這三小時算加班，加班費照付', effects: { cash: -18000, morale: 5, jerk: -2 }, result: '熬湯的員工說：「這樣我熬得心甘情願。」' },
+        { label: '買一台自動熬湯機', effects: { cash: -60000, morale: 3 }, result: '機器很貴，但再也不用有人凌晨來顧火。' },
+        {
+          label: '「熬湯是你的責任，自己安排時間」',
+          quote: '湯頭是店的靈魂，你應該引以為傲。',
+          effects: { cash: 10000, morale: -6, jerk: 9, flag: 'unpaidOT' },
+          result: '他每天多做三小時，薪水一毛都沒多。',
+        },
+      ],
+    },
+
+    // ───────── 理髮廳 ─────────
+    {
+      id: 'h_regular',
+      icon: '👴',
+      title: '熟客指定的設計師剛好排休',
+      text: '來剪了二十年的阿伯一定要給同一位設計師剪，偏偏她今天排休。阿伯在門口說：「叫她來，我等。」',
+      industries: ['barber'],
+      where: 'door',
+      speaker: { look: 'landlord', name: '老熟客阿伯' },
+      choices: [
+        { label: '請阿伯改天再來，順便送他一張洗髮券', effects: { cash: -2000, morale: 3 }, result: '阿伯哼了一聲，但收下洗髮券，說好週四再來。' },
+        { label: '請其他設計師幫他剪，保證剪一樣', effects: { cash: 1000 }, result: '阿伯一開始很不放心，剪完照了很久鏡子：「嗯，還可以。」' },
+        {
+          label: '打電話叫她休假日回來剪',
+          quote: '熟客最重要，休假可以改天再休。',
+          effects: { cash: 3000, morale: -7, jerk: 8, flag: 'noRestDay' },
+          result: '她丟下正在陪的家人趕回來，整個下午都沒笑過。',
+          tip: '依勞基法第 36 條，勞工每七日應有兩日休息；休假日要求出勤，須經勞工同意並加倍發給工資。',
+        },
+      ],
+    },
+    {
+      id: 'h_gloves',
+      icon: '🧤',
+      title: '設計師的手過敏脫皮',
+      text: '每天洗頭、碰染劑，有設計師的手開始紅腫脫皮，晚上癢到睡不著。',
+      industries: ['barber'],
+      choices: [
+        { label: '買專業手套和護手霜，加強通風', effects: { cash: -8000, morale: 6, jerk: -3 }, result: '大家的手慢慢好起來了，也更願意接染髮的客人。' },
+        {
+          label: '「戴手套摸不出髮質，忍一下」',
+          quote: '我做了三十年也是這樣過來的。',
+          effects: { morale: -8, jerk: 8 },
+          result: '她的手越來越嚴重，開始偷偷看別家店的徵才。',
+          tip: '雇主應提供必要的安全衛生設備（職業安全衛生法），化學品接觸的防護也包含在內。',
+        },
+      ],
+    },
+    {
+      id: 'h_commission',
+      icon: '💇',
+      title: '設計師想改成抽成制',
+      text: '資深設計師說：「我一天剪十幾顆頭，能不能底薪加抽成？不然隔壁髮廊在挖我。」',
+      industries: ['barber'],
+      choices: [
+        { label: '底薪不變，每顆頭另外抽成', note: '之後每月薪資成本 +5%', effects: { wageMult: 0.05, morale: 6 }, result: '大家剪得更起勁了，也開始主動經營熟客。' },
+        { label: '維持現在的薪水，年底發獎金', effects: { morale: 1 }, result: '她說會再考慮看看。' },
+        {
+          label: '「改成純抽成，沒客人就沒薪水」',
+          quote: '這樣你們才會有拚勁。',
+          effects: { cash: 15000, morale: -10, jerk: 10 },
+          result: '下雨天沒客人，設計師們一整天坐著，一毛錢都沒賺。',
+          tip: '受僱的設計師即使採抽成制，每月工資仍不得低於最低工資。',
+        },
+      ],
+    },
+
+    // ───────── 機車行 ─────────
+    {
+      id: 'm_heat',
+      icon: '🥵',
+      title: '修車區 40 度',
+      text: '夏天的午後，鐵皮屋頂把修車區曬得像烤箱，師傅的衣服整件濕透。',
+      industries: ['scooter'],
+      months: [6, 7, 8, 9],
+      choices: [
+        { label: '裝大型工業電扇和噴霧系統', effects: { cash: -25000, morale: 6, jerk: -2 }, result: '涼風一吹，師傅們終於不用一直跑去灌冰水。' },
+        { label: '中午最熱時輪流休息', effects: { cash: -6000, morale: 3 }, result: '大家輪流休息，下午的效率反而比較好。' },
+        {
+          label: '「修車本來就熱，喝水就好」',
+          quote: '流汗才是男子漢。',
+          effects: { morale: -8, jerk: 7 },
+          result: '有位師傅在下午兩點差點中暑，被送到診所打點滴。',
+          tip: '勞動部的高氣溫戶外作業熱危害預防規定，要求雇主提供休息、飲水、遮陽等措施。',
+        },
+      ],
+    },
+    {
+      id: 'm_wrongpart',
+      icon: '🔩',
+      title: '零件裝錯，客人回來抱怨',
+      text: '一位新手師傅把機油濾網裝錯型號，客人騎到一半漏油，氣沖沖地回來。',
+      industries: ['scooter'],
+      choices: [
+        { label: '公司賠償客人，帶新手重新學一次', effects: { cash: -6000, morale: 3 }, result: '客人氣消了，新手師傅也學到教訓。' },
+        {
+          label: '「誰裝錯誰賠，從薪水扣」',
+          quote: '做錯事就要負責。',
+          effects: { morale: -8, jerk: 9, flag: 'deductWage' },
+          result: '新手師傅這個月的薪水少了一大截，之後連螺絲都不敢鎖。',
+          tip: '依勞基法第 26 條，雇主不得預扣工資作為違約金或賠償費用。',
+        },
+      ],
+    },
+    {
+      id: 'm_apprentice',
+      icon: '🧑‍🔧',
+      title: '年輕人想來當學徒',
+      text: '一個高職剛畢業的年輕人想來學修車：「老闆，我想學功夫，薪水不重要。」',
+      industries: ['scooter'],
+      where: 'door',
+      speaker: { look: 'crowd', name: '想當學徒的年輕人' },
+      choices: [
+        { label: '正式聘僱，薪水照最低工資以上給', effects: (g) => ({ staff: 1, morale: 2 }), result: '他學得很快，三個月後已經可以自己換機油了。' },
+        { label: '先婉拒，目前人手夠', effects: {}, result: '年輕人有點失望地走了。' },
+        {
+          label: '「學徒不用薪水，學到功夫就是賺到」',
+          quote: '我當年學功夫還要倒貼師傅。',
+          effects: (g) => ({ staff: 1, morale: -4, jerk: 12 }),
+          result: '他每天做十個小時，一毛錢都沒有。',
+          tip: '學徒也是勞工，依《最低工資法》和勞基法，工資不得低於最低工資。',
+        },
+      ],
+    },
+
+    // ───────── 台灣在地（各行各業） ─────────
+    {
+      id: 'g_pension',
+      icon: '🏦',
+      title: '勞退 6% 要誰出？',
+      text: '會計提醒：每個月要幫員工提繳 6% 的勞工退休金。有人建議「從員工薪水扣就好」。',
+      where: 'phone',
+      speaker: { look: 'caller', name: '會計' },
+      choices: [
+        { label: '公司依法提繳 6%', effects: { morale: 2, jerk: -2 }, result: '員工在勞保 APP 上看到提繳紀錄，對公司更放心了。' },
+        {
+          label: '「從員工薪水扣」',
+          quote: '反正是他們自己的退休金。',
+          effects: { cash: 20000, morale: -8, jerk: 12, flag: 'deductWage' },
+          result: '有員工查了勞保局網站，發現自己的薪水被扣了一筆「雇主提繳」。',
+          tip: '依《勞工退休金條例》，雇主應為勞工按月提繳不低於工資 6% 的退休金，不得從勞工工資中扣除。',
+        },
+      ],
+    },
+    {
+      id: 'g_ghost',
+      icon: '🏮',
+      title: '中元普渡要拜拜',
+      text: '農曆七月到了，隔壁店家都在門口擺供桌。員工問：「我們今年要拜嗎？供品誰出？」',
+      months: [8],
+      choices: [
+        { label: '公司出錢準備供品，拜完大家分著吃', effects: (g) => ({ cash: -800 * g.staff, morale: 5 }), result: '拜完之後大家圍著吃餅乾、喝飲料，像辦了一場小派對。' },
+        { label: '簡單拜一下就好', effects: { cash: -1500 }, result: '中規中矩，平平安安。' },
+        {
+          label: '「每個人出 500 元買供品」',
+          quote: '保佑的是大家，當然大家出。',
+          effects: { morale: -5, jerk: 5 },
+          result: '員工一邊掏錢一邊在心裡嘀咕：保佑的明明是老闆的生意。',
+        },
+      ],
+    },
+    {
+      id: 'g_review_bomb',
+      icon: '📱',
+      title: '網路上出現一星洗版',
+      text: '有人在地圖評論連續留了好幾則一星，說店員態度差。店員看了很難過。',
+      choices: [
+        { label: '公開回覆說明，私下安慰員工', effects: { morale: 5, jerk: -2 }, result: '你的回覆有理有據，還有熟客出來幫忙說話。' },
+        { label: '不理它', effects: { demand: { mult: 0.95, months: 1 } }, result: '一星評論掛在最上面，路過的人看到有點猶豫。' },
+        {
+          label: '「一定是你們做錯什麼，扣這個月的全勤」',
+          quote: '客人不會無緣無故給一星。',
+          effects: { morale: -10, jerk: 10, flag: 'deductWage' },
+          result: '店員明明什麼都沒做錯，全勤獎金卻沒了。',
+        },
+      ],
+    },
     // ───────── 手搖飲店 ─────────
     {
       id: 'd_summer',

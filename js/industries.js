@@ -24,6 +24,7 @@
       hourlyWage: 200,
       baseArrivals: 46,
       basket: 1.8, // 平均每位客人點幾份
+      delivery: true,
       dineIn: true,
       demand: curve([[5, 0.35], [6, 0.8], [7, 1], [8, 0.9], [9, 0.55], [10, 0.35], [11, 0.4], [12, 0.45], [13, 0.2]]),
       products: [
@@ -59,6 +60,7 @@
       hourlyWage: 205,
       baseArrivals: 40,
       basket: 1.4, // 平均每位客人點幾份
+      delivery: true,
       dineIn: true,
       demand: curve([[11, 0.55], [12, 1], [13, 0.7], [14, 0.25], [15, 0.15], [16, 0.2], [17, 0.6], [18, 0.95], [19, 0.75], [20, 0.35]]),
       products: [
@@ -93,6 +95,7 @@
       hourlyWage: 196,
       baseArrivals: 34,
       basket: 1.6, // 平均每位客人點幾份
+      delivery: true,
       dineIn: false,
       summerBoost: 1.35,
       demand: curve([[10, 0.25], [11, 0.4], [12, 0.6], [13, 0.65], [14, 0.85], [15, 1], [16, 0.9], [17, 0.65], [18, 0.6], [19, 0.8], [20, 0.85], [21, 0.5]]),
@@ -109,7 +112,7 @@
         ['menuboard', 4, 0, 0],
         ['plant', 7, 5, 0],
       ],
-      starterStaff: 3,
+      starterStaff: 4,
     },
     {
       id: 'barber',
@@ -122,7 +125,7 @@
       cash: 280000,
       rent: 30000,
       open: 570, // 09:30
-      close: 1170, // 19:30
+      close: 1140, // 19:00
       hourlyWage: 210,
       baseArrivals: 9,
       basket: 1, // 平均每位客人點幾份
@@ -157,7 +160,7 @@
       open: 540, // 09:00
       close: 1200, // 20:00
       hourlyWage: 215,
-      baseArrivals: 9,
+      baseArrivals: 6,
       basket: 1, // 平均每位客人點幾份
       dineIn: false,
       patience: 3,
@@ -223,7 +226,7 @@
     { id: 'drinkbar', name: '飲料台', icon: '🥤', cat: 'station', price: 32000, w: 2, kw: 2, serves: ['milktea', 'soymilk'], staff: [[0, -1]], cust: [[0, 1]], industries: ['breakfast'], model: 'drinkbar' },
     { id: 'noodlepot', name: '煮麵台', icon: '🍜', cat: 'station', price: 65000, w: 2, kw: 5, serves: ['drynoodle', 'beefnoodle', 'wonton'], staff: [[0, -1], [1, -1]], cust: [[0, 1], [1, 1]], industries: ['noodle'], model: 'noodlepot' },
     { id: 'sidecase', name: '小菜櫃', icon: '🥬', cat: 'station', price: 28000, w: 2, kw: 1.5, serves: ['greens', 'luwei'], staff: [[0, -1]], cust: [[0, 1]], industries: ['noodle'], model: 'sidecase' },
-    { id: 'teabar', name: '調飲台', icon: '🧋', cat: 'station', price: 45000, w: 2, kw: 3, serves: ['boba', 'oolong', 'freshmilk', 'lemon'], staff: [[0, -1]], cust: [[0, 1]], industries: ['drinks'], model: 'teabar' },
+    { id: 'teabar', name: '調飲台', icon: '🧋', cat: 'station', price: 45000, w: 2, kw: 3, serves: ['boba', 'oolong', 'freshmilk', 'lemon'], staff: [[0, -1], [1, -1]], cust: [[0, 1], [1, 1]], industries: ['drinks'], model: 'teabar' },
     { id: 'barberchair', name: '理髮椅', icon: '💺', cat: 'station', price: 38000, w: 1, kw: 0.8, serves: ['cut', 'dye'], staff: [[0, 1]], cust: [[0, 0]], seatCust: true, industries: ['barber'], model: 'barberchair' },
     { id: 'washsink', name: '洗頭槽', icon: '🚿', cat: 'station', price: 30000, w: 1, kw: 1.5, serves: ['wash'], staff: [[0, 1]], cust: [[0, 0]], seatCust: true, industries: ['barber'], model: 'washsink' },
     { id: 'lift', name: '維修位', icon: '🛵', cat: 'station', price: 85000, w: 2, kw: 2.5, serves: ['oil', 'tire', 'service', 'battery'], staff: [[0, -1]], cust: [[1, 1]], industries: ['scooter'], model: 'lift' },

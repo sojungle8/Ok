@@ -318,7 +318,7 @@
     C(g, 0.17, 0.17, 0.03, '#e8463d', x, 0.42, z, 14);
   }
 
-  function scooterModel(color) {
+  function scooterModel(color, box = false) {
     const g = new THREE.Group();
     const body = mat(color, { metalness: 0.3, roughness: 0.4 });
     for (const z of [-0.36, 0.36]) {
@@ -332,6 +332,21 @@
     B(g, 0.24, 0.12, 0.42, mat('#222'), 0, 0.42, -0.12);
     B(g, 0.2, 0.42, 0.12, body, 0, 0.3, 0.38);
     B(g, 0.5, 0.04, 0.05, mat('#333'), 0, 0.72, 0.42);
+    // 外送箱
+    if (box) B(g, 0.42, 0.38, 0.38, mat('#e0478a'), 0, 0.5, -0.3);
+    return g;
+  }
+
+  function umbrellaModel(color) {
+    const g = new THREE.Group();
+    const canopy = new THREE.Mesh(new THREE.ConeGeometry(0.42, 0.22, 10, 1, true), new THREE.MeshStandardMaterial({ color, side: THREE.DoubleSide, roughness: 0.6 }));
+    canopy.position.y = 1.62;
+    canopy.castShadow = true;
+    g.add(canopy);
+    const pole = new THREE.Mesh(cylGeo(0.012, 0.012, 0.75, 6), mat('#333'));
+    pole.position.y = 1.2;
+    g.add(pole);
+    g.position.set(0.12, 0, 0.05);
     return g;
   }
 
@@ -378,6 +393,7 @@
       this.ghost = null;
       this.selected = null;
       this.buildStatic();
+      this.buildRain();
 
       this.ro = new ResizeObserver(() => this.resize());
       this.ro.observe(container);
@@ -846,7 +862,7 @@
           p.group.userData.pick = kind === 'staff' ? { kind: 'staff', staff: a } : kind === 'customer' ? { kind: 'customer', customer: a } : null;
           v = { p, kind, pickable: kind === 'staff' || kind === 'customer' };
           if (kind === 'scooter' || (kind === 'customer' && a.scooter)) {
-            const sc = scooterModel(['#c0392b', '#ecf0f1', '#2c3e50', '#2980b9', '#f1c40f'][a.id % 5]);
+            const sc = a.rider ? scooterModel('#3a3a3a', true) : scooterModel(['#c0392b', '#ecf0f1', '#2c3e50', '#2980b9', '#f1c40f'][a.id % 5]);
             sc.rotation.y = 0;
             v.scooter = sc;
             v.root = new THREE.Group();
@@ -858,8 +874,13 @@
             v.root = p.group;
             this.world.add(p.group);
           }
+          if (kind === 'passer' || kind === 'customer') {
+            v.umbrella = umbrellaModel(['#2c6fbb', '#d9482b', '#2f8f6b', '#f1c40f', '#8e44ad', '#34495e'][a.id % 6]);
+            p.group.add(v.umbrella);
+          }
           this.agents.set(a.id, v);
         }
+        if (v.umbrella) v.umbrella.visible = this.raining && a.z >= this.sim.H - 0.3 && !(v.scooter && v.scooter.visible);
         this.updateAgent(v, a, kind, dt, now);
       }
       for (const [id, v] of this.agents) {
@@ -930,6 +951,47 @@
       People.setMood(p, mood);
     }
 
+    // ───── 天氣 ─────
+    buildRain() {
+      const N = 900;
+      const pos = new Float32Array(N * 6);
+      this.rainSeeds = [];
+      for (let i = 0; i < N; i++) this.rainSeeds.push({ x: Math.random(), y: Math.random(), z: Math.random() });
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      this.rain = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: '#cfe3f5', transparent: true, opacity: 0.55 }));
+      this.rain.frustumCulled = false;
+      this.rain.visible = false;
+      this.world.add(this.rain);
+    }
+
+    updateRain(dt) {
+      const wx = this.sim.weather;
+      this.raining = !!wx && (wx.id === 'rain' || wx.id === 'typhoon');
+      this.rain.visible = this.raining;
+      if (!this.raining) return;
+      const s = this.sim;
+      const storm = wx.id === 'typhoon';
+      const W = s.W + 10;
+      const D = s.H + 8;
+      const arr = this.rain.geometry.attributes.position.array;
+      const speed = storm ? 1.6 : 1.0;
+      const slant = storm ? 0.35 : 0.06;
+      this.rainSeeds.forEach((r, i) => {
+        r.y -= dt * speed;
+        if (r.y < 0) {
+          r.y += 1;
+          r.x = Math.random();
+          r.z = Math.random();
+        }
+        const x = -5 + r.x * W;
+        const z = -2 + r.z * D;
+        const y = r.y * 7;
+        arr.set([x, y, z, x + slant * 0.4, y - 0.35, z], i * 6);
+      });
+      this.rain.geometry.attributes.position.needsUpdate = true;
+    }
+
     // ───── 日夜 ─────
     updateLight() {
       const s = this.sim;
@@ -940,8 +1002,11 @@
       const dusk = h > 16.5 && h < 19.5 ? 1 - Math.abs(h - 18) / 1.5 : h > 5 && h < 7 ? 1 - Math.abs(h - 6) : 0;
       const sky = new THREE.Color('#1c2333').lerp(new THREE.Color('#cfdde8'), day);
       if (dusk > 0) sky.lerp(new THREE.Color('#e9a06b'), dusk * 0.55);
+      const wx = s.weather ? s.weather.id : 'sunny';
+      const gloom = wx === 'typhoon' ? 0.7 : wx === 'rain' ? 0.5 : wx === 'cloudy' || wx === 'cold' ? 0.25 : 0;
+      if (gloom) sky.lerp(new THREE.Color('#6f7a86'), gloom * day);
       this.world.background = sky;
-      this.sun.intensity = 0.15 + day * 0.85;
+      this.sun.intensity = (0.15 + day * 0.85) * (1 - gloom * 0.6);
       this.sun.color.set('#fff3e0').lerp(new THREE.Color('#ff9d5c'), dusk);
       const az = ((h - 6) / 12.5) * Math.PI;
       this.sun.position.set(s.W / 2 + Math.cos(az) * 14, 6 + day * 14, s.H / 2 - 8);
@@ -1005,6 +1070,7 @@
       this.syncObjects();
       this.syncAgents(dt, now);
       this.updateLight();
+      this.updateRain(dt);
       this.animateProps(now);
       this.renderer.render(this.world, this.camera);
       this.updateOverlay();

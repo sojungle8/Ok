@@ -168,7 +168,8 @@
         toast(`😤 ${r.event.title}：你沒處理`, 'bad');
         renderInbox();
       },
-      dayEnd: (r) => toast(`🌙 今天服務 ${r.served} 位客人，營收 ${money(r.revenue)}${r.angry ? `，${r.angry} 位等到生氣離開` : ''}`),
+      dayEnd: (r) => toast(`🌙 今天服務 ${r.served} 位客人，營收 ${money(r.revenue)}${r.angry ? `，${r.angry} 位等到生氣離開` : ''}${r.holiday ? '（國定假日薪水加倍）' : ''}`),
+      festival: (f) => toast(f.news, 'event'),
       weekEnd: (r) => {
         save();
         ui.dialog = { type: 'week', report: r };
@@ -242,6 +243,7 @@
     const mor = Math.round(s.morale);
     el.innerHTML = `
       <div class="tb-shop"><span class="tb-icon">${s.ind.icon}</span><div><b>${esc(s.shopName)}</b><small>${s.dateLabel}</small></div></div>
+      <div class="tb-weather" title="${s.weather.name}${s.festival ? `・${s.festival.name}` : ''}"><span>${s.weather.icon}</span><small>${s.weather.name}${s.festival ? `<br>${s.festival.icon} ${s.festival.name}` : ''}</small></div>
       <div class="tb-clock ${s.isOpen ? 'open' : 'closed'}"><b>${s.clockLabel}</b><small>${ui.nightSkip ? '⏩ 打烊中，快轉' : s.isOpen ? '營業中' : s.openToday ? '休息中' : '今天公休'}</small></div>
       <div class="tb-speed">
         ${[[0, '⏸'], [1, '▶'], [3, '▶▶'], [8, '▶▶▶']].map(([v, l]) => `<button data-action="speed" data-v="${v}" class="${ui.speed === v ? 'active' : ''}" title="${v ? `${v} 倍速` : '暫停'}（${v === 0 ? '空白鍵' : v === 1 ? '1' : v === 3 ? '2' : '3'}）">${l}</button>`).join('')}
@@ -388,6 +390,19 @@
     return 'sad';
   }
 
+  function relationsHtml(e) {
+    const s = ui.sim;
+    const list = s.staff
+      .filter((o) => o !== e)
+      .map((o) => ({ o, v: Math.round(s.relOf(e, o)) }))
+      .filter((x) => Math.abs(x.v) >= 15)
+      .sort((a, b) => b.v - a.v);
+    if (!list.length) return '';
+    return `<div class="rel-list"><small>人際關係</small>${list
+      .map(({ o, v }) => `<div class="rel ${v > 0 ? 'pos' : 'neg'}"><span class="rel-face">${portraitSVG(o.look, v > 0 ? 'happy' : 'angry')}</span><b>${esc(o.name)}</b><em>${s.relLabel(v)}</em></div>`)
+      .join('')}</div>`;
+  }
+
   function renderInspector() {
     const s = ui.sim;
     const el = document.getElementById('inspector');
@@ -412,6 +427,7 @@
         ${e.thought && e.thought.until > s.minute ? `<p class="insp-thought">💭 ${esc(e.thought.text)}</p>` : ''}
         ${bar('心情', e.mood, 'morale')}${bar('精力', e.energy, 'energy')}${bar('飽足', e.hunger, 'hunger')}${bar('技能', e.skill, 'skill')}
         <p class="insp-meta">時薪 <b>${money(e.wage)}</b>（行情 ${money(s.marketWage)}）・今天服務 ${e.served} 人</p>
+        ${relationsHtml(e)}
         <div class="insp-actions">
           <button data-action="raise">💵 加薪 $10</button>
           <button data-action="praise" ${e.praiseDay === s.day ? 'disabled' : ''}>👍 稱讚</button>
@@ -601,6 +617,12 @@
             ${toggle('overtimePay', p.overtimePay, '加班照算加班費', '加班不給加班費（違法）')}
             ${toggle('breaks', p.breaks, '累了可以休息', '上班時間不准休息（違法）')}
           </div>
+          ${
+            s.ind.delivery
+              ? `<h3>外送平台</h3>${toggle('delivery', p.delivery, '已加入外送平台：外送員會來取餐（平台抽成 30%）', '沒有加入外送平台')}
+                 <p class="drawer-tip">下雨天、寒流來的時候外送訂單特別多；但抽成高，而且會跟現場客人搶人手。</p>`
+              : ''
+          }
           <h3>銀行</h3>
           <p class="calc">借款 ${money(s.loan)}（月息 2%，上限 $600,000）</p>
           <div class="insp-actions"><button data-action="borrow">借 $100,000</button><button data-action="repay" ${s.loan <= 0 ? 'disabled' : ''}>還 $100,000</button></div>
@@ -654,7 +676,8 @@
           <table class="ledger">${rows.map(([k, v]) => `<tr><th>${k}</th><td class="${v < 0 ? 'neg' : 'pos'}">${signedMoney(v)}</td></tr>`).join('')}
             <tr class="total"><th>合計</th><td class="${net < 0 ? 'neg' : 'pos'}">${signedMoney(net)}</td></tr></table>
           ${s.lastDay ? `<p class="calc">昨天：服務 ${s.lastDay.served} 人・營收 ${money(s.lastDay.revenue)}・生氣離開 ${s.lastDay.angry} 人・太擠沒進來 ${s.lastDay.balked} 人</p>` : ''}
-          <p class="calc">今天到目前：來客 ${s.today.visitors}・服務 ${s.today.served}・營收 ${money(s.today.revenue)}</p>
+          <p class="calc">今天到目前：來客 ${s.today.visitors}${s.today.delivery ? `（外送 ${s.today.delivery}）` : ''}・服務 ${s.today.served}・營收 ${money(s.today.revenue)}</p>
+          <p class="calc">今天天氣：${s.weather.icon} ${s.weather.name}${s.festival ? `・${s.festival.icon} ${s.festival.name}` : ''}</p>
         </div>
         <div>
           <h3>每週淨利</h3>
