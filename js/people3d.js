@@ -66,6 +66,12 @@
     return merged;
   }
 
+  // 顏色變亮或變暗（-1～1）
+  function shade(hex, k) {
+    const c = new THREE.Color(hex);
+    return k < 0 ? '#' + c.multiplyScalar(1 + k).getHexString() : '#' + c.lerp(new THREE.Color('#ffffff'), k).getHexString();
+  }
+
   const People = {
     mergeGroup,
     vcMat,
@@ -100,6 +106,32 @@
         tie.position.set(0, 0.6, 0.13);
         parts.push(tie);
       }
+      // 衣領和衣服下擺：比單色膠囊多一點層次
+      const collar = new THREE.Mesh(new THREE.TorusGeometry(0.085, 0.022, 6, 14), mat(shade(look.shirt, -0.18)));
+      collar.rotation.x = Math.PI / 2;
+      collar.position.set(0, 0.77, 0.01);
+      parts.push(collar);
+      const hem = new THREE.Mesh(new THREE.CylinderGeometry(0.162, 0.165, 0.05, 14), mat(look.suit ? '#232a38' : shade(look.shirt, -0.12)));
+      hem.scale.set(1, 1, 0.78);
+      hem.position.set(0, 0.4, 0);
+      parts.push(hem);
+      // 配件：學生的書包、上班族的公事包、長輩的拐杖、稽查員的板夾、圍裙
+      if (look.extra === 'backpack') {
+        const bp = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.3, 0.12), mat(look.extraColor || '#2c6fbb'));
+        bp.position.set(0, 0.56, -0.18);
+        const flap = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.1, 0.13), mat(shade(look.extraColor || '#2c6fbb', -0.2)));
+        flap.position.set(0, 0.66, -0.185);
+        parts.push(bp, flap);
+      }
+      if (look.apron) {
+        const ap = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.3, 0.02), mat(look.apron));
+        ap.position.set(0, 0.5, 0.13);
+        parts.push(ap);
+      }
+      if (look.old) {
+        // 長輩稍微駝背
+        body.rotation.x = 0.12;
+      }
 
       const armGeo = new THREE.CapsuleGeometry(0.045, 0.22, 3, 8);
       armGeo.translate(0, -0.13, 0);
@@ -121,6 +153,24 @@
       carry.position.set(0, -0.32, 0.05);
       carry.visible = false;
       armR.add(carry);
+      // 左手固定拿著的東西
+      if (look.extra === 'briefcase') {
+        const bc = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.18, 0.24), mat(look.extraColor || '#3a2c25'));
+        bc.position.set(0, -0.38, 0);
+        armL.add(bc);
+      } else if (look.extra === 'cane') {
+        const cane = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.62, 6), mat('#6b4a2f'));
+        cane.position.set(0, -0.56, 0.06);
+        const knob = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 0.1), mat('#6b4a2f'));
+        knob.position.set(0, -0.27, 0.08);
+        armL.add(cane, knob);
+      } else if (look.extra === 'clipboard') {
+        const cb = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.24, 0.18), mat('#8a5a3b'));
+        cb.position.set(0.02, -0.3, 0.06);
+        const paper = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.2, 0.15), mat('#ffffff'));
+        paper.position.set(0.03, -0.3, 0.06);
+        armL.add(cb, paper);
+      }
 
       const head = new THREE.Group();
       head.position.y = 0.92;
@@ -142,6 +192,13 @@
         const bun = new THREE.Mesh(new THREE.SphereGeometry(0.08, 12, 10), hairM);
         bun.position.set(0, 0.17, -0.06);
         head.add(bun);
+      }
+      if (look.hairStyle === 'long' && !look.hat) {
+        // 馬尾
+        const tail = new THREE.Mesh(new THREE.CapsuleGeometry(0.05, 0.14, 3, 8), hairM);
+        tail.position.set(0, -0.06, -0.19);
+        tail.rotation.x = 0.35;
+        head.add(tail);
       }
       if (look.hairStyle === 'spiky') {
         for (let i = 0; i < 5; i++) {
@@ -330,6 +387,19 @@
         const bag = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.18, 0.08), mat('#f7f7f2'));
         bag.position.y = -0.1;
         c.add(bag);
+      } else if (kind === 'mop') {
+        const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.85, 6), mat('#c9a36b'));
+        stick.position.set(0, -0.12, 0.12);
+        stick.rotation.x = 0.5;
+        const head = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.05, 0.09), mat('#5aa9e6'));
+        head.position.set(0, -0.48, 0.34);
+        c.add(stick, head);
+      } else if (kind === 'crate') {
+        const box = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.22, 0.24), mat('#c89b5e'));
+        box.position.set(-0.2, 0.02, 0.12);
+        const tape = new THREE.Mesh(new THREE.BoxGeometry(0.31, 0.03, 0.05), mat('#8a6a3e'));
+        tape.position.set(-0.2, 0.135, 0.12);
+        c.add(box, tape);
       } else if (kind === 'box') {
         const box = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.08, 0.14), mat('#f2e0b8'));
         box.position.y = -0.04;

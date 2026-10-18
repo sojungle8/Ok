@@ -19,11 +19,11 @@
       signColor: '#d9482b',
       xpMult: 1.3, // 經驗值補正（營業時數不同）
       cash: 320000,
-      rent: 38000,
+      rent: 34000,
       open: 330, // 05:30
       close: 780, // 13:00
       hourlyWage: 200,
-      baseArrivals: 46,
+      baseArrivals: 54,
       basket: 1.8, // 平均每位客人點幾份
       delivery: true,
       dineIn: true,
@@ -44,6 +44,13 @@
         ['shrine', 7, 0, 0],
         ['menuboard', 3, 0, 0],
       ],
+      // 食材：每份品項用掉一份對應的食材；spoil 是每天隔夜報廢的比例
+      stock: [
+        { id: 'egg', name: '蛋・餅皮・吐司', icon: '🥚', spoil: 0.12, products: ['danbing', 'burger', 'radish', 'teppan'] },
+        { id: 'milk', name: '紅茶・豆漿・鮮奶', icon: '🥛', spoil: 0.35, products: ['milktea', 'soymilk'] },
+      ],
+      rival: { name: '晨光早點', color: '#e67e22' },
+      mix: { student: 1.3, office: 1.3, elderly: 1, family: 0.8 },
       starterStaff: 3,
     },
     {
@@ -60,7 +67,7 @@
       open: 660, // 11:00
       close: 1230, // 20:30
       hourlyWage: 205,
-      baseArrivals: 40,
+      baseArrivals: 43,
       basket: 1.4, // 平均每位客人點幾份
       delivery: true,
       dineIn: true,
@@ -80,6 +87,13 @@
         ['shrine', 7, 0, 0],
         ['menuboard', 3, 0, 0],
       ],
+      stock: [
+        { id: 'noodle', name: '麵條・餛飩・高湯', icon: '🍜', spoil: 0.2, products: ['drynoodle', 'wonton'] },
+        { id: 'beef', name: '牛腱肉', icon: '🥩', spoil: 0.1, products: ['beefnoodle'] },
+        { id: 'side', name: '青菜・滷味', icon: '🥬', spoil: 0.4, products: ['greens', 'luwei'] },
+      ],
+      rival: { name: '大碗公麵食館', color: '#8e44ad' },
+      mix: { student: 0.9, office: 1.4, elderly: 1, family: 1.1 },
       starterStaff: 3,
     },
     {
@@ -96,7 +110,7 @@
       open: 600, // 10:00
       close: 1320, // 22:00
       hourlyWage: 196,
-      baseArrivals: 34,
+      baseArrivals: 37,
       basket: 1.6, // 平均每位客人點幾份
       delivery: true,
       dineIn: false,
@@ -115,6 +129,12 @@
         ['menuboard', 4, 0, 0],
         ['plant', 7, 5, 0],
       ],
+      stock: [
+        { id: 'tea', name: '茶葉・糖漿・檸檬', icon: '🍃', spoil: 0.05, products: ['oolong', 'lemon'] },
+        { id: 'pearl', name: '珍珠・鮮奶', icon: '⚫', spoil: 0.6, products: ['boba', 'freshmilk'] },
+      ],
+      rival: { name: '甜心茶舖', color: '#e0478a' },
+      mix: { student: 1.6, office: 1.1, elderly: 0.4, family: 1 },
       starterStaff: 4,
     },
     {
@@ -131,7 +151,7 @@
       open: 570, // 09:30
       close: 1140, // 19:00
       hourlyWage: 210,
-      baseArrivals: 9,
+      baseArrivals: 10,
       basket: 1, // 平均每位客人點幾份
       dineIn: false,
       patience: 3,
@@ -149,6 +169,12 @@
         ['plant', 7, 5, 0],
         ['poster', 6, 0, 0],
       ],
+      stock: [
+        { id: 'shampoo', name: '洗髮精・毛巾耗材', icon: '🧴', spoil: 0, products: ['cut', 'wash'] },
+        { id: 'dye', name: '染劑', icon: '🎨', spoil: 0, products: ['dye'] },
+      ],
+      rival: { name: '極速快剪', color: '#2c6fbb' },
+      mix: { student: 0.8, office: 1, elderly: 1.7, family: 1 },
       starterStaff: 3,
     },
     {
@@ -165,7 +191,7 @@
       open: 540, // 09:00
       close: 1200, // 20:00
       hourlyWage: 215,
-      baseArrivals: 6,
+      baseArrivals: 7,
       basket: 1, // 平均每位客人點幾份
       dineIn: false,
       patience: 3,
@@ -185,6 +211,13 @@
         ['waitbench', 6, 4, 0],
         ['shrine', 7, 0, 0],
       ],
+      stock: [
+        { id: 'oil', name: '機油・保養耗材', icon: '🛢️', spoil: 0, products: ['oil', 'service'] },
+        { id: 'tire', name: '內胎・補胎片', icon: '🛞', spoil: 0, products: ['tire'] },
+        { id: 'battery', name: '電瓶', icon: '🔋', spoil: 0, products: ['battery'] },
+      ],
+      rival: { name: '飛輪車業', color: '#16a085' },
+      mix: { student: 0.7, office: 1.6, elderly: 0.9, family: 1 },
       starterStaff: 3,
     },
     {
@@ -201,7 +234,7 @@
       open: 420, // 07:00
       close: 1380, // 23:00
       hourlyWage: 196,
-      baseArrivals: 33,
+      baseArrivals: 35,
       basket: 1.5, // 平均每位客人點幾份
       dineIn: false,
       browse: true,
@@ -220,6 +253,12 @@
         ['fridge', 7, 1, 3],
         ['fridge', 7, 2, 3],
       ],
+      stock: [
+        { id: 'goods', name: '飲料・零食・便當', icon: '📦', spoil: 0.08, products: ['checkout', 'bento'] },
+        { id: 'bean', name: '咖啡豆・鮮奶', icon: '☕', spoil: 0.05, products: ['coffee'] },
+      ],
+      rival: { name: '全日便利', color: '#c0392b' },
+      mix: { student: 1.3, office: 1.3, elderly: 0.9, family: 1 },
       starterStaff: 4,
     },
   ];
@@ -260,6 +299,7 @@
     // 員工區
     { id: 'breaktable', name: '員工休息桌', icon: '☕', cat: 'staff', price: 6500, w: 1, rest: [[0, 0]], model: 'breaktable' },
     { id: 'staffsofa', name: '員工休息沙發', icon: '🛋️', cat: 'staff', price: 15000, w: 2, rest: [[0, 0], [1, 0]], restBonus: 1.5, model: 'staffsofa', lv: 2 },
+    { id: 'cleancart', name: '清潔推車', icon: '🧹', cat: 'staff', price: 4800, w: 1, cleanBoost: 1.6, model: 'cleancart' },
     { id: 'locker', name: '員工置物櫃', icon: '🗃️', cat: 'staff', price: 8000, w: 1, staffMood: 2, model: 'locker', lv: 2 },
 
     // 裝潢（提升環境分：客人比較願意進來，員工心情也比較好）
@@ -316,8 +356,27 @@
   // 早餐店的節奏大約是：第 1 天 Lv.2、第 3 天 Lv.3、第 2 週 Lv.5、三個月左右 Lv.10
   const LEVELS = [0, 250, 900, 2000, 3800, 6500, 10000, 15000, 22000, 31000];
 
+  // 客人類型：不同時段來的人不一樣，對價格和等待的容忍度也不同
+  // hours：特定時段的出現倍率（沒寫的時段用 base）；priceSens：對價格的敏感度
+  const CUSTOMER_TYPES = {
+    student: { id: 'student', name: '學生', icon: '🎒', patience: 0.85, priceSens: 1.8, speed: 1.1, basket: 0.8, base: 0.35, weekend: 0.7, hours: { 6: 1.4, 7: 1.8, 8: 0.6, 12: 1, 16: 1.4, 17: 1.6, 18: 1, 21: 0.7, 22: 0.5 } },
+    office: { id: 'office', name: '上班族', icon: '💼', patience: 0.7, priceSens: 0.6, speed: 1.2, basket: 1.15, base: 0.35, weekend: 0.25, hours: { 7: 1.6, 8: 1.8, 9: 0.9, 12: 1.9, 13: 1.1, 18: 1.5, 19: 1.2 } },
+    elderly: { id: 'elderly', name: '長輩', icon: '🧓', patience: 1.5, priceSens: 1.35, speed: 0.65, basket: 1, base: 0.45, weekend: 1, hours: { 5: 1.6, 6: 1.8, 7: 1.2, 9: 1.4, 10: 1.4, 14: 1.1, 15: 1.1, 20: 0.3, 21: 0.2 } },
+    family: { id: 'family', name: '一般客人', icon: '🙂', patience: 1, priceSens: 1, speed: 1, basket: 1.2, base: 0.8, weekend: 1.7, hours: {} },
+  };
+
   // 可以開分店的地方
   const DISTRICTS = ['板橋', '新莊', '台中北屯', '台南東區', '高雄左營', '新竹東區', '桃園中壢'];
+  // 各地的生意好壞（人潮）和房租
+  const DISTRICT_INFO = {
+    板橋: { traffic: 1.1, rent: 1.15 },
+    新莊: { traffic: 1, rent: 1 },
+    台中北屯: { traffic: 0.95, rent: 0.85 },
+    台南東區: { traffic: 0.9, rent: 0.7 },
+    高雄左營: { traffic: 1, rent: 0.8 },
+    新竹東區: { traffic: 1.05, rent: 1.05 },
+    桃園中壢: { traffic: 0.95, rent: 0.85 },
+  };
 
-  root.BossIndustries = { INDUSTRIES, CATALOG, CAT_LABELS, LOTS, NAMES, TRAITS, LEVELS, DISTRICTS };
+  root.BossIndustries = { INDUSTRIES, CATALOG, CAT_LABELS, LOTS, NAMES, TRAITS, LEVELS, DISTRICTS, DISTRICT_INFO, CUSTOMER_TYPES };
 })(typeof window !== 'undefined' ? window : globalThis);

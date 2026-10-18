@@ -1,11 +1,44 @@
 // 介面：開始畫面、上方資訊列、底部工具列與抽屜、檢視面板、事件對話、週報、結局
 (function () {
-  const { Sim, CATALOG, catalogById, ACHIEVEMENTS, MIN_WAGE, WEEKDAYS } = window.BossSim;
-  const { INDUSTRIES, CAT_LABELS, LOTS, TRAITS, LEVELS, DISTRICTS } = window.BossIndustries;
+  const { Sim, CATALOG, catalogById, ACHIEVEMENTS, MIN_WAGE, WEEKDAYS, INS, TAX_LABEL, CUSTOMER_TYPES } = window.BossSim;
+  const { INDUSTRIES, CAT_LABELS, LOTS, TRAITS, LEVELS, DISTRICTS, DISTRICT_INFO } = window.BossIndustries;
   const { portraitSVG, bossLook, VISITORS } = window.BossLooks;
   const app = document.getElementById('app');
-  const SAVE_KEY = 'boss-sim-save-v1';
+  const LEGACY_KEY = 'boss-sim-save-v1';
+  const SLOTS = [1, 2, 3];
+  const slotKey = (n) => `boss-sim-slot-${n}`;
+  const TUT_KEY = 'boss-sim-tutorial-done';
+  const QUALITY_KEY = 'boss-sim-quality';
   const isTouch = window.matchMedia('(hover: none)').matches;
+  const store = {
+    get(k) {
+      try {
+        return localStorage.getItem(k);
+      } catch (e) {
+        return null;
+      }
+    },
+    set(k, v) {
+      try {
+        localStorage.setItem(k, v);
+        return true;
+      } catch (e) {
+        return false;
+      }
+    },
+    del(k) {
+      try {
+        localStorage.removeItem(k);
+      } catch (e) {
+        /* 不能刪就算了 */
+      }
+    },
+  };
+  // 舊版只有一格存檔：搬到第 1 格
+  if (store.get(LEGACY_KEY) && !store.get(slotKey(1))) {
+    store.set(slotKey(1), store.get(LEGACY_KEY));
+    store.del(LEGACY_KEY);
+  }
 
   const ui = {
     phase: 'start',
@@ -22,7 +55,12 @@
     paused: false, // 對話框或週報打開時暫停
     raf: 0,
     confirmFire: null,
+    slot: null, // 目前遊戲存在第幾格
+    tut: null, // 新手教學：{ step }
+    tutFlags: {},
+    quality: store.get(QUALITY_KEY) || 'auto',
   };
+  ui.settings.tutorial = !store.get(TUT_KEY);
 
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
   const money = (n) => `${n < 0 ? '-' : ''}$${Math.abs(Math.round(n)).toLocaleString('zh-TW')}`;
@@ -30,30 +68,68 @@
   const signed = (n) => (n > 0 ? `+${n}` : `${n}`);
   const stars = (r) => '★'.repeat(Math.round(r)) + '☆'.repeat(5 - Math.round(r));
   const hhmm = (m) => `${String(Math.floor(((m % 1440) + 1440) % 1440 / 60)).padStart(2, '0')}:${String(((m % 60) + 60) % 60).padStart(2, '0')}`;
-  const loadSave = () => {
+  const loadSlot = (n) => store.get(slotKey(n));
+  function slotInfo(n) {
+    const raw = loadSlot(n);
+    if (!raw) return null;
     try {
-      return localStorage.getItem(SAVE_KEY);
+      const d = JSON.parse(raw);
+      const si = INDUSTRIES.find((i) => i.id === d.ind);
+      return { icon: si ? si.icon : '🏪', ind: si ? si.name : '', shop: d.shopName, day: d.day, cash: d.cash, month: Math.floor((d.day - 1) / 28) + 1, branches: (d.branches || []).length };
     } catch (e) {
       return null;
     }
-  };
+  }
+  const firstEmptySlot = () => SLOTS.find((n) => !loadSlot(n)) || 1;
+
+  // 匯出：下載成 JSON 檔
+  function exportSave(json, name) {
+    const blob = new Blob([json], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `${name}.json`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      URL.revokeObjectURL(a.href);
+      a.remove();
+    }, 500);
+  }
+
+  function importSave(file, slot) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const d = JSON.parse(reader.result);
+        if (!d.ind || !INDUSTRIES.some((i) => i.id === d.ind) || !Array.isArray(d.objects)) throw new Error('bad');
+        store.set(slotKey(slot), reader.result);
+        ui.settings.slot = slot;
+        renderStart();
+        flash(`📥 匯入成功，存在第 ${slot} 格`);
+      } catch (e) {
+        flash('這個檔案不是遊戲存檔', true);
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  // 開始畫面用的提示（遊戲裡用 toast）
+  function flash(text, bad) {
+    const el = document.createElement('div');
+    el.className = `flash ${bad ? 'bad' : ''}`;
+    el.textContent = text;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 2600);
+  }
 
   // ───── 開始畫面 ─────
   function renderStart() {
     document.body.className = '';
     const st = ui.settings;
     const ind = INDUSTRIES.find((i) => i.id === st.industry);
-    const save = loadSave();
-    let saveInfo = null;
-    if (save) {
-      try {
-        const d = JSON.parse(save);
-        const si = INDUSTRIES.find((i) => i.id === d.ind);
-        saveInfo = `${si ? si.icon : ''} ${esc(d.shopName)}・第 ${Math.floor((d.day - 1) / 28) + 1} 個月`;
-      } catch (e) {
-        saveInfo = null;
-      }
-    }
+    if (!st.slot) st.slot = firstEmptySlot();
+    const infos = Object.fromEntries(SLOTS.map((n) => [n, slotInfo(n)]));
+    const anySave = SLOTS.some((n) => infos[n]);
     const look = (i) => window.BossLooks.randomLook(mulberry(i * 97 + ind.id.length), i % 2 ? 'f' : 'm', { ...(window.BossLooks.UNIFORM[ind.id] || {}), shirt: (window.BossLooks.UNIFORM[ind.id] || { shirts: ['#4a6fa5'] }).shirts[0] });
     app.innerHTML = `
       <section class="start">
@@ -65,8 +141,23 @@
           </div>
           <h1>不當慣老闆模擬器</h1>
           <p class="start-tag">開一間台灣街頭的小店：自己擺設、自己排班、自己定價。<br>讓客人吃飽、員工開心，還要記得付房租。</p>
-          ${saveInfo ? `<button class="primary" data-action="continue">繼續經營：${saveInfo}</button>` : ''}
         </div>
+
+        ${
+          anySave
+            ? `<h2 class="section-title">存檔</h2>
+        <div class="slot-list">
+          ${SLOTS.map((n) => {
+            const i = infos[n];
+            return i
+              ? `<div class="slot card"><span class="slot-no">${n}</span><div class="slot-info"><b>${i.icon} ${esc(i.shop)}</b><small>${i.ind}・第 ${i.month} 個月（第 ${i.day} 天）・現金 ${money(i.cash)}${i.branches ? `・分店 ${i.branches} 間` : ''}</small></div>
+                  <div class="slot-actions"><button class="primary" data-action="continue" data-slot="${n}">繼續</button><button data-action="export-slot" data-slot="${n}" title="匯出成檔案">📤</button><button data-action="delete-slot" data-slot="${n}" class="${ui.confirmDelete === n ? 'danger' : ''}" title="刪除">${ui.confirmDelete === n ? '確定刪除' : '🗑️'}</button></div></div>`
+              : `<div class="slot card empty"><span class="slot-no">${n}</span><div class="slot-info"><b>空的存檔</b><small>開新店會存在這裡</small></div></div>`;
+          }).join('')}
+        </div>`
+            : ''
+        }
+        <div class="slot-import"><label class="file-btn">📥 匯入存檔檔案<input type="file" accept=".json,application/json" data-action="import-file" hidden /></label></div>
 
         <h2 class="section-title">選一個產業</h2>
         <div class="industries">
@@ -101,6 +192,13 @@
               <button data-action="set" data-key="mode" data-value="hell" class="${st.mode === 'hell' ? 'active' : ''}">🔥 地獄<small>事件多、客人急、員工容易累</small></button>
             </div>
           </div>
+          <div class="setup-row">
+            <span class="setup-label">存檔</span>
+            <div class="segmented small">
+              ${SLOTS.map((n) => `<button data-action="set" data-key="slot" data-value="${n}" class="${Number(st.slot) === n ? 'active' : ''}">第 ${n} 格<small>${infos[n] ? '⚠️ 會覆蓋' : '空的'}</small></button>`).join('')}
+            </div>
+          </div>
+          <label class="setup-row tut-check"><input type="checkbox" data-action="tut-toggle" ${st.tutorial ? 'checked' : ''} /> 新手教學（一步一步帶你擺設、定價、進貨、招人）</label>
           <button class="primary big" data-action="start">開店！</button>
         </section>
         <p class="start-foot">遊戲裡的法規說明只是簡化的科普，實際狀況請以勞動部公告為準。</p>
@@ -118,11 +216,14 @@
   }
 
   // ───── 遊戲畫面 ─────
-  function startGame(sim) {
+  function startGame(sim, slot) {
     window.BossAudio.init();
     ui.sim = sim;
+    ui.slot = slot || ui.settings.slot || firstEmptySlot();
     ui.phase = 'game';
     ui.speed = 2;
+    ui.tut = null;
+    ui.tutFlags = {};
     ui.tab = null;
     ui.build = null;
     ui.inspect = null;
@@ -136,6 +237,7 @@
           <div class="inbox" id="inbox"></div>
           <div class="toasts" id="toasts"></div>
           <div class="build-hint" id="build-hint" hidden></div>
+          <div class="tut-card card" id="tut" hidden></div>
           <aside class="inspector card" id="inspector" hidden></aside>
           <div class="cam-buttons">
             <button data-action="cam-rot" data-dir="-1" title="向左轉（Q）">⟲</button>
@@ -149,6 +251,7 @@
           ${[
             ['build', '🏗️', '建造'],
             ['staff', '👥', '員工'],
+            ['stock', '📦', '庫存'],
             ['manage', '⚙️', '經營'],
             ['ledger', '📊', '帳本'],
             ['reviews', '⭐', '評論'],
@@ -172,6 +275,9 @@
       },
       dayEnd: (r) => toast(`🌙 今天服務 ${r.served} 位客人，營收 ${money(r.revenue)}${r.angry ? `，${r.angry} 位等到生氣離開` : ''}${r.holiday ? '（國定假日薪水加倍）' : ''}`),
       festival: (f) => toast(f.news, 'event'),
+      hygiene: () => {
+        if (ui.tab === 'stock') renderDrawer();
+      },
       levelUp: (lv, items) => {
         if (ui.tab === 'build' || ui.tab === 'goals') renderDrawer();
         const vp = document.querySelector('.viewport');
@@ -194,6 +300,10 @@
         ui.hover = t;
       },
       dragLocked: () => !!ui.build,
+      peek: () => ui.tab === 'build' || !!ui.build,
+      quality: effectiveQuality(),
+      autoQuality: () => ui.quality === 'auto',
+      onQuality: (q) => toast(`🖥️ 畫面有點卡，自動把畫質調成「${{ medium: '中', low: '低' }[q]}」`),
     });
     renderTopbar();
     renderInbox();
@@ -202,8 +312,79 @@
     ui.raf = requestAnimationFrame(loop);
     if (sim.day === 1 && sim.minute < sim.hours.open) {
       ui.dialog = { type: 'welcome' };
+      if (ui.settings.tutorial) {
+        ui.speed = 0;
+        ui.tutPending = true;
+      }
       renderDialog();
     }
+  }
+
+  // 手機和小螢幕預設用中畫質
+  function effectiveQuality() {
+    if (ui.quality !== 'auto') return ui.quality;
+    return isTouch || window.innerWidth < 700 ? 'medium' : 'high';
+  }
+
+  // ───── 新手教學 ─────
+  const TUT = [
+    { title: '歡迎來到你的店', text: () => (isTouch ? '拖曳畫面移動視角，兩指縮放，右下角可以旋轉。' : '拖曳畫面移動視角、滾輪縮放、Q／E 旋轉。') + '時間先暫停，我們一步一步來。', next: true },
+    { title: '看看庫存', short: '點下方的「📦 庫存」',  text: () => '點下方的「📦 庫存」。每天早上會自動進貨到你設定的量；賣完了客人會失望離開，叫太多又會過期報廢。', target: '[data-tab="stock"]', done: () => ui.tab === 'stock' },
+    { title: '調整進貨量', short: '按＋或－改一種食材的進貨量',  text: () => '按「＋」或「－」改一種食材的每天進貨量。也可以打開「依昨天用量自動調整」。', target: '[data-action="par"]', done: () => ui.tutFlags.par || ui.sim.policy.autoStock },
+    { title: '定價', short: '在「菜單與價格」按＋或－改一個價格',  text: () => '打開「⚙️ 經營」，在「菜單與價格」按＋／－改一個品項的價格。太貴學生和長輩會不想來，太便宜又賺不到錢。', target: '[data-tab="manage"], [data-action="price"]', done: () => ui.tutFlags.price },
+    { title: '擺設', short: '建造 → 選一樣東西 → 點地板放下',  text: () => '打開「🏗️ 建造」，買一盆盆栽（或任何東西），點地板放下去。店面漂亮，路人比較願意進來。', target: '[data-tab="build"]', done: () => ui.sim.objects.length > ui.tutObjs },
+    { title: '招人', short: '在「應徵者」錄取一位',  text: () => '打開「👥 員工」，錄取一位應徵者。人手不夠，客人會等到生氣離開。', target: '[data-tab="staff"], [data-action="hire"]', done: () => ui.sim.staff.length > ui.tutStaff },
+    { title: '開門營業', short: '按右上角的 ▶ 讓時間開始走',  text: () => '按右上角的 ▶ 讓時間開始走。客人會走進來點餐，員工沒事做的時候會拿拖把打掃。', target: '[data-action="speed"][data-v="2"]', done: () => ui.speed > 0 && ui.sim.today.served > 0 },
+    { title: '看看員工', short: '點一位腳下有綠圈的員工',  text: () => '點一位員工（腳下有綠色圓圈的人），看他的心情、精力和想法。', done: () => ui.inspect && ui.inspect.kind === 'staff' },
+    { title: '教學完成！', text: () => '最後提醒：要給加班費、要排休、勞健保要保。店裡太髒會被衛生局開罰，附近也可能開競爭對手。慣老闆指數到 100，店就會收起來。祝生意興隆！', next: true },
+  ];
+
+  function startTutorial() {
+    ui.tut = { step: 0 };
+    ui.tutObjs = ui.sim.objects.length;
+    ui.tutStaff = ui.sim.staff.length;
+    renderTutorial();
+  }
+
+  function endTutorial() {
+    ui.tut = null;
+    store.set(TUT_KEY, '1');
+    ui.settings.tutorial = false;
+    document.querySelectorAll('.tut-glow').forEach((n) => n.classList.remove('tut-glow'));
+    const el = document.getElementById('tut');
+    if (el) el.hidden = true;
+  }
+
+  function renderTutorial() {
+    const el = document.getElementById('tut');
+    if (!el) return;
+    if (!ui.tut) {
+      el.hidden = true;
+      return;
+    }
+    const st = TUT[ui.tut.step];
+    if (st.done && st.done()) {
+      ui.tut.step++;
+      window.BossAudio.play('click');
+      return renderTutorial();
+    }
+    const html = `<div class="tut-head"><small>新手教學 ${ui.tut.step + 1}／${TUT.length}</small><button class="link" data-action="tut-skip">跳過教學</button></div>
+      <b>${st.title}</b><span class="tut-short">${st.short || ''}</span><p>${st.text()}</p>
+      <div class="tut-dots">${TUT.map((_, i) => `<i class="${i < ui.tut.step ? 'done' : i === ui.tut.step ? 'cur' : ''}"></i>`).join('')}</div>
+      ${st.next ? `<button class="primary" data-action="tut-next">${ui.tut.step === TUT.length - 1 ? '開始經營' : '下一步'}</button>` : ''}`;
+    if (el.dataset.html !== html) {
+      el.innerHTML = html;
+      el.dataset.html = html;
+    }
+    el.hidden = false;
+    // 抽屜打開時，教學卡移到抽屜上面
+    const drawer = document.getElementById('drawer');
+    const vp = el.parentElement.getBoundingClientRect();
+    const open = drawer && !drawer.hidden;
+    el.style.bottom = open ? `${Math.max(10, vp.bottom - drawer.getBoundingClientRect().top + 10)}px` : '';
+    el.classList.toggle('compact', !!(open && smallScreen() && st.short));
+    document.querySelectorAll('.tut-glow').forEach((n) => n.classList.remove('tut-glow'));
+    if (st.target) document.querySelectorAll(st.target).forEach((n) => n.classList.add('tut-glow'));
   }
 
   function loop(now) {
@@ -242,13 +423,25 @@
       renderTopbar();
       if (ui.inspect) renderInspector();
       renderInbox();
+      if (ui.tut) renderTutorial();
+      updateMusic();
     }
     ui.drawerT = (ui.drawerT || 0) + dt;
-    if (ui.drawerT > 1 && (ui.tab === 'staff' || ui.tab === 'ledger')) {
+    if (ui.drawerT > 1 && (ui.tab === 'staff' || ui.tab === 'ledger' || ui.tab === 'stock')) {
       ui.drawerT = 0;
       refreshDrawerLive();
     }
     ui.raf = requestAnimationFrame(loop);
+  }
+
+  // 背景音樂跟著店裡的狀況換曲
+  function updateMusic() {
+    const s = ui.sim;
+    const q = s.customers.filter((c) => c.state === 'queue').length;
+    ui.rush = ui.rush ? q > 2 : q >= 6;
+    const wet = s.weather && (s.weather.id === 'rain' || s.weather.id === 'typhoon');
+    const mood = !s.isOpen ? 'closed' : ui.rush ? 'rush' : wet ? 'rain' : s.hour < 11 ? 'morning' : s.hour < 17 ? 'afternoon' : 'night';
+    window.BossAudio.setMood(mood);
   }
 
   // 速度：遊戲每秒經過幾分鐘
@@ -268,7 +461,7 @@
       el.dataset.built = '1';
       el.innerHTML = `
         <div class="tb-shop"><span class="tb-icon">${s.ind.icon}</span><div><b>${esc(s.shopName)}</b><small data-f="date"></small></div></div>
-        <div class="tb-weather"><span data-f="wicon"></span><small data-f="wtext"></small></div>
+        <div class="tb-weather"><span data-f="wicon"></span><small data-f="wtext"></small><small class="tb-clean" data-f="clean" title="店裡的乾淨程度"></small></div>
         <div class="tb-clock" data-f="clockbox"><b data-f="clock"></b><small data-f="status"></small></div>
         <div class="tb-speed">${SPEEDS.map(([v, l, t]) => `<button data-action="speed" data-v="${v}" title="${t}">${l}</button>`).join('')}</div>
         <div class="tb-level" title="店家等級"><small data-f="lv"></small><div class="bar"><div class="bar-fill skill" data-f="lvbar"></div></div></div>
@@ -276,7 +469,7 @@
         <div class="tb-stat"><small data-f="rcount"></small><b class="stars" data-f="rating"></b></div>
         <div class="tb-meter"><small data-f="mortext"></small><div class="bar"><div class="bar-fill morale" data-f="morbar"></div></div></div>
         <div class="tb-meter"><small data-f="jerktext"></small><div class="bar"><div class="bar-fill jerk" data-f="jerkbar"></div></div></div>
-        <div class="tb-menu"><button data-action="music" title="背景音樂">🎵</button><button data-action="sfx" title="音效">🔊</button><button data-action="save" title="存檔">💾</button><button data-action="quit" title="回主選單">🚪</button></div>`;
+        <div class="tb-menu"><button data-action="music" title="背景音樂">🎵</button><button data-action="sfx" title="音效">🔊</button><button data-action="sys-menu" title="選單：存檔、匯出、畫質">☰</button><button data-action="quit" title="存檔並回主選單">🚪</button></div>`;
     }
     const f = (k) => el.querySelector(`[data-f="${k}"]`);
     const txt = (k, v) => {
@@ -294,6 +487,9 @@
     txt('wicon', s.weather.icon);
     txt('wtext', `${s.weather.name}${s.festival ? `・${s.festival.icon}${s.festival.name}` : ''}`);
     txt('clock', s.clockLabel);
+    const cl = Math.round(s.cleanliness);
+    txt('clean', `🧽 ${cl}`);
+    f('clean').classList.toggle('neg', cl < 60);
     txt('status', ui.nightSkip ? '⏩ 打烊中，快轉' : s.isOpen ? '營業中' : s.openToday ? '休息中' : '今天公休');
     f('clockbox').classList.toggle('open', s.isOpen);
     txt('lv', `Lv.${s.level}`);
@@ -353,6 +549,29 @@
       const small = b.querySelector('small');
       if (small.textContent !== text) small.textContent = text;
       b.classList.toggle('urgent', left < 20);
+    }
+    // 需要馬上處理的事：稽查員來了、東西快賣完
+    const acts = [];
+    if (s.customers.some((c) => c.inspector && c.state !== 'leaving')) acts.push({ id: 'act-clean', icon: '🕵️', title: `${s.inspectorOrg}稽查中`, sub: s.cleanRushUntil > s.minute ? '大家正在打掃……' : '點這裡叫大家先打掃', action: 'rush-clean' });
+    if (s.isOpen) {
+      for (const g of s.ind.stock) {
+        if (s.stock[g.id] < s.par[g.id] * 0.15 && !s.deliveries.some((d) => d.rush && d.items[g.id])) acts.push({ id: `act-st-${g.id}`, icon: g.icon, title: `${g.name}${s.stock[g.id] <= 0 ? '賣完了' : '快沒了'}`, sub: `點這裡叫急件 +${s.rushSize(g.id)}`, action: 'rush', gid: g.id });
+      }
+    }
+    for (const a of acts) {
+      ids.add(a.id);
+      let b = el.querySelector(`[data-id="${a.id}"]`);
+      if (!b) {
+        b = document.createElement('button');
+        b.className = 'inbox-item act';
+        b.dataset.id = a.id;
+        b.dataset.action = a.action;
+        if (a.gid) b.dataset.gid = a.gid;
+        b.innerHTML = `<span>${a.icon}</span><div><b></b><small></small></div>`;
+        el.appendChild(b);
+      }
+      if (b.querySelector('b').textContent !== a.title) b.querySelector('b').textContent = a.title;
+      if (b.querySelector('small').textContent !== a.sub) b.querySelector('small').textContent = a.sub;
     }
     for (const b of [...el.children]) if (!ids.has(b.dataset.id)) b.remove();
   }
@@ -479,7 +698,7 @@
       const e = ref;
       if (!s.staff.includes(e)) return closeInspector();
       const sh = s.shiftOf(e);
-      const stateLabel = { off: '下班', arriving: '上班路上', working: e.task && e.task.obj ? `在${e.task.obj.def.name}` : '工作中', break: '休息中', leaving: '下班了' }[e.state];
+      const stateLabel = { off: '下班', arriving: '上班路上', working: e.task && e.task.type === 'clean' ? '🧹 打掃中' : e.task && e.task.obj ? `在${e.task.obj.def.name}` : '工作中', break: '休息中', leaving: '下班了' }[e.state];
       html = `
         <div class="insp-head">
           <div class="insp-face">${portraitSVG(e.look, moodOf(e))}</div>
@@ -504,14 +723,27 @@
     } else if (kind === 'customer') {
       const c = ref;
       if (!s.customers.includes(c)) return closeInspector();
-      const st = { arriving: '走進來', queue: '排隊中', toLane: '走向櫃台', atLane: c.servedBy ? '正在被服務' : '等店員', toSeat: '找位子', eating: '用餐中', leaving: '離開' }[c.state];
-      html = `
+      const st = { arriving: '走進來', queue: '排隊中', toLane: '走向櫃台', atLane: c.servedBy ? '正在被服務' : '等店員', toSeat: '找位子', eating: '用餐中', leaving: '離開', inspecting: '到處檢查中' }[c.state];
+      if (c.supplier || c.inspector) {
+        html = `
+        <div class="insp-head">
+          <div class="insp-face">${portraitSVG(c.look, 'neutral')}</div>
+          <div><h3>${c.supplier ? '📦 送貨員' : `🕵️ ${s.inspectorOrg}稽查員`}</h3><small>${c.supplier ? (c.state === 'arriving' ? '送貨中' : '送完了') : st}</small>
+          <p>${c.supplier ? Object.entries(c.delivery.items).map(([gid, n]) => `${s.stockGroup(gid).icon}${s.stockGroup(gid).name} ${n} 份`).join('、') : `正在看店裡乾不乾淨（目前 ${Math.round(s.cleanliness)} 分）`}</p></div>
+          <button class="x" data-action="close-insp" aria-label="關閉">✕</button>
+        </div>
+        ${c.inspector ? `<div class="insp-actions"><button data-action="rush-clean">🧹 叫大家先打掃</button></div>` : ''}`;
+      } else {
+        const t = CUSTOMER_TYPES[c.type];
+        const note = { student: '預算有限，對價格很敏感', office: '趕時間，沒什麼耐心，但不太在意價格', elderly: '很有耐心，喜歡跟店員聊天，但覺得貴就不來', family: '一般客人' }[c.type] || '外送平台的外送員，拿了就走';
+        html = `
         <div class="insp-head">
           <div class="insp-face">${portraitSVG(c.look, c.waited > c.patience * 0.6 ? 'angry' : c.state === 'eating' ? 'happy' : 'neutral')}</div>
-          <div><h3>客人</h3><small>${st}</small><p>想要：${c.product.icon} ${c.product.name} × ${c.qty}</p></div>
+          <div><h3>${t ? `${t.icon} ${t.name}` : '🛵 外送員'}</h3><small>${st}・${note}</small><p>想要：${c.product.icon} ${c.product.name} × ${c.qty}</p></div>
           <button class="x" data-action="close-insp" aria-label="關閉">✕</button>
         </div>
         ${bar('耐心', 100 - (c.waited / c.patience) * 100, 'morale')}`;
+      }
     } else if (kind === 'object') {
       const o = ref;
       if (!s.objects.includes(o)) return closeInspector();
@@ -522,6 +754,7 @@
       if (d.beauty) info.push(`美觀 +${d.beauty}`);
       if (d.kw) info.push(`用電 ${d.kw} kW`);
       if (d.rest) info.push('員工可以在這裡休息');
+      if (d.cleanBoost) info.push('員工打掃變快');
       html = `
         <div class="insp-head">
           <div class="insp-icon">${d.icon}</div>
@@ -574,7 +807,7 @@
       return;
     }
     el.hidden = false;
-    const fn = { build: drawerBuild, staff: drawerStaff, manage: drawerManage, ledger: drawerLedger, reviews: drawerReviews, goals: drawerGoals }[ui.tab];
+    const fn = { build: drawerBuild, staff: drawerStaff, stock: drawerStock, manage: drawerManage, ledger: drawerLedger, reviews: drawerReviews, goals: drawerGoals }[ui.tab];
     ui.drawerHtml = fn();
     el.innerHTML = `<button class="x drawer-x" data-action="tab" data-tab="${ui.tab}" aria-label="關閉">✕</button>${ui.drawerHtml}`;
     fitInspector();
@@ -584,7 +817,7 @@
     // 員工和帳本的數字一直在變：內容有變才重畫，剛點過抽屜就先不動，免得按鈕在手指下被換掉
     const el = document.getElementById('drawer');
     if (!el || el.hidden || performance.now() - (ui.drawerTouched || 0) < 1500) return;
-    const fn = { staff: drawerStaff, ledger: drawerLedger }[ui.tab];
+    const fn = { staff: drawerStaff, ledger: drawerLedger, stock: drawerStock }[ui.tab];
     const html = fn();
     if (html === ui.drawerHtml) return;
     const scroll = el.querySelector('.drawer-body')?.scrollTop;
@@ -680,6 +913,68 @@
       </div>`;
   }
 
+  function drawerStock() {
+    const s = ui.sim;
+    const cl = Math.round(s.cleanliness);
+    const h = s.hygiene.last;
+    return `
+      <div class="drawer-body two-col">
+        <div>
+          <h3>食材庫存 <small>每天開門前送貨；急件約 40 分鐘到，貴三成</small></h3>
+          <div class="stock-list">
+            ${s.ind.stock
+              .map((g) => {
+                const left = Math.max(0, s.stock[g.id]);
+                const par = s.par[g.id];
+                const inc = s.incoming(g.id);
+                const pct = Math.min(100, (left / Math.max(1, par)) * 100);
+                const step = Math.max(5, Math.round((par * 0.1) / 5) * 5);
+                const rushCost = Math.round(s.rushSize(g.id) * s.unitCost(g) * 1.3 + 300);
+                const names = g.products.map((id) => s.ind.products.find((p) => p.id === id)).filter(Boolean).map((p) => p.icon + p.name).join(' ');
+                return `<div class="stock-row ${left <= 0 ? 'out' : pct < 15 ? 'low' : ''}">
+                  <span class="stock-icon">${g.icon}</span>
+                  <div class="stock-info">
+                    <b>${g.name}</b><small class="muted">${names}</small>
+                    <div class="bar"><div class="bar-fill ${pct < 15 ? 'jerk' : pct < 40 ? 'energy' : 'morale'}" style="width:${pct}%"></div></div>
+                    <small>剩 <b>${left}</b> 份${inc ? `・送貨中 ${inc}` : ''}・昨天用掉 ${s.lastUsage[g.id] ?? '—'}・每份 ${money(s.unitCost(g))}・${g.spoil ? `隔夜報廢 ${Math.round(g.spoil * 100)}%` : '不會過期'}</small>
+                  </div>
+                  <div class="stock-ctl">
+                    <small>每天進貨到</small>
+                    <span class="price-ctl"><button data-action="par" data-id="${g.id}" data-d="${-step}">－</button><b>${par}</b><button data-action="par" data-id="${g.id}" data-d="${step}">＋</button></span>
+                    <button data-action="rush" data-id="${g.id}" ${s.cash < rushCost ? 'disabled' : ''}>🛵 急件 +${s.rushSize(g.id)}<small>${money(rushCost)}</small></button>
+                  </div>
+                </div>`;
+              })
+              .join('')}
+          </div>
+          ${toggle('autoStock', s.policy.autoStock, '依昨天的用量自動調整進貨量（多抓 15%）', '自己決定每天進多少貨', true)}
+          ${s.lastDay && s.lastDay.waste ? `<p class="calc">昨晚報廢了 ${money(s.lastDay.waste)} 的食材。</p>` : ''}
+          ${s.lastDay && s.lastDay.soldOut ? `<p class="calc neg">昨天有 ${s.lastDay.soldOut} 位客人因為賣完了離開。</p>` : ''}
+        </div>
+        <div>
+          <h3>清潔與衛生 <small>店裡越乾淨，客人越願意進來</small></h3>
+          <div class="clean-card">
+            <div class="clean-big ${cl < 60 ? 'neg' : cl >= 80 ? 'pos' : ''}"><b>${cl}</b><small>乾淨程度</small></div>
+            <div class="clean-detail">
+              <div class="ibar"><span>髒污</span><div class="bar"><div class="bar-fill jerk" style="width:${Math.min(100, s.dirt.length * 4)}%"></div></div><b>${s.dirt.length}</b></div>
+              <div class="ibar"><span>油垢</span><div class="bar"><div class="bar-fill hunger" style="width:${Math.min(100, (s.grime / 45) * 100)}%"></div></div><b>${Math.round(s.grime)}</b></div>
+              <small class="muted">員工沒客人時會自己拖地、擦桌子；油垢只有大掃除清得掉。</small>
+            </div>
+          </div>
+          <div class="insp-actions">
+            <button data-action="rush-clean">🧹 叫大家先打掃</button>
+            <button data-action="deep-clean" ${s.cash < s.deepCleanCost ? 'disabled' : ''}>🧽 請清潔公司大掃除（${money(s.deepCleanCost)}）</button>
+          </div>
+          <div class="toggles">
+            ${toggle('closingClean', s.policy.closingClean, '打烊後最後一班留下來打掃半小時（照算薪水）', '打烊就走，地上的髒污留到明天', true)}
+            ${toggle('cleaner', s.policy.cleaner, '請外包清潔阿姨（每天 $900）', '沒有請清潔人員', true)}
+          </div>
+          <p class="calc">${h ? `上次${s.inspectorOrg}稽查（第 ${h.day} 天）：<b class="${h.fine || h.grade === '限期改善' ? 'neg' : 'pos'}">${h.grade}</b>（${h.clean} 分）${h.fine ? `，罰 ${money(h.fine)}` : ''}` : `${s.inspectorOrg}會不定期來稽查：80 分以上「優」，60 分以下會被要求限期改善，複查還是不及格就要罰錢。`}</p>
+          ${s.hygiene.warned ? '<div class="alert bad">⚠️ 收到限期改善通知，稽查員這幾天會回來複查！</div>' : ''}
+        </div>
+      </div>`;
+  }
+
   function drawerManage() {
     const s = ui.sim;
     const p = s.policy;
@@ -710,6 +1005,9 @@
                  <p class="drawer-tip">下雨天、寒流來的時候外送訂單特別多；但抽成高，而且會跟現場客人搶人手。</p>`
               : ''
           }
+          <h3>勞健保與稅</h3>
+          ${toggle('insurance', s.policy.insurance, `幫員工保勞健保、提繳勞退（雇主負擔約薪資的 ${Math.round((INS.labor + INS.health + INS.pension) * 100)}%）`, '不幫員工保勞健保（違法）')}
+          <p class="calc">勞保＋就保約 ${(INS.labor * 100).toFixed(1)}%・健保約 ${(INS.health * 100).toFixed(1)}%・勞退 ${(INS.pension * 100).toFixed(0)}%<br>營業稅：${s.taxStatus ? TAX_LABEL[s.taxStatus] : '第一週結算時由國稅局核定'}</p>
           <h3>銀行</h3>
           <p class="calc">借款 ${money(s.loan)}（月息 2%，上限 $600,000）</p>
           <div class="insp-actions"><button data-action="borrow">借 $100,000</button><button data-action="repay" ${s.loan <= 0 ? 'disabled' : ''}>還 $100,000</button></div>
@@ -722,38 +1020,49 @@
                 const sug = Math.round((pr.price * s.idx.cpi) / 5) * 5;
                 const cur = s.prices[pr.id];
                 const margin = Math.round((1 - (pr.cost * s.idx.cpi * s.costMult.materials) / cur) * 100);
+                const g = s.ingOf[pr.id];
                 const avail = s.availableProducts().some((x) => x.id === pr.id) || !s.menu[pr.id];
                 return `<div class="price-row ${s.menu[pr.id] ? '' : 'off'}">
                   <label class="price-name"><input type="checkbox" data-action="menu" data-id="${pr.id}" ${s.menu[pr.id] ? 'checked' : ''} /> ${pr.icon} ${pr.name}</label>
                   <span class="price-ctl"><button data-action="price" data-id="${pr.id}" data-d="-5">－</button><b class="${cur > sug * 1.1 ? 'neg' : cur < sug * 0.9 ? 'pos' : ''}">$${cur}</b><button data-action="price" data-id="${pr.id}" data-d="5">＋</button></span>
-                  <small>建議 $${sug}・毛利 ${margin}%${avail ? '' : '・<span class="neg">沒有設備</span>'}</small>
+                  <small>建議 $${sug}・毛利 ${margin}%${avail ? '' : '・<span class="neg">沒有設備</span>'}${g && s.stock[g.id] <= 0 ? '・<span class="neg">賣完了</span>' : ''}</small>
                 </div>`;
               })
               .join('')}
           </div>
-          <p class="drawer-tip">比建議價貴 10% 以上，客人會明顯變少，評價也會變差。</p>
+          <p class="drawer-tip">比建議價貴 10% 以上，客人會明顯變少，評價也會變差；學生和長輩對價格特別敏感，上班族比較不在意。${s.promoOn ? `<br>🎉 九折優惠到第 ${s.promo.until} 天。` : ''}</p>
         </div>
       </div>`;
   }
 
-  function toggle(key, on, onLabel, offLabel) {
-    return `<button class="toggle ${on ? 'on' : 'off'}" data-action="toggle" data-key="${key}"><span class="knob"></span><span>${on ? onLabel : `<span class="neg">${offLabel}</span>`}</span></button>`;
+  // neutral：關掉不是違法或壞事，不用標紅色
+  function toggle(key, on, onLabel, offLabel, neutral = false) {
+    return `<button class="toggle ${on ? 'on' : 'off'} ${neutral ? 'neutral' : ''}" data-action="toggle" data-key="${key}"><span class="knob"></span><span>${on ? onLabel : neutral ? offLabel : `<span class="neg">${offLabel}</span>`}</span></button>`;
+  }
+
+  function ledgerRows(L) {
+    return [
+      ['營收', L.revenue],
+      ['食材進貨', -L.materials],
+      ['薪資', -L.wages],
+      ['勞保＋健保（雇主負擔）', -((L.labor || 0) + (L.health || 0))],
+      ['勞退提繳 6%', -(L.pension || 0)],
+      ['房租', -L.rent],
+      ['水電', -L.utilities],
+      ['清潔', -(L.cleaning || 0)],
+      ['營業稅', -(L.tax || 0)],
+      ['罰鍰', -(L.fines || 0)],
+      ['利息', -L.interest],
+      ['事件', L.events],
+      ['分店', L.branches || 0],
+      ['設備與其他', L.other],
+    ].filter(([, v]) => Math.round(v) !== 0);
   }
 
   function drawerLedger() {
     const s = ui.sim;
     const L = s.ledger;
-    const rows = [
-      ['營收', L.revenue],
-      ['食材／進貨', -L.materials],
-      ['薪資', -L.wages],
-      ['房租', -L.rent],
-      ['水電', -L.utilities],
-      ['利息', -L.interest],
-      ['事件', L.events],
-      ['分店', L.branches],
-      ['設備與其他', L.other],
-    ].filter(([, v]) => Math.round(v) !== 0);
+    const rows = ledgerRows(L);
     const net = rows.reduce((a, [, v]) => a + v, 0);
     const hist = s.history.slice(-10);
     const maxAbs = Math.max(1, ...hist.map((h) => Math.abs(h.profit)));
@@ -763,6 +1072,8 @@
           <h3>這週到目前為止 <small>第 ${s.week} 週</small></h3>
           <table class="ledger">${rows.map(([k, v]) => `<tr><th>${k}</th><td class="${v < 0 ? 'neg' : 'pos'}">${signedMoney(v)}</td></tr>`).join('')}
             <tr class="total"><th>合計</th><td class="${net < 0 ? 'neg' : 'pos'}">${signedMoney(net)}</td></tr></table>
+          ${L.waste ? `<p class="calc">食材進貨裡有 ${money(L.waste)} 是過期報廢掉的。</p>` : ''}
+          <p class="calc">🧾 ${s.taxStatus ? TAX_LABEL[s.taxStatus] : '營業稅在週末結算'}；營業稅每週結算一次。</p>
           ${s.lastDay ? `<p class="calc">昨天：服務 ${s.lastDay.served} 人・營收 ${money(s.lastDay.revenue)}・生氣離開 ${s.lastDay.angry} 人・太擠沒進來 ${s.lastDay.balked} 人</p>` : ''}
           <p class="calc">今天到目前：來客 ${s.today.visitors}${s.today.delivery ? `（外送 ${s.today.delivery}）` : ''}・服務 ${s.today.served}・營收 ${money(s.today.revenue)}</p>
           <p class="calc">今天天氣：${s.weather.icon} ${s.weather.name}${s.festival ? `・${s.festival.icon} ${s.festival.name}` : ''}</p>
@@ -810,11 +1121,13 @@
           <h3>店家等級 <small>賺的毛利越多，經驗越高</small></h3>
           <div class="level-card"><b>Lv.${lv}</b><div class="bar"><div class="bar-fill skill" style="width:${Math.round(s.levelProgress * 100)}%"></div></div><small>${next ? `${Math.round(s.xp).toLocaleString()} / ${next.toLocaleString()}` : '已經是最高等級'}</small></div>
           ${upcoming.length ? `<p class="calc">即將解鎖：${upcoming.map((d) => `${d.icon}${d.name}（Lv.${d.lv}）`).join('、')}</p>` : ''}
-          <h3>分店 <small>${lv >= 5 ? '分店收入看本店的評價和慣老闆指數' : '店家 Lv.5 才能開分店'}</small></h3>
+          <h3>附近的競爭 <small>評價、價格、乾淨程度決定客人選誰</small></h3>
+          ${rivalCard()}
+          <h3>分店 <small>${lv >= 5 ? '每間分店可以調時薪、定價、人手和改裝' : '店家 Lv.5 才能開分店'}</small></h3>
           <div class="branch-list">
-            ${s.branches.map((b, i) => `<div class="branch"><span>🏙️</span><div><b>${esc(s.shopName)}${b.district}店</b><small>上週 ${signedMoney(b.last)}・累計 ${signedMoney(b.total)}</small></div><button data-action="sell-branch" data-i="${i}">頂讓</button></div>`).join('') || '<p class="muted">還沒有分店。</p>'}
+            ${s.branches.map((b, i) => branchCard(b, i)).join('') || '<p class="muted">還沒有分店。</p>'}
           </div>
-          ${canBranch ? `<button class="primary" data-action="open-branch" ${s.cash < s.branchCost ? 'disabled' : ''}>在${DISTRICTS[s.branches.length]}開分店（${money(s.branchCost)}）</button>` : ''}
+          ${canBranch ? `<button class="primary" data-action="open-branch" ${s.cash < s.branchCost ? 'disabled' : ''}>在${DISTRICTS.find((d) => !s.branches.some((b) => b.district === d))}開分店（${money(s.branchCost)}）</button>` : ''}
           ${s.awards.length ? `<h3>年度好店評選</h3>${s.awards.map((a) => `<p class="calc">${a.medal} 第 ${a.year} 年：${a.title}（${a.score} 分）</p>`).join('')}` : '<p class="drawer-tip">每年 12 月最後一週結束時，會舉辦年度好店評選。</p>'}
         </div>
         <div>
@@ -825,6 +1138,67 @@
           <p class="drawer-tip">沙盒遊戲沒有時間限制。慣老闆指數到 100，或現金是負的又借不到錢，店就會收起來。</p>
         </div>
       </div>`;
+  }
+
+  function rivalCard() {
+    const s = ui.sim;
+    const r = s.rival;
+    const status = !r
+      ? '<p class="calc">附近還沒有同業。生意做起來之後，可能會有人來開店搶客人。</p>'
+      : r.closed
+        ? `<p class="calc">🏳️ 隔壁的「${esc(r.name)}」已經收起來了。</p>`
+        : `<div class="rival-row"><span class="rival-sign" style="background:${r.color}">${esc(r.name)}</span><div class="bar"><div class="bar-fill jerk" style="width:${Math.round(r.strength * 100)}%"></div></div><small>搶走約 ${Math.round(r.strength * 22 + (s.day - r.opened < 10 ? 12 : 0))}% 的客人</small></div>`;
+    return `<div class="rival-card">${status}
+      <div class="insp-actions">
+        <button data-action="flyers" ${s.cash < 3000 ? 'disabled' : ''}>📄 發傳單（$3,000）</button>
+        <button data-action="promo" ${s.promoOn ? 'disabled' : ''}>🎉 九折優惠一週${s.promoOn ? '（進行中）' : ''}</button>
+        <button data-action="loyalty" ${s.loyalty || s.cash < 8000 ? 'disabled' : ''}>💳 ${s.loyalty ? '已經有集點卡' : '印集點卡（$8,000）'}</button>
+      </div></div>`;
+  }
+
+  // 分店：小插圖＋可以調整的設定
+  function branchArt(b) {
+    const s = ui.sim;
+    const color = s.ind.signColor;
+    const mood = b.morale >= 65 ? '😊' : b.morale >= 40 ? '😐' : '😫';
+    const people = Array.from({ length: Math.min(6, b.staff) }, (_, i) => `<text x="${34 + i * 18}" y="96" font-size="15">${mood}</text>`).join('');
+    const plants = Array.from({ length: b.reno }, (_, i) => `<text x="${i % 2 ? 136 : 6}" y="${108 - Math.floor(i / 2) * 18}" font-size="14">🪴</text>`).join('');
+    const guests = Math.round(Math.max(0, (b.rating - 2.5) * 2));
+    const queue = Array.from({ length: guests }, (_, i) => `<circle cx="${150 - i * 9}" cy="116" r="3.5" fill="#5a4a3a"/>`).join('');
+    return `<svg viewBox="0 0 160 124" class="branch-art" aria-hidden="true">
+      <rect width="160" height="124" fill="#cfdde8"/>
+      <rect x="10" y="14" width="140" height="104" fill="#efe7da"/>
+      <rect x="14" y="20" width="132" height="22" rx="3" fill="${color}"/>
+      <text x="80" y="36" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">${esc(s.shopName)}・${esc(b.district)}店</text>
+      ${Array.from({ length: 11 }, (_, i) => `<rect x="${12 + i * 12.4}" y="44" width="12.4" height="8" fill="${i % 2 ? '#ffffff' : color}"/>`).join('')}
+      <rect x="22" y="58" width="116" height="52" fill="${b.rating >= 3.5 ? '#fff1c9' : '#e6e1d6'}" stroke="#9a8572" stroke-width="2"/>
+      ${people}${plants}${queue}
+    </svg>`;
+  }
+
+  function branchCard(b, i) {
+    const s = ui.sim;
+    const seg = (key, opts) => `<div class="segmented tiny">${opts.map(([v, l]) => `<button data-action="branch-set" data-i="${i}" data-key="${key}" data-value="${v}" class="${b[key] === v ? 'active' : ''}">${l}</button>`).join('')}</div>`;
+    const hist = b.hist || [];
+    const max = Math.max(1, ...hist.map((v) => Math.abs(v)));
+    const info = DISTRICT_INFO[b.district] || { traffic: 1, rent: 1 };
+    return `<div class="branch-card">
+      ${branchArt(b)}
+      <div class="branch-body">
+        <div class="branch-title"><b>${esc(b.district)}店</b><small>人潮 ${info.traffic >= 1.05 ? '多' : info.traffic <= 0.92 ? '少' : '普通'}・房租 ${info.rent >= 1.05 ? '貴' : info.rent <= 0.85 ? '便宜' : '普通'}</small></div>
+        <div class="branch-stats">
+          <span>★ ${b.rating.toFixed(1)}</span><span>士氣 ${Math.round(b.morale)}</span><span>上週 <b class="${b.last < 0 ? 'neg' : 'pos'}">${signedMoney(b.last)}</b></span>
+        </div>
+        ${hist.length ? `<div class="spark mini">${hist.map((v) => `<div class="spark-col"><i class="${v < 0 ? 'neg' : 'pos'}" style="height:${(Math.abs(v) / max) * 100}%"></i></div>`).join('')}</div>` : ''}
+        <label>時薪 ${seg('wage', [['low', '低於行情'], ['market', '行情價'], ['high', '高於行情']])}</label>
+        <label>定價 ${seg('price', [['cheap', '便宜'], ['normal', '一般'], ['premium', '高價']])}</label>
+        <div class="branch-ctl">
+          <span>人手 <span class="price-ctl"><button data-action="branch-staff" data-i="${i}" data-d="-1">－</button><b class="${b.staff < s.branchNeed ? 'neg' : ''}">${b.staff}</b><button data-action="branch-staff" data-i="${i}" data-d="1">＋</button></span><small>建議 ${s.branchNeed} 人</small></span>
+          <button data-action="branch-reno" data-i="${i}" ${b.reno >= 3 || s.cash < s.renoCost ? 'disabled' : ''}>🔨 改裝 ${b.reno}/3（${money(s.renoCost)}）</button>
+          <button data-action="sell-branch" data-i="${i}" class="warn">頂讓</button>
+        </div>
+      </div>
+    </div>`;
   }
 
   // ───── 對話框 ─────
@@ -900,6 +1274,24 @@
       );
     } else if (d.type === 'week') {
       inner = weekReport(d.report);
+    } else if (d.type === 'menu') {
+      const infos = Object.fromEntries(SLOTS.map((n) => [n, slotInfo(n)]));
+      const q = ui.quality;
+      inner = `<div class="card menu-card">
+        <button class="x" data-action="close-dialog" aria-label="關閉">✕</button>
+        <h2>☰ 選單</h2>
+        <h3>存檔 <small>現在用第 ${ui.slot} 格；每週結算會自動存檔</small></h3>
+        <div class="slot-list compact">
+          ${SLOTS.map((n) => `<div class="slot ${n === ui.slot ? 'current' : ''}"><span class="slot-no">${n}</span><div class="slot-info"><b>${infos[n] ? `${infos[n].icon} ${esc(infos[n].shop)}` : '空的'}</b><small>${infos[n] ? `第 ${infos[n].day} 天・${money(infos[n].cash)}` : ''}</small></div><button data-action="save-slot" data-slot="${n}">${n === ui.slot ? '💾 存檔' : '存到這格'}</button></div>`).join('')}
+        </div>
+        <div class="insp-actions"><button data-action="export-current">📤 匯出成檔案</button><label class="file-btn">📥 匯入到第 ${ui.slot} 格<input type="file" accept=".json,application/json" data-action="import-file-game" hidden /></label></div>
+        <h3>畫質 <small>目前 ${ui.view ? Math.round(ui.view.fps) : '—'} fps</small></h3>
+        <div class="segmented small">
+          ${[['auto', '自動'], ['high', '高'], ['medium', '中'], ['low', '低（省電）']].map(([v, l]) => `<button data-action="quality" data-value="${v}" class="${q === v ? 'active' : ''}">${l}</button>`).join('')}
+        </div>
+        <p class="calc">🎵 正在播放：${window.BossAudio.trackName ? window.BossAudio.trackName() : ''}（會跟著時段、天氣和忙碌程度換曲）</p>
+        <div class="insp-actions"><button data-action="tut-restart">📘 重新看新手教學</button><button data-action="quit" class="warn">🚪 存檔並回主選單</button></div>
+      </div>`;
     } else if (d.type === 'ending') {
       const e = s.ending;
       inner = `<div class="card ending lose">
@@ -914,23 +1306,13 @@
         <div class="ending-actions"><button class="primary" data-action="quit">回主選單</button></div>
       </div>`;
     }
-    box.innerHTML = d.type === 'minigame' ? '' : `<div class="dialog-backdrop ${d.type === 'week' || d.type === 'ending' ? 'center' : ''}">${inner}</div>`;
+    box.innerHTML = d.type === 'minigame' ? '' : `<div class="dialog-backdrop ${d.type === 'week' || d.type === 'ending' || d.type === 'menu' ? 'center' : ''}">${inner}</div>`;
     ui.dialogShownAt = performance.now();
   }
 
   function weekReport(r) {
     const s = ui.sim;
-    const rows = [
-      ['營收', r.revenue],
-      ['食材／進貨', -r.materials],
-      ['薪資', -r.wages],
-      ['房租', -r.rent],
-      ['水電', -r.utilities],
-      ['利息', -r.interest],
-      ['事件', r.events],
-      ['分店', r.branches || 0],
-      ['設備與其他', r.other],
-    ].filter(([, v]) => Math.round(v) !== 0);
+    const rows = ledgerRows(r);
     const aw = r.award;
     return `<div class="card week">
       ${aw ? `<div class="award"><span>${aw.medal}</span><div><small>第 ${aw.year} 年・年度好店評選（${aw.score} 分）</small><b>${aw.title}</b><p>${aw.desc}${aw.reward ? ` 獎金 ${money(aw.reward)}！` : ''}</p></div></div>` : ''}
@@ -943,6 +1325,9 @@
         <div><span>慣老闆指數</span><b>${Math.round(r.jerk)}</b></div>
         <div><span>現金</span><b class="${s.cash < 0 ? 'neg' : ''}">${money(s.cash)}</b></div>
       </div>
+      ${r.hygiene ? `<div class="alert ${r.hygiene.fine || r.hygiene.grade === '限期改善' ? 'bad' : 'good'}">🕵️ ${esc(r.hygiene.text)}</div>` : ''}
+      ${r.waste ? `<p class="calc">這週過期報廢的食材：${money(r.waste)}</p>` : ''}
+      ${r.rival && !r.rival.closed ? `<p class="calc">🏪 隔壁的「${esc(r.rival.name)}」大約搶走了 ${Math.round(r.rival.strength * 22)}% 的客人。</p>` : ''}
       ${r.inspection ? (r.inspection.violations.length ? `<div class="alert bad">🔍 <b>勞動檢查！</b>查到：${r.inspection.violations.join('、')}，罰鍰 ${money(r.inspection.fine)}。</div>` : '<div class="alert good">🔍 勞動檢查：沒有發現違規。</div>') : ''}
       ${s.cash < 0 ? `<div class="alert bad">⚠️ 現金是負的！下週結算前要轉正，不然只能跟銀行借錢（目前借了 ${money(s.loan)}，上限 $600,000）。</div>` : ''}
       ${r.news.length ? `<ul class="news-list">${r.news.map((n) => `<li>${n}</li>`).join('')}</ul>` : ''}
@@ -1015,13 +1400,9 @@
     renderInbox();
   }
 
-  function save() {
-    try {
-      localStorage.setItem(SAVE_KEY, ui.sim.serialize());
-      return true;
-    } catch (e) {
-      return false;
-    }
+  function save(slot = ui.slot) {
+    if (!ui.sim || ui.sim.over) return false;
+    return store.set(slotKey(slot), ui.sim.serialize());
   }
 
   function quit() {
@@ -1048,23 +1429,126 @@
         break;
       case 'set':
         keepName();
-        ui.settings[btn.dataset.key] = btn.dataset.value;
+        ui.settings[btn.dataset.key] = btn.dataset.key === 'slot' ? Number(btn.dataset.value) : btn.dataset.value;
         renderStart();
         break;
       case 'start': {
         keepName();
         const ind = INDUSTRIES.find((i) => i.id === ui.settings.industry);
-        startGame(new Sim(ind.id, { shopName: ui.settings.shopName.trim() || ind.shopName, mode: ui.settings.mode }));
+        startGame(new Sim(ind.id, { shopName: ui.settings.shopName.trim() || ind.shopName, mode: ui.settings.mode }), ui.settings.slot);
+        save();
         break;
       }
       case 'continue': {
+        const n = Number(btn.dataset.slot);
         try {
-          startGame(Sim.load(loadSave(), {}));
+          ui.settings.tutorial = false;
+          startGame(Sim.load(loadSlot(n), {}), n);
         } catch (err) {
-          toast('存檔讀取失敗', 'bad');
+          flash('存檔讀取失敗', true);
         }
         break;
       }
+      case 'export-slot': {
+        const n = Number(btn.dataset.slot);
+        const i = slotInfo(n);
+        if (i) exportSave(loadSlot(n), `不當慣老闆-${i.shop}-第${i.day}天`);
+        break;
+      }
+      case 'delete-slot': {
+        const n = Number(btn.dataset.slot);
+        if (ui.confirmDelete === n) {
+          store.del(slotKey(n));
+          ui.confirmDelete = null;
+          ui.settings.slot = null;
+        } else ui.confirmDelete = n;
+        renderStart();
+        break;
+      }
+      case 'sys-menu':
+        save();
+        ui.dialog = { type: 'menu' };
+        renderDialog();
+        break;
+      case 'save-slot': {
+        const n = Number(btn.dataset.slot);
+        ui.slot = n;
+        const ok = save(n);
+        toast(ok ? `💾 存到第 ${n} 格了` : '這個瀏覽器不能存檔', ok ? '' : 'bad');
+        renderDialog();
+        break;
+      }
+      case 'export-current':
+        exportSave(s.serialize(), `不當慣老闆-${s.shopName}-第${s.day}天`);
+        break;
+      case 'quality':
+        ui.quality = btn.dataset.value;
+        store.set(QUALITY_KEY, ui.quality);
+        ui.view.setQuality(effectiveQuality());
+        renderDialog();
+        break;
+      case 'tut-restart':
+        ui.dialog = null;
+        renderDialog();
+        startTutorial();
+        break;
+      case 'tut-next':
+        if (ui.tut.step >= TUT.length - 1) endTutorial();
+        else {
+          ui.tut.step++;
+          renderTutorial();
+        }
+        break;
+      case 'tut-skip':
+        endTutorial();
+        break;
+      case 'par': {
+        const id = btn.dataset.id;
+        s.par[id] = Math.max(0, s.par[id] + Number(btn.dataset.d));
+        ui.tutFlags.par = true;
+        renderDrawer();
+        break;
+      }
+      case 'rush': {
+        const gid = btn.dataset.gid || btn.dataset.id;
+        if (!s.rushOrder(gid)) toast('錢不夠叫急件', 'bad');
+        renderInbox();
+        if (ui.tab === 'stock') renderDrawer();
+        break;
+      }
+      case 'rush-clean':
+        s.rushClean();
+        toast('🧹 「大家先放下手邊的事，把店裡整理一下！」');
+        renderInbox();
+        break;
+      case 'deep-clean':
+        s.deepClean();
+        renderDrawer();
+        break;
+      case 'flyers':
+        if (!s.flyers()) toast('錢不夠', 'bad');
+        renderDrawer();
+        break;
+      case 'promo':
+        s.startPromo(7);
+        renderDrawer();
+        break;
+      case 'loyalty':
+        s.buyLoyalty();
+        renderDrawer();
+        break;
+      case 'branch-set':
+        s.setBranch(Number(btn.dataset.i), btn.dataset.key, btn.dataset.value);
+        renderDrawer();
+        break;
+      case 'branch-staff':
+        s.setBranch(Number(btn.dataset.i), 'staff', Number(btn.dataset.d));
+        renderDrawer();
+        break;
+      case 'branch-reno':
+        s.setBranch(Number(btn.dataset.i), 'reno');
+        renderDrawer();
+        break;
       case 'music':
         window.BossAudio.init();
         window.BossAudio.toggle('music');
@@ -1182,6 +1666,7 @@
       case 'price': {
         const id = btn.dataset.id;
         s.prices[id] = Math.max(5, s.prices[id] + Number(btn.dataset.d));
+        ui.tutFlags.price = true;
         renderDrawer();
         break;
       }
@@ -1208,11 +1693,20 @@
         choose(Number(btn.dataset.i));
         break;
       case 'close-dialog':
-        ui.dialog = null;
-        renderDialog();
+        closeDialog();
         break;
     }
   });
+
+  function closeDialog() {
+    const wasWelcome = ui.dialog && ui.dialog.type === 'welcome';
+    ui.dialog = null;
+    renderDialog();
+    if (wasWelcome && ui.tutPending) {
+      ui.tutPending = false;
+      startTutorial();
+    }
+  }
 
   app.addEventListener('change', (e) => {
     const t = e.target;
@@ -1226,6 +1720,30 @@
     } else if (t.dataset.action === 'menu') {
       s.menu[t.dataset.id] = t.checked;
       renderDrawer();
+    }
+  });
+
+  // 開始畫面的勾選和檔案（遊戲還沒開始，ui.sim 是 null）
+  app.addEventListener('change', (e) => {
+    const t = e.target;
+    if (t.dataset.action === 'tut-toggle') ui.settings.tutorial = t.checked;
+    else if (t.dataset.action === 'import-file' && t.files[0]) importSave(t.files[0], ui.settings.slot || firstEmptySlot());
+    else if (t.dataset.action === 'import-file-game' && t.files[0]) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const sim = Sim.load(reader.result, {});
+          store.set(slotKey(ui.slot), reader.result);
+          cancelAnimationFrame(ui.raf);
+          if (ui.view) ui.view.destroy();
+          ui.settings.tutorial = false;
+          startGame(sim, ui.slot);
+          toast('📥 匯入成功');
+        } catch (err) {
+          toast('這個檔案不是遊戲存檔', 'bad');
+        }
+      };
+      reader.readAsText(t.files[0]);
     }
   });
 
@@ -1266,8 +1784,7 @@
           renderDialog();
         }
       } else if (d.type !== 'minigame' && d.type !== 'ending' && (e.key === 'Enter' || e.key === 'Escape')) {
-        ui.dialog = null;
-        renderDialog();
+        closeDialog();
       }
       return;
     }
@@ -1297,7 +1814,7 @@
   });
 
   // 自動化測試用：網址加上 #debug 才會開放
-  if (location.hash === '#debug') window.BossDebug = { ui };
+  if (location.hash === '#debug') window.BossDebug = { ui, renderDialog, renderDrawer };
 
   renderStart();
 })();

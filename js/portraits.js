@@ -64,6 +64,8 @@
     supplier: { name: '供應商', gender: 'm', skin: SKINS[3], hair: '#2b2420', hairStyle: 'spiky', shirt: '#b08a4f', phone: true },
     crowd: { name: '排隊的客人', gender: 'f', skin: SKINS[1], hair: '#4a3428', hairStyle: 'long', shirt: '#5aa9a0' },
     auntie: { name: '阿姨', gender: 'f', skin: SKINS[2], hair: '#5a3d2b', hairStyle: 'bun', shirt: '#b5517a', phone: true },
+    rivalboss: { name: '對面老闆', gender: 'm', skin: SKINS[2], hair: '#2b2420', hairStyle: 'slick', shirt: '#e8e2d8', apron: '#c0392b', phone: true },
+    inspector: { name: '稽查員', gender: 'f', skin: SKINS[1], hair: '#2b2420', hairStyle: 'bun', shirt: '#f4f4f4', glasses: true, extra: 'clipboard' },
     shareholder: { name: '股東', gender: 'm', skin: SKINS[1], hair: '#7a7a7a', hairStyle: 'side', shirt: '#34495e', suit: true, tie: '#8e44ad', phone: true },
   };
 
@@ -93,7 +95,11 @@
       parts.push(`<path d="M78 170 L96 226 L70 240 L40 240 Q50 186 78 170 Z M122 170 L104 226 L130 240 L160 240 Q150 186 122 170 Z" fill="${shade(L.shirt, -14)}"/>`);
     } else {
       parts.push(`<path d="M80 168 Q100 190 120 168" fill="none" stroke="${shade(L.shirt, -40)}" stroke-width="4"/>`);
+      if (L.tie) parts.push(`<path d="M96 178 L104 178 L108 214 L100 224 L92 214 Z" fill="${L.tie}"/>`);
     }
+    // 背包肩帶、圍裙
+    if (L.extra === 'backpack') parts.push(`<path d="M52 186 Q60 214 58 240 L72 240 Q72 210 66 180 Z M148 186 Q140 214 142 240 L128 240 Q128 210 134 180 Z" fill="${L.extraColor || '#2c6fbb'}"/>`);
+    if (L.apron) parts.push(`<path d="M64 196 L136 196 L142 240 L58 240 Z" fill="${L.apron}"/><path d="M64 196 Q66 176 80 170 M136 196 Q134 176 120 170" stroke="${L.apron}" stroke-width="5" fill="none"/>`);
     // 脖子、耳朵、臉
     parts.push(`<rect x="86" y="138" width="28" height="34" rx="10" fill="${skinD}"/>`);
     parts.push(`<circle cx="49" cy="108" r="10" fill="${skinD}"/><circle cx="151" cy="108" r="10" fill="${skinD}"/>`);
@@ -101,6 +107,8 @@
 
     // 臉部表情
     parts.push(face(mood));
+    // 長輩的皺紋
+    if (L.old) parts.push(`<g fill="none" stroke="${skinD}" stroke-width="2.5" stroke-linecap="round"><path d="M62 92 Q70 88 78 92"/><path d="M122 92 Q130 88 138 92"/><path d="M70 136 Q74 142 72 148"/><path d="M130 136 Q126 142 128 148"/></g>`);
 
     // 前面的頭髮
     parts.push(hairFront(L, hairD));
@@ -110,6 +118,7 @@
     if (L.hat === 'cap') parts.push(`<path d="M50 70 Q54 34 100 32 Q146 34 150 70 Z" fill="${L.hatColor}"/><path d="M100 64 Q150 62 170 74 Q140 80 100 72 Z" fill="${shade(L.hatColor, -25)}"/>`);
     if (L.phone) parts.push(`<g transform="translate(150 118) rotate(18)"><rect x="-10" y="-30" width="22" height="46" rx="5" fill="#2d2d2d"/><rect x="-7" y="-25" width="16" height="34" rx="2" fill="#7fb2e5"/></g><ellipse cx="160" cy="150" rx="14" ry="11" fill="${L.skin}"/>`);
 
+    if (L.extra === 'clipboard') parts.push(`<g transform="translate(150 200) rotate(-12)"><rect x="-22" y="-30" width="44" height="58" rx="4" fill="#8a5a3b"/><rect x="-18" y="-24" width="36" height="48" fill="#ffffff"/><rect x="-8" y="-34" width="16" height="8" rx="2" fill="#555"/><path d="M-12 -12 H12 M-12 -2 H12 M-12 8 H6" stroke="#9aa1a9" stroke-width="3"/></g>`);
     return `<svg viewBox="0 0 200 240" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${parts.join('')}</svg>`;
   }
 

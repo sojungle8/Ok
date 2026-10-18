@@ -24,11 +24,12 @@ for (const ind of INDUSTRIES) {
       },
     },
   });
+  if (smart) s.policy.autoStock = true;
   const t0 = Date.now();
   const rows = [];
   let lastCash = s.cash;
   s.cb.dayEnd = (r) => {
-    rows.push(`  第${String(r.day).padStart(2)}天 來客${String(r.visitors).padStart(4)} 服務${String(r.served).padStart(4)} 生氣${String(r.angry).padStart(3)} 太擠${String(r.balked).padStart(3)} 營收${String(Math.round(r.revenue)).padStart(7)} 薪資${String(r.wages).padStart(6)} 加班${r.ot.toFixed(1).padStart(5)}h | 現金${String(Math.round(s.cash)).padStart(8)} (${Math.round(s.cash - lastCash) >= 0 ? '+' : ''}${Math.round(s.cash - lastCash)}) ★${s.rating.toFixed(2)} 慣${s.jerk.toFixed(0)} 心情${s.morale.toFixed(0)} 員工${s.staff.length}`);
+    rows.push(`  第${String(r.day).padStart(2)}天 來客${String(r.visitors).padStart(4)} 服務${String(r.served).padStart(4)} 生氣${String(r.angry).padStart(3)} 缺貨${String(r.soldOut).padStart(3)} 清潔${String(r.clean).padStart(3)} 太擠${String(r.balked).padStart(3)} 營收${String(Math.round(r.revenue)).padStart(7)} 薪資${String(r.wages).padStart(6)} 加班${r.ot.toFixed(1).padStart(5)}h | 現金${String(Math.round(s.cash)).padStart(8)} (${Math.round(s.cash - lastCash) >= 0 ? '+' : ''}${Math.round(s.cash - lastCash)}) ★${s.rating.toFixed(2)} 慣${s.jerk.toFixed(0)} 心情${s.morale.toFixed(0)} 員工${s.staff.length}`);
     lastCash = s.cash;
     if (smart && r.visitors && r.angry / r.visitors > 0.08 && s.staff.length < 10) s.hire(0);
   };
@@ -37,6 +38,6 @@ for (const ind of INDUSTRIES) {
   rows.forEach((r) => console.log(r));
   if (s.over) console.log('  結局：', s.ending.title);
   const w = s.history[s.history.length - 1];
-  if (w) console.log(`  最後一週：營收 ${Math.round(w.revenue)} 材料 ${Math.round(w.materials)} 薪資 ${w.wages} 房租 ${w.rent} 水電 ${w.utilities} 淨利 ${Math.round(w.profit)}`);
+  if (w) console.log(`  最後一週：營收 ${Math.round(w.revenue)} 進貨 ${Math.round(w.materials)}（報廢 ${w.waste}） 薪資 ${w.wages} 勞健保退 ${w.labor + w.health + w.pension} 房租 ${w.rent} 水電 ${w.utilities} 營業稅 ${w.tax}（${w.taxStatus}） 罰款 ${w.fines} 分店 ${w.branches} 淨利 ${Math.round(w.profit)}${w.rival ? ` | 對手 ${w.rival.name} ${w.rival.closed ? '已收攤' : w.rival.strength.toFixed(2)}` : ''}`);
   if (notes.length) console.log('  通知：', notes.slice(-4).join(' / '));
 }

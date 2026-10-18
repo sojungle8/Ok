@@ -85,12 +85,16 @@
       tone(360, t + 0.02, 0.08, { type: 'square', vol: 0.04 });
     },
     bad: (t) => [392, 311].forEach((f, i) => tone(f, t + i * 0.16, 0.3, { type: 'triangle', vol: 0.12 })),
+    // 鐵捲門：一連串金屬喀啦聲
+    shutter: (t) => {
+      for (let i = 0; i < 14; i++) tone(90 + (i % 3) * 25, t + i * 0.07, 0.08, { type: 'sawtooth', vol: 0.05, slide: 0.7 });
+    },
   };
 
   function play(name) {
     if (!ctx || !prefs.sfx || !SOUNDS[name]) return;
     const now = ctx.currentTime;
-    const gap = name === 'coin' ? 0.12 : name === 'door' ? 0.9 : 0.25;
+    const gap = name === 'coin' ? 0.12 : name === 'door' ? 0.9 : name === 'shutter' ? 1.5 : 0.25;
     if (last[name] && now - last[name] < gap) return;
     last[name] = now;
     SOUNDS[name](now + 0.01);
@@ -138,35 +142,122 @@
     rainGain.gain.setTargetAtTime(v, ctx.currentTime, 0.8);
   }
 
-  // ───── 背景音樂：慢板的五聲音階小曲 ─────
-  const CHORDS = [
-    [261.63, 329.63, 392.0], // C
-    [220.0, 261.63, 329.63], // Am
-    [174.61, 220.0, 261.63], // F
-    [196.0, 246.94, 293.66], // G
-  ];
-  const MELODY = [0, 2, 4, 2, 1, 4, 3, 2, 0, 1, 2, 4, 3, 2, 1, 0];
-  const SCALE = [523.25, 587.33, 659.25, 783.99, 880.0];
+  // ───── 背景音樂：好幾首曲子，依時段和店裡的狀況切換 ─────
+  const N = (name) => {
+    const i = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'].indexOf(name.slice(0, -1));
+    return 440 * Math.pow(2, (i - 9) / 12 + (Number(name.slice(-1)) - 4));
+  };
+  const chord = (...names) => names.map(N);
+  // 每首曲子：速度、和弦進行、旋律（音階的第幾個音，-1 是休止）、音色
+  const TRACKS = {
+    morning: {
+      name: '早安，開店囉',
+      bpm: 96,
+      chords: [chord('C3', 'E3', 'G3'), chord('G2', 'B2', 'D3'), chord('A2', 'C3', 'E3'), chord('F2', 'A2', 'C3')],
+      scale: ['C5', 'D5', 'E5', 'G5', 'A5', 'C6'].map(N),
+      melody: [0, 2, 3, 2, 4, 3, 2, -1, 1, 2, 3, 5, 4, 3, 2, -1],
+      lead: 'triangle',
+      bass: 'pulse',
+    },
+    afternoon: {
+      name: '午後的騎樓',
+      bpm: 80,
+      chords: [chord('F2', 'A2', 'C3', 'E3'), chord('E2', 'G2', 'B2', 'D3'), chord('D2', 'F2', 'A2', 'C3'), chord('G2', 'B2', 'D3', 'F3')],
+      scale: ['F4', 'G4', 'A4', 'C5', 'D5', 'F5'].map(N),
+      melody: [2, -1, 3, 4, 3, -1, 2, 1, 0, -1, 1, 2, 4, 3, -1, -1],
+      lead: 'sine',
+      bass: 'walk',
+    },
+    rush: {
+      name: '尖峰時刻',
+      bpm: 132,
+      chords: [chord('A2', 'C3', 'E3'), chord('F2', 'A2', 'C3'), chord('G2', 'B2', 'D3'), chord('E2', 'G#2', 'B2')],
+      scale: ['A4', 'C5', 'D5', 'E5', 'G5', 'A5'].map(N),
+      melody: [0, 3, 2, 3, 4, 3, 2, 0, 1, 2, 3, 2, 4, 5, 4, 3],
+      lead: 'square',
+      bass: 'drive',
+    },
+    night: {
+      name: '晚班的街燈',
+      bpm: 70,
+      chords: [chord('A2', 'C3', 'E3', 'G3'), chord('D2', 'F2', 'A2', 'C3'), chord('G2', 'B2', 'D3', 'F3'), chord('C3', 'E3', 'G3', 'B3')],
+      scale: ['A4', 'C5', 'D5', 'E5', 'G5', 'A5'].map(N),
+      melody: [4, -1, 3, -1, 2, 3, -1, -1, 1, -1, 2, 0, -1, -1, -1, -1],
+      lead: 'sine',
+      bass: 'soft',
+    },
+    rain: {
+      name: '雨天的玻璃窗',
+      bpm: 64,
+      chords: [chord('D3', 'F3', 'A3', 'C4'), chord('G2', 'B2', 'D3', 'F3'), chord('C3', 'E3', 'G3', 'B3'), chord('A2', 'C3', 'E3', 'G3')],
+      scale: ['D5', 'E5', 'F5', 'A5', 'C6', 'D6'].map(N),
+      melody: [3, -1, -1, 2, -1, 1, -1, -1, 4, -1, 3, -1, 0, -1, -1, -1],
+      lead: 'box',
+      bass: 'soft',
+    },
+    closed: {
+      name: '打烊後',
+      bpm: 58,
+      chords: [chord('C3', 'G3', 'E4'), chord('A2', 'E3', 'C4'), chord('F2', 'C3', 'A3'), chord('G2', 'D3', 'B3')],
+      scale: ['C6', 'D6', 'E6', 'G6', 'A6', 'C7'].map(N),
+      melody: [2, -1, 1, -1, 0, -1, -1, -1, 3, -1, 2, -1, 1, -1, -1, -1],
+      lead: 'box',
+      bass: 'none',
+    },
+  };
+  let track = 'morning';
+  let wanted = 'morning';
+
+  function setMood(name) {
+    if (TRACKS[name]) wanted = name;
+  }
 
   function startMusic() {
-    const beat = 60 / 84;
     let step = 0;
     let next = ctx.currentTime + 0.2;
     const schedule = () => {
       if (!ctx) return;
       while (next < ctx.currentTime + 0.6) {
-        const bar = Math.floor(step / 4) % CHORDS.length;
-        const chord = CHORDS[bar];
-        if (step % 4 === 0) chord.forEach((f, i) => tone(f / 2, next + i * 0.02, beat * 3.6, { type: 'triangle', vol: 0.18, attack: 0.05, out: musicGain }));
-        tone(chord[step % 3] / 2, next, beat * 0.9, { type: 'sine', vol: 0.12, out: musicGain });
-        const m = MELODY[step % MELODY.length];
-        if (step % 2 === 0 || Math.random() < 0.3) tone(SCALE[m], next + beat * 0.02, beat * 0.8, { type: 'triangle', vol: 0.09, attack: 0.01, out: musicGain });
+        // 換曲只在小節開頭換，聽起來比較自然
+        if (step % 16 === 0 && wanted !== track) {
+          track = wanted;
+          step = 0;
+        }
+        const T = TRACKS[track];
+        const beat = 60 / T.bpm;
+        const bar = Math.floor(step / 4) % T.chords.length;
+        const ch = T.chords[bar];
+        const b = step % 4;
+        // 和弦墊底
+        if (b === 0) ch.forEach((f, i) => tone(f, next + i * 0.025, beat * 3.6, { type: 'triangle', vol: track === 'rush' ? 0.1 : 0.15, attack: 0.06, out: musicGain }));
+        // 低音
+        if (T.bass === 'pulse') tone(ch[0] / 2, next, beat * 0.5, { type: 'triangle', vol: 0.16, out: musicGain });
+        else if (T.bass === 'walk') tone((b === 3 ? ch[2] : ch[b % ch.length]) / 2, next, beat * 0.9, { type: 'sine', vol: 0.16, out: musicGain });
+        else if (T.bass === 'drive') {
+          tone(ch[0] / 2, next, beat * 0.4, { type: 'sawtooth', vol: 0.05, out: musicGain });
+          tone(ch[0] / 2, next + beat / 2, beat * 0.3, { type: 'sawtooth', vol: 0.04, out: musicGain });
+          // 輕輕的打點
+          tone(b % 2 ? 1800 : 120, next, 0.05, { type: b % 2 ? 'square' : 'sine', vol: b % 2 ? 0.015 : 0.2, slide: b % 2 ? 1 : 0.4, out: musicGain });
+        } else if (T.bass === 'soft' && b === 0) tone(ch[0] / 2, next, beat * 3, { type: 'sine', vol: 0.14, attack: 0.08, out: musicGain });
+        // 旋律
+        const m = T.melody[step % T.melody.length];
+        if (m >= 0) {
+          if (T.lead === 'box') {
+            // 音樂盒：高音、快速衰減
+            tone(T.scale[m], next, beat * 1.6, { type: 'sine', vol: 0.1, attack: 0.003, out: musicGain });
+            tone(T.scale[m] * 2, next, beat * 0.6, { type: 'sine', vol: 0.025, attack: 0.003, out: musicGain });
+          } else tone(T.scale[m], next + beat * 0.02, beat * (T.lead === 'square' ? 0.45 : 0.85), { type: T.lead, vol: T.lead === 'square' ? 0.035 : 0.09, attack: 0.01, out: musicGain });
+        }
         next += beat;
         step++;
       }
     };
     musicTimer = setInterval(schedule, 200);
     schedule();
+  }
+
+  function trackName() {
+    return TRACKS[track].name;
   }
 
   function toggle(kind) {
@@ -182,5 +273,5 @@
     return prefs[kind];
   }
 
-  root.BossAudio = { init, play, toggle, setWeather, prefs };
+  root.BossAudio = { init, play, toggle, setWeather, setMood, trackName, prefs, tracks: TRACKS };
 })(typeof window !== 'undefined' ? window : globalThis);

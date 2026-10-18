@@ -71,6 +71,12 @@
       for (let i = 0; i < 4; i++) C(g, 0.08, 0.08, 0.02, '#f2e3a0', 0.0 + i * 0.32, 0.86, 0, 16);
       B(g, 1.9, 0.5, 0.02, basic('#dff3ff', { transparent: true, opacity: 0.35 }), 0.5, 0.86, 0.38);
       C(g, 0.12, 0.12, 0.18, '#ffffff', 1.3, 0.82, 0.25);
+      // 醬料罐、鍋鏟、出餐盤
+      C(g, 0.035, 0.035, 0.16, '#c0392b', 1.32, 0.82, -0.25, 8);
+      C(g, 0.035, 0.035, 0.16, '#3a2c25', 1.4, 0.82, -0.25, 8);
+      B(g, 0.05, 0.02, 0.22, '#9aa1a9', 0.25, 0.87, 0.15, { metalness: 0.7 });
+      B(g, 0.3, 0.02, 0.3, '#ffffff', -0.3, 0.82, 0.28);
+      for (let i = 0; i < 3; i++) B(g, 0.08, 0.005, 0.1, '#fff9d6', 0.6 + i * 0.12, 1.3, 0.38);
       g.userData.steam = [new THREE.Vector3(0.2, 1.0, 0), new THREE.Vector3(0.8, 1.0, 0)];
     },
     drinkbar(g) {
@@ -87,6 +93,10 @@
       C(g, 0.27, 0.27, 0.02, '#c9a36b', 0.1, 1.12, 0, 24);
       C(g, 0.27, 0.27, 0.02, '#7a3d1d', 0.85, 1.12, 0, 24);
       B(g, 0.3, 0.06, 0.3, '#f4f1ec', 1.35, 0.82, 0.15);
+      // 疊起來的碗、湯杓、麵條
+      for (let i = 0; i < 4; i++) C(g, 0.1, 0.07, 0.05, '#f4f1ec', 1.35, 0.88 + i * 0.05, -0.2, 14);
+      B(g, 0.02, 0.4, 0.02, '#9aa1a9', 0.35, 1.0, -0.05, { metalness: 0.7 }).rotation.z = 0.5;
+      B(g, 0.25, 0.08, 0.2, '#f2dfa0', 1.35, 0.88, 0.15);
       g.userData.steam = [new THREE.Vector3(0.1, 1.2, 0), new THREE.Vector3(0.85, 1.2, 0)];
     },
     sidecase(g) {
@@ -102,6 +112,10 @@
       for (let i = 0; i < 4; i++) C(g, 0.12, 0.12, 0.4, c[i], -0.2 + i * 0.3, 0.95, -0.2, 16);
       B(g, 0.32, 0.38, 0.32, '#e5e8ec', 1.25, 0.95, -0.05, { metalness: 0.4 });
       for (let i = 0; i < 3; i++) C(g, 0.05, 0.04, 0.17, '#f3e3c3', 0.9 + i * 0.12, 0.95, 0.22);
+      // 封口機、雪克杯、果糖機
+      B(g, 0.2, 0.3, 0.22, '#d64541', 0.55, 0.95, 0.05);
+      C(g, 0.045, 0.04, 0.2, '#c9ced6', 0.2, 0.95, 0.2, 10, { metalness: 0.7 });
+      B(g, 0.14, 0.26, 0.14, '#f6f1ea', -0.3, 0.95, 0.15);
     },
     barberchair(g) {
       C(g, 0.18, 0.24, 0.32, '#2d2d2d', 0, 0, 0, 16, { metalness: 0.6 });
@@ -335,6 +349,15 @@
         g.add(p);
       }
     },
+    cleancart(g) {
+      B(g, 0.5, 0.08, 0.4, '#f2c14e', 0, 0.08, 0);
+      for (const [x, z] of [[-0.2, -0.15], [0.2, -0.15], [-0.2, 0.15], [0.2, 0.15]]) C(g, 0.04, 0.04, 0.06, '#333', x, 0, z, 8);
+      C(g, 0.15, 0.13, 0.3, '#3b7dd8', -0.08, 0.16, 0, 14);
+      B(g, 0.03, 0.9, 0.03, '#9aa1a9', 0.2, 0.16, -0.15);
+      B(g, 0.03, 0.9, 0.03, '#c9a36b', 0.08, 0.16, -0.17);
+      B(g, 0.22, 0.06, 0.1, '#5aa9e6', 0.08, 0.16, -0.12);
+      C(g, 0.05, 0.05, 0.2, '#2fbf71', 0.18, 0.16, 0.1, 10);
+    },
     selfcheckout(g) {
       B(g, 0.6, 0.85, 0.5, '#e8edf2', 0, 0, -0.1);
       B(g, 0.45, 0.32, 0.05, '#1a1a1a', 0, 1.0, -0.1).rotation.x = -0.25;
@@ -367,7 +390,7 @@
     C(g, 0.17, 0.17, 0.03, '#e8463d', x, 0.42, z, 14);
   }
 
-  function scooterModel(color, box = false) {
+  function scooterModel(color, box = false, boxColor = '#e0478a') {
     const g = new THREE.Group();
     const body = mat(color, { metalness: 0.3, roughness: 0.4 });
     for (const z of [-0.36, 0.36]) {
@@ -382,10 +405,16 @@
     B(g, 0.2, 0.42, 0.12, body, 0, 0.3, 0.38);
     B(g, 0.5, 0.04, 0.05, mat('#333'), 0, 0.72, 0.42);
     // 外送箱
-    if (box) B(g, 0.42, 0.38, 0.38, mat('#e0478a'), 0, 0.5, -0.3);
+    if (box) B(g, 0.42, 0.38, 0.38, mat(boxColor), 0, 0.5, -0.3);
     People.mergeGroup(g);
     return g;
   }
+
+  // 地上的髒污
+  const dirtGeo = new THREE.CircleGeometry(0.5, 10);
+  const DIRT_COLORS = { food: '#6b4a22', spill: '#9a6a2a', mud: '#4a3a2a', hair: '#1f1a17', oil: '#101010' };
+  const dirtMats = {};
+  const dirtMat = (kind) => (dirtMats[kind] ||= new THREE.MeshBasicMaterial({ color: DIRT_COLORS[kind] || '#8a6a3e', transparent: true, opacity: kind === 'oil' ? 0.7 : 0.6, depthWrite: false }));
 
   const staffRingGeo = new THREE.RingGeometry(0.24, 0.31, 24);
   const staffRingMat = new THREE.MeshBasicMaterial({ color: '#2fbf71', transparent: true, opacity: 0.85, depthWrite: false });
@@ -408,7 +437,7 @@
       this.sim = sim;
       this.container = container;
       this.opts = opts;
-      const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: false });
+      const r = new THREE.WebGLRenderer({ antialias: !opts.lowEnd, preserveDrawingBuffer: false, powerPreference: 'high-performance' });
       r.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
       r.shadowMap.enabled = true;
       // 陰影不用每一幀重畫：家具變動或太陽移動時才更新
@@ -448,14 +477,38 @@
       this.floorPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
       this.ghost = null;
       this.selected = null;
+      this.dirtMeshes = new Map();
+      this.shutterK = this.sim.isOpen ? 0 : 1;
+      this.perf = { t: 0, frames: 0, slow: 0 };
+      this.fps = 60;
       this.buildStatic();
       this.buildRain();
+      this.setQuality(opts.quality || 'high');
 
       this.ro = new ResizeObserver(() => this.resize());
       this.ro.observe(container);
       this.resize();
       this.bindControls();
       this.lastNow = performance.now();
+    }
+
+    // 畫質：high 全開；medium 降解析度、陰影變小；low 關陰影、雨變少、沒有蒸氣
+    setQuality(q) {
+      this.quality = q;
+      const dpr = window.devicePixelRatio || 1;
+      this.renderer.setPixelRatio({ high: Math.min(dpr, 1.5), medium: Math.min(dpr, 1), low: Math.min(dpr, 0.75) }[q]);
+      this.sun.castShadow = q !== 'low';
+      const size = q === 'high' ? 1536 : 1024;
+      if (this.sun.shadow.mapSize.x !== size) {
+        this.sun.shadow.mapSize.set(size, size);
+        if (this.sun.shadow.map) {
+          this.sun.shadow.map.dispose();
+          this.sun.shadow.map = null;
+        }
+      }
+      if (this.rain) this.rain.geometry.setDrawRange(0, (q === 'low' ? 300 : q === 'medium' ? 600 : 900) * 2);
+      this.renderer.shadowMap.needsUpdate = true;
+      this.resize();
     }
 
     destroy() {
@@ -583,7 +636,13 @@
       };
       this._up = (e) => {
         pts.delete(e.pointerId);
-        if (drag && drag.id === e.pointerId && drag.moved <= 8 && this.opts.onClick) this.opts.onClick(this.pick(e.clientX, e.clientY), e);
+        if (drag && drag.id === e.pointerId && drag.moved <= 8 && this.opts.onClick) {
+          // 建造模式：直接用手指下面的地板格，不要被前面的家具擋到
+          if (this.opts.dragLocked?.()) {
+            const t = this.pickTile(e.clientX, e.clientY);
+            this.opts.onClick(t ? { kind: 'tile', ...t } : null, e);
+          } else this.opts.onClick(this.pick(e.clientX, e.clientY), e);
+        }
         if (!pts.size) drag = null;
       };
       this._wheel = (e) => {
@@ -716,7 +775,8 @@
         }
       });
       floorTex.magFilter = THREE.NearestFilter;
-      const floor = new THREE.Mesh(new THREE.PlaneGeometry(W, H), new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.6 }));
+      this.floorMat = new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.6 });
+      const floor = new THREE.Mesh(new THREE.PlaneGeometry(W, H), this.floorMat);
       floor.rotation.x = -Math.PI / 2;
       floor.position.set(W / 2, 0.01, H / 2);
       floor.receiveShadow = true;
@@ -769,10 +829,14 @@
       awn.position.set(W / 2, WALL_H - 0.1, H + 0.45);
       awn.rotation.x = 0.18;
       g.add(awn);
+      this.buildShutter(g);
+      this.buildFrontSigns(g);
 
       // 隔壁店家
       const pick = (i) => NEIGHBORS[(i + ind.id.length) % NEIGHBORS.length];
-      this.buildNeighbor(this.neighbors.left, -OUT_W, 0, OUT_W, H, pick(0));
+      this.neighborPick = pick(0);
+      this.rivalKey = this.rivalState();
+      this.buildLeftNeighbor();
       this.buildNeighbor(this.neighbors.right, W, 0, OUT_W, H, pick(3));
 
       // 路邊停的機車
@@ -800,12 +864,142 @@
       }
       // 合併靜態場景：牆、隔壁店家、柱子、路邊的機車
       for (const gr of [...Object.values(this.walls), ...Object.values(this.neighbors), this.frontProps]) People.mergeGroup(gr);
-      People.mergeGroup(g, [...Object.values(this.walls), ...Object.values(this.neighbors), this.frontProps, this.sign]);
+      People.mergeGroup(g, [...Object.values(this.walls), ...Object.values(this.neighbors), this.frontProps, this.sign, this.shutter, this.frontSigns]);
       if (this.renderer) this.renderer.shadowMap.needsUpdate = true;
       this.updateCamera();
     }
 
-    buildNeighbor(group, x0, z0, w, h, [name, color]) {
+    // 鐵捲門：打烊、大家都走了才拉下來
+    buildShutter(g) {
+      const s = this.sim;
+      const top = WALL_H - 0.3;
+      const tex = canvasTex(64, 256, (c, w, h) => {
+        for (let y = 0; y < h; y += 8) {
+          const grad = c.createLinearGradient(0, y, 0, y + 8);
+          grad.addColorStop(0, '#c9ced4');
+          grad.addColorStop(0.6, '#a9b0b8');
+          grad.addColorStop(1, '#7d858e');
+          c.fillStyle = grad;
+          c.fillRect(0, y, w, 8);
+        }
+      });
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(s.W / 2, 1);
+      const geo = new THREE.BoxGeometry(s.W + 0.1, 1, 0.05);
+      geo.translate(0, -0.5, 0);
+      const panel = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: tex, metalness: 0.4, roughness: 0.5 }));
+      panel.position.set(s.W / 2, top, s.H + 0.12);
+      panel.scale.y = top * this.shutterK + 0.001;
+      panel.castShadow = true;
+      const hood = new THREE.Mesh(boxGeo(s.W + 0.2, 0.22, 0.25), mat('#8b939c', { metalness: 0.5 }));
+      hood.position.set(s.W / 2, top + 0.11, s.H + 0.14);
+      hood.userData.keep = true;
+      this.shutter = new THREE.Group();
+      this.shutter.add(panel, hood);
+      this.shutterPanel = panel;
+      this.shutterTop = top;
+      g.add(this.shutter);
+    }
+
+    // 門口的貼紙：衛生優良標章、促銷布條
+    buildFrontSigns(g) {
+      const s = this.sim;
+      this.frontSigns = new THREE.Group();
+      const badgeTex = canvasTex(128, 128, (c, w, h) => {
+        c.fillStyle = '#ffffff';
+        c.beginPath();
+        c.arc(64, 64, 60, 0, Math.PI * 2);
+        c.fill();
+        c.strokeStyle = '#1f8a4c';
+        c.lineWidth = 8;
+        c.stroke();
+        c.fillStyle = '#1f8a4c';
+        c.font = 'bold 30px "PingFang TC","Noto Sans TC",sans-serif';
+        c.textAlign = 'center';
+        c.fillText('衛生', 64, 54);
+        c.fillText('優良', 64, 90);
+      });
+      this.badge = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.42), new THREE.MeshBasicMaterial({ map: badgeTex, transparent: true }));
+      this.badge.position.set(Math.max(0.4, s.doorX - 0.5), 1.5, s.H + 0.07);
+      this.badge.visible = false;
+      const bannerTex = canvasTex(512, 96, (c, w, h) => {
+        c.fillStyle = '#d9482b';
+        c.fillRect(0, 0, w, h);
+        c.fillStyle = '#fff36b';
+        c.font = 'bold 60px "PingFang TC","Noto Sans TC",sans-serif';
+        c.textAlign = 'center';
+        c.textBaseline = 'middle';
+        c.fillText('全品項九折', w / 2, h / 2 + 3);
+      });
+      this.banner = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.45), new THREE.MeshBasicMaterial({ map: bannerTex, side: THREE.DoubleSide }));
+      this.banner.position.set(s.W / 2, WALL_H - 0.55, s.H + 0.82);
+      this.banner.visible = false;
+      this.frontSigns.add(this.badge, this.banner);
+      g.add(this.frontSigns);
+    }
+
+    rivalState() {
+      const r = this.sim.rival;
+      if (!r) return 'none';
+      const opening = !r.closed && this.sim.day - r.opened < 10;
+      return `${r.name}|${r.closed}|${opening}`;
+    }
+
+    // 左邊隔壁：平常是一般店家；開了競爭對手就換成對手的店
+    buildLeftNeighbor() {
+      const grp = this.neighbors.left;
+      while (grp.children.length) grp.remove(grp.children[0]);
+      const s = this.sim;
+      const r = s.rival;
+      if (r && !r.closed) this.buildRivalShop(grp, -OUT_W, OUT_W, s.H, r, s.day - r.opened < 10);
+      else if (r && r.closed) this.buildNeighbor(grp, -OUT_W, 0, OUT_W, s.H, [`${r.name}　頂讓`, '#8a8a8a'], true);
+      else this.buildNeighbor(grp, -OUT_W, 0, OUT_W, s.H, this.neighborPick);
+    }
+
+    buildRivalShop(group, x0, w, H, r, opening) {
+      B(group, w, 3.6, H, '#efe7da', x0 + w / 2, 0, H / 2);
+      // 亮著燈的玻璃店面
+      B(group, w - 0.3, 2.0, 0.06, basic('#fff1c9', { transparent: true, opacity: 0.85 }), x0 + w / 2, 0, H - 0.02);
+      B(group, w - 0.2, 0.18, 0.12, r.color, x0 + w / 2, 2.0, H - 0.01);
+      const tex = canvasTex(512, 128, (c, cw, ch) => {
+        c.fillStyle = r.color;
+        c.fillRect(0, 0, cw, ch);
+        c.strokeStyle = '#fff';
+        c.lineWidth = 6;
+        c.strokeRect(8, 8, cw - 16, ch - 16);
+        c.fillStyle = '#fff';
+        c.font = 'bold 64px "PingFang TC","Noto Sans TC",sans-serif';
+        c.textAlign = 'center';
+        c.textBaseline = 'middle';
+        c.fillText(r.name, cw / 2, ch / 2 + 4);
+      });
+      const sign = new THREE.Mesh(new THREE.PlaneGeometry(w - 0.3, 0.7), new THREE.MeshStandardMaterial({ map: tex, emissive: '#ffffff', emissiveMap: tex, emissiveIntensity: 0.4 }));
+      sign.position.set(x0 + w / 2, 2.55, H + 0.03);
+      group.add(sign);
+      if (opening) {
+        // 開幕花籃和布條
+        for (const dx of [0.4, w - 0.4]) {
+          C(group, 0.04, 0.04, 1.0, '#7a5a40', x0 + dx, 0, H + 0.35, 6);
+          const flowers = new THREE.Mesh(new THREE.IcosahedronGeometry(0.28, 0), mat('#e84a7a', { flatShading: true }));
+          flowers.position.set(x0 + dx, 1.15, H + 0.35);
+          group.add(flowers);
+        }
+        const btex = canvasTex(512, 96, (c, cw, ch) => {
+          c.fillStyle = '#ffde59';
+          c.fillRect(0, 0, cw, ch);
+          c.fillStyle = '#c0392b';
+          c.font = 'bold 54px "PingFang TC","Noto Sans TC",sans-serif';
+          c.textAlign = 'center';
+          c.textBaseline = 'middle';
+          c.fillText('開幕優惠 買一送一', cw / 2, ch / 2 + 3);
+        });
+        const banner = new THREE.Mesh(new THREE.PlaneGeometry(w - 0.4, 0.32), new THREE.MeshBasicMaterial({ map: btex }));
+        banner.position.set(x0 + w / 2, 3.1, H + 0.04);
+        group.add(banner);
+      }
+    }
+
+    buildNeighbor(group, x0, z0, w, h, [name, color], forLease = false) {
       const H = this.sim.H;
       B(group, w, 3.6, h, '#d8cfc3', x0 + w / 2, 0, z0 + h / 2);
       B(group, w - 0.3, 1.8, 0.08, '#9aa1a9', x0 + w / 2, 0, H - 0.02, { metalness: 0.5 });
@@ -822,6 +1016,12 @@
       const sign = new THREE.Mesh(new THREE.PlaneGeometry(w - 0.4, 0.6), new THREE.MeshStandardMaterial({ map: tex }));
       sign.position.set(x0 + w / 2, 2.4, H + 0.03);
       group.add(sign);
+      if (forLease) {
+        // 鐵捲門上貼的紅紙
+        const paper = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.8), basic('#d23c33'));
+        paper.position.set(x0 + w / 2, 0.9, H + 0.05);
+        group.add(paper);
+      }
       for (let i = 0; i < 2; i++) B(group, 0.8, 0.6, 0.05, basic('#a9c9de'), x0 + 0.8 + i * 1.6, 2.9, H + 0.01);
     }
 
@@ -843,6 +1043,16 @@
       if (this.sign) this.sign.visible = !frontNear;
       if (this.awning) this.awning.visible = !frontNear;
       if (this.frontProps) this.frontProps.scale.y = frontNear ? 0.15 : 1;
+      this.applyShutterCut(frontNear);
+      if (this.frontSigns) this.frontSigns.visible = !frontNear;
+      this.frontNear = frontNear;
+    }
+
+    // 正面朝鏡頭時：營業中把鐵捲門壓低免得擋住店裡；打烊拉下來時照實顯示（建造模式除外）
+    applyShutterCut(frontNear = this.frontNear) {
+      if (!this.shutter) return;
+      const low = frontNear && (this.shutterK < 0.99 || this.peek);
+      this.shutter.scale.y = low ? 0.22 : 1;
     }
 
     menuTexture() {
@@ -959,7 +1169,7 @@
       const list = [
         ...s.staff.filter((e) => e.state !== 'off').map((e) => ({ a: e, kind: 'staff' })),
         ...s.customers.map((c) => ({ a: c, kind: 'customer' })),
-        ...s.passers.map((p) => ({ a: p, kind: p.kind })),
+        ...(this.quality === 'low' ? s.passers.slice(0, 6) : s.passers).map((p) => ({ a: p, kind: p.kind })),
       ];
       for (const { a, kind } of list) {
         seen.add(a.id);
@@ -969,7 +1179,7 @@
           p.group.userData.pick = kind === 'staff' ? { kind: 'staff', staff: a } : kind === 'customer' ? { kind: 'customer', customer: a } : null;
           v = { p, kind, pickable: kind === 'staff' || kind === 'customer' };
           if (kind === 'scooter' || (kind === 'customer' && a.scooter)) {
-            const sc = a.rider ? scooterModel('#3a3a3a', true) : scooterModel(['#c0392b', '#ecf0f1', '#2c3e50', '#2980b9', '#f1c40f'][a.id % 5]);
+            const sc = a.supplier ? scooterModel('#ecf0f1', true, '#2f6db5') : a.rider ? scooterModel('#3a3a3a', true) : scooterModel(['#c0392b', '#ecf0f1', '#2c3e50', '#2980b9', '#f1c40f'][a.id % 5]);
             sc.rotation.y = 0;
             v.scooter = sc;
             v.root = new THREE.Group();
@@ -1017,16 +1227,22 @@
           p.group.position.y = outside ? 0.25 : 0;
         }
         if (a.state === 'eating' || (a.waitSeat && !a.path.length) || (a.lane && a.obj && a.obj.def.seatCust && a.state === 'atLane' && !a.path.length)) sitting = true;
-        // 買完帶走的東西
+        // 買完帶走的東西；送貨員搬著紙箱進來
         const carry = { drinks: 'cup', breakfast: 'bag', noodle: 'box', store: 'bag' }[this.sim.ind.id];
-        People.setCarry(p, a.state === 'leaving' && a.stars && carry ? (a.rider ? null : carry) : null);
+        if (a.supplier) People.setCarry(p, a.state === 'arriving' && !outside ? 'crate' : null);
+        else People.setCarry(p, a.state === 'leaving' && a.stars && carry ? (a.rider ? null : carry) : null);
         this.setFaceForCustomer(p, a);
       } else if (kind === 'staff') {
         if (a.state === 'break' && a.task && a.task.obj && !a.path.length) sitting = true;
         const ev = this.sim.activeEvents.find((e) => e.staff === a);
         People.setMood(p, ev ? 'worried' : a.energy < 25 ? 'sad' : a.mood >= 70 ? 'happy' : a.mood >= 40 ? 'neutral' : a.mood >= 22 ? 'worried' : 'sad');
         const serving = a.task && a.task.lane && a.task.lane.customer && a.task.lane.customer.state === 'atLane' && !a.path.length;
-        if (ev) {
+        const mopping = a.task && a.task.type === 'clean';
+        People.setCarry(p, mopping ? 'mop' : null);
+        if (mopping && !a.path.length) {
+          p.armR.rotation.x = -0.5 + Math.sin(now / 160) * 0.35;
+          p.armL.rotation.x = -0.5 + Math.sin(now / 160) * 0.35;
+        } else if (ev) {
           p.armR.rotation.x = -2.6 + Math.sin(now / 120) * 0.25;
         } else if (serving) {
           p.armR.rotation.x = -0.9 + Math.sin(now / 90) * 0.35;
@@ -1192,6 +1408,8 @@
       }
       this.syncObjects();
       this.syncAgents(dt, now);
+      this.syncDirt();
+      this.updateStorefront(dt);
       this.updateLight();
       this._shadowT = (this._shadowT || 0) + dt;
       if (this._shadowT > 2) {
@@ -1203,6 +1421,107 @@
       this.animateProps(now);
       this.renderer.render(this.world, this.camera);
       this.updateOverlay();
+      this.trackPerf(now);
+    }
+
+    // 量每秒幾幀：太慢就自動降畫質
+    trackPerf(now) {
+      const p = this.perf;
+      if (!p.start) p.start = now;
+      p.frames++;
+      if (now - p.start < 2000) return;
+      this.fps = (p.frames * 1000) / (now - p.start);
+      p.start = now;
+      p.frames = 0;
+      if (document.hidden || !this.opts.autoQuality || !this.opts.autoQuality()) return;
+      p.slow = this.fps < 26 ? p.slow + 1 : 0;
+      if (p.slow >= 2 && this.quality !== 'low') {
+        p.slow = 0;
+        const next = this.quality === 'high' ? 'medium' : 'low';
+        this.setQuality(next);
+        if (this.opts.onQuality) this.opts.onQuality(next);
+      }
+    }
+
+    // 地上的髒污：一塊一塊的污漬，越髒越大
+    syncDirt() {
+      const s = this.sim;
+      const seen = new Set();
+      for (const d of s.dirt) {
+        seen.add(d.id);
+        let m = this.dirtMeshes.get(d.id);
+        if (!m) {
+          m = new THREE.Mesh(dirtGeo, dirtMat(d.kind));
+          m.rotation.x = -Math.PI / 2;
+          const j = (d.id * 2654435761) >>> 0;
+          m.position.set(d.x + 0.5 + ((j % 100) / 100 - 0.5) * 0.4, 0.02, d.z + 0.5 + (((j >> 8) % 100) / 100 - 0.5) * 0.4);
+          m.scale.set(1, 0.7 + ((j >> 16) % 50) / 100, 1);
+          m.renderOrder = -1;
+          this.world.add(m);
+          this.dirtMeshes.set(d.id, m);
+        }
+        const k = 0.3 + Math.min(4, Math.max(0.3, d.amt)) * 0.12;
+        m.scale.x = k;
+        m.scale.y = k * 0.8;
+      }
+      for (const [id, m] of this.dirtMeshes) {
+        if (!seen.has(id)) {
+          this.world.remove(m);
+          this.dirtMeshes.delete(id);
+        }
+      }
+      // 油垢：地板慢慢變黃變暗
+      if (this.floorMat) {
+        const g = Math.min(1, s.grime / 45);
+        this.floorMat.color.setRGB(1 - g * 0.22, 1 - g * 0.27, 1 - g * 0.38);
+      }
+    }
+
+    // 店門口：鐵捲門、標章、布條、隔壁的對手
+    updateStorefront(dt) {
+      const s = this.sim;
+      const allOut = s.staff.every((e) => e.state === 'off' || (e.state === 'leaving' && e.z >= s.H));
+      const target = !s.isOpen && allOut && !s.customers.some((c) => s.inside(Math.round(c.x), Math.round(c.z))) ? 1 : 0;
+      if (target !== this.shutterTarget) {
+        if (this.shutterTarget !== undefined && root.BossAudio) root.BossAudio.play('shutter');
+        this.shutterTarget = target;
+      }
+      const step = dt * 0.6;
+      this.shutterK = target > this.shutterK ? Math.min(target, this.shutterK + step) : Math.max(target, this.shutterK - step);
+      if (this.shutterPanel) this.shutterPanel.scale.y = this.shutterTop * this.shutterK + 0.001;
+      this.peek = !!(this.opts.peek && this.opts.peek());
+      this.applyShutterCut();
+      if (this.badge) this.badge.visible = !!(s.hygiene.badge && s.hygiene.badge > s.day);
+      if (this.banner) this.banner.visible = s.promoOn;
+      const key = this.rivalState();
+      if (key !== this.rivalKey) {
+        this.rivalKey = key;
+        this.buildLeftNeighbor();
+        People.mergeGroup(this.neighbors.left);
+        this.renderer.shadowMap.needsUpdate = true;
+      }
+      this.updateRivalCrowd();
+    }
+
+    // 對手門口排隊的人：對手越強，排越多
+    updateRivalCrowd() {
+      const s = this.sim;
+      const r = s.rival;
+      const n = r && !r.closed && s.hour >= 7 && s.hour < 21 ? Math.round(r.strength * 5 + (s.day - r.opened < 10 ? 2 : 0)) : 0;
+      if (!this.rivalCrowd) {
+        this.rivalCrowd = new THREE.Group();
+        this.world.add(this.rivalCrowd);
+      }
+      if (this.rivalCrowd.children.length === n) return;
+      while (this.rivalCrowd.children.length > n) this.rivalCrowd.remove(this.rivalCrowd.children[this.rivalCrowd.children.length - 1]);
+      while (this.rivalCrowd.children.length < n) {
+        const i = this.rivalCrowd.children.length;
+        const p = People.make(window.BossLooks.randomLook(Math.random));
+        p.group.position.set(-OUT_W + 0.6 + (i % 4) * 0.8, 0, s.H + 0.45 + Math.floor(i / 4) * 0.5);
+        p.group.rotation.y = Math.PI;
+        this.rivalCrowd.add(p.group);
+      }
+      this.rivalCrowd.visible = this.neighbors.left.visible;
     }
 
     animateProps(now) {
@@ -1219,7 +1538,7 @@
           const o = m.group.userData.pick.obj;
           u.liftScooter.visible = o.lanes.some((l) => l.customer && l.customer.state === 'atLane');
         }
-        if (u.steam && busyObjs.has(id) && Math.random() < 0.15) {
+        if (u.steam && this.quality !== 'low' && busyObjs.has(id) && Math.random() < 0.15) {
           const p = u.steam[Math.floor(Math.random() * u.steam.length)].clone();
           m.group.localToWorld(p);
           this.spawnSteam(p);
@@ -1392,7 +1711,9 @@
           const a = h.staff || h.customer;
           el.style.width = '';
           el.style.height = '';
-          el.dataset.label = h.staff ? h.staff.name : '客人';
+          const c = h.customer;
+          const t = c && root.BossSim.CUSTOMER_TYPES[c.type];
+          el.dataset.label = h.staff ? h.staff.name : c.supplier ? '送貨員' : c.inspector ? '稽查員' : t ? `${t.icon} ${t.name}` : '外送員';
           this.place(el, a.x + 0.5, 1.15, a.z + 0.5, '-50%', '-50%');
         }
       }
