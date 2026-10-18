@@ -2,6 +2,7 @@
 // 用法：node tools/run-sim.js [天數] [產業id]
 require('../js/data.js');
 require('../js/fun.js');
+require('../js/weird.js');
 require('../js/portraits.js');
 require('../js/industries.js');
 require('../js/sim.js');

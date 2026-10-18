@@ -1400,7 +1400,7 @@
       const loyal = this.loyalty ? 1.04 : 1;
       // 菜單越豐富，越多人想進來看看
       const variety = 1 + Math.max(0, this.availableProducts().length - this.ind.products.filter((p) => !p.rd).length) * 0.035;
-      return ratingF * priceF * beautyF * lotF * summer * heat * mods * this.festivalMult() * cleanF * loyal * variety * this.socialBoost * this.rivalPull();
+      return ratingF * priceF * beautyF * lotF * summer * heat * mods * this.festivalMult() * cleanF * loyal * variety * this.socialBoost * (this.shopCat ? 1.04 : 1) * this.rivalPull();
     }
 
     availableProducts() {
@@ -1843,6 +1843,18 @@
         // 外送平台的訂單：外送員騎車來取餐
         if (this.policy.delivery && this.ind.delivery && this.rng() < base * 0.22 * this.weatherMult('delivery') * dt) this.spawnCustomer({ rider: true });
       }
+      // 路上的奇景
+      if (Fun.STREET_GAGS && this.passers.length && this.rng() < 0.012 * dt) {
+        const p = this.passers.find((x) => x.kind === 'passer' && x.x > 0 && x.x < this.W);
+        if (p) this.popups.push({ id: uid++, x: p.x, z: p.z, text: Fun.STREET_GAGS[Math.floor(this.rng() * Fun.STREET_GAGS.length)], kind: 'muted', t: -2 });
+      }
+      // 晚上八點，垃圾車〈給愛麗絲〉
+      const tod = ((this.minute % DAY) + DAY) % DAY;
+      if (tod >= 1200 && tod - dt < 1200 && this.weekday !== 2 && this.weekday !== 6) {
+        this.sound('garbage');
+        this.notify('🚛🎵 〈給愛麗絲〉從巷口傳來，垃圾車來了！', '');
+        for (const e of this.staff) if (e.state === 'working' && this.rng() < 0.5) this.say(e, ['垃圾車來了！', '誰去倒垃圾？', '快快快！'][Math.floor(this.rng() * 3)], 20);
+      }
       const daylight = this.hour >= 6 && this.hour < 22 ? 1 : 0.25;
       if (this.rng() < 0.55 * daylight * (this.weather ? this.weather.walk : 1) * dt) this.spawnPasser();
 
@@ -2250,6 +2262,7 @@
       if (this.isSummer && !this.cooling) target -= 6;
       if (this.jerk > 60) target -= 5;
       if (this.cleanliness < 55) target -= (55 - this.cleanliness) / 6;
+      if (this.shopCat) target += 2;
       if (!this.policy.insurance) target -= 6;
       const regen = e.traits.includes('cheerful') ? TRAITS.cheerful.moodRegen : 1;
       e.mood = clamp(e.mood + (target - e.mood) * 0.004 * regen * dt, 0, 100);
@@ -2444,6 +2457,11 @@
       }
       if (fx.karenReview) this.addReview(1, fx.karenReview);
       if (fx.fakeReviews) for (let i = 0; i < fx.fakeReviews; i++) this.addReview(5, '老闆很帥');
+      if (fx.review) this.addReview(fx.review[0], fx.review[1]);
+      if (fx.shopCat) {
+        this.shopCat = true;
+        this.achieve('shopcat');
+      }
       const after = { cash: this.cash, morale: Math.round(this.morale), jerk: Math.round(this.jerk), staff: this.staff.length };
       const delta = Object.fromEntries(Object.keys(after).map((k) => [k, Math.round(after[k] - before[k])]));
       this.checkEnding();
@@ -2805,6 +2823,7 @@
         style: this.style,
         ownedFloors: [...this.ownedFloors],
         social: this.social,
+        shopCat: !!this.shopCat,
       });
     }
 
@@ -2835,6 +2854,7 @@
       s.style = { floor: 'default', wall: null, sign: null, ...(d.style || {}) };
       s.ownedFloors = new Set(d.ownedFloors || ['default']);
       if (d.social) s.social = { ...s.social, ...d.social };
+      s.shopCat = !!d.shopCat;
       s.achievements = new Set(d.achievements);
       s.rel = d.rel || {};
       s.xp = d.xp || 0;
@@ -3009,6 +3029,7 @@
     { id: 'gold', name: '年度好店金獎', desc: '在年度評選拿到金獎', reward: 0 },
     { id: 'hygiene', name: '衛生優良', desc: '衛生稽查拿到「優」', reward: 20000 },
     { id: 'viral', name: '小編爆紅', desc: '發了一篇爆紅的貼文', reward: 15000 },
+    { id: 'shopcat', name: '店長是貓', desc: '收養一隻店貓', reward: 5000 },
     { id: 'karen', name: '奧客剋星', desc: '在奧客擂台嗆贏奧客，影片爆紅', reward: 15000 },
     { id: 'rival', name: '隔壁收攤了', desc: '撐過競爭，讓隔壁的對手收起來', reward: 40000 },
   ];

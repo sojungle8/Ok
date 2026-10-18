@@ -1530,6 +1530,54 @@
         this.renderer.shadowMap.needsUpdate = true;
       }
       this.updateRivalCrowd();
+      this.updateShopCat();
+    }
+
+    // 店貓：收養之後會在店裡找個角落睡覺，偶爾換位置
+    updateShopCat() {
+      const s = this.sim;
+      if (!s.shopCat) {
+        if (this.cat) this.cat.visible = false;
+        return;
+      }
+      if (!this.cat) {
+        const g = new THREE.Group();
+        const fur = mat('#e8933a');
+        const body = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 10), fur);
+        body.scale.set(1, 0.7, 1.4);
+        body.position.y = 0.14;
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 10), fur);
+        head.position.set(0, 0.24, 0.26);
+        const earGeo = new THREE.ConeGeometry(0.045, 0.09, 6);
+        const e1 = new THREE.Mesh(earGeo, fur);
+        e1.position.set(-0.07, 0.36, 0.26);
+        const e2 = e1.clone();
+        e2.position.x = 0.07;
+        const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.025, 0.36, 6), mat('#d17a2a'));
+        tail.position.set(0.12, 0.12, -0.3);
+        tail.rotation.set(1.2, 0, 0.5);
+        const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.03, 0.06), mat('#c96b1f'));
+        stripe.position.set(0, 0.27, 0.02);
+        g.add(body, head, e1, e2, tail, stripe);
+        g.traverse((o) => (o.castShadow = true));
+        People.mergeGroup(g);
+        this.cat = g;
+        this.world.add(g);
+        this.catSpot = null;
+      }
+      this.cat.visible = true;
+      // 每隔一段遊戲時間換個地方睡
+      const slot = Math.floor(s.minute / 180);
+      if (this.catSlot !== slot || !this.catSpot) {
+        this.catSlot = slot;
+        const free = [];
+        for (let z = 0; z < s.H - 1; z++) for (let x = 0; x < s.W; x++) if (s.passable(x, z) && !s.objects.some((o) => o.custSpots && o.custSpots.some((c) => c.x === x && c.z === z))) free.push([x, z]);
+        const pick = free[(slot * 7 + 3) % Math.max(1, free.length)] || [0, 0];
+        this.catSpot = pick;
+        this.cat.position.set(pick[0] + 0.5, 0.01, pick[1] + 0.5);
+        this.cat.rotation.y = (slot % 4) * 1.3;
+      }
+      this.cat.scale.y = 1 + Math.sin(performance.now() / 600) * 0.04; // 睡覺的呼吸
     }
 
     // 對手門口排隊的人：對手越強，排越多
@@ -1699,7 +1747,7 @@
         const el = this.label(`pp-${p.id}`, `popup3d ${p.kind}`);
         if (el.textContent !== p.text) el.textContent = p.text;
         el.style.opacity = String(Math.max(0, 1 - p.t / 3));
-        add(el, p.x + 0.5, 1.9 + p.t * 0.35, p.z + 0.5, p.text.length * 9 + 8, 20, 0);
+        add(el, p.x + 0.5, 1.9 + Math.max(0, p.t) * 0.35, p.z + 0.5, p.text.length * 9 + 8, 20, 0);
       });
 
       // 排開重疊的泡泡：重要的先放，後面的往上推
