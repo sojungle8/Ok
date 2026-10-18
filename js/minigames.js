@@ -8,6 +8,10 @@
     store: [['🍙', '飯糰'], ['🥤', '飲料'], ['🧾', '繳費單'], ['📦', '包裹'], ['🔥', '微波']],
     tech: [['🐛', '抓 bug'], ['🧪', '跑測試'], ['💾', 'commit'], ['🔍', 'review'], ['🚀', 'deploy']],
     cram: [['📝', '改考卷'], ['📖', '講解'], ['✏️', '出題'], ['📋', '點名'], ['📞', '回家長']],
+    breakfast: [['🌯', '蛋餅'], ['🍔', '漢堡'], ['🥓', '培根'], ['🥤', '大冰奶'], ['🥛', '豆漿']],
+    noodle: [['🍜', '下麵'], ['🥩', '牛肉'], ['🥟', '餛飩'], ['🥬', '青菜'], ['🧂', '撒蔥花']],
+    barber: [['✂️', '剪髮'], ['🧴', '洗髮'], ['💨', '吹乾'], ['🪮', '梳整'], ['🧽', '清頭皮屑']],
+    scooter: [['🔩', '拆螺絲'], ['🛢️', '換機油'], ['🛞', '補胎'], ['🔋', '換電瓶'], ['🧰', '鎖回去']],
   };
 
   const isTouch = () => window.matchMedia('(hover: none)').matches;
@@ -18,7 +22,7 @@
     wrap.innerHTML = `
       <div class="mg card" role="dialog" aria-label="${spec.title}">
         <div class="mg-head">
-          <span class="mg-kicker">老闆親自下場・精力 -${spec.energy}</span>
+          <span class="mg-kicker">${spec.kicker || `老闆親自下場・精力 -${spec.energy}`}</span>
           <h2>${spec.title}</h2>
         </div>
         <div class="mg-timer"><div class="mg-timer-fill"></div></div>

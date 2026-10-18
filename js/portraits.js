@@ -18,6 +18,10 @@
     store: { shirts: ['#2f9e64', '#2f9e64', '#3aa8c7'], hat: 'cap', hatColor: '#23794c' },
     restaurant: { shirts: ['#f4f1ec', '#f4f1ec', '#2f2f35'], hat: 'chef' },
     cram: { shirts: ['#c75b5b', '#4f7cac', '#d9a441', '#6b8f71', '#8a6bb0'], glassesRate: 0.5 },
+    breakfast: { shirts: ['#f2c14e', '#f2c14e', '#ffffff'], hat: 'cap', hatColor: '#d9482b' },
+    noodle: { shirts: ['#f4f1ec', '#2f2f35', '#f4f1ec'], hat: 'chef' },
+    barber: { shirts: ['#2f2f35', '#3b6fb6', '#2f2f35'] },
+    scooter: { shirts: ['#2f4f7f', '#2f4f7f', '#5b6b7a'], hat: 'cap', hatColor: '#e2a12a' },
   };
 
   function staffLook(i, industryId) {
@@ -184,5 +188,24 @@
     }
   }
 
-  root.BossLooks = { staffLook, bossLook, VISITORS, STAFF, portraitSVG, shade };
+  const CLOTHES = ['#d94f4f', '#3f7fbf', '#e0a43a', '#5a9e6f', '#8a63b8', '#2f3a4a', '#e57aa1', '#4fb3b0', '#c2703d', '#7a8a99', '#f2f2f2', '#355c7d'];
+
+  // 隨機外觀：客人、應徵者
+  function randomLook(rng = Math.random, gender = rng() < 0.5 ? 'f' : 'm', opts = {}) {
+    const pick = (arr) => arr[Math.floor(rng() * arr.length)];
+    const old = rng() < 0.18;
+    return {
+      gender,
+      skin: pick(SKINS),
+      hair: old ? pick(['#9a9a9a', '#c8c8c8', '#6e6e6e']) : pick(HAIRS),
+      hairStyle: gender === 'f' ? pick(STYLES_F) : old && rng() < 0.4 ? 'bald' : pick([...STYLES_M, 'slick']),
+      shirt: opts.shirt || pick(CLOTHES),
+      glasses: rng() < 0.22,
+      hat: opts.hat || null,
+      hatColor: opts.hatColor,
+      old,
+    };
+  }
+
+  root.BossLooks = { staffLook, bossLook, randomLook, VISITORS, STAFF, UNIFORM, portraitSVG, shade };
 })(typeof window !== 'undefined' ? window : globalThis);
