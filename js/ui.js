@@ -1,7 +1,7 @@
 // 介面：開始畫面、上方資訊列、底部工具列與抽屜、檢視面板、事件對話、週報、結局
 (function () {
   const { Sim, CATALOG, catalogById, ACHIEVEMENTS, MIN_WAGE, WEEKDAYS } = window.BossSim;
-  const { INDUSTRIES, CAT_LABELS, LOTS, TRAITS } = window.BossIndustries;
+  const { INDUSTRIES, CAT_LABELS, LOTS, TRAITS, LEVELS, DISTRICTS } = window.BossIndustries;
   const { portraitSVG, bossLook, VISITORS } = window.BossLooks;
   const app = document.getElementById('app');
   const SAVE_KEY = 'boss-sim-save-v1';
@@ -119,6 +119,7 @@
 
   // ───── 遊戲畫面 ─────
   function startGame(sim) {
+    window.BossAudio.init();
     ui.sim = sim;
     ui.phase = 'game';
     ui.speed = 1;
@@ -151,7 +152,7 @@
             ['manage', '⚙️', '經營'],
             ['ledger', '📊', '帳本'],
             ['reviews', '⭐', '評論'],
-            ['goals', '🏆', '成就'],
+            ['goals', '🏙️', '成長'],
           ]
             .map(([id, ic, label]) => `<button data-action="tab" data-tab="${id}"><span>${ic}</span>${label}</button>`)
             .join('')}
@@ -159,6 +160,7 @@
         <div id="dialog"></div>
       </div>`;
     sim.cb = {
+      sound: (n) => window.BossAudio.play(n),
       notify: (t, k) => toast(t, k),
       event: (ev, text) => {
         toast(text, 'event');
@@ -170,6 +172,9 @@
       },
       dayEnd: (r) => toast(`🌙 今天服務 ${r.served} 位客人，營收 ${money(r.revenue)}${r.angry ? `，${r.angry} 位等到生氣離開` : ''}${r.holiday ? '（國定假日薪水加倍）' : ''}`),
       festival: (f) => toast(f.news, 'event'),
+      levelUp: () => {
+        if (ui.tab === 'build' || ui.tab === 'goals') renderDrawer();
+      },
       weekEnd: (r) => {
         save();
         ui.dialog = { type: 'week', report: r };
@@ -211,6 +216,10 @@
       ui.dialog = { type: 'ending' };
       renderDialog();
     }
+    if (sim.weather && sim.weather.id !== ui.lastWeather) {
+      ui.lastWeather = sim.weather.id;
+      window.BossAudio.setWeather(sim.weather.id);
+    }
     // 建造預覽
     if (ui.build && ui.view.ghost) {
       const t = ui.hover;
@@ -248,11 +257,12 @@
       <div class="tb-speed">
         ${[[0, '⏸'], [1, '▶'], [3, '▶▶'], [8, '▶▶▶']].map(([v, l]) => `<button data-action="speed" data-v="${v}" class="${ui.speed === v ? 'active' : ''}" title="${v ? `${v} 倍速` : '暫停'}（${v === 0 ? '空白鍵' : v === 1 ? '1' : v === 3 ? '2' : '3'}）">${l}</button>`).join('')}
       </div>
+      <div class="tb-level" title="店家等級"><small>Lv.${s.level}</small><div class="bar"><div class="bar-fill skill" style="width:${Math.round(s.levelProgress * 100)}%"></div></div></div>
       <div class="tb-stat"><small>現金</small><b class="${s.cash < 0 ? 'neg' : ''}">${money(s.cash)}</b></div>
       <div class="tb-stat"><small>評價（${s.reviews.length}）</small><b class="stars">${s.rating.toFixed(1)} ★</b></div>
       <div class="tb-meter"><small>😊 員工心情 ${mor}</small><div class="bar"><div class="bar-fill morale" style="width:${mor}%"></div></div></div>
       <div class="tb-meter"><small>😈 慣老闆指數 ${jerk}</small><div class="bar"><div class="bar-fill jerk" style="width:${jerk}%"></div></div></div>
-      <div class="tb-menu"><button data-action="save" title="存檔">💾</button><button data-action="quit" title="回主選單">🚪</button></div>`;
+      <div class="tb-menu"><button data-action="music" title="背景音樂" class="${window.BossAudio.prefs.music ? '' : 'off'}">🎵</button><button data-action="sfx" title="音效" class="${window.BossAudio.prefs.sfx ? '' : 'off'}">${window.BossAudio.prefs.sfx ? '🔊' : '🔇'}</button><button data-action="save" title="存檔">💾</button><button data-action="quit" title="回主選單">🚪</button></div>`;
   }
 
   function toast(text, kind = '') {
@@ -318,7 +328,10 @@
       const def = catalogById[ui.build.type];
       if (s.cash < def.price) return toast('錢不夠', 'bad');
       const o = s.place(ui.build.type, t.x, t.z, ui.build.rot);
-      if (o) toast(`✅ 買了${def.name}（${money(def.price)}）`);
+      if (o) {
+        toast(`✅ 買了${def.name}（${money(def.price)}）`);
+        window.BossAudio.play('place');
+      }
       else toast('這裡放不下：要放在店裡、不能擋住門口，設備的服務位置也要留空', 'bad');
       if (ui.tab === 'build' && !smallScreen()) renderDrawer();
       return;
@@ -528,7 +541,8 @@
                 ${
                   lotNext
                     ? `<p>擴建成 <b>${lotNext.name}</b>（${lotNext.w} × ${lotNext.h} 格）：裝修費 ${money(lotNext.cost)}，月租變成約 ${money(s.ind.rent * lotNext.rentMult)}。店面越大，路過的人越容易被吸引進來。</p>
-                       <button class="primary" data-action="upgrade-lot" ${s.cash < lotNext.cost ? 'disabled' : ''}>擴建（${money(lotNext.cost)}）</button>`
+                       ${lotNext.lv && s.level < lotNext.lv ? `<p class="muted">🔒 店家 Lv.${lotNext.lv} 才能擴建</p>` : ''}
+                       <button class="primary" data-action="upgrade-lot" ${s.cash < lotNext.cost || (lotNext.lv && s.level < lotNext.lv) ? 'disabled' : ''}>擴建（${money(lotNext.cost)}）</button>`
                     : '<p>已經是最大的店面了。</p>'
                 }
               </div>`
@@ -545,8 +559,11 @@
                   if (d.cool) tags.push('夏天必備');
                   if (d.kw) tags.push(`${d.kw} kW`);
                   if (d.staffMood) tags.push('員工心情 +');
-                  return `<button class="cat-item ${ui.build && ui.build.type === d.id ? 'active' : ''}" data-action="pick-build" data-type="${d.id}" ${s.cash < d.price ? 'disabled' : ''}>
-                    <span class="cat-icon">${d.icon}</span><b>${d.name}</b><span class="cat-price">${money(d.price)}</span><small>${tags.join('・')}</small>
+                  if (d.speed && d.speed > 1) tags.unshift(`速度 ×${d.speed}`);
+                  if (d.selfServe) tags.unshift('不用店員');
+                  const locked = !s.unlocked(d);
+                  return `<button class="cat-item ${ui.build && ui.build.type === d.id ? 'active' : ''} ${locked ? 'locked' : ''}" data-action="pick-build" data-type="${d.id}" ${s.cash < d.price || locked ? 'disabled' : ''}>
+                    <span class="cat-icon">${locked ? '🔒' : d.icon}</span><b>${d.name}</b><span class="cat-price">${locked ? `Lv.${d.lv} 解鎖` : money(d.price)}</span><small>${tags.join('・')}</small>
                   </button>`;
                 })
                 .join('')}</div>
@@ -664,6 +681,7 @@
       ['水電', -L.utilities],
       ['利息', -L.interest],
       ['事件', L.events],
+      ['分店', L.branches],
       ['設備與其他', L.other],
     ].filter(([, v]) => Math.round(v) !== 0);
     const net = rows.reduce((a, [, v]) => a + v, 0);
@@ -712,12 +730,30 @@
 
   function drawerGoals() {
     const s = ui.sim;
+    const lv = s.level;
+    const next = LEVELS[lv];
+    const upcoming = CATALOG.filter((d) => d.lv && d.lv > lv && (!d.industries || d.industries.includes(s.ind.id))).sort((a, b) => a.lv - b.lv).slice(0, 6);
+    const canBranch = lv >= 5 && s.branches.length < DISTRICTS.length;
     return `
-      <div class="drawer-body">
-        <div class="goal-list">
-          ${ACHIEVEMENTS.map((a) => `<div class="goal ${s.achievements.has(a.id) ? 'done' : ''}"><span>${s.achievements.has(a.id) ? '🏆' : '🔒'}</span><div><b>${a.name}</b><small>${a.desc}</small></div><em>${money(a.reward)}</em></div>`).join('')}
+      <div class="drawer-body two-col">
+        <div>
+          <h3>店家等級 <small>賺的毛利越多，經驗越高</small></h3>
+          <div class="level-card"><b>Lv.${lv}</b><div class="bar"><div class="bar-fill skill" style="width:${Math.round(s.levelProgress * 100)}%"></div></div><small>${next ? `${Math.round(s.xp).toLocaleString()} / ${next.toLocaleString()}` : '已經是最高等級'}</small></div>
+          ${upcoming.length ? `<p class="calc">即將解鎖：${upcoming.map((d) => `${d.icon}${d.name}（Lv.${d.lv}）`).join('、')}</p>` : ''}
+          <h3>分店 <small>${lv >= 5 ? '分店收入看本店的評價和慣老闆指數' : '店家 Lv.5 才能開分店'}</small></h3>
+          <div class="branch-list">
+            ${s.branches.map((b, i) => `<div class="branch"><span>🏙️</span><div><b>${esc(s.shopName)}${b.district}店</b><small>上週 ${signedMoney(b.last)}・累計 ${signedMoney(b.total)}</small></div><button data-action="sell-branch" data-i="${i}">頂讓</button></div>`).join('') || '<p class="muted">還沒有分店。</p>'}
+          </div>
+          ${canBranch ? `<button class="primary" data-action="open-branch" ${s.cash < s.branchCost ? 'disabled' : ''}>在${DISTRICTS[s.branches.length]}開分店（${money(s.branchCost)}）</button>` : ''}
+          ${s.awards.length ? `<h3>年度好店評選</h3>${s.awards.map((a) => `<p class="calc">${a.medal} 第 ${a.year} 年：${a.title}（${a.score} 分）</p>`).join('')}` : '<p class="drawer-tip">每年 12 月最後一週結束時，會舉辦年度好店評選。</p>'}
         </div>
-        <p class="drawer-tip">這是沙盒遊戲：沒有時間限制，想開多久就開多久。只要慣老闆指數到 100，或是現金是負的又借不到錢，就會結束。</p>
+        <div>
+          <h3>成就</h3>
+          <div class="goal-list">
+            ${ACHIEVEMENTS.map((a) => `<div class="goal ${s.achievements.has(a.id) ? 'done' : ''}"><span>${s.achievements.has(a.id) ? '🏆' : '🔒'}</span><div><b>${a.name}</b><small>${a.desc}</small></div>${a.reward ? `<em>${money(a.reward)}</em>` : ''}</div>`).join('')}
+          </div>
+          <p class="drawer-tip">沙盒遊戲沒有時間限制。慣老闆指數到 100，或現金是負的又借不到錢，店就會收起來。</p>
+        </div>
       </div>`;
   }
 
@@ -822,9 +858,12 @@
       ['水電', -r.utilities],
       ['利息', -r.interest],
       ['事件', r.events],
+      ['分店', r.branches || 0],
       ['設備與其他', r.other],
     ].filter(([, v]) => Math.round(v) !== 0);
+    const aw = r.award;
     return `<div class="card week">
+      ${aw ? `<div class="award"><span>${aw.medal}</span><div><small>第 ${aw.year} 年・年度好店評選（${aw.score} 分）</small><b>${aw.title}</b><p>${aw.desc}${aw.reward ? ` 獎金 ${money(aw.reward)}！` : ''}</p></div></div>` : ''}
       <div class="event-kicker">📊 週報・第 ${r.week} 週</div>
       <h2>${r.profit >= 0 ? '這週有賺錢！' : '這週虧錢了'} <span class="${r.profit < 0 ? 'neg' : 'pos'}">${signedMoney(r.profit)}</span></h2>
       <table class="ledger">${rows.map(([k, v]) => `<tr><th>${k}</th><td class="${v < 0 ? 'neg' : 'pos'}">${signedMoney(v)}</td></tr>`).join('')}</table>
@@ -956,6 +995,17 @@
         }
         break;
       }
+      case 'music':
+        window.BossAudio.init();
+        window.BossAudio.toggle('music');
+        renderTopbar();
+        break;
+      case 'sfx':
+        window.BossAudio.init();
+        window.BossAudio.toggle('sfx');
+        ui.lastWeather = null;
+        renderTopbar();
+        break;
       case 'speed':
         ui.speed = Number(btn.dataset.v);
         renderTopbar();
@@ -1065,6 +1115,14 @@
         renderDrawer();
         break;
       }
+      case 'open-branch':
+        s.openBranch();
+        renderDrawer();
+        break;
+      case 'sell-branch':
+        s.sellBranch(Number(btn.dataset.i));
+        renderDrawer();
+        break;
       case 'borrow':
         s.borrow(100000);
         renderDrawer();

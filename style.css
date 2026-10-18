@@ -2235,3 +2235,114 @@ kbd {
 .rel.neg em {
   color: var(--bad);
 }
+
+.tb-level {
+  min-width: 70px;
+}
+
+.tb-level small {
+  font-weight: 800;
+  color: var(--skill);
+}
+
+.cat-item.locked {
+  opacity: 0.6;
+  filter: grayscale(0.6);
+}
+
+.level-card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 4px 12px;
+  background: var(--bg);
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+
+.level-card b {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  color: var(--skill);
+  grid-row: span 2;
+}
+
+.level-card small {
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.branch-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.branch {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg);
+  border-radius: 12px;
+  padding: 6px 10px;
+}
+
+.branch > span {
+  font-size: 1.4rem;
+}
+
+.branch div {
+  flex: 1;
+  min-width: 0;
+}
+
+.branch small {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.branch button {
+  border: 1px solid var(--line);
+  background: var(--card);
+  border-radius: 8px;
+  padding: 2px 10px;
+  font-size: 0.8rem;
+}
+
+.award {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  background: linear-gradient(135deg, #fff3c4, #ffe08a);
+  color: #4a3a10;
+  border-radius: 14px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+
+.award > span {
+  font-size: 2.6rem;
+}
+
+.award small {
+  display: block;
+  font-size: 0.75rem;
+}
+
+.award b {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+}
+
+.award p {
+  margin: 2px 0 0;
+  font-size: 0.86rem;
+}
+
+.tb-menu button.off {
+  opacity: 0.4;
+}

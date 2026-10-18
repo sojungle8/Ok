@@ -232,11 +232,19 @@
     { id: 'lift', name: '維修位', icon: '🛵', cat: 'station', price: 85000, w: 2, kw: 2.5, serves: ['oil', 'tire', 'service', 'battery'], staff: [[0, -1]], cust: [[1, 1]], industries: ['scooter'], model: 'lift' },
     { id: 'register', name: '收銀台', icon: '🧾', cat: 'station', price: 52000, w: 2, kw: 1.5, serves: ['checkout', 'bento', 'coffee', 'parcel'], staff: [[0, -1]], cust: [[0, 1]], industries: ['store'], model: 'register' },
 
+    // 高級設備（等級解鎖）：速度比較快
+    { id: 'griddlePro', name: '雙層大煎台', icon: '🔥', cat: 'station', price: 128000, w: 2, kw: 5, speed: 1.35, beauty: 1, serves: ['danbing', 'burger', 'radish', 'teppan'], staff: [[0, -1], [1, -1]], cust: [[0, 1], [1, 1]], industries: ['breakfast'], model: 'griddle', pro: true, lv: 3 },
+    { id: 'noodlePro', name: '自動煮麵機', icon: '♨️', cat: 'station', price: 145000, w: 2, kw: 6, speed: 1.4, serves: ['drynoodle', 'beefnoodle', 'wonton'], staff: [[0, -1], [1, -1]], cust: [[0, 1], [1, 1]], industries: ['noodle'], model: 'noodlepot', pro: true, lv: 3 },
+    { id: 'teaPro', name: '自動茶飲機', icon: '🤖', cat: 'station', price: 118000, w: 2, kw: 4, speed: 1.45, serves: ['boba', 'oolong', 'freshmilk', 'lemon'], staff: [[0, -1], [1, -1]], cust: [[0, 1], [1, 1]], industries: ['drinks'], model: 'teabar', pro: true, lv: 3 },
+    { id: 'chairPro', name: '電動理髮椅', icon: '💺', cat: 'station', price: 78000, w: 1, kw: 1, speed: 1.25, beauty: 2, serves: ['cut', 'dye'], staff: [[0, 1]], cust: [[0, 0]], seatCust: true, industries: ['barber'], model: 'barberchair', pro: true, lv: 3 },
+    { id: 'liftPro', name: '油壓升降台', icon: '🛠️', cat: 'station', price: 160000, w: 2, kw: 3.5, speed: 1.4, serves: ['oil', 'tire', 'service', 'battery'], staff: [[0, -1]], cust: [[1, 1]], industries: ['scooter'], model: 'lift', pro: true, lv: 3 },
+    { id: 'selfCheckout', name: '自助結帳機', icon: '🖥️', cat: 'station', price: 98000, w: 1, kw: 0.8, speed: 0.75, selfServe: true, serves: ['checkout', 'parcel'], staff: [], cust: [[0, 1]], industries: ['store'], model: 'selfcheckout', lv: 4 },
+
     // 座位與等候
     { id: 'table4', name: '小吃桌＋紅色塑膠椅', icon: '🪑', cat: 'seat', price: 3200, w: 2, seats: [[0, 1], [1, 1]], beauty: 0, industries: ['breakfast', 'noodle'], model: 'table4' },
-    { id: 'counterbar', name: '吧台座位', icon: '🍽️', cat: 'seat', price: 6000, w: 2, seats: [[0, 1], [1, 1]], beauty: 1, industries: ['breakfast', 'noodle', 'drinks'], model: 'counterbar' },
+    { id: 'counterbar', name: '吧台座位', icon: '🍽️', cat: 'seat', price: 6000, w: 2, seats: [[0, 1], [1, 1]], beauty: 1, industries: ['breakfast', 'noodle', 'drinks'], model: 'counterbar', lv: 2 },
     { id: 'waitbench', name: '等候長椅', icon: '🪑', cat: 'wait', price: 4500, w: 2, waits: [[0, 0], [1, 0]], beauty: 0, model: 'waitbench' },
-    { id: 'waitsofa', name: '等候沙發', icon: '🛋️', cat: 'wait', price: 12000, w: 2, waits: [[0, 0], [1, 0]], beauty: 2, model: 'waitsofa' },
+    { id: 'waitsofa', name: '等候沙發', icon: '🛋️', cat: 'wait', price: 12000, w: 2, waits: [[0, 0], [1, 0]], beauty: 2, model: 'waitsofa', lv: 2 },
 
     // 商品陳列
     { id: 'shelf', name: '商品貨架', icon: '🗄️', cat: 'shop', price: 15000, w: 2, beauty: 1, draw: 0.12, industries: ['store'], model: 'shelf' },
@@ -245,8 +253,8 @@
 
     // 員工區
     { id: 'breaktable', name: '員工休息桌', icon: '☕', cat: 'staff', price: 6500, w: 1, rest: [[0, 0]], model: 'breaktable' },
-    { id: 'staffsofa', name: '員工休息沙發', icon: '🛋️', cat: 'staff', price: 15000, w: 2, rest: [[0, 0], [1, 0]], restBonus: 1.5, model: 'staffsofa' },
-    { id: 'locker', name: '員工置物櫃', icon: '🗃️', cat: 'staff', price: 8000, w: 1, staffMood: 2, model: 'locker' },
+    { id: 'staffsofa', name: '員工休息沙發', icon: '🛋️', cat: 'staff', price: 15000, w: 2, rest: [[0, 0], [1, 0]], restBonus: 1.5, model: 'staffsofa', lv: 2 },
+    { id: 'locker', name: '員工置物櫃', icon: '🗃️', cat: 'staff', price: 8000, w: 1, staffMood: 2, model: 'locker', lv: 2 },
 
     // 裝潢（提升環境分：客人比較願意進來，員工心情也比較好）
     { id: 'plant', name: '盆栽', icon: '🪴', cat: 'decor', price: 1800, w: 1, beauty: 2, model: 'plant' },
@@ -256,8 +264,11 @@
     { id: 'shrine', name: '土地公神桌', icon: '🙏', cat: 'decor', price: 8800, w: 1, beauty: 3, draw: 0.03, model: 'shrine' },
     { id: 'aircon', name: '冷氣', icon: '❄️', cat: 'decor', price: 28000, w: 1, kw: 2.2, cool: true, wall: true, model: 'aircon' },
     { id: 'fan', name: '電風扇', icon: '🌀', cat: 'decor', price: 1500, w: 1, kw: 0.1, coolHalf: true, model: 'fan' },
-    { id: 'tv', name: '電視', icon: '📺', cat: 'decor', price: 12000, w: 1, beauty: 3, kw: 0.2, wall: true, model: 'tv' },
-    { id: 'aquarium', name: '魚缸', icon: '🐠', cat: 'decor', price: 9000, w: 1, beauty: 4, kw: 0.1, model: 'aquarium' },
+    { id: 'tv', name: '電視', icon: '📺', cat: 'decor', price: 12000, w: 1, beauty: 3, kw: 0.2, wall: true, model: 'tv', lv: 3 },
+    { id: 'claw', name: '夾娃娃機', icon: '🧸', cat: 'decor', price: 25000, w: 1, beauty: 1, draw: 0.08, kw: 0.3, model: 'claw', lv: 5 },
+    { id: 'neon', name: '霓虹燈招牌', icon: '💡', cat: 'decor', price: 32000, w: 1, beauty: 3, draw: 0.1, kw: 0.2, wall: true, model: 'neon', lv: 7 },
+    { id: 'fame', name: '名人簽名牆', icon: '✍️', cat: 'decor', price: 45000, w: 1, beauty: 6, draw: 0.08, wall: true, model: 'fame', lv: 8 },
+    { id: 'aquarium', name: '魚缸', icon: '🐠', cat: 'decor', price: 9000, w: 1, beauty: 4, kw: 0.1, model: 'aquarium', lv: 4 },
   ];
 
   const CAT_LABELS = {
@@ -272,8 +283,8 @@
   // 店面大小
   const LOTS = [
     { id: 'small', name: '小店面', w: 8, h: 6, rentMult: 1, cost: 0 },
-    { id: 'medium', name: '中店面', w: 11, h: 7, rentMult: 1.7, cost: 180000 },
-    { id: 'large', name: '大店面', w: 14, h: 8, rentMult: 2.6, cost: 380000 },
+    { id: 'medium', name: '中店面', w: 11, h: 7, rentMult: 1.7, cost: 180000, lv: 3 },
+    { id: 'large', name: '大店面', w: 14, h: 8, rentMult: 2.6, cost: 380000, lv: 6 },
   ];
 
   // 員工候選人
@@ -295,5 +306,11 @@
     cheerful: { name: '開朗', desc: '心情恢復得比較快', moodRegen: 1.6 },
   };
 
-  root.BossIndustries = { INDUSTRIES, CATALOG, CAT_LABELS, LOTS, NAMES, TRAITS };
+  // 店家等級：累積毛利換算的經驗值
+  const LEVELS = [0, 1500, 4000, 8000, 14000, 22000, 32000, 45000, 60000, 80000];
+
+  // 可以開分店的地方
+  const DISTRICTS = ['板橋', '新莊', '台中北屯', '台南東區', '高雄左營', '新竹東區', '桃園中壢'];
+
+  root.BossIndustries = { INDUSTRIES, CATALOG, CAT_LABELS, LOTS, NAMES, TRAITS, LEVELS, DISTRICTS };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -298,6 +298,52 @@
       g.add(s);
       g.userData.screen = s;
     },
+    claw(g) {
+      B(g, 0.8, 0.9, 0.8, '#e0478a', 0, 0, 0);
+      B(g, 0.76, 0.85, 0.76, basic('#ffe6f2', { transparent: true, opacity: 0.35 }), 0, 0.9, 0);
+      B(g, 0.82, 0.12, 0.82, '#e0478a', 0, 1.75, 0);
+      for (let i = 0; i < 5; i++) {
+        const t = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), mat(['#f2c14e', '#7fb2e5', '#a0e0a0', '#f5a3c7', '#d9a36b'][i]));
+        t.position.set(-0.2 + (i % 3) * 0.2, 1.0 + Math.floor(i / 3) * 0.12, -0.1 + (i % 2) * 0.2);
+        g.add(t);
+      }
+      B(g, 0.04, 0.3, 0.04, '#c0c0c0', 0, 1.42, 0);
+    },
+    neon(g) {
+      const tex = canvasTex(256, 128, (c, w, h) => {
+        c.fillStyle = '#1a1020';
+        c.fillRect(0, 0, w, h);
+        c.strokeStyle = '#ff4fa3';
+        c.lineWidth = 6;
+        c.strokeRect(8, 8, w - 16, h - 16);
+        c.fillStyle = '#7ff3ff';
+        c.font = 'bold 54px "PingFang TC","Noto Sans TC",sans-serif';
+        c.textAlign = 'center';
+        c.textBaseline = 'middle';
+        c.fillText('好吃！', w / 2, h / 2 + 4);
+      });
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.45), new THREE.MeshBasicMaterial({ map: tex }));
+      m.position.set(0, 1.85, -0.46);
+      g.add(m);
+    },
+    fame(g) {
+      B(g, 0.95, 0.9, 0.04, '#f6f1ea', 0, 1.25, -0.47);
+      for (let i = 0; i < 6; i++) {
+        const p = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 0.26), basic(['#f2c14e', '#7fb2e5', '#e8a0b0', '#a0d8a0', '#d9b48c', '#c9b8e8'][i]));
+        p.position.set(-0.3 + (i % 3) * 0.3, 1.55 - Math.floor(i / 3) * 0.34, -0.44);
+        p.rotation.z = (i % 2 ? 1 : -1) * 0.06;
+        g.add(p);
+      }
+    },
+    selfcheckout(g) {
+      B(g, 0.6, 0.85, 0.5, '#e8edf2', 0, 0, -0.1);
+      B(g, 0.45, 0.32, 0.05, '#1a1a1a', 0, 1.0, -0.1).rotation.x = -0.25;
+      const s = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.26), basic('#5fd3a0'));
+      s.position.set(0, 1.17, -0.06);
+      s.rotation.x = -0.25;
+      g.add(s);
+      B(g, 0.3, 0.05, 0.25, '#2f9e64', 0, 0.85, 0.1);
+    },
     aquarium(g) {
       B(g, 0.85, 0.75, 0.45, '#5a4030', 0, 0, 0);
       B(g, 0.8, 0.55, 0.4, basic('#63b7e6', { transparent: true, opacity: 0.55 }), 0, 0.75, 0);
@@ -798,6 +844,12 @@
       const inner = new THREE.Group();
       g.add(inner);
       (MODELS[o.def.model] || MODELS.plant)(inner, this);
+      if (o.def.pro) {
+        // 高級設備：金色飾條
+        const trim = new THREE.Mesh(boxGeo((o.def.w || 1) - 0.05, 0.05, 0.05), mat('#d4a017', { metalness: 0.8, roughness: 0.25 }));
+        trim.position.set(((o.def.w || 1) - 1) / 2, 0.45, 0.42);
+        inner.add(trim);
+      }
       g.userData.pick = { kind: 'object', obj: o };
       Object.assign(g.userData, inner.userData);
       this.placeGroup(g, o);
@@ -909,6 +961,9 @@
           p.group.position.y = outside ? 0.25 : 0;
         }
         if (a.state === 'eating' || (a.waitSeat && !a.path.length) || (a.lane && a.obj && a.obj.def.seatCust && a.state === 'atLane' && !a.path.length)) sitting = true;
+        // 買完帶走的東西
+        const carry = { drinks: 'cup', breakfast: 'bag', noodle: 'box', store: 'bag' }[this.sim.ind.id];
+        People.setCarry(p, a.state === 'leaving' && a.stars && carry ? (a.rider ? null : carry) : null);
         this.setFaceForCustomer(p, a);
       } else if (kind === 'staff') {
         if (a.state === 'break' && a.task && a.task.obj && !a.path.length) sitting = true;

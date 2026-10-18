@@ -23,6 +23,14 @@
       const legR = new THREE.Mesh(legGeo, pants);
       legL.position.set(-0.07, 0.36, 0);
       legR.position.set(0.07, 0.36, 0);
+      // 鞋子
+      const shoeGeo = new THREE.BoxGeometry(0.13, 0.07, 0.19);
+      const shoeMat = mat(look.old ? '#5a4030' : look.suit ? '#1a1a1a' : ['#2b2b2b', '#f2f2f2', '#3d5a80', '#8a5a3b'][Math.floor((look.skin.charCodeAt(2) + look.hair.charCodeAt(3)) % 4)]);
+      for (const leg of [legL, legR]) {
+        const shoe = new THREE.Mesh(shoeGeo, shoeMat);
+        shoe.position.set(0, -0.32, 0.03);
+        leg.add(shoe);
+      }
 
       const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.16, 0.2, 4, 12), shirt);
       body.position.y = 0.53;
@@ -42,6 +50,18 @@
       armR.position.set(0.2, 0.68, 0);
       armL.rotation.z = 0.12;
       armR.rotation.z = -0.12;
+      // 手
+      const handGeo = new THREE.SphereGeometry(0.05, 10, 8);
+      for (const arm of [armL, armR]) {
+        const hand = new THREE.Mesh(handGeo, skin);
+        hand.position.y = -0.28;
+        arm.add(hand);
+      }
+      // 手上拿的東西（預設藏起來）
+      const carry = new THREE.Group();
+      carry.position.set(0, -0.32, 0.05);
+      carry.visible = false;
+      armR.add(carry);
 
       const head = new THREE.Group();
       head.position.y = 0.92;
@@ -107,7 +127,7 @@
       group.traverse((o) => {
         if (o.isMesh && o !== face) o.castShadow = true;
       });
-      const person = { group, legL, legR, armL, armR, head, faceCanvas, faceTex, mood: null, boss, phase: Math.random() * 6 };
+      const person = { group, legL, legR, armL, armR, head, faceCanvas, faceTex, mood: null, boss, phase: Math.random() * 6, carry };
       People.setMood(person, boss ? 'smug' : 'neutral');
       return person;
     },
@@ -215,6 +235,32 @@
           g.stroke();
       }
       p.faceTex.needsUpdate = true;
+    },
+
+    // 手上拿的東西：飲料、提袋、紙杯
+    setCarry(p, kind) {
+      if (p.carryKind === kind) return;
+      p.carryKind = kind;
+      const c = p.carry;
+      while (c.children.length) c.remove(c.children[0]);
+      c.visible = !!kind;
+      if (kind === 'cup') {
+        const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.04, 0.16, 10), mat('#f3e3c3'));
+        cup.position.y = -0.04;
+        const lid = new THREE.Mesh(new THREE.CylinderGeometry(0.052, 0.052, 0.02, 10), mat('#ffffff'));
+        lid.position.y = 0.05;
+        const straw = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.12, 6), mat('#e0478a'));
+        straw.position.y = 0.1;
+        c.add(cup, lid, straw);
+      } else if (kind === 'bag') {
+        const bag = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.18, 0.08), mat('#f7f7f2'));
+        bag.position.y = -0.1;
+        c.add(bag);
+      } else if (kind === 'box') {
+        const box = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.08, 0.14), mat('#f2e0b8'));
+        box.position.y = -0.04;
+        c.add(box);
+      }
     },
 
     walk(p, walking, dt, speed) {
