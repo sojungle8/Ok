@@ -319,7 +319,7 @@
     // 裝潢（提升環境分：客人比較願意進來，員工心情也比較好）
     { id: 'plant', name: '盆栽', icon: '🪴', cat: 'decor', price: 1800, w: 1, beauty: 2, model: 'plant' },
     { id: 'poster', name: '海報', icon: '🖼️', cat: 'decor', price: 900, w: 1, beauty: 1, wall: true, model: 'poster' },
-    { id: 'menuboard', name: '菜單看板', icon: '📋', cat: 'decor', price: 2500, w: 1, beauty: 2, draw: 0.06, wall: true, model: 'menuboard' },
+    { id: 'menuboard', name: '菜單看板', names: { barber: '價目表看板', scooter: '維修價目表', store: '特價看板' }, icon: '📋', cat: 'decor', price: 2500, w: 1, beauty: 2, draw: 0.06, wall: true, model: 'menuboard' },
     { id: 'luckycat', name: '招財貓', icon: '🐱', cat: 'decor', price: 1200, w: 1, beauty: 2, draw: 0.04, model: 'luckycat' },
     { id: 'shrine', name: '土地公神桌', icon: '🙏', cat: 'decor', price: 8800, w: 1, beauty: 3, draw: 0.03, model: 'shrine' },
     { id: 'aircon', name: '冷氣', icon: '❄️', cat: 'decor', price: 28000, w: 1, kw: 2.2, cool: true, wall: true, model: 'aircon' },
@@ -329,7 +329,37 @@
     { id: 'neon', name: '霓虹燈招牌', icon: '💡', cat: 'decor', price: 32000, w: 1, beauty: 3, draw: 0.1, kw: 0.2, wall: true, model: 'neon', lv: 7 },
     { id: 'fame', name: '名人簽名牆', icon: '✍️', cat: 'decor', price: 45000, w: 1, beauty: 6, draw: 0.08, wall: true, model: 'fame', lv: 8 },
     { id: 'aquarium', name: '魚缸', icon: '🐠', cat: 'decor', price: 9000, w: 1, beauty: 4, kw: 0.1, model: 'aquarium', lv: 4 },
+    // 各行各業自己的裝潢
+    { id: 'lantern', name: '紅燈籠', icon: '🏮', cat: 'decor', price: 2200, w: 1, beauty: 2, draw: 0.04, wall: true, industries: ['breakfast', 'noodle'], model: 'lantern' },
+    { id: 'photowall', name: '打卡牆', icon: '📸', cat: 'decor', price: 16000, w: 1, beauty: 3, draw: 0.1, wall: true, industries: ['drinks'], model: 'photowall', lv: 3 },
+    { id: 'barberpole', name: '旋轉燈柱', icon: '💈', cat: 'decor', price: 6800, w: 1, beauty: 3, draw: 0.08, kw: 0.1, industries: ['barber'], model: 'barberpole' },
+    { id: 'magazine', name: '雜誌架', icon: '📰', cat: 'decor', price: 2400, w: 1, beauty: 2, draw: 0.03, industries: ['barber', 'scooter'], model: 'magazine' },
+    { id: 'tirewall', name: '輪胎牆', icon: '🛞', cat: 'decor', price: 5200, w: 1, beauty: 3, draw: 0.05, wall: true, industries: ['scooter'], model: 'tirewall' },
+    { id: 'helmetrack', name: '安全帽架', icon: '⛑️', cat: 'decor', price: 3800, w: 1, beauty: 2, draw: 0.04, industries: ['scooter'], model: 'helmetrack' },
+    { id: 'umbrella', name: '愛心傘架', icon: '☂️', cat: 'decor', price: 1600, w: 1, beauty: 2, draw: 0.04, industries: ['store'], model: 'umbrella' },
   ];
+
+  // 各行各業的說法：同一句話換成這一行的用語（文字裡寫 {w:serve} 這樣的記號）
+  const FOOD_WORDS = { serve: '出餐', product: '餐點', eat: '吃', done: '吃完', good: '好好吃', best: '好吃', need: '吃飯', order: '點餐', gift: '小菜', chore: '洗碗', supplies: '食材', supplier: '果菜批發市場', secret: '醬料比例和擺盤方式', hard: '好吃！便宜！大份！', set: '套餐', taste: '吃', menu: '菜單' };
+  const WORDS = {
+    breakfast: { ...FOOD_WORDS, need: '吃早餐' },
+    noodle: { ...FOOD_WORDS, hard: '好吃！便宜！大碗！' },
+    drinks: { ...FOOD_WORDS, serve: '出杯', product: '飲料', eat: '喝', done: '喝完', good: '好好喝', best: '好喝', need: '喝飲料', order: '點飲料', gift: '加料', chore: '洗杯子', supplies: '原料', supplier: '茶葉原料批發', secret: '茶湯配方和封膜手法', hard: '好喝！便宜！大杯！', set: '聯名飲料', taste: '喝', menu: '菜單' },
+    barber: { serve: '剪髮', product: '服務', eat: '剪', done: '剪完', good: '剪得好好看', best: '會剪', need: '剪頭髮', order: '剪頭髮', gift: '免費洗頭', chore: '掃頭髮', supplies: '耗材', supplier: '美髮材料行', secret: '剪髮手法和價目表', hard: '快！準！不囉嗦！', set: '剪髮套組', taste: '剪', menu: '服務項目' },
+    scooter: { serve: '修車', product: '服務', eat: '修', done: '修好', good: '修得很仔細', best: '會修', need: '騎車', order: '等修車', gift: '免費打氣', chore: '搬輪胎', supplies: '零件', supplier: '機車零件批發', secret: '報價單和保養流程', hard: '快！穩！不亂報價！', set: '保養套餐', taste: '保養', menu: '服務項目' },
+    store: { serve: '結帳', product: '商品', eat: '買', done: '結完帳', good: '東西好齊', best: '方便', need: '買東西', order: '結帳', gift: '一包零食', chore: '補貨', supplies: '貨', supplier: '物流倉庫', secret: '陳列方式和促銷檔期', hard: '近！快！什麼都有！', set: '組合包', taste: '買', menu: '商品' },
+  };
+  const FOOD_IND = ['breakfast', 'noodle', 'drinks', 'store'];
+  const word = (indId, key) => (WORDS[indId] || WORDS.breakfast)[key] ?? key;
+  const fillWords = (text, indId) => (typeof text === 'string' ? text.replace(/\{w:(\w+)\}/g, (_, k) => word(indId, k)) : text);
+  // 遊戲開始時把共用設備的名字換成這一行的叫法（例如理髮店的「菜單看板」叫「價目表看板」）
+  const applyNames = (indId) => {
+    for (const d of CATALOG) {
+      if (!d.names) continue;
+      if (!d.baseName) d.baseName = d.name;
+      d.name = d.names[indId] || d.baseName;
+    }
+  };
 
   const CAT_LABELS = {
     station: '設備',
@@ -381,7 +411,8 @@
 
   // 難度：patience 客人耐心、events 事件多寡、cash 開店資金、rival 對手搶客、inspect 稽查頻率、fines 罰款、drain 員工累的速度
   const DIFFICULTY = {
-    easy: { name: '輕鬆', desc: '資金多、客人有耐心、事件少，適合先熟悉', patience: 1.6, events: 0.5, cash: 1.6, rival: 0.55, inspect: 0.5, fines: 0.5, drain: 0.8, wage: 0.95 },
+    rookie: { name: '新手', desc: '🤖 小幫手幫你顧好人手和瑣事，多兩個員工，客人超有耐心', patience: 2.1, events: 0.35, cash: 2, rival: 0.35, inspect: 0.3, fines: 0.3, drain: 0.7, wage: 0.95, helper: true, extraStaff: 2, karen: 0.5 },
+    easy: { name: '輕鬆', desc: '資金多、客人有耐心、事件少；🤖 小幫手預設打開', patience: 1.6, events: 0.5, cash: 1.6, rival: 0.55, inspect: 0.5, fines: 0.5, drain: 0.8, wage: 0.95, helper: true, extraStaff: 1 },
     normal: { name: '一般', desc: '有挑戰，但做對事情就能穩穩經營', patience: 1.25, events: 0.85, cash: 1.2, rival: 0.85, inspect: 1, fines: 1, drain: 0.92, wage: 1 },
     hell: { name: '地獄', desc: '事件多、客人急、員工容易累', patience: 0.75, events: 1.6, cash: 1, rival: 1.2, inspect: 1.4, fines: 1.2, drain: 1.2, wage: 1.05 },
   };
@@ -436,5 +467,5 @@
     桃園中壢: { traffic: 0.95, rent: 0.85 },
   };
 
-  root.BossIndustries = { INDUSTRIES, CATALOG, CAT_LABELS, LOTS, NAMES, TRAITS, LEVELS, DISTRICTS, DISTRICT_INFO, CUSTOMER_TYPES, DIFFICULTY, FLOORS, WALLS, SIGNS, BRANCH_SITES, BRANCH_SIZES, TOURIST_PREF };
+  root.BossIndustries = { WORDS, FOOD_IND, word, fillWords, applyNames, INDUSTRIES, CATALOG, CAT_LABELS, LOTS, NAMES, TRAITS, LEVELS, DISTRICTS, DISTRICT_INFO, CUSTOMER_TYPES, DIFFICULTY, FLOORS, WALLS, SIGNS, BRANCH_SITES, BRANCH_SIZES, TOURIST_PREF };
 })(typeof window !== 'undefined' ? window : globalThis);

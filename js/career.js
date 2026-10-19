@@ -24,6 +24,8 @@
     slacker: ['他很會找地方躲起來滑手機', '他說「主管就是要動口不動手」', '他每次都說「等一下我來」'],
   };
 
+  const ta = (e) => (e && e.gender === 'f' ? '她' : '他');
+
   Fun.AMBITION_LABEL = (a) => (a >= 65 ? '🔥 很想往上爬' : a >= 35 ? '🙂 給機會就做' : '😌 只想安靜做事');
 
   // 主管相關的事件
@@ -59,7 +61,7 @@
         choices: [
           { label: `找${boss.name}私下談談帶人的方式`, effects: { talkLeader: boss.id, moodOf: [[who.id, 6]] }, result: `你約${boss.name}喝咖啡，聊了很久。` },
           { label: `把${boss.name}降職`, effects: { demoteOf: boss.id, moodOf: [[who.id, 8]] }, result: `${boss.name}被降回一般員工，臉色很難看。${who.name}鬆了一口氣。` },
-          { label: '「他也是為了店好，你忍一下」', quote: '嚴格一點才會進步。', effects: { moodOf: [[who.id, -12]], morale: -2, jerk: 2 }, result: `${who.name}默默回去工作。員工群組裡有人傳了一張「慣老闆養出慣主管」的梗圖。`, tip: '主管在公開場合羞辱員工可能構成職場霸凌；雇主依職業安全衛生法有預防職場不法侵害的責任。' },
+          { label: `「${ta(boss)}也是為了店好，你忍一下」`, quote: '嚴格一點才會進步。', effects: { moodOf: [[who.id, -12]], morale: -2, jerk: 2 }, result: `${who.name}默默回去工作。員工群組裡有人傳了一張「慣老闆養出慣主管」的梗圖。`, tip: '主管在公開場合羞辱員工可能構成職場霸凌；雇主依職業安全衛生法有預防職場不法侵害的責任。' },
         ],
         ignore: { effects: { moodOf: [[who.id, -8]], morale: -1 }, result: `${who.name}等不到你的回應，下班時哭著走了。` },
       };
@@ -74,7 +76,7 @@
         title: `${R.name}${boss.name}又在摸魚`,
         text: `外面排了一排客人，你發現${boss.name}${where[Math.floor(sim.rng() * where.length)]}。其他員工看你的眼神好像在說：「你看到了吧？」`,
         choices: [
-          { label: '叫他出來，私下提醒一下', effects: { moodOf: [[boss.id, -4]], lead: [boss.id, 4] }, result: `${boss.name}尷尬地收起手機：「我、我剛好在想排班的事。」之後好像比較常出現了。` },
+          { label: `叫${ta(boss)}出來，私下提醒一下`, effects: { moodOf: [[boss.id, -4]], lead: [boss.id, 4] }, result: `${boss.name}尷尬地收起手機：「我、我剛好在想排班的事。」之後好像比較常出現了。` },
           { label: '降職，讓認真的人上', effects: { demoteOf: boss.id, morale: 3 }, result: `你把${boss.name}降回一般員工。其他人表面上沒說什麼，但做事好像比較有勁了。` },
           { label: '算了，主管偶爾休息一下', effects: { morale: -3 }, result: '大家看在眼裡：原來當主管就可以這樣。' },
         ],
@@ -88,11 +90,11 @@
         id: 'career_poach',
         icon: '🧲',
         title: `${name}想挖走店長${boss.name}`,
-        text: `${name}開了更高的薪水要${boss.name}過去當店長${friend ? `，而且跟他感情最好的${friend.name}也說要一起走` : ''}。${boss.name}跑來跟你說：「老闆，我其實不太想走……」`,
+        text: `${name}開了更高的薪水要${boss.name}過去當店長${friend ? `，而且跟${boss.gender === 'f' ? '她' : '他'}感情最好的${friend.name}也說要一起走` : ''}。${boss.name}跑來跟你說：「老闆，我其實不太想走……」`,
         choices: [
           { label: `幫${boss.name}加薪 $40 留下來`, effects: { raiseOf: [boss.id, 40], moodOf: [[boss.id, 12]] }, result: `${boss.name}握著你的手：「我會把這間店顧好的。」` },
-          { label: '問他到底哪裡不開心，一起想辦法', effects: { moodOf: [[boss.id, 8], ...(friend ? [[friend.id, 5]] : [])], morale: 2 }, result: `你們聊到很晚。${boss.name}說最近排班太滿、壓力很大，你答應會多請一個人幫忙。` },
-          { label: '祝福他，好聚好散', effects: { leave: boss.id, ...(friend ? { leave2: friend.id } : {}), jerk: -1 }, result: `${boss.name}${friend ? `和${friend.name}` : ''}最後一天上班，大家一起吃了一頓飯。店裡突然安靜了很多。` },
+          { label: `問${ta(boss)}到底哪裡不開心，一起想辦法`, effects: { moodOf: [[boss.id, 8], ...(friend ? [[friend.id, 5]] : [])], morale: 2 }, result: `你們聊到很晚。${boss.name}說最近排班太滿、壓力很大，你答應會多請一個人幫忙。` },
+          { label: `祝福${ta(boss)}，好聚好散`, effects: { leave: boss.id, ...(friend ? { leave2: friend.id } : {}), jerk: -1 }, result: `${boss.name}${friend ? `和${friend.name}` : ''}最後一天上班，大家一起吃了一頓飯。店裡突然安靜了很多。` },
         ],
         ignore: { effects: { leave: boss.id, ...(friend ? { leave2: friend.id } : {}) }, result: `你沒回應，${boss.name}${friend ? `帶著${friend.name}` : ''}去了${name}。` },
       };

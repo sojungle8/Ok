@@ -200,6 +200,20 @@
         tail.rotation.x = 0.35;
         head.add(tail);
       }
+      // 女生：兩側留鬢髮，戴廚師帽、鴨舌帽時後面也看得到低馬尾，才分得出男女
+      if (look.gender === 'f' && look.hairStyle !== 'bald') {
+        for (const sx of [-1, 1]) {
+          const lock = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.2, 0.09), hairM);
+          lock.position.set(sx * 0.165, -0.07, 0.03);
+          head.add(lock);
+        }
+        if (look.hat) {
+          const low = new THREE.Mesh(new THREE.CapsuleGeometry(0.055, 0.16, 3, 8), hairM);
+          low.position.set(0, -0.1, -0.18);
+          low.rotation.x = 0.3;
+          head.add(low);
+        }
+      }
       if (look.hairStyle === 'spiky') {
         for (let i = 0; i < 5; i++) {
           const sp = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.12, 6), hairM);
@@ -258,7 +272,7 @@
       blob.position.y = 0.012;
       blob.renderOrder = -1;
       group.add(blob);
-      const person = { group, legL, legR, armL, armR, head, faceCanvas, faceTex, mood: null, boss, phase: Math.random() * 6, carry };
+      const person = { group, legL, legR, armL, armR, head, faceCanvas, faceTex, mood: null, boss, phase: Math.random() * 6, carry, female: look.gender === 'f' };
       People.setMood(person, boss ? 'smug' : 'neutral');
       return person;
     },
@@ -364,6 +378,25 @@
           g.moveTo(50, 86);
           g.quadraticCurveTo(64, 94, 78, 86);
           g.stroke();
+      }
+      // 女生：睫毛和淡淡的腮紅
+      if (p.female && mood !== 'sleep') {
+        g.strokeStyle = '#2a211c';
+        g.lineWidth = 5;
+        for (const [x, dir] of [[44, -1], [84, 1]]) {
+          g.beginPath();
+          g.moveTo(x + dir * 7, 48);
+          g.lineTo(x + dir * 15, 41);
+          g.stroke();
+        }
+        if (mood !== 'happy') {
+          g.fillStyle = 'rgba(240,140,140,0.45)';
+          for (const x of [30, 98]) {
+            g.beginPath();
+            g.ellipse(x, 76, 9, 5, 0, 0, Math.PI * 2);
+            g.fill();
+          }
+        }
       }
       p.faceTex.needsUpdate = true;
     },

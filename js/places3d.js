@@ -177,8 +177,8 @@
         blockers.push([x - 1, -0.6, x + 1, 0.5]);
         hotspots.push({ id: `buy:${st.id}`, x, z: 1.0, label: `補${st.name}（八五折）`, icon: st.icon });
       });
-      hotspots.push({ id: 'haggle', x: 6, z: 4.2, label: '跟批發阿伯殺價', icon: '🗣️', npc: { gender: 'm', skin: '#c48d66', hair: '#6e6e6e', hairStyle: 'short', shirt: '#2f6db5', old: true } });
-      sign(g, '果菜批發市場', '#2f8f6b', 4, 3.4, -0.8, 3.2, 0.6);
+      hotspots.push({ id: 'haggle', x: 6, z: 4.2, label: '跟老闆殺價', icon: '🗣️', npc: { gender: 'm', skin: '#c48d66', hair: '#6e6e6e', hairStyle: 'short', shirt: '#2f6db5', old: true } });
+      sign(g, sim.w('{w:supplier}'), '#2f8f6b', 4, 3.4, -0.8, 3.2, 0.6);
       return { bounds: [-1.5, 0.7, 10, 5.5], blockers, hotspots, exit: { x: -1.4, z: 4.5 }, spawn: { x: -0.6, z: 4.2 }, night: false, crowd: 7, crowdArea: [-1, 2.5, 9, 5] };
     },
     rival(g, sim) {

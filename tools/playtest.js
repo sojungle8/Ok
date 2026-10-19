@@ -151,7 +151,7 @@ function daily(r) {
   // 小編：挑本週時事的內容發文
   if (s.canPost) {
     const t = s.social.trend;
-    const body = Fun.POST_BODIES.find((b) => t && b.trend === t.id && !b.risky) || Fun.POST_BODIES.find((b) => b.id === 'staff');
+    const body = Fun.POST_BODIES.find((b) => t && b.trend === t.id && !b.risky && (!b.ind || b.ind.includes(s.ind.id))) || Fun.POST_BODIES.find((b) => b.id === 'staff');
     s.post('boss', body.id, 'tag');
   }
 

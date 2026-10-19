@@ -110,6 +110,11 @@
     // 長輩的皺紋
     if (L.old) parts.push(`<g fill="none" stroke="${skinD}" stroke-width="2.5" stroke-linecap="round"><path d="M62 92 Q70 88 78 92"/><path d="M122 92 Q130 88 138 92"/><path d="M70 136 Q74 142 72 148"/><path d="M130 136 Q126 142 128 148"/></g>`);
 
+    // 女生：睫毛、腮紅、耳邊的頭髮（戴帽子也看得出來）
+    if (L.gender === 'f') {
+      parts.push(`<g stroke="#2a211c" stroke-width="3" stroke-linecap="round"><path d="M67 104 L60 97"/><path d="M133 104 L140 97"/></g><ellipse cx="70" cy="130" rx="9" ry="5" fill="rgba(240,140,140,0.45)"/><ellipse cx="130" cy="130" rx="9" ry="5" fill="rgba(240,140,140,0.45)"/>`);
+      if (L.hairStyle !== 'bald') parts.push(`<path d="M50 78 Q40 120 54 150 L64 146 Q54 116 60 80 Z M150 78 Q160 120 146 150 L136 146 Q146 116 140 80 Z" fill="${L.hair}"/>`);
+    }
     // 前面的頭髮
     parts.push(hairFront(L, hairD));
     if (L.glasses) parts.push(`<g fill="none" stroke="#2b2b2b" stroke-width="3"><circle cx="79" cy="110" r="14"/><circle cx="121" cy="110" r="14"/><path d="M93 110 L107 110"/></g>`);

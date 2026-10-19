@@ -254,6 +254,109 @@
       g.add(m);
       B(g, 1.16, 0.76, 0.03, '#3a2c25', 0, 1.27, -0.49);
     },
+    // ───── 各行各業自己的裝潢 ─────
+    lantern(g) {
+      for (const x of [-0.22, 0.22]) {
+        const l = new THREE.Mesh(new THREE.SphereGeometry(0.17, 14, 10), mat('#d9302b', { emissive: '#5a0d08' }));
+        l.scale.y = 1.25;
+        l.position.set(x, 1.75, -0.32);
+        g.add(l);
+        C(g, 0.1, 0.1, 0.05, '#e2a12a', x, 1.92, -0.32, 10);
+        C(g, 0.1, 0.1, 0.05, '#e2a12a', x, 1.5, -0.32, 10);
+        B(g, 0.015, 0.25, 0.015, '#d4a017', x, 1.25, -0.32);
+      }
+      B(g, 0.7, 0.03, 0.03, '#3a2c25', 0, 2.05, -0.4);
+    },
+    photowall(g) {
+      const tex = canvasTex(256, 200, (c, w, h) => {
+        const gr = c.createLinearGradient(0, 0, w, h);
+        gr.addColorStop(0, '#f7c6d9');
+        gr.addColorStop(1, '#c9e4f7');
+        c.fillStyle = gr;
+        c.fillRect(0, 0, w, h);
+        c.fillStyle = '#ffffff';
+        for (let i = 0; i < 18; i++) c.fillRect((i * 53) % w, (i * 37) % h, 6, 6);
+        c.fillStyle = '#d9482b';
+        c.font = 'bold 40px sans-serif';
+        c.textAlign = 'center';
+        c.fillText('打卡送', w / 2, 90);
+        c.fillText('小料 ♡', w / 2, 140);
+      });
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.72), new THREE.MeshStandardMaterial({ map: tex }));
+      m.position.set(0, 1.45, -0.46);
+      g.add(m);
+      B(g, 0.96, 0.78, 0.03, '#ffffff', 0, 1.06, -0.49);
+    },
+    barberpole(g) {
+      B(g, 0.22, 0.08, 0.22, '#c0c0c0', 0, 0, 0);
+      C(g, 0.03, 0.03, 0.55, '#c0c0c0', 0, 0.08, 0, 8);
+      const tex = canvasTex(64, 128, (c, w, h) => {
+        c.fillStyle = '#ffffff';
+        c.fillRect(0, 0, w, h);
+        c.lineWidth = 14;
+        for (let i = -4; i < 8; i++) {
+          c.strokeStyle = i % 2 ? '#d9302b' : '#2c6fbb';
+          c.beginPath();
+          c.moveTo(0, i * 24);
+          c.lineTo(w, i * 24 + 40);
+          c.stroke();
+        }
+      });
+      tex.wrapS = THREE.RepeatWrapping;
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.6, 16), new THREE.MeshStandardMaterial({ map: tex, emissive: '#222', roughness: 0.3 }));
+      pole.position.set(0, 0.95, 0);
+      g.add(pole);
+      const cap = new THREE.Mesh(new THREE.SphereGeometry(0.1, 12, 8), mat('#c0c0c0', { metalness: 0.6 }));
+      cap.position.set(0, 1.28, 0);
+      g.add(cap);
+      g.userData.pole = pole;
+    },
+    magazine(g) {
+      B(g, 0.6, 0.9, 0.3, '#8a5a3b', 0, 0, -0.1);
+      const colors = ['#d9482b', '#2c6fbb', '#f2c14e', '#5aa9a0', '#e0478a', '#6c5ce7'];
+      for (let r = 0; r < 3; r++) {
+        for (let i = 0; i < 2; i++) {
+          const m = B(g, 0.22, 0.26, 0.02, colors[(r * 2 + i) % colors.length], -0.13 + i * 0.26, 0.1 + r * 0.28, 0.06);
+          m.rotation.x = -0.25;
+        }
+      }
+    },
+    tirewall(g) {
+      B(g, 0.9, 1.3, 0.04, '#5b5f66', 0, 0.75, -0.47);
+      for (const [x, y] of [[-0.22, 1.05], [0.22, 1.05], [0, 1.6]]) {
+        const t = new THREE.Mesh(new THREE.TorusGeometry(0.19, 0.07, 10, 20), mat('#1d1d1d', { roughness: 0.95 }));
+        t.position.set(x, y, -0.38);
+        g.add(t);
+        const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.06, 14), mat('#c0c0c0', { metalness: 0.6 }));
+        rim.rotation.x = Math.PI / 2;
+        rim.position.set(x, y, -0.38);
+        g.add(rim);
+      }
+    },
+    helmetrack(g) {
+      B(g, 0.06, 1.5, 0.06, '#555', 0, 0, 0);
+      B(g, 0.4, 0.05, 0.4, '#555', 0, 0, 0);
+      const colors = ['#d9482b', '#f2c14e', '#2c6fbb', '#ffffff'];
+      colors.forEach((col, i) => {
+        const h = new THREE.Mesh(new THREE.SphereGeometry(0.15, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.6), mat(col, { roughness: 0.35 }));
+        const a = (i * Math.PI) / 2;
+        h.position.set(Math.cos(a) * 0.18, 0.55 + (i % 2) * 0.45, Math.sin(a) * 0.18);
+        g.add(h);
+        B(g, 0.16, 0.02, 0.02, '#555', Math.cos(a) * 0.09, 0.5 + (i % 2) * 0.45, Math.sin(a) * 0.09).rotation.y = -a;
+      });
+    },
+    umbrella(g) {
+      C(g, 0.18, 0.16, 0.55, '#2c6fbb', 0, 0, 0, 14);
+      const colors = ['#d9482b', '#f2c14e', '#5aa9a0'];
+      colors.forEach((col, i) => {
+        const u = C(g, 0.035, 0.035, 0.75, col, -0.07 + i * 0.07, 0.2, 0.0, 8);
+        u.rotation.z = (i - 1) * 0.12;
+        C(g, 0.012, 0.012, 0.12, '#3a2c25', -0.07 + i * 0.07, 0.95, 0, 6);
+      });
+      const sign = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.14), new THREE.MeshBasicMaterial({ map: canvasTex(128, 52, (c, w, h) => { c.fillStyle = '#fff'; c.fillRect(0, 0, w, h); c.fillStyle = '#2c6fbb'; c.font = 'bold 30px sans-serif'; c.textAlign = 'center'; c.fillText('愛心傘', w / 2, 37); }) }));
+      sign.position.set(0, 0.35, 0.19);
+      g.add(sign);
+    },
     luckycat(g) {
       B(g, 0.3, 0.5, 0.3, '#8a5a3b', 0, 0, 0);
       C(g, 0.13, 0.15, 0.24, '#fbfbfb', 0, 0.5, 0, 14);
@@ -1666,6 +1769,7 @@
         const u = m.group.userData;
         if (u.wave) u.wave.rotation.x = -0.6 + Math.sin(now / 250) * 0.6;
         if (u.spin) u.spin.rotation.z += 0.3;
+        if (u.pole) u.pole.rotation.y = now / 400;
         if (u.fish) u.fish.forEach((f, i) => (f.position.x = Math.sin(now / 900 + i * 2) * 0.28));
         if (u.screen) u.screen.material.color.setHSL(((now / 4000) % 1), 0.5, 0.55);
         if (u.liftScooter) {

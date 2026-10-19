@@ -124,26 +124,33 @@
   // 通用內容；trend 指定的才算有蹭到時事
   const POST_BODIES = [
     { id: 'menu', text: '{item} 今天也是 ${price}，沒漲價，因為老闆忘記了。', score: 3 },
-    { id: 'staff', text: '{staff} 今天被誇可愛，現在整個人在飄，出餐速度變兩倍。', score: 4 },
-    { id: 'karen', text: '感謝今天那位要「不要蔥、不要辣、但要很有味道」的客人，我們研發出了量子料理。', score: 4 },
+    { id: 'staff', text: '{staff} 今天被誇可愛，現在整個人在飄，{w:serve}速度變兩倍。', score: 4 },
+    { id: 'karen', ind: ['breakfast', 'noodle', 'store'], text: '感謝今天那位要「不要蔥、不要辣、但要很有味道」的客人，我們研發出了量子料理。', score: 4 },
+    { id: 'karen_d', ind: ['drinks'], text: '感謝今天那位要「半糖少冰去冰、不要太甜但要有味道」的客人，我們研發出了量子飲料。', score: 4 },
+    { id: 'karen_b', ind: ['barber'], text: '感謝今天那位要「剪短，但不要看起來有剪」的客人，我們研發出了量子髮型。', score: 4 },
+    { id: 'karen_s', ind: ['scooter'], text: '感謝今天那位說「它在家會響，騎來就不響了」的客人，我們師傅已經練成聽診功。', score: 4 },
     { id: 'promo', text: '來店說「小編好帥」打九折（小編其實是阿姨）。', score: 4 },
-    { id: 'honest', text: '我們不是最好吃的，但我們是這條街上最努力的。', score: 2 },
-    { id: 'hardsell', text: '快來買！快來買！快來買！好吃！便宜！大碗！', score: 0 },
+    { id: 'honest', text: '我們不是最{w:best}的，但我們是這條街上最努力的。', score: 2 },
+    { id: 'hardsell', text: '快來！快來！快來！{w:hard}', score: 0 },
     { id: 'stolen', text: '（隨便抓一張網路上很紅的梗圖貼上去）', score: 3, risky: 0.5, riskText: '被抓到盜用圖片，原作者留言要求下架' },
     // 蹭時事
-    { id: 'evcar1', trend: 'evcar', text: '電動跑車零百加速兩秒，我們的 {item} 零到出餐也只要兩分鐘，而且不用排隊等交車。', score: 7 },
-    { id: 'evcar2', trend: 'evcar', text: '我們的外送機車也是電動的，最高速度看外送員心情。', score: 6 },
+    { id: 'evcar1', trend: 'evcar', text: '電動跑車零百加速兩秒，我們的 {item} 零到{w:serve}完成也只要一下下，而且不用排隊等交車。', score: 7 },
+    { id: 'evcar2', trend: 'evcar', ind: ['breakfast', 'noodle', 'drinks', 'store'], text: '我們的外送機車也是電動的，最高速度看外送員心情。', score: 6 },
+    { id: 'evcar2b', trend: 'evcar', ind: ['barber'], text: '我們的推剪也是電動的，零到帥只要十五分鐘。', score: 6 },
+    { id: 'evcar2s', trend: 'evcar', ind: ['scooter'], text: '電動跑車很快，但你的機車煞車皮已經磨到底了，先來換一下比較快。', score: 6 },
     { id: 'furn1', trend: 'furniture', text: '大家都在蹭跑車，那我們蹭蹭那個蹭跑車的家具店：我們的塑膠椅也可以自己組裝，零件只有一個。', score: 8 },
     { id: 'furn2', trend: 'furniture', text: '小編也想學別人蹭時事，但老闆說預算只夠蹭一張發票。', score: 6 },
     { id: 'heat1', trend: 'heat', text: '外面 38 度，店裡冷氣 26 度，{item} 冰到你懷疑人生。', score: 7 },
     { id: 'heat2', trend: 'heat', text: '站在機器前的 {staff} 表示：外面熱？我每天都在這個溫度上班。', score: 6 },
     { id: 'ty1', trend: 'typhoon', text: '颱風假放不放還不知道，但我們確定有開，{item} 陪你一起等宣布。', score: 7 },
-    { id: 'ty2', trend: 'typhoon', text: '颱風天不用來沒關係，我們不會出門，你也不要出門，外送員也要平安。', score: 6 },
+    { id: 'ty2', trend: 'typhoon', text: '颱風天不用來沒關係，我們不會出門，你也不要出門，大家都要平安。', score: 6 },
     { id: 'egg1', trend: 'egg', text: '蛋價又漲了，但我們的 {item} 份量沒有縮水，請放心，老闆沒有在減肥。', score: 7 },
     { id: 'egg2', trend: 'egg', text: '今日特價：空氣{item}，只要 $0（騙你的啦）。', score: 6 },
     { id: 'con1', trend: 'concert', text: '演唱會搶不到票沒關係，來店裡排隊也能體驗大排長龍的感覺。', score: 7 },
-    { id: 'con2', trend: 'concert', text: '{staff} 搶票搶到手機當機，今天臉很臭，請大家多點餐安慰她。', score: 6 },
-    { id: 'mat1', trend: 'matcha', text: '大家都在出抹茶口味，我們決定不跟風——因為抹茶粉太貴了。', score: 7 },
+    { id: 'con2', trend: 'concert', text: '{staff} 搶票搶到手機當機，今天臉很臭，請大家多來店裡安慰一下。', score: 6 },
+    { id: 'mat1', trend: 'matcha', ind: ['breakfast', 'noodle', 'drinks', 'store'], text: '大家都在出抹茶口味，我們決定不跟風——因為抹茶粉太貴了。', score: 7 },
+    { id: 'mat1b', trend: 'matcha', ind: ['barber'], text: '大家都在出抹茶口味，我們決定推出抹茶色染髮。（店長說不行，所以只有小編自己染了）', score: 7 },
+    { id: 'mat1s', trend: 'matcha', ind: ['scooter'], text: '抹茶熱潮來了，本週抹茶綠烤漆開放預約，騎出去就是一杯行動抹茶拿鐵。', score: 7 },
     { id: 'mat2', trend: 'matcha', text: '抹茶 {item}？小編問過老闆了，老闆說：「你被開除了」。', score: 6 },
     { id: 'ai1', trend: 'aiboss', text: 'AI 可以取代很多工作，但取代不了 {staff} 看到熟客就知道你要什麼的那個眼神。', score: 7 },
     { id: 'ai2', trend: 'aiboss', text: '我們問 AI 怎麼讓生意變好，它說「降價、加薪、多休假」，老闆把 AI 關掉了。', score: 8 },
@@ -152,20 +159,23 @@
     { id: 'pay2', trend: 'payfreeze', text: '別的公司凍漲，我們今年有幫員工調薪喔（老闆叫我寫的，但這是真的）。', score: 6 },
     { id: 'bonus1', trend: 'bonus', text: '別人年終幾十個月，我們年終幾十顆茶葉蛋，但每一顆都是老闆親手滷的。', score: 7 },
     { id: 'game1', trend: 'game', text: '店門口出現稀有寶可……喔不對，是稀有的準時下班員工。', score: 7 },
-    { id: 'mbti1', trend: 'mbti', text: 'I 人請外帶、E 人請內用，{staff} 是 E 人，會陪你聊到你吃完。', score: 7 },
+    { id: 'mbti1', trend: 'mbti', text: 'I 人請外帶、E 人請內用，{staff} 是 E 人，會陪你聊到你{w:done}。', score: 7 },
     { id: 'quiet1', trend: 'quietquit', text: '我們店不用安靜離職，因為我們準時下班是寫在班表上的。', score: 7 },
-    { id: 'drink1', trend: 'drinkhike', text: '飲料都在漲，我們的 {item} 還是 ${price}，老闆說他要撐到最後一顆珍珠。', score: 7 },
-    { id: 'moon1', trend: 'moon', text: '中秋烤肉缺飲料？缺小菜？缺一個會烤肉的朋友？前兩個我們有。', score: 7 },
+    { id: 'drink1', trend: 'drinkhike', ind: ['drinks'], text: '飲料都在漲，我們的 {item} 還是 ${price}，老闆說他要撐到最後一顆珍珠。', score: 7 },
+    { id: 'drink1b', trend: 'drinkhike', ind: ['breakfast', 'store'], text: '飲料都在漲，我們的 {item} 還是 ${price}，老闆說他要撐到最後一刻。', score: 7 },
+    { id: 'moon1', trend: 'moon', ind: ['breakfast', 'noodle', 'drinks', 'store'], text: '中秋烤肉缺飲料？缺小菜？缺一個會烤肉的朋友？前兩個我們有。', score: 7 },
+    { id: 'moon1b', trend: 'moon', ind: ['barber'], text: '中秋烤肉前來剪個頭，全家福照片才不會只有你像剛起床。', score: 7 },
+    { id: 'moon1s', trend: 'moon', ind: ['scooter'], text: '中秋連假要騎車回家？出發前來檢查一下煞車和輪胎，平安才吃得到月餅。', score: 7 },
     { id: 'xmas1', trend: 'xmas', text: '交換禮物不知道送什麼？送 {item} 兌換券，至少不會是衛生紙。', score: 7 },
     { id: 'quake1', trend: 'quake', text: '地震好可怕，但 {item} 打八折更可怕！快來搶！', score: 5, risky: 0.6, riskText: '網友覺得拿災難做行銷很不妥' },
-    { id: 'elect1', trend: 'election', text: '不管你支持誰，大家都需要吃飯；投給 {item} 一票吧！', score: 5, risky: 0.35, riskText: '留言區兩派人馬吵了起來，店被貼標籤' },
+    { id: 'elect1', trend: 'election', text: '不管你支持誰，大家都需要{w:need}；投給 {item} 一票吧！', score: 5, risky: 0.35, riskText: '留言區兩派人馬吵了起來，店被貼標籤' },
   ];
 
   const POST_ENDINGS = [
     { id: 'tag', text: '#小編加薪 #老闆不要看', score: 3 },
     { id: 'share', text: '分享這篇抽一位送 {item}！', score: 3, cost: 800 },
     { id: 'emoji', text: '🥹🥹🥹', score: 2 },
-    { id: 'call', text: '今天來店報暗號「我是脆友」送小菜。', score: 3, cost: 500 },
+    { id: 'call', text: '今天來店報暗號「我是脆友」送{w:gift}。', score: 3, cost: 500 },
     { id: 'serious', text: '感謝大家長期以來的支持與愛護。', score: 1 },
     { id: 'beg', text: '拜託按讚，小編績效靠你了。', score: 2 },
   ];
@@ -173,7 +183,7 @@
   // 網友留言：依貼文表現挑
   const COMMENTS = {
     viral: ['笑死，小編到底幾歲', '這個小編要加薪', '已分享，我朋友都在問這間在哪', '這間我去過！老闆人超好', '品牌界的清流', '小編是不是在報復老闆', '蹭得太自然了吧', '我是被演算法推來的，但我留下來了'],
-    good: ['好想吃', '明天去', '小編好可愛', '這句我笑了', '標記一個要請客的朋友', '去過，真的好吃'],
+    good: ['好想去', '明天去', '小編好可愛', '這句我笑了', '標記一個要請客的朋友', '去過，真的{w:good}'],
     meh: ['喔', '已讀', '所以有優惠嗎', '這是業配嗎？', '小編今天是不是沒睡飽', '路過'],
     flop: ['……', '這篇是 AI 寫的嗎', '小編你還好嗎', '老闆你確定要讓他發文嗎', '好冷'],
     fire: ['這種時候拿這個開玩笑？', '已檢舉', '取關了', '品牌形象呢？', '小編可以下去了', '截圖了，等著上新聞'],
@@ -200,7 +210,7 @@
 
   // 搞笑評論
   const FUNNY_REVIEWS = {
-    good: ['老闆很帥，但這不是重點，重點是很好吃', '店員笑起來像我前任，但我還是給五星', '吃完心情變好，連老闆的冷笑話都覺得好笑', '本來只是來躲雨，結果吃了三份'],
+    good: ['老闆很帥，但這不是重點，重點是很{w:best}', '店員笑起來像我前任，但我還是給五星', '{w:done}心情變好，連老闆的冷笑話都覺得好笑', '本來只是來躲雨，結果變成常客'],
     bad: ['等太久，我在排隊時讀完了一本小說', '店員看起來比我還累，我都不好意思催', '價格比我的薪水漲得還快'],
   };
 
@@ -219,6 +229,7 @@
     },
     {
       id: 'f_aisales',
+      industries: ['food', 'store'],
       icon: '🤖',
       title: 'AI 點餐機推銷員上門',
       text: '推銷員說：「這台 AI 點餐機可以取代三個員工，還不會請假、不會要求加薪！」旁邊的員工臉都綠了。',

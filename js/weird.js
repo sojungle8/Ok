@@ -83,17 +83,23 @@
     { id: 'parentjob', icon: '👩‍👦', name: '家長陪面試', desc: '人資分享：面試時家長全程陪同，還幫孩子問年假有幾天。' }
   );
   Fun.POST_BODIES.push(
-    { id: 'ship1', trend: 'freeship', text: '外送免運日，我們不免運，但我們的 {item} 免排隊——自己走過來的那種。', score: 7 },
-    { id: 'lot1', trend: 'lottery', text: '別人家的發票中千萬，我們家的發票會中「明天再來吃一次」的機率是 100%。', score: 7 },
+    { id: 'ship1b', trend: 'freeship', ind: ['barber'], text: '外送免運日，可惜頭髮不能外送，只能麻煩你自己走過來。', score: 7 },
+    { id: 'ship1s', trend: 'freeship', ind: ['scooter'], text: '外送員們辛苦了！車子有問題隨時騎進來，外送員優先修。', score: 8 },
+    { id: 'ship1', ind: ['breakfast', 'noodle', 'drinks', 'store'], trend: 'freeship', text: '外送免運日，我們不免運，但我們的 {item} 免排隊——自己走過來的那種。', score: 7 },
+    { id: 'lot1', trend: 'lottery', text: '別人家的發票中千萬，我們家的發票會中「明天再來{w:eat}一次」的機率是 100%。', score: 7 },
     { id: 'lot2', trend: 'lottery', text: '本店發票也有機會中千萬，詳情請洽財政部，小編只負責開發票。', score: 6 },
-    { id: 'cat1', trend: 'shopcat', text: '我們沒有店貓，但我們有 {staff}，一樣會在你點餐時盯著你看。', score: 8 },
-    { id: 'out1', trend: 'blackout', text: '停電的時候我們還在，煤氣爐不用電，{item} 照樣出餐（燈光美氣氛佳）。', score: 7 },
-    { id: 'roach1', trend: 'roach', text: '天氣熱了，會飛的不只有蟑螂，還有我們的出餐速度。（本店每月專業除蟲，請放心）', score: 7 },
+    { id: 'cat1', trend: 'shopcat', text: '我們沒有店貓，但我們有 {staff}，一樣會在你{w:order}時盯著你看。', score: 8 },
+    { id: 'out1b', trend: 'blackout', ind: ['barber'], text: '停電的時候我們還在，剪刀不用電（推剪也充飽了），窗邊的光線剛剛好。', score: 7 },
+    { id: 'out1s', trend: 'blackout', ind: ['scooter'], text: '停電的時候我們還在，扳手不用電，補胎照補（請自備手電筒）。', score: 7 },
+    { id: 'out1d', trend: 'blackout', ind: ['drinks'], text: '停電了，封口機罷工，今天的飲料全部改成真正的「手搖」——店員用手搖。', score: 7 },
+    { id: 'out1st', trend: 'blackout', ind: ['store'], text: '停電的時候我們還在，冰櫃撐得住，泡麵和蠟燭都有貨（燈光美氣氛佳）。', score: 7 },
+    { id: 'out1', ind: ['breakfast', 'noodle'], trend: 'blackout', text: '停電的時候我們還在，煤氣爐不用電，{item} 照樣出餐（燈光美氣氛佳）。', score: 7 },
+    { id: 'roach1', trend: 'roach', text: '天氣熱了，會飛的不只有蟑螂，還有我們的{w:serve}速度。（本店每月專業除蟲，請放心）', score: 7 },
     { id: 'quit1', trend: 'quitagent', text: '最近流行離職代辦，但我們店的員工都還在，老闆說是因為加班費有算（小編證實）。', score: 7 },
     { id: 'garb1', trend: 'garbage', text: '每天晚上八點垃圾車音樂響起，我們的 {staff} 會衝出去倒垃圾，順便回來幫你結帳。', score: 7 },
     { id: 'map1', trend: 'mapclosed', text: '如果地圖顯示我們「已歇業」，那是騙你的，我們還活著，{item} 也還活著。', score: 7 },
     { id: 'pua1', trend: 'pua', text: '我們不會跟員工說「出去外面也不會比較好」，因為外面的 {item} 真的沒有比較好。', score: 8 },
-    { id: 'par1', trend: 'parentjob', text: '應徵我們店可以帶家長來，但家長要幫忙洗碗（開玩笑的，歡迎一起喝飲料）。', score: 7 }
+    { id: 'par1', trend: 'parentjob', text: '應徵我們店可以帶家長來，但家長要幫忙{w:chore}（開玩笑的，歡迎一起來坐坐）。', score: 7 }
   );
 
   // 更多網路新聞標題
@@ -118,7 +124,7 @@
     '垃圾車快來了沒',
     '我媽剛剛打來問我有沒有乖',
     '如果蟑螂飛過來我就辭職',
-    '今天的外送備註是「請溫柔地放」',
+    '今天有客人的備註是「請溫柔一點」',
     '店門口那隻貓又來了',
     '我昨天夢到我在這裡加班',
     '有人在門口直播，我入鏡了嗎',
@@ -131,6 +137,9 @@
   const FOOD = ['breakfast', 'noodle', 'drinks', 'store'];
   const KAREN_IND = { custom: ['drinks'], refund: FOOD, mystery: FOOD, note: FOOD, influencer: FOOD, pet: FOOD };
   for (const k of Fun.KARENS) if (KAREN_IND[k.id]) k.ind = KAREN_IND[k.id];
+  // 名字裡有「先生」「小姐」「阿伯」的，長相也要對得上
+  const KAREN_LOOK = { councilor: 'm', regular: 'm-old', manager: 'f', cash: 'm', refund: 'm', pet: 'f', live: 'm', fengshui: 'm-old', ai: 'm' };
+  for (const k of Fun.KARENS) if (KAREN_LOOK[k.id]) [k.gender, k.old] = [KAREN_LOOK[k.id][0], KAREN_LOOK[k.id].endsWith('old')];
   Fun.FUNNY_REVIEWS.bad.push('老闆沒有對我笑，一星', '停車不方便（我把車停在店門口被拖吊）', '今天下雨，一星', '店員太有禮貌，讓我很不自在');
   Fun.COMMENTS.viral.push('這小編是天才吧', '老闆快幫小編加薪', '我笑到隔壁同事以為我在哭');
   Fun.COMMENTS.flop.push('小編是不是被盜帳號', '這篇好像我阿公會發的');
@@ -187,10 +196,10 @@
       id: 'w_drunk',
       icon: '🍺',
       title: '喝醉的大叔要跟店員比腕力',
-      text: '一位喝醉的大叔晃進店裡：「少年仔，跟我比腕力，你贏了我就點十份！」',
+      text: '一位喝醉的大叔晃進店裡：「少年仔，跟我比腕力，你贏了我就天天來光顧！」',
       where: 'staff',
       choices: [
-        { label: '老闆接受挑戰', minigame: { type: 'mash', title: '腕力對決', energy: 8, minutes: 5, need: 35, lines: ['用力！'] }, effects: { cash: 1400, morale: 4, followers: 150 }, result: '你贏了！大叔遵守約定點了十份，還說「下次再來」。', fail: { effects: { morale: 2 }, result: '大叔贏了，他得意地走了，什麼都沒點。員工笑到不行。' } },
+        { label: '老闆接受挑戰', minigame: { type: 'mash', title: '腕力對決', energy: 8, minutes: 5, need: 35, lines: ['用力！'] }, effects: { cash: 1400, morale: 4, followers: 150 }, result: '你贏了！大叔遵守約定，隔天真的又來光顧，還說「下次再來」。', fail: { effects: { morale: 2 }, result: '大叔贏了，他得意地走了，什麼都沒點。員工笑到不行。' } },
         { label: '請他先喝杯溫開水，叫車送他回家', effects: { jerk: -1, morale: 1 }, result: '大叔握著你的手說你是好人，然後在計程車上睡著了。' },
         { label: '請他離開，保護員工', effects: { morale: 2 }, result: '大叔嘟囔著走了，店員鬆了一口氣。' },
       ],
@@ -222,6 +231,7 @@
     },
     {
       id: 'w_proposal',
+      industries: ['food'],
       icon: '💍',
       title: '有人想在店裡求婚',
       text: '一位緊張的年輕人跑來說：「老闆，等一下我女朋友來，可以幫我把戒指藏在餐點裡嗎？還有，可以放我們的歌嗎？」',
@@ -237,7 +247,7 @@
       id: 'w_busker',
       icon: '🎸',
       title: '街頭藝人在店門口唱歌',
-      text: '一位街頭藝人在你家門口開唱。他唱得……很有自己的風格。客人一邊吃一邊皺眉，但也有人投錢。',
+      text: '一位街頭藝人在你家門口開唱。他唱得……很有自己的風格。客人一邊等一邊皺眉，但也有人投錢。',
       where: 'door',
       speaker: { look: 'crowd', name: '街頭藝人' },
       choices: [
@@ -248,6 +258,7 @@
     },
     {
       id: 'w_mango',
+      industries: ['food', 'store'],
       icon: '🥭',
       title: '鄰居送來三十顆芒果',
       text: '隔壁阿姨扛來一整箱芒果：「我家的樹結太多了，吃不完，給你們！」芒果香到整間店都是。',
@@ -268,7 +279,7 @@
       where: 'staff',
       choices: [
         { label: '點蠟燭，現金交易，繼續營業', effects: { morale: 2, followers: 200 }, result: '燭光營業意外地很有氣氛，有客人說像在約會。' },
-        { label: '先暫停營業，保護冰箱的食材', effects: { cash: -3000 }, result: '你把冰箱封好，一個小時後電來了，食材沒事。' },
+        { label: '先暫停營業，保護店裡的東西', effects: { cash: -3000 }, result: '你把該收的都收好，一個小時後電來了，東西都沒事。' },
         { label: '叫員工繼續做，冷氣沒了也要撐', quote: '以前沒有冷氣也是這樣做啊。', effects: { morale: -5, jerk: 3 }, result: '員工滿身大汗地工作，有人差點中暑。', tip: '高溫作業環境下，雇主應提供適當的休息與防護，避免熱危害。' },
       ],
     },
@@ -395,7 +406,7 @@
       id: 'w_aireviews',
       icon: '🤖',
       title: '一堆很像 AI 寫的評論',
-      text: '店的評論突然多了十則五星：「這家店的服務如同春天的微風，餐點宛如交響樂般和諧。」你根本沒買評論。',
+      text: '店的評論突然多了十則五星：「這家店的服務如同春天的微風，{w:product}宛如交響樂般和諧。」你根本沒買評論。',
       where: 'phone',
       speaker: { look: 'caller', name: '員工' },
       choices: [
@@ -430,11 +441,11 @@
     {
       id: 'w_challenge',
       icon: '🎯',
-      title: '網友發起「去點最難做的餐」挑戰',
+      title: '網友發起「去考倒店員」挑戰',
       text: '有人在 Threads 發起挑戰：「去這間店點最複雜的客製化，看店員會不會崩潰」。今天已經來了五組人。',
       where: 'staff',
       choices: [
-        { label: '推出「挑戰者特餐」，做到的話拍照上牆', effects: { cash: 3000, followers: 600, morale: 1 }, result: '挑戰變成了店的特色，大家都想上牆。' },
+        { label: '推出「挑戰者{w:set}」，做到的話拍照上牆', effects: { cash: 3000, followers: 600, morale: 1 }, result: '挑戰變成了店的特色，大家都想上牆。' },
         { label: '貼公告：「客製化最多三項，謝謝體諒」', effects: { morale: 3 }, result: '員工們鬆了一口氣，網友也說很合理。' },
         { label: '叫員工全部照做，不准抱怨', quote: '客人要什麼就給什麼。', effects: { morale: -6, jerk: 3 }, result: '員工做到手抽筋，下班時說他再也不想看到「少冰去冰」這四個字。' },
       ],
@@ -442,14 +453,14 @@
     {
       id: 'w_influencer_bad',
       icon: '🎬',
-      title: '網紅吃完說「普普」，影片五十萬觀看',
-      text: '一個美食網紅發影片評你的店：「普普啦，沒有到要排隊」。影片五十萬觀看，留言區開始有人說「這間真的很普」。',
+      title: '網紅說「普普」，影片五十萬觀看',
+      text: '一個網紅發影片評你的店：「普普啦，沒有到要排隊」。影片五十萬觀看，留言區開始有人說「這間真的很普」。',
       where: 'phone',
       speaker: { look: 'caller', name: '員工' },
       choices: [
         { label: '發文：「謝謝指教，普普的我們會繼續努力變成不普」', effects: { followers: 500 }, result: '網友說「這回覆好可愛」，反而有人說要來試試看。' },
         { label: '私訊網友要求刪影片', effects: { followers: -300, review: [2, '聽說老闆要網紅刪影片'] }, result: '網紅把私訊截圖發了限動。' },
-        { label: '不回應，專心做好吃的', effects: { demand: { mult: 0.95, months: 1 } }, result: '過了兩個禮拜，大家就忘了。' },
+        { label: '不回應，專心把{w:product}做好', effects: { demand: { mult: 0.95, months: 1 } }, result: '過了兩個禮拜，大家就忘了。' },
       ],
     },
     {
@@ -571,8 +582,8 @@
       where: 'door',
       speaker: { look: 'auntie', name: '隔壁阿姨' },
       choices: [
-        { label: '笑笑地借她廁所，冰箱就婉拒', effects: { morale: 1 }, result: '阿姨說你人很好，然後介紹她整個社區大樓的人來吃。' },
-        { label: '把 Wi-Fi 密碼改成「請先點餐」', effects: { followers: 300 }, result: '阿姨看到密碼笑了，真的點了一份。這張照片還在網路上被分享。' },
+        { label: '笑笑地借她廁所，冰箱就婉拒', effects: { morale: 1 }, result: '阿姨說你人很好，然後介紹她整個社區大樓的人來{w:eat}。' },
+        { label: '把 Wi-Fi 密碼改成「請先消費」', effects: { followers: 300 }, result: '阿姨看到密碼笑了，真的消費了一次。這張照片還在網路上被分享。' },
         { label: '「阿姨，我們是做生意的」', effects: { review: [2, '老闆很冷漠，連廁所都不借'] }, result: '阿姨不太高興，在社區群組說了你幾句。' },
       ],
     },
@@ -596,7 +607,7 @@
       where: 'door',
       speaker: { look: 'shareholder', name: '候選人' },
       choices: [
-        { label: '「歡迎來吃，但我們不掛任何人的旗子」', effects: {}, result: '候選人笑著點了一份，還拍照打卡。雙方都很有禮貌。' },
+        { label: '「歡迎光臨，但我們不掛任何人的旗子」', effects: {}, result: '候選人笑著光顧了一下，還拍照打卡。雙方都很有禮貌。' },
         { label: '掛他的旗幟', effects: { review: [2, '店門口掛政治旗幟，不太舒服'] }, result: '支持他的人來買東西，不支持的人默默走掉了。' },
         { label: '請他們不要影響客人', effects: { morale: 1 }, result: '候選人的助理連忙道歉，帶著隊伍離開了。' },
       ],

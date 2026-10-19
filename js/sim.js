@@ -1,7 +1,7 @@
 // 開店模擬核心：店面格子、客人與員工的自主行為、營業時間與班表、財務、事件
 // 不碰 DOM，可以在 Node 裡跑
 (function (root) {
-  const { INDUSTRIES, CATALOG, LOTS, NAMES, TRAITS, LEVELS, DISTRICTS, DISTRICT_INFO, CUSTOMER_TYPES, DIFFICULTY, FLOORS, WALLS, SIGNS, BRANCH_SITES, BRANCH_SIZES, TOURIST_PREF } = root.BossIndustries;
+  const { fillWords, applyNames, FOOD_IND, INDUSTRIES, CATALOG, LOTS, NAMES, TRAITS, LEVELS, DISTRICTS, DISTRICT_INFO, CUSTOMER_TYPES, DIFFICULTY, FLOORS, WALLS, SIGNS, BRANCH_SITES, BRANCH_SIZES, TOURIST_PREF } = root.BossIndustries;
   const { EVENTS, IGNORE, VIOLATIONS } = root.BossData;
   const Looks = root.BossLooks;
   const Fun = root.BossFun || { KARENS: [], TRENDS: [], POST_HOOKS: [], POST_BODIES: [], POST_ENDINGS: [], COMMENTS: {}, HEADLINES: [], STAFF_QUIPS: [], FUNNY_REVIEWS: { good: [], bad: [] } };
@@ -61,6 +61,7 @@
       const ind = INDUSTRIES.find((i) => i.id === industryId);
       if (!ind) throw new Error(`未知產業：${industryId}`);
       this.ind = ind;
+      applyNames(ind.id);
       this.rng = opts.rng || Math.random;
       this.cb = opts.callbacks || {};
       this.shopName = opts.shopName || ind.shopName;
@@ -99,6 +100,7 @@
         closingClean: true, // 打烊後大家花半小時打掃
         cleaner: false, // 外包清潔阿姨
         delegate: true, // 老闆來不及處理的事件，讓在班上的店長代為處理
+        helper: !!this.diff.helper, // 🤖 經營小幫手
         autoStock: this.mode !== 'hell', // 依昨天的用量自動調整進貨量
       };
       this.idx = { cpi: 1, wage: 1, oil: 1, power: 1 };
@@ -141,8 +143,13 @@
       this.rollTrend();
 
       for (const [type, x, z, rot] of ind.starter) this.place(type, x, z, rot, true);
-      for (let i = 0; i < ind.starterStaff; i++) this.addEmployee(this.makeCandidate(i === 0 ? 'veteran' : null), true);
+      for (let i = 0; i < ind.starterStaff + (this.diff.extraStaff || 0); i++) this.addEmployee(this.makeCandidate(i === 0 ? 'veteran' : null), true);
       this.candidates = this.rollCandidates();
+      // 小幫手開著：開店前先把班表和休息區弄好
+      if (this.policy.helper) {
+        if (this.hours.span > 9 * 60) this.policy.shifts = 2;
+        if (!this.restSpots().length) this.autoPlace('breaktable');
+      }
       this.planDay();
     }
 
@@ -1054,6 +1061,15 @@
       }
     }
 
+    // 這一行的說法：把 {w:serve} 這種記號換成「出餐／剪髮／修車…」
+    w(text) {
+      return fillWords(text, this.ind.id);
+    }
+
+    get isFood() {
+      return FOOD_IND.includes(this.ind.id);
+    }
+
     // ───── 小編與社群 ─────
     rollTrend() {
       const m = this.monthOfYear;
@@ -1077,7 +1093,7 @@
       const ps = this.availableProducts();
       const p = ps.find((x) => x.weight >= 3) || ps[0] || this.ind.products[0];
       const e = this.staff[Math.floor(this.rng() * Math.max(1, this.staff.length))];
-      return text.replace(/\{shop\}/g, this.shopName).replace(/\{item\}/g, p.name).replace(/\{price\}/g, this.prices[p.id]).replace(/\{staff\}/g, e ? e.name : '小編');
+      return this.w(text).replace(/\{shop\}/g, this.shopName).replace(/\{item\}/g, p.name).replace(/\{price\}/g, this.prices[p.id]).replace(/\{staff\}/g, e ? e.name : '小編');
     }
 
     // 發文：開頭＋內容＋結尾，蹭對時事、越早蹭越紅；踩雷會炎上
@@ -1114,7 +1130,7 @@
       const gain = fire ? -Math.round(this.social.followers * 0.05) : Math.round(likes * (tier === 'viral' ? 0.5 : tier === 'good' ? 0.25 : 0.08));
       this.social.followers = Math.max(0, this.social.followers + gain);
       const pool = Fun.COMMENTS[tier] || [];
-      const comments = [...pool].sort(() => this.rng() - 0.5).slice(0, 3);
+      const comments = [...pool].sort(() => this.rng() - 0.5).slice(0, 3).map((c) => this.w(c));
       const text = this.fillPost(`${h.text}${b.text}\n${en.text}`);
       const post = { day: this.day, hook: hookId, body: bodyId, end: endId, text, likes, shares: Math.round(likes * (tier === 'viral' ? 0.3 : 0.05)), gain, tier, comments, fire, trend: onTrend ? trend.name : null };
       this.social.posts.unshift(post);
@@ -1165,7 +1181,10 @@
       if (!c) return;
       c.karen = k;
       c.patience *= 3;
-      c.look = { ...Looks.VISITORS.karen, ...c.look, shades: k.id === 'influencer' || k.id === 'manager', extra: null };
+      // 長相跟名字對得上：「先生」是男生、「小姐」是女生，其他的隨機但前後一致
+      const look = Looks.randomLook(this.rng, k.gender || (this.rng() < 0.5 ? 'f' : 'm'));
+      if (k.old) Object.assign(look, { old: true, hair: '#c8c8c8' });
+      c.look = { ...look, shirt: Looks.VISITORS.karen.shirt, shades: k.id === 'influencer' || k.id === 'manager', extra: null };
     }
 
     karenScene(c) {
@@ -1187,6 +1206,7 @@
       const working = this.staff.length;
       if (!working) out.push({ icon: '👥', text: '一個員工都沒有，店開不起來！先去錄取應徵者。', tab: 'staff' });
       const cov = working ? this.coverage() : null;
+      if (!this.policy.helper && d && (d.angry / Math.max(1, d.visitors) > 0.08 || this.staff.some((e) => e.mood < 35))) out.push({ icon: '🤖', text: '覺得事情太多顧不過來？可以打開上面的「經營小幫手」，人手、薪水、價格這些瑣事交給它。' });
       // 生意好卻在虧錢：通常是價格太低或人太多
       const lw = this.history[this.history.length - 1];
       if (lw && lw.profit - (lw.other || 0) - (lw.rewards || 0) < 0 && this.rating >= 4.3) {
@@ -1209,7 +1229,7 @@
       if (this.cash < 60000) out.push({ icon: '🏦', text: '現金快不夠了：可以先跟銀行借錢，或減少不必要的支出。', tab: 'manage' });
       if (this.canPost && this.social.trend && this.trendHeat > 1.1) out.push({ icon: '📱', text: `最近大家都在聊「${this.social.trend.name}」，趁熱發一篇蹭時事的貼文吧！`, tab: 'social' });
       const lockedRecipe = this.ind.products.find((p) => p.rd && !this.recipes.has(p.id) && this.level >= (p.lv || 1) && this.cash > p.rd * 3);
-      if (lockedRecipe) out.push({ icon: '🧪', text: `可以研發新品「${lockedRecipe.name}」了，菜單變豐富會吸引更多客人。`, tab: 'manage' });
+      if (lockedRecipe) out.push({ icon: '🧪', text: `可以研發新品「${lockedRecipe.name}」了，{w:menu}變豐富會吸引更多客人。`, tab: 'manage' });
       if (this.rival && !this.rival.closed && this.rival.strength > 0.6) out.push({ icon: '🏪', text: `隔壁的「${this.rival.name}」很強：衝評價、保持乾淨、發傳單或辦優惠。`, tab: 'goals' });
       return out;
     }
@@ -1277,7 +1297,7 @@
       const wage = Math.max(MIN_WAGE, Math.round((this.marketWage * (0.92 + skill / 500 + plus) * this.diff.wage) / 5) * 5);
       const c = { name, gender, look, traits, skill: Math.round(skill), wage };
       // 面試時就決定好領導力、企圖心和風格（看得到的只有印象）
-      const tmp = this.ensureCareer({ traits });
+      const tmp = this.ensureCareer({ traits, gender });
       for (const k of ['lead', 'ambition', 'style', 'leadSeen', 'hint']) c[k] = tmp[k];
       return c;
     }
@@ -1589,7 +1609,7 @@
         this.cash -= cost;
         this.ledger.materials += cost;
         b.energy = clamp(b.energy - 15, 0, 100);
-        r.lines.push(cost ? `所有食材都補滿了，花了 $${cost.toLocaleString()}（比平常便宜一成五）。` : '倉庫本來就是滿的，你逛了一圈什麼都沒買。');
+        r.lines.push(cost ? `所有{w:supplies}都補滿了，花了 $${cost.toLocaleString()}（比平常便宜一成五）。` : '倉庫本來就是滿的，你逛了一圈什麼都沒買。');
         r.chips.push('📦 庫存補滿');
       } else if (pl.id === 'temple') {
         const throws = [0, 1, 2].map(() => {
@@ -1819,7 +1839,7 @@
               if (!c.traits.includes('rookie')) c.traits.push('rookie');
               c.skill = Math.min(c.skill, 25);
               this.candidates.unshift(c);
-              r.text = `一個叫「${c.name}」的大學生說：「老闆你人好好，我可以去你那邊打工嗎？」他明天會來面試。`;
+              r.text = `一個叫「${c.name}」的大學生說：「老闆你人好好，我可以去你那邊打工嗎？」${c.gender === 'f' ? '她' : '他'}明天會來面試。`;
               r.chips.push(`🎓 應徵名單 +1（${c.name}）`);
             }
             break;
@@ -1880,7 +1900,7 @@
       const A = b.away;
       if (!A || !A.scene) return null;
       b.away = null;
-      const names = { market: ['🏮', '夜市'], temple: ['🙏', '廟裡'], club: ['🪩', '夜店'], wholesale: ['📦', '批發市場'], rival: ['🏪', this.rival ? this.rival.name : '隔壁'] };
+      const names = { market: ['🏮', '夜市'], temple: ['🙏', '廟裡'], club: ['🪩', '夜店'], wholesale: ['📦', this.w('{w:supplier}')], rival: ['🏪', this.rival ? this.rival.name : '隔壁'] };
       const [icon, name] = names[A.id] || ['🚶', '外面'];
       const r = { place: { icon, name }, lines: [], chips: [] };
       if (A.id === 'temple' && A.throws) {
@@ -2034,6 +2054,7 @@
 
     // ───── 聯名合作 ─────
     collabReady(pt) {
+      if (pt.ind && !pt.ind.includes(this.ind.id)) return '跟你的店不搭';
       if (pt.need && pt.need.level && this.level < pt.need.level) return `店家 Lv.${pt.need.level} 才能合作`;
       if (pt.rival) {
         if (!this.rival || this.rival.closed) return '隔壁沒有對手';
@@ -2065,7 +2086,7 @@
       if (this.rng() < chance) {
         const pick = [...pt.lines].sort(() => this.rng() - 0.5).slice(0, 2);
         r.lines.push(`談成了！「${pt.collab}」上線，為期 ${pt.days} 天。`, ...pick);
-        this.collabs.push({ id: pt.id, name: pt.name, icon: pt.icon, collab: pt.collab, until: this.day + pt.days, mult: pt.mult, types: pt.types });
+        this.collabs.push({ id: pt.id, name: pt.name, icon: pt.icon, collab: this.w(pt.collab), until: this.day + pt.days, mult: pt.mult, types: pt.types });
         this.social.followers += pt.followers;
         r.chips.push(`📈 客人 +${Math.round((pt.mult - 1) * 100)}%（${pt.days} 天）`, `📱 粉絲 +${pt.followers}`);
         if (pt.rival && this.rival) {
@@ -2232,6 +2253,146 @@
       return true;
     }
 
+    // ───── 🤖 經營小幫手 ─────
+    // 幫不熟經營遊戲的人顧好基本盤：人手、薪水、休息區、冷氣、價格、打掃，還有來不及處理的事件
+    // 每做一件事都會說出來，讓玩家看得懂為什麼
+    autoPlace(type) {
+      const def = catalogById[type];
+      if (!def || this.cash < def.price + 20000 || !this.unlocked(def)) return null;
+      for (let z = 0; z < this.H; z++) {
+        for (let x = this.W - 1; x >= 0; x--) {
+          for (let rot = 0; rot < 4; rot++) {
+            if (this.canPlace(type, x, z, rot)) {
+              const o = this.place(type, x, z, rot);
+              if (o) return o;
+            }
+          }
+        }
+      }
+      return null;
+    }
+
+    helperSay(text) {
+      this.notify(`🤖 小幫手：${text}`, 'helper');
+    }
+
+    // 好心的選擇：員工開心、不當慣老闆，其次才看錢
+    kindChoice(ev) {
+      let best = -1;
+      let bs = -Infinity;
+      ev.ev.choices.forEach((c, i) => {
+        if (c.minigame) return;
+        const fx = this.resolveEffects(c);
+        if (fx.brawl || fx.leave || fx.demoteOf || fx.promoteOf) return;
+        if (fx.cash < 0 && -fx.cash > this.cash * 0.6) return; // 不要為了當好人把店搞倒
+        const mood = (fx.morale || 0) * 3 + (fx.moodOf ? fx.moodOf.reduce((t, [, d]) => t + d, 0) / 2 : 0);
+        const sc = mood + (fx.cash || 0) / 2000 - (fx.jerk || 0) * 8 - (fx.karenServe ? 1 : 0);
+        if (sc > bs) {
+          bs = sc;
+          best = i;
+        }
+      });
+      return best;
+    }
+
+    // 事件放著不管太久，小幫手就照「好老闆」的方式處理
+    helperEvents() {
+      for (const ev of [...this.activeEvents]) {
+        const waited = this.minute - (ev.spawnedAt ?? this.minute);
+        if (waited < 30 && this.minute < ev.deadline - 10) continue;
+        const i = this.kindChoice(ev);
+        if (i < 0) continue;
+        const r = this.applyChoice(ev, ev.ev.choices[i]);
+        if (r) {
+          this.helperSay(this.w(`「${ev.ev.title}」放太久了，幫你選了「${ev.ev.choices[i].label}」`));
+          if (this.cb.helped) this.cb.helped(r, ev);
+        }
+      }
+    }
+
+    // 每天打烊後：檢查人手、薪水、心情、設備、價格、清潔
+    helperDaily(report) {
+      const said = [];
+      const say = (t) => said.length < 3 && said.push(t);
+      // 一班超過九小時：改成兩班
+      if (this.policy.shifts < 2 && this.hours.span > 9 * 60) {
+        this.policy.shifts = 2;
+        say('每一班太長了，改成早晚兩班（明天生效），員工比較不累、也省加班費');
+      }
+      // 人手：客人等到生氣、或每班人數不夠
+      const cov = this.coverage();
+      const angryRate = report.visitors ? report.angry / report.visitors : 0;
+      const cap = cov.lanes * this.policy.shifts + 1;
+      // 每個服務位都有人了還是有人等到生氣：問題是設備不夠，不是人不夠
+      if (angryRate > 0.05 && cov.short === 0 && this.day - (this.helperStationTip || -99) >= 7) {
+        this.helperStationTip = this.day;
+        say(`昨天有 ${report.angry} 位客人等到生氣，但每個服務位都有人顧了：要多買一台設備，客人才消化得完（請到「🏗️ 建造」）`);
+      }
+      if (angryRate > 0.05 && cov.short >= 2 && this.staff.length < cap && this.cash > 30000 && this.candidates.length) {
+        let bi = 0;
+        this.candidates.forEach((c, i) => {
+          if (c.skill - c.wage / 8 > this.candidates[bi].skill - this.candidates[bi].wage / 8) bi = i;
+        });
+        const c = this.candidates[bi];
+        if (this.hire(bi)) say(`昨天有 ${report.angry} 位客人等到生氣離開，幫你錄取了${c.name}`);
+      }
+      // 薪水不能低於行情
+      const low = this.staff.filter((e) => e.wage < this.marketWage);
+      for (const e of low) this.setWage(e, this.marketWage);
+      if (low.length) say(`物價漲了，把 ${low.map((e) => e.name).join('、')} 的時薪調到行情 $${this.marketWage}`);
+      // 心情不好的人：稱讚、請喝飲料
+      const sad = this.staff.filter((e) => e.mood < 50);
+      for (const e of sad) {
+        this.praise(e);
+        this.treat(e);
+      }
+      if (sad.length) say(`${sad.map((e) => e.name).join('、')} 心情不太好，幫你稱讚了一下、請了飲料`);
+      // 休息區、夏天的冷氣
+      if (!this.restSpots().length && this.autoPlace('breaktable')) say('店裡沒有員工休息區，幫你買了一張休息桌');
+      if (this.isSummer && !this.cooling && (this.autoPlace('aircon') || this.autoPlace('fan'))) say('夏天到了，幫你買了消暑的設備');
+      // 價格跟著物價走
+      let moved = 0;
+      for (const p of this.ind.products) {
+        const sug = Math.round((p.price * this.idx.cpi) / 5) * 5;
+        if (this.prices[p.id] < sug * 0.95) {
+          this.prices[p.id] = sug;
+          moved++;
+        }
+      }
+      if (moved) say(`物價漲了，${moved} 個品項調回建議價`);
+      // 每週一次：評價很好卻在虧錢，就小漲 5%（最多到建議價的 1.3 倍）
+      const lw = this.history[this.history.length - 1];
+      if (this.weekday === 0 && lw && lw.week !== this.helperPriceWeek && lw.profit - (lw.other || 0) - (lw.rewards || 0) < 0 && this.rating >= 4.2) {
+        this.helperPriceWeek = lw.week;
+        let up = 0;
+        for (const p of this.ind.products) {
+          const cap = Math.round((p.price * this.idx.cpi * 1.3) / 5) * 5;
+          const next = Math.min(cap, Math.round((this.prices[p.id] * 1.05) / 5) * 5 || this.prices[p.id] + 5);
+          if (next > this.prices[p.id]) {
+            this.prices[p.id] = next;
+            up++;
+          }
+        }
+        if (up) say(`上週虧錢，但客人很喜歡你們（${this.rating.toFixed(1)} ★），幫你把 ${up} 個品項小漲了 5%`);
+      }
+      // 太髒了就請清潔公司
+      if (this.grime > 20 && this.cash > this.deepCleanCost + 30000) {
+        this.deepClean();
+        say('油垢太多了，幫你請清潔公司大掃除');
+      }
+      // 守法經營：加班費、勞健保、休息
+      if (!this.policy.overtimePay || !this.policy.insurance || !this.policy.breaks) {
+        Object.assign(this.policy, { overtimePay: true, insurance: true, breaks: true });
+        say('把加班費、勞健保、休息時間都打開了（不然慣老闆指數會一直漲）');
+      }
+      // 現金快沒了：先借一點
+      if (this.cash < 20000 && this.loan < 600000) {
+        this.borrow(100000);
+        say('現金快不夠了，先跟銀行借了 $100,000');
+      }
+      for (const t of said) this.helperSay(t);
+    }
+
     // ───── 升遷與主管 ─────
     // 領導力、企圖心、管理風格：一開始就決定好，但風格要升上去才知道
     ensureCareer(e) {
@@ -2267,8 +2428,9 @@
         const keys = Object.keys(Fun.STYLE_HINTS || { warm: 1 });
         const k = this.rng() < 0.7 ? e.style : keys[Math.floor(this.rng() * keys.length)];
         const list = (Fun.STYLE_HINTS || {})[k] || [''];
-        e.hint = list[Math.floor(this.rng() * list.length)];
+        e.hint = list[Math.floor(this.rng() * list.length)].replace(/他/g, e.gender === 'f' ? '她' : '他');
       }
+      if (e.gender === 'f' && e.hint) e.hint = e.hint.replace(/他/g, '她');
       if (e.rank && e.revealed == null) e.revealed = true;
       if (!e.kpi) e.kpi = { days: 0, served: 0, angry: 0, visitors: 0 };
       return e;
@@ -2317,7 +2479,7 @@
           this.say(o, senior ? `我比${e.name}早來欸……` : `為什麼是${e.name}……`, 90);
         }
       }
-      this.notify(`${R[rank].icon} ${e.name} 升為${R[rank].name}！${first ? '試用 14 天，三天後就會知道他是哪一種主管。' : ''}`, 'good');
+      this.notify(`${R[rank].icon} ${e.name} 升為${R[rank].name}！${first ? `試用 14 天，三天後就會知道${e.gender === 'f' ? '她' : '他'}是哪一種主管。` : ''}`, 'good');
       return true;
     }
 
@@ -3041,7 +3203,7 @@
       } else if (reason === 'soldOut') {
         this.today.soldOut++;
         this.popup(c, '賣完了😢', 'bad');
-        if (this.rng() < 0.25) this.addReview(2, `想吃${c.product.name}結果賣完了`);
+        if (this.rng() < 0.25) this.addReview(2, this.isFood ? `想{w:eat}${c.product.name}結果賣完了` : `想來${c.product.name}，結果說材料用完了`);
       }
       if (c.obj) this.refreshQueue(c.obj);
       c.obj = null;
@@ -3131,7 +3293,7 @@
     }
 
     addReview(stars, text) {
-      this.reviews.push({ stars, text, day: this.day });
+      this.reviews.push({ stars, text: this.w(text), day: this.day });
       if (stars >= 5) this.gainXp(3);
       if (this.reviews.length > 200) this.reviews.shift();
       if (this.reviews.length >= 30 && this.rating >= 4.5) this.achieve('rating');
@@ -3140,13 +3302,13 @@
     pickComment(kind, c) {
       const p = c.product ? c.product.name : '';
       const pools = {
-        good: [`${p}好好吃，會再來！`, '老闆和員工都很親切', '店裡乾淨又舒服', `${p}CP 值很高`, '出餐超快，上班族救星', '店員很有耐心'],
+        good: [this.w(`${p}{w:good}，會再來！`), '老闆和員工都很親切', '店裡乾淨又舒服', `${p}CP 值很高`, this.w('{w:serve}超快，上班族救星'), '店員很有耐心'],
         ok: [`${p}還可以`, '中規中矩', '有點小貴', '等有點久，但還行'],
         bad: this.cleanliness < 55 ? ['桌子黏黏的，地上也髒髒的', '店裡有點髒，衛生堪慮', '等太久了'] : ['等太久了', '店員看起來很累，態度普通', '價格偏高', '店裡好熱'],
         angry: ['等了快二十分鐘都沒人理，直接走人', '排隊排到天荒地老', '人手明顯不夠，老闆不請人嗎'],
       };
       let arr = pools[kind];
-      if (this.rng() < 0.3 && Fun.FUNNY_REVIEWS[kind === 'good' ? 'good' : kind === 'bad' ? 'bad' : '']) arr = Fun.FUNNY_REVIEWS[kind];
+      if (this.rng() < 0.3 && Fun.FUNNY_REVIEWS[kind === 'good' ? 'good' : kind === 'bad' ? 'bad' : '']) arr = Fun.FUNNY_REVIEWS[kind].filter((t) => this.isFood || !/吃|喝|餐/.test(this.w(t))).map((t) => this.w(t));
       if (kind === 'good' && this.shopCat && this.rng() < 0.15) return '我是來看店貓的，結果順便變成常客';
       return arr[Math.floor(this.rng() * arr.length)];
     }
@@ -3164,7 +3326,7 @@
     }
 
     notify(text, kind = '') {
-      if (this.cb.notify) this.cb.notify(text, kind);
+      if (this.cb.notify) this.cb.notify(this.w(text), kind);
     }
 
     achieve(id) {
@@ -3234,7 +3396,7 @@
       }
 
       // 奧客：大概兩天一個
-      if (this.isOpen && !this.customers.some((c) => c.karen) && this.rng() < (0.5 * this.diff.events * dt) / Math.max(240, this.hours.span)) this.spawnKaren();
+      if (this.isOpen && !this.customers.some((c) => c.karen) && this.rng() < (0.5 * this.diff.events * (this.diff.karen || 1) * dt) / Math.max(240, this.hours.span)) this.spawnKaren();
 
       // 送貨、稽查、外包清潔
       for (const d of this.deliveries) {
@@ -3258,6 +3420,7 @@
 
       // 事件
       while (this.pendingEvents.length && this.pendingEvents[0].at <= this.minute) this.spawnEvent(this.pendingEvents.shift());
+      if (this.policy.helper) this.helperEvents();
       for (const ev of [...this.activeEvents]) if (this.minute >= ev.deadline) this.ignoreEvent(ev);
 
       this.updateStaff(dt);
@@ -3870,7 +4033,7 @@
         const who = byId(fx.talkLeader);
         if (this.rng() < 0.45) {
           who.style = 'warm';
-          choice = { ...choice, result: `${choice.result}${who.name}沉默了一下：「我以為嚴格才是對大家好。」之後他講話溫和多了（變成🤗暖心型）。` };
+          choice = { ...choice, result: `${choice.result}${who.name}沉默了一下：「我以為嚴格才是對大家好。」之後${who.gender === 'f' ? '她' : '他'}講話溫和多了（變成🤗暖心型）。` };
         } else {
           who.lead = clamp(who.lead + 5, 0, 100);
           choice = { ...choice, result: `${choice.result}${who.name}說會注意，但個性一時改不了。至少領導力 +5。` };
@@ -4065,6 +4228,7 @@
       this.demandMods.forEach((d) => (d.days -= 1));
       this.demandMods = this.demandMods.filter((d) => d.days > 0);
       this.lastDay = report;
+      if (this.policy.helper && this.staff.length) this.helperDaily(report);
       if (this.cb.dayEnd) this.cb.dayEnd(report);
 
       const weekEnd = this.day % DAYS_PER_WEEK === 0;

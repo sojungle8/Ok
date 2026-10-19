@@ -43,7 +43,7 @@
 
   const ui = {
     phase: 'start',
-    settings: { industry: 'breakfast', gender: 'm', mode: 'normal', shopName: '' },
+    settings: { industry: 'breakfast', gender: 'm', mode: 'rookie', shopName: '' },
     sim: null,
     view: null,
     speed: 2,
@@ -237,7 +237,7 @@
           <div class="setup-row">
             <span class="setup-label">難度</span>
             <div class="segmented small">
-              ${Object.entries(DIFFICULTY).map(([id, d]) => `<button data-action="set" data-key="mode" data-value="${id}" class="${st.mode === id ? 'active' : ''}">${id === 'hell' ? '🔥 ' : id === 'easy' ? '🌱 ' : ''}${d.name}<small>${d.desc}</small></button>`).join('')}
+              ${Object.entries(DIFFICULTY).map(([id, d]) => `<button data-action="set" data-key="mode" data-value="${id}" class="${st.mode === id ? 'active' : ''}">${id === 'hell' ? '🔥 ' : id === 'easy' ? '🌱 ' : id === 'rookie' ? '🌸 ' : ''}${d.name}<small>${d.desc}</small></button>`).join('')}
             </div>
           </div>
           <div class="setup-row">
@@ -331,7 +331,7 @@
         renderInbox();
       },
       ignored: (r) => {
-        toast(`😤 ${r.event.title}：你沒處理`, 'bad');
+        toast(sim.w(`😤 ${r.event.title}：你沒處理`), 'bad');
         renderInbox();
       },
       dayEnd: (r) => {
@@ -340,8 +340,9 @@
         toast(`🌙 今天服務 ${r.served} 位客人，營收 ${money(r.revenue)}${r.angry ? `，${r.angry} 位等到生氣離開` : ''}${r.holiday ? '（國定假日薪水加倍）' : ''}`);
       },
       festival: (f) => toast(f.news, 'event'),
+      helped: () => renderInbox(),
       delegated: (r, ev, m) => {
-        toast(`👑 ${m.name} 幫你處理了「${r.event.title}」：${r.choice.label}`, (r.delta && r.delta.jerk > 0) || (r.choice.effects && r.choice.effects.jerk > 0) ? 'bad' : '');
+        toast(sim.w(`👑 ${m.name} 幫你處理了「${r.event.title}」：${r.choice.label}`), (r.delta && r.delta.jerk > 0) || (r.choice.effects && r.choice.effects.jerk > 0) ? 'bad' : '');
         renderInbox();
       },
       tripDone: (r) => {
@@ -411,8 +412,8 @@
   const TUT = [
     { title: '歡迎來到你的店', text: () => (isTouch ? '拖曳畫面移動視角，兩指縮放，右下角可以旋轉。' : '拖曳畫面移動視角、滾輪縮放、Q／E 旋轉。') + '時間先暫停，我們一步一步來。', next: true },
     { title: '看看庫存', short: '點下方的「📦 庫存」',  text: () => '點下方的「📦 庫存」。每天早上會自動進貨到你設定的量；賣完了客人會失望離開，叫太多又會過期報廢。', target: '[data-tab="stock"]', done: () => ui.tab === 'stock' },
-    { title: '調整進貨量', short: '按＋或－改一種食材的進貨量',  text: () => '按「＋」或「－」改一種食材的每天進貨量。也可以打開「依昨天用量自動調整」。', target: '[data-action="par"]', done: () => ui.tutFlags.par || ui.sim.policy.autoStock },
-    { title: '定價', short: '在「菜單與價格」按＋或－改一個價格',  text: () => '打開「⚙️ 經營」，在「菜單與價格」按＋／－改一個品項的價格。太貴學生和長輩會不想來，太便宜又賺不到錢。', target: '[data-tab="manage"], [data-action="price"]', done: () => ui.tutFlags.price },
+    { title: '調整進貨量', short: '按＋或－改一種{w:supplies}的進貨量',  text: () => '按「＋」或「－」改一種{w:supplies}的每天進貨量。也可以打開「依昨天用量自動調整」。', target: '[data-action="par"]', done: () => ui.tutFlags.par || ui.sim.policy.autoStock },
+    { title: '定價', short: '在「{w:menu}與價格」按＋或－改一個價格',  text: () => '打開「⚙️ 經營」，在「{w:menu}與價格」按＋／－改一個品項的價格。太貴學生和長輩會不想來，太便宜又賺不到錢。', target: '[data-tab="manage"], [data-action="price"]', done: () => ui.tutFlags.price },
     { title: '擺設', short: '建造 → 選一樣東西 → 點地板放下',  text: () => '打開「🏗️ 建造」，買一盆盆栽（或任何東西），點地板放下去。店面漂亮，路人比較願意進來。', target: '[data-tab="build"]', done: () => ui.sim.objects.length > ui.tutObjs },
     { title: '招人', short: '員工 →「🙋 應徵者」→ 錄取', text: () => '打開「👥 員工」，切到「🙋 應徵者」分頁錄取一位。人手不夠，客人會等到生氣離開。旁邊的「👥 總覽」一眼就能看到所有人的心情和體力。', target: '[data-tab="staff"], [data-v="hire"], [data-action="hire"]', done: () => ui.sim.staff.length > ui.tutStaff },
     { title: '開門營業', short: '關掉面板，按右上角的 ▶', text: () => '先把下面的面板關起來（打開面板時時間會暫停），再按右上角的 ▶ 讓時間開始走。客人會走進來點餐，員工沒事做的時候會拿拖把打掃。', target: '[data-action="speed"][data-v="2"]', done: () => ui.speed > 0 && ui.sim.today.served > 0 },
@@ -450,7 +451,7 @@
       return renderTutorial();
     }
     const html = `<div class="tut-head"><small>新手教學 ${ui.tut.step + 1}／${TUT.length}</small><button class="link" data-action="tut-skip">跳過教學</button></div>
-      <b>${st.title}</b><span class="tut-short">${st.short || ''}</span><p>${st.text()}</p>
+      <b>${st.title}</b><span class="tut-short">${ui.sim.w(st.short || '')}</span><p>${ui.sim.w(st.text())}</p>
       <div class="tut-dots">${TUT.map((_, i) => `<i class="${i < ui.tut.step ? 'done' : i === ui.tut.step ? 'cur' : ''}"></i>`).join('')}</div>
       ${st.next ? `<button class="primary" data-action="tut-next">${ui.tut.step === TUT.length - 1 ? '開始經營' : '下一步'}</button>` : ''}`;
     if (el.dataset.html !== html) {
@@ -859,7 +860,7 @@
     if (!box) return;
     const el = document.createElement('div');
     el.className = `toast ${kind}`;
-    el.textContent = text;
+    el.textContent = ui.sim ? ui.sim.w(text) : text;
     box.appendChild(el);
     while (box.children.length > (window.innerWidth < 640 ? 2 : 3)) box.firstChild.remove();
     setTimeout(() => el.classList.add('fade'), 3800);
@@ -880,7 +881,7 @@
         b.className = 'inbox-item';
         b.dataset.action = 'open-event';
         b.dataset.id = ev.id;
-        b.innerHTML = `<span>${ev.ev.icon}</span><div><b>${esc(ev.ev.title)}</b><small></small></div>`;
+        b.innerHTML = `<span>${ev.ev.icon}</span><div><b>${esc(s.w(ev.ev.title))}</b><small></small></div>`;
         el.appendChild(b);
       }
       const left = Math.max(0, Math.round(ev.deadline - s.minute));
@@ -1165,7 +1166,7 @@
     }
     el.hidden = false;
     const fn = { build: drawerBuild, staff: drawerStaff, stock: drawerStock, manage: drawerManage, ledger: drawerLedger, reviews: drawerReviews, goals: drawerGoals, social: drawerSocial }[ui.tab];
-    ui.drawerHtml = fn();
+    ui.drawerHtml = ui.sim.w(fn());
     const html = `<button class="x drawer-x" data-action="tab" data-tab="${ui.tab}" aria-label="關閉">✕</button>${ui.drawerHtml}`;
     const key = `${ui.tab}-${ui.tab === 'build' ? ui.buildCat : ui.tab === 'staff' ? ui.staffTab : ''}`;
     el.classList.toggle('tall', ui.tab === 'staff' || ui.tab === 'social');
@@ -1183,7 +1184,7 @@
     if (!el || el.hidden || performance.now() - (ui.drawerTouched || 0) < 400) return;
     const fn = { staff: drawerStaff, ledger: drawerLedger, stock: drawerStock, social: drawerSocial, goals: drawerGoals }[ui.tab];
     if (!fn) return;
-    const html = fn();
+    const html = ui.sim.w(fn());
     if (html === ui.drawerHtml) return;
     renderDrawer();
   }
@@ -1393,7 +1394,7 @@
     if (fx.learn !== 1) now.push(`學習 ${pct(fx.learn - 1)}`);
     const moodSum = [...fx.mood.values()].reduce((a, b) => a + b, 0);
     if (fx.mood.size) now.push(`同事心情 ${moodSum >= 0 ? '+' : ''}${Math.round(moodSum)}`);
-    if (s.wasteMult < 1) now.push(`食材報廢 ${pct(s.wasteMult - 1)}`);
+    if (s.wasteMult < 1) now.push(`{w:supplies}報廢 ${pct(s.wasteMult - 1)}`);
     const kpi = (e) => (e.kpi && e.kpi.days ? `帶班 ${e.kpi.days} 天・客人生氣率 ${((e.kpi.angry / Math.max(1, e.kpi.visitors)) * 100).toFixed(1)}%` : '還沒帶過班');
     const card = (e) => {
       const st = ST[e.style];
@@ -1559,7 +1560,7 @@
     const s = ui.sim;
     const t = s.social.trend;
     const P = ui.post;
-    const bodies = Fun.POST_BODIES.filter((b) => !b.trend || b.trend === (t && t.id));
+    const bodies = Fun.POST_BODIES.filter((b) => (!b.trend || b.trend === (t && t.id)) && (!b.ind || b.ind.includes(s.ind.id)));
     if (!P.body || !bodies.some((b) => b.id === P.body)) P.body = (bodies.find((b) => b.trend) || bodies[0]).id;
     const h = Fun.POST_HOOKS.find((x) => x.id === P.hook);
     const b = Fun.POST_BODIES.find((x) => x.id === P.body);
@@ -1614,7 +1615,7 @@
     return `
       <div class="drawer-body two-col">
         <div>
-          <h3>食材庫存 <small>每天開門前送貨；急件約 40 分鐘到，貴三成</small></h3>
+          <h3>{w:supplies}庫存 <small>每天開門前送貨；急件約 40 分鐘到，貴三成</small></h3>
           <div class="stock-list">
             ${s.ind.stock
               .map((g) => {
@@ -1642,7 +1643,7 @@
               .join('')}
           </div>
           ${toggle('autoStock', s.policy.autoStock, '依昨天的用量自動調整進貨量（多抓 15%）', '自己決定每天進多少貨', true)}
-          ${s.lastDay && s.lastDay.waste ? `<p class="calc">昨晚報廢了 ${money(s.lastDay.waste)} 的食材。</p>` : ''}
+          ${s.lastDay && s.lastDay.waste ? `<p class="calc">昨晚報廢了 ${money(s.lastDay.waste)} 的{w:supplies}。</p>` : ''}
           ${s.lastDay && s.lastDay.soldOut ? `<p class="calc neg">昨天有 ${s.lastDay.soldOut} 位客人因為賣完了離開。</p>` : ''}
         </div>
         <div>
@@ -1707,7 +1708,7 @@
           <div class="insp-actions"><button data-action="borrow">借 $100,000</button><button data-action="repay" ${s.loan <= 0 ? 'disabled' : ''}>還 $100,000</button></div>
         </div>
         <div>
-          <h3>菜單與價格 <small>建議價會跟著物價漲</small></h3>
+          <h3>{w:menu}與價格 <small>建議價會跟著物價漲</small></h3>
           <div class="price-list">
             ${s.ind.products
               .map((pr) => {
@@ -1741,7 +1742,7 @@
   function ledgerRows(L) {
     return [
       ['營收', L.revenue],
-      ['食材進貨', -L.materials],
+      ['{w:supplies}進貨', -L.materials],
       ['薪資', -L.wages],
       ['勞保＋健保（雇主負擔）', -((L.labor || 0) + (L.health || 0))],
       ['勞退提繳 6%', -(L.pension || 0)],
@@ -1772,7 +1773,7 @@
           <h3>這週到目前為止 <small>第 ${s.week} 週</small></h3>
           <table class="ledger">${rows.map(([k, v]) => `<tr><th>${k}</th><td class="${v < 0 ? 'neg' : 'pos'}">${signedMoney(v)}</td></tr>`).join('')}
             <tr class="total"><th>合計</th><td class="${net < 0 ? 'neg' : 'pos'}">${signedMoney(net)}</td></tr></table>
-          ${L.waste ? `<p class="calc">食材進貨裡有 ${money(L.waste)} 是過期報廢掉的。</p>` : ''}
+          ${L.waste ? `<p class="calc">{w:supplies}進貨裡有 ${money(L.waste)} 是過期報廢掉的。</p>` : ''}
           <p class="calc">🧾 ${s.taxStatus ? TAX_LABEL[s.taxStatus] : '營業稅在週末結算'}；營業稅每週結算一次。</p>
           ${s.lastDay ? `<p class="calc">昨天：服務 ${s.lastDay.served} 人・營收 ${money(s.lastDay.revenue)}・生氣離開 ${s.lastDay.angry} 人・太擠沒進來 ${s.lastDay.balked} 人</p>` : ''}
           <p class="calc">今天到目前：來客 ${s.today.visitors}${s.today.delivery ? `（外送 ${s.today.delivery}）` : ''}・服務 ${s.today.served}・營收 ${money(s.today.revenue)}</p>
@@ -1937,6 +1938,7 @@
            <li>🕹️ <b>老闆下場</b>：右下角的按鈕（或 G 鍵）可以自己操控老闆，在店裡和街上走動、顧櫃台、拖地、發傳單、騎機車、出門去夜市和廟裡</li>
            <li>⏩ 右上角可以暫停或快轉；打烊後會自動快轉到隔天</li>
          </ul>
+         ${s.policy.helper ? '<div class="tip helper-tip">🤖 <b>經營小幫手已經上工了</b>：人手、薪水、價格、休息區這些基本的事它會幫你顧，放太久的事件也會幫你處理，做了什麼都會用藍色訊息告訴你。你可以先只看它怎麼經營，想自己來的時候到 💡 或 ☰ 把它關掉。</div>' : ''}
          <div class="tip">${isTouch ? '拖曳畫面可以移動視角，兩指縮放；' : '拖曳畫面可以移動視角，滾輪縮放，Q／E 旋轉；'}員工頭上出現 <b class="bang">!</b> 是有事找你，左上角也會列出來。</div>
          <button class="primary" data-action="close-dialog">開門營業</button>`
       );
@@ -1948,8 +1950,8 @@
         sp.mood,
         sp.name,
         `<div class="event-kicker">${ev.where === 'staff' ? '👤 員工' : ev.where === 'phone' ? '☎️ 電話' : '🚪 門口'}・${s.clockLabel}・還剩 ${Math.max(0, Math.round(ev.deadline - s.minute))} 分鐘</div>
-         <h2>${ev.ev.icon} ${ev.ev.title}</h2>
-         <p class="event-text">${ev.ev.text}</p>
+         <h2>${ev.ev.icon} ${pron(ev, ev.ev.title)}</h2>
+         <p class="event-text">${pron(ev, ev.ev.text)}</p>
          <div class="choices">
            ${ev.ev.choices
              .map((c, i) => {
@@ -1960,8 +1962,8 @@
                  meta = fx.cash ? `<span class="cost ${fx.cash > 0 ? 'good' : 'bad'}">${signedMoney(fx.cash)}</span>` : '';
                }
                return `<button class="choice ${c.minigame ? 'is-game' : ''}" data-action="choose" data-i="${i}">
-                 <span class="choice-label"><kbd>${i + 1}</kbd>${c.label}</span>
-                 ${c.quote ? `<span class="quote">「${c.quote}」</span>` : ''}
+                 <span class="choice-label"><kbd>${i + 1}</kbd>${pron(ev, c.label)}</span>
+                 ${c.quote ? `<span class="quote">「${pron(ev, c.quote)}」</span>` : ''}
                  <span class="choice-meta">${meta}${c.note ? `<span class="cost note">${c.note}</span>` : ''}</span>
                </button>`;
              })
@@ -1977,8 +1979,8 @@
         re.mood,
         re.name,
         `<div class="event-kicker">${d.game === true ? '🎮 小遊戲成功！' : d.game === false ? '🎮 小遊戲失敗' : '你的決定'}</div>
-         <h2>${r.choice.label}</h2>
-         <p class="event-text">${r.choice.result}</p>
+         <h2>${pron(d.ev, r.choice.label)}</h2>
+         <p class="event-text">${pron(d.ev, r.choice.result)}</p>
          ${deltaChips(r.delta)}
          ${r.choice.tip ? `<div class="tip">📘 <strong>法律小知識：</strong>${r.choice.tip}</div>` : ''}
          <button class="primary" data-action="close-dialog">回去顧店（Enter）</button>`
@@ -2063,7 +2065,7 @@
         <button class="x" data-action="close-dialog" aria-label="關閉">✕</button>
         <h2>🤝 商圈聯誼會：聯名合作</h2>
         ${s.collabs.length ? `<p class="calc">進行中：${s.collabs.map((c) => `${c.icon} ${esc(c.name)}「${esc(c.collab)}」到第 ${c.until} 天`).join('、')}</p>` : '<p class="calc">跟附近的店家一起辦活動，期間會吸引更多客人。評價越高，越容易談成。</p>'}
-        <div class="plot-list">${window.BossFun.PARTNERS.map((pt) => {
+        <div class="plot-list">${window.BossFun.PARTNERS.filter((pt) => !pt.ind || pt.ind.includes(s.ind.id)).map((pt) => {
           const why = s.collabReady(pt);
           const T = window.BossSim.CUSTOMER_TYPES;
           return `<div class="plot collab ${pt.rival ? 'truce' : ''}">
@@ -2110,6 +2112,7 @@
       inner = `<div class="card menu-card">
         <button class="x" data-action="close-dialog" aria-label="關閉">✕</button>
         <h2>💡 店長建議</h2>
+        ${helperToggle()}
         ${list.length ? `<div class="advice-list">${list.map((a) => `<div class="advice"><span>${a.icon}</span><p>${a.text}</p>${a.tab ? `<button data-action="advice-go" data-tab="${a.tab}">前往</button>` : ''}</div>`).join('')}</div>` : '<p class="calc">目前一切順利，繼續保持！</p>'}
       </div>`;
     } else if (d.type === 'menu') {
@@ -2118,6 +2121,7 @@
       inner = `<div class="card menu-card">
         <button class="x" data-action="close-dialog" aria-label="關閉">✕</button>
         <h2>☰ 選單</h2>
+        ${helperToggle()}
         <h3>存檔 <small>現在用第 ${ui.slot} 格；每週結算會自動存檔</small></h3>
         <div class="slot-list compact">
           ${SLOTS.map((n) => `<div class="slot ${n === ui.slot ? 'current' : ''}"><span class="slot-no">${n}</span><div class="slot-info"><b>${infos[n] ? `${infos[n].icon} ${esc(infos[n].shop)}` : '空的'}</b><small>${infos[n] ? `第 ${infos[n].day} 天・${money(infos[n].cash)}` : ''}</small></div><button data-action="save-slot" data-slot="${n}">${n === ui.slot ? '💾 存檔' : '存到這格'}</button></div>`).join('')}
@@ -2158,6 +2162,7 @@
         <div class="ending-actions"><button class="primary" data-action="quit">回主選單</button></div>
       </div>`;
     }
+    if (ui.sim) inner = ui.sim.w(inner);
     box.innerHTML = d.type === 'minigame' ? '' : `<div class="dialog-backdrop ${['week', 'ending', 'victory', 'menu', 'advice', 'activity', 'boss-menu', 'city', 'trip', 'rival-visit', 'schemes', 'collabs', 'sites'].includes(d.type) ? 'center' : ''}">${inner}</div>`;
     ui.dialogShownAt = performance.now();
   }
@@ -2178,7 +2183,7 @@
         <div><span>現金</span><b class="${s.cash < 0 ? 'neg' : ''}">${money(s.cash)}</b></div>
       </div>
       ${r.hygiene ? `<div class="alert ${r.hygiene.fine || r.hygiene.grade === '限期改善' ? 'bad' : 'good'}">🕵️ ${esc(r.hygiene.text)}</div>` : ''}
-      ${r.waste ? `<p class="calc">這週過期報廢的食材：${money(r.waste)}</p>` : ''}
+      ${r.waste ? `<p class="calc">這週過期報廢的{w:supplies}：${money(r.waste)}</p>` : ''}
       ${r.rival && !r.rival.closed ? `<p class="calc">🏪 隔壁的「${esc(r.rival.name)}」大約搶走了 ${Math.round(r.rival.strength * 22)}% 的客人。</p>` : ''}
       ${r.inspection ? (r.inspection.violations.length ? `<div class="alert bad">🔍 <b>勞動檢查！</b>查到：${r.inspection.violations.join('、')}，罰鍰 ${money(r.inspection.fine)}。</div>` : '<div class="alert good">🔍 勞動檢查：沒有發現違規。</div>') : ''}
       ${s.cash < 0 ? `<div class="alert bad">⚠️ 現金是負的！下週結算前要轉正，不然只能跟銀行借錢（目前借了 ${money(s.loan)}，上限 $600,000）。</div>` : ''}
@@ -2201,6 +2206,20 @@
     const key = (ev.ev.speaker && ev.ev.speaker.look) || (ev.where === 'phone' ? 'caller' : 'crowd');
     const look = VISITORS[key] || VISITORS.caller;
     return { look, name: (ev.ev.speaker && ev.ev.speaker.name) || look.name, mood: ev.ev.id === 'd_karen' ? 'angry' : key === 'investor' ? 'smug' : 'neutral' };
+  }
+
+  // 🤖 經營小幫手的開關：幫忙顧人手、薪水、價格、設備，放太久的事件也會幫你處理
+  function helperToggle() {
+    const on = ui.sim && ui.sim.policy.helper;
+    return `<button class="toggle ${on ? 'on' : 'off'} helper-toggle" data-action="helper"><span class="knob"></span><span><b>🤖 經營小幫手${on ? '：開' : '：關'}</b><small>${on ? '人手不夠會幫你招人、薪水跟上行情、心情差的員工會去關心、缺休息桌或冷氣會幫你買、物價漲了會調價格；事件放太久會幫你選對員工好的選項。每做一件事都會跟你說。' : '覺得事情太多、顧不過來？打開小幫手，基本的事交給它，你只要做想做的事。'}</small></span></button>`;
+  }
+
+  // 事件裡的「他」指的是來找你的那位員工時，女生要寫「她」
+  const SHE_EVENTS = new Set(['raise', 'leave', 'injury', 'resign', 'n_burn', 'n_broth', 't_burnout', 's_robbery', 'r_chef', 'f_concert', 'w_excuse', 'w_audition', 'w_pua', 'w_birthday']);
+  function pron(ev, text) {
+    if (ui.sim && typeof text === 'string') text = ui.sim.w(text);
+    if (!ev || !ev.staff || ev.staff.gender !== 'f' || !SHE_EVENTS.has(ev.ev.id)) return text;
+    return text.replace(/(?<![其吉])他(?!們)/g, '她');
   }
 
   function reactionOf(d) {
@@ -2665,6 +2684,11 @@
       case 'advice-go':
         closeDialog();
         if (ui.tab !== btn.dataset.tab) openTab(btn.dataset.tab);
+        break;
+      case 'helper':
+        s.policy.helper = !s.policy.helper;
+        toast(s.policy.helper ? '🤖 小幫手上工了！它做了什麼都會跟你說' : '🤖 小幫手下班了，接下來你自己來');
+        renderDialog();
         break;
       case 'autopause':
         ui.autoPause = !ui.autoPause;
