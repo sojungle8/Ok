@@ -100,6 +100,12 @@
     },
   ];
 
+  // 兩個特別的地方：打開計畫選單
+  Fun.PLACES.push(
+    { id: 'detective', hub: 'schemes', name: '徵信社', icon: '🕵️', desc: '專門幫人「處理」競爭對手的地方，老闆戴著墨鏡，牆上貼著「誠信第一」。', minutes: 0, cost: 0, x: 88, y: 30, lines: [] },
+    { id: 'guild', hub: 'collabs', name: '商圈聯誼會', icon: '🤝', desc: '附近店家的老闆每週在這裡泡茶聊天，談聯名、辦活動。', minutes: 0, cost: 0, x: 10, y: 52, lines: [] }
+  );
+
   // 擲筊：一次擲兩個筊杯
   Fun.JIAOBEI = {
     holy: { name: '聖筊', icon: '🌗', text: '一正一反，神明說好！' },

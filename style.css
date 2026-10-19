@@ -4202,3 +4202,112 @@ kbd {
   padding: 8px 10px;
   font-size: 0.86rem;
 }
+
+/* ───── 陰謀與聯名 ───── */
+.plot-card {
+  width: min(760px, calc(100vw - 24px));
+}
+
+.plot-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.plot {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--bg);
+  border-radius: 12px;
+  padding: 10px;
+  border: 1px solid transparent;
+}
+
+.plot.illegal {
+  border-color: var(--bad);
+}
+
+.plot.grey {
+  border-color: var(--energy);
+}
+
+.plot.truce {
+  border-color: var(--good);
+}
+
+.plot-head {
+  display: flex;
+  gap: 8px;
+}
+
+.plot-head > span {
+  font-size: 1.6rem;
+}
+
+.plot-head b {
+  display: block;
+  font-size: 0.9rem;
+}
+
+.plot-head small {
+  font-size: 0.74rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.plot-collab {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.plot-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  font-size: 0.72rem;
+}
+
+.legal {
+  font-weight: 700;
+}
+
+.legal.legal {
+  color: var(--good);
+}
+
+.legal.grey {
+  color: #b7791f;
+}
+
+.legal.illegal {
+  color: var(--bad);
+}
+
+.plot button {
+  margin-top: auto;
+  align-self: flex-start;
+  border: 1px solid var(--line);
+  background: var(--card);
+  border-radius: 10px;
+  padding: 5px 12px;
+  font-size: 0.82rem;
+}
+
+.plot button.primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+}
+
+.plot button:disabled {
+  opacity: 0.5;
+}
+
+.city-pin.hub {
+  border-style: dashed;
+  border-color: #6c5ce7;
+}

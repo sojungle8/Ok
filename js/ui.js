@@ -1634,7 +1634,11 @@
         <button data-action="flyers" ${s.cash < 3000 ? 'disabled' : ''}>📄 發傳單（$3,000）</button>
         <button data-action="promo" ${s.promoOn ? 'disabled' : ''}>🎉 九折優惠一週${s.promoOn ? '（進行中）' : ''}</button>
         <button data-action="loyalty" ${s.loyalty || s.cash < 8000 ? 'disabled' : ''}>💳 ${s.loyalty ? '已經有集點卡' : '印集點卡（$8,000）'}</button>
-      </div></div>`;
+        <button data-action="open-hub" data-id="schemes">🕵️ 陰謀計畫</button>
+        <button data-action="open-hub" data-id="collabs">🤝 聯名合作</button>
+      </div>
+      ${s.collabs.length ? `<p class="calc">進行中的聯名：${s.collabs.map((c) => `${c.icon}${esc(c.name)}（到第 ${c.until} 天）`).join('、')}</p>` : ''}
+      ${r && !r.closed && r.grudge ? `<p class="calc neg">對方記仇程度：${'😤'.repeat(Math.min(5, r.grudge))}</p>` : ''}</div>`;
   }
 
   // 分店：小插圖＋可以調整的設定
@@ -1770,19 +1774,57 @@
         <p class="calc">出門會花遊戲時間，這段時間老闆不在店裡（員工照常營業）。現在 ${s.clockLabel}・老闆體力 ${Math.round(b.energy)}</p>
         <div class="city-map">
           <div class="city-home" style="left:46%;top:58%">🏪<small>你的店</small></div>
-          ${window.BossFun.PLACES.map((p) => `<button class="city-pin" style="left:${p.x}%;top:${p.y}%" data-action="go-out" data-id="${p.id}" ${b.away || s.cash < p.cost ? 'disabled' : ''}><span>${p.icon}</span><b>${p.name}</b><small>${p.minutes} 分鐘${p.cost ? `・${money(p.cost)}` : ''}</small></button>`).join('')}
+          ${window.BossFun.PLACES.map((p) => `<button class="city-pin ${p.hub ? 'hub' : ''}" style="left:${p.x}%;top:${p.y}%" data-action="${p.hub ? 'open-hub' : 'go-out'}" data-id="${p.hub || p.id}" ${b.away || s.cash < p.cost ? 'disabled' : ''}><span>${p.icon}</span><b>${p.name}</b><small>${p.hub ? (p.hub === 'schemes' ? '陰謀計畫' : '聯名合作') : `${p.minutes} 分鐘${p.cost ? `・${money(p.cost)}` : ''}`}</small></button>`).join('')}
         </div>
         <div class="city-list">${window.BossFun.PLACES.map((p) => `<div><b>${p.icon} ${p.name}</b>：${p.desc}</div>`).join('')}</div>
+      </div>`;
+    } else if (d.type === 'schemes') {
+      const r = s.rival;
+      const L = window.BossFun.LEGAL_LABEL;
+      inner = `<div class="card menu-card plot-card">
+        <button class="x" data-action="close-dialog" aria-label="關閉">✕</button>
+        <h2>🕵️ 徵信社：對付隔壁</h2>
+        ${
+          !r || r.closed
+            ? '<p class="calc">附近目前沒有競爭對手，徵信社老闆說：「沒有敵人，是你的福氣。」</p>'
+            : `<p class="calc">隔壁的「${esc(r.name)}」目前搶走約 ${Math.round(r.strength * 22)}% 的客人・記仇程度 ${'😤'.repeat(Math.min(5, r.grudge || 0)) || '還沒結仇'}${r.truceUntil >= s.day ? '・🕊️ 休戰中' : ''}</p>
+               <p class="drawer-tip">違法的手段被抓到會罰錢、上新聞；記仇越深，對方越會報復，被抓包的機率也越高。</p>
+               <div class="plot-list">${window.BossFun.SCHEMES.map((sc) => {
+                 const o = s.schemeOdds(sc);
+                 return `<div class="plot ${sc.legal}">
+                   <div class="plot-head"><span>${sc.icon}</span><div><b>${sc.name}</b><small>${sc.desc}</small></div></div>
+                   <div class="plot-meta"><span class="legal ${sc.legal}">${L[sc.legal]}</span><span>成功率 ${Math.round(o.p * 100)}%</span><span class="neg">被抓包 ${Math.round(o.risk * 100)}%</span><span>${sc.minutes} 分鐘</span></div>
+                   <button data-action="scheme" data-id="${sc.id}" ${s.boss.away || s.cash < sc.cost || r.truceUntil >= s.day ? 'disabled' : ''}>執行（${sc.cost ? money(sc.cost) : '免費'}）</button>
+                 </div>`;
+               }).join('')}</div>`
+        }
+      </div>`;
+    } else if (d.type === 'collabs') {
+      inner = `<div class="card menu-card plot-card">
+        <button class="x" data-action="close-dialog" aria-label="關閉">✕</button>
+        <h2>🤝 商圈聯誼會：聯名合作</h2>
+        ${s.collabs.length ? `<p class="calc">進行中：${s.collabs.map((c) => `${c.icon} ${esc(c.name)}「${esc(c.collab)}」到第 ${c.until} 天`).join('、')}</p>` : '<p class="calc">跟附近的店家一起辦活動，期間會吸引更多客人。評價越高，越容易談成。</p>'}
+        <div class="plot-list">${window.BossFun.PARTNERS.map((pt) => {
+          const why = s.collabReady(pt);
+          const T = window.BossSim.CUSTOMER_TYPES;
+          return `<div class="plot collab ${pt.rival ? 'truce' : ''}">
+            <div class="plot-head"><span>${pt.icon}</span><div><b>${pt.name}</b><small>${pt.desc}</small></div></div>
+            <p class="plot-collab">「${esc(pt.collab)}」</p>
+            <div class="plot-meta"><span>客人 +${Math.round((pt.mult - 1) * 100)}%・${pt.days} 天</span><span>吸引：${pt.types.map((t) => (T[t] ? T[t].icon + T[t].name : t)).join('、')}</span><span>${pt.minutes} 分鐘</span></div>
+            <button class="primary" data-action="collab" data-id="${pt.id}" ${why || s.boss.away || s.cash < pt.cost ? 'disabled' : ''}>${why || `去談合作（${money(pt.cost)}）`}</button>
+          </div>`;
+        }).join('')}</div>
       </div>`;
     } else if (d.type === 'trip') {
       const r = d.result;
       const J = window.BossFun.JIAOBEI;
       inner = `<div class="card menu-card act-result">
-        <div class="event-kicker">${r.place.icon} 老闆回來了</div>
+        <div class="event-kicker">${r.place.icon} 老闆回來了${r.outcome ? `・${{ win: '✅ 成功', lose: '😐 沒成功', caught: '🚨 被抓包', 'win-caught': '✅ 成功但 🚨 被抓包' }[r.outcome]}` : ''}</div>
         <h2>${r.place.name}</h2>
         ${r.jiaobei ? `<div class="jiaobei">${r.jiaobei.map((j) => `<div><span>${J[j].icon}</span><b>${J[j].name}</b><small>${J[j].text}</small></div>`).join('')}</div>` : ''}
         <ul class="act-lines">${r.lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>
-        ${r.chips.length ? `<div class="chips">${r.chips.map((c) => `<span class="chip good">${esc(c)}</span>`).join('')}</div>` : ''}
+        ${r.chips.length ? `<div class="chips">${r.chips.map((c) => `<span class="chip ${/^[💸📉]/u.test(c) ? 'bad' : 'good'}">${esc(c)}</span>`).join('')}</div>` : ''}
+        ${r.tip ? `<div class="tip">📘 <strong>法律小知識：</strong>${r.tip}</div>` : ''}
         <button class="primary" data-action="close-dialog">回店裡</button>
       </div>`;
     } else if (d.type === 'rival-visit') {
@@ -1792,7 +1834,7 @@
         <h2>隔壁的「${esc(r.name)}」</h2>
         <ul class="act-lines">${r.lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>
         <p class="calc">他們大約搶走了 ${Math.round(r.strength * 22)}% 的客人。</p>
-        <button class="primary" data-action="close-dialog">回去自己的店</button>
+        <div class="insp-actions"><button data-action="open-hub" data-id="schemes">🕵️ 想點辦法對付他</button><button data-action="open-hub" data-id="collabs">🤝 提議休戰聯名</button><button class="primary" data-action="close-dialog">回去自己的店</button></div>
       </div>`;
     } else if (d.type === 'activity') {
       const r = d.result;
@@ -1845,7 +1887,7 @@
         <div class="ending-actions"><button class="primary" data-action="quit">回主選單</button></div>
       </div>`;
     }
-    box.innerHTML = d.type === 'minigame' ? '' : `<div class="dialog-backdrop ${['week', 'ending', 'menu', 'advice', 'activity', 'boss-menu', 'city', 'trip', 'rival-visit'].includes(d.type) ? 'center' : ''}">${inner}</div>`;
+    box.innerHTML = d.type === 'minigame' ? '' : `<div class="dialog-backdrop ${['week', 'ending', 'menu', 'advice', 'activity', 'boss-menu', 'city', 'trip', 'rival-visit', 'schemes', 'collabs'].includes(d.type) ? 'center' : ''}">${inner}</div>`;
     ui.dialogShownAt = performance.now();
   }
 
@@ -2191,6 +2233,22 @@
         if (!ui.bossMode) setBossMode(true);
         ui.dialog = { type: 'city' };
         renderDialog();
+        break;
+      case 'open-hub':
+        ui.dialog = { type: btn.dataset.id };
+        renderDialog();
+        break;
+      case 'scheme':
+        if (s.startScheme(btn.dataset.id)) {
+          closeDialog();
+          renderBossHud();
+        }
+        break;
+      case 'collab':
+        if (s.startCollab(btn.dataset.id)) {
+          closeDialog();
+          renderBossHud();
+        }
         break;
       case 'go-out':
         if (s.goOut(btn.dataset.id)) {

@@ -132,6 +132,8 @@
       this.taxStatus = null;
       this.social = { followers: 80, posts: [], trend: null, trendDay: 0, lastPost: 0, viral: 0 };
       this.karenAt = null;
+      this.collabs = []; // 進行中的聯名
+      this.schemes = 0;
       // 老闆本人：可以自己操控在店裡和街上走動
       this.boss = { id: 'boss', isBoss: true, x: 0, z: 0, dir: Math.PI, moving: false, energy: 100, fit: 0, hunger: 80, mood: 70, skill: 60, traits: [], state: 'off', task: null, path: [], ride: false, away: null, served: 0, mopUntil: 0 };
       this.initStock();
@@ -916,6 +918,7 @@
     rivalPull() {
       const r = this.rival;
       if (!r || r.closed) return 1;
+      if (r.truceUntil && r.truceUntil >= this.day) return 0.97;
       const opening = this.day - r.opened < 10 ? 0.12 : 0;
       return 1 - (0.22 * r.strength + opening) * this.diff.rival;
     }
@@ -948,6 +951,8 @@
         this.achieve('rival');
         return;
       }
+      // 記仇：越恨你越容易報復
+      if ((r.grudge || 0) > 0 && !(r.truceUntil >= this.day) && this.rng() < Math.min(0.8, 0.15 * r.grudge)) this.rivalRevenge = true;
       // 對面開更高的時薪挖角
       if (this.rng() < 0.35 * r.strength) {
         const cand = this.staff.filter((e) => e.wage < this.marketWage * 1.03 || e.mood < 50);
@@ -1112,6 +1117,7 @@
         if (t.id === 'student' && summerBreak && h < 11) w *= 0.4;
         if (t.id === 'student' && this.festival && this.festival.id === 'school') w *= 1.5;
         w *= (this.ind.mix && this.ind.mix[t.id]) || 1;
+        if (this.collabs.some((c) => c.types.includes(t.id))) w *= 1.25;
         list.push([t, w]);
         total += w;
       }
@@ -1429,6 +1435,8 @@
 
     finishTrip() {
       const b = this.boss;
+      if (b.away.kind === 'scheme') return this.resolveScheme();
+      if (b.away.kind === 'collab') return this.resolveCollab();
       const pl = (Fun.PLACES || []).find((p) => p.id === b.away.id);
       b.away = null;
       const pick = (arr) => arr[Math.floor(this.rng() * arr.length)];
@@ -1499,6 +1507,184 @@
       this.sound('level');
       if (this.cb.tripDone) this.cb.tripDone(r);
       return r;
+    }
+
+    // ───── 陰謀計畫 ─────
+    schemeOdds(sc) {
+      const g = (this.rival && this.rival.grudge) || 0;
+      return { p: clamp(sc.p + this.level * 0.01 + this.boss.fit * 0.01, 0.05, 0.95), risk: clamp(sc.risk * (1 + g * 0.08), 0, 0.9) };
+    }
+
+    startScheme(id) {
+      const sc = (Fun.SCHEMES || []).find((x) => x.id === id);
+      const b = this.boss;
+      if (!sc || !this.rival || this.rival.closed || b.away || this.cash < sc.cost) return false;
+      this.bossLeaveLane();
+      this.cash -= sc.cost;
+      this.ledger.other -= sc.cost;
+      b.away = { kind: 'scheme', id, until: this.minute + sc.minutes };
+      b.ride = false;
+      this.notify(`${sc.icon} 老闆出門去執行計畫：${sc.name}（約 ${sc.minutes} 分鐘）`);
+      return true;
+    }
+
+    applyPlotFx(fx, r) {
+      if (!fx) return;
+      if (fx.followers) {
+        this.social.followers += fx.followers;
+        r.chips.push(`📱 粉絲 +${fx.followers}`);
+      }
+      if (fx.review) this.addReview(fx.review[0], fx.review[1]);
+      if (fx.grudge && this.rival) this.rival.grudge = (this.rival.grudge || 0) + fx.grudge;
+      if (fx.cash) {
+        this.cash += fx.cash;
+        this.ledger.fines -= fx.cash;
+        r.chips.push(`💸 ${fx.cash < 0 ? '-' : '+'}$${Math.abs(fx.cash).toLocaleString()}`);
+      }
+      if (fx.demand) {
+        this.demandMods.push({ mult: fx.demand, days: 10 });
+        r.chips.push(`📉 這幾天客人 ${Math.round((fx.demand - 1) * 100)}%`);
+      }
+      if (fx.hireVeteran) {
+        const e = this.addEmployee(this.makeCandidate('veteran'));
+        r.chips.push(`👋 ${e.name}（老手）加入了`);
+      }
+      if (fx.copyDish) {
+        this.copiedDish = true;
+        r.chips.push('🍳 招牌變好吃了（客人 +4%）');
+      }
+      if (fx.rivalBoost && this.rival) this.rival.strength = clamp(this.rival.strength + fx.rivalBoost, 0, 1);
+      if (fx.inspectSoon && this.isOpen) this.hygiene.at = this.minute + 120;
+    }
+
+    resolveScheme() {
+      const b = this.boss;
+      const sc = Fun.SCHEMES.find((x) => x.id === b.away.id);
+      b.away = null;
+      const r = { place: { icon: sc.icon, name: sc.name }, lines: [], chips: [], legal: sc.legal, tip: sc.tip };
+      const rival = this.rival;
+      if (!rival || rival.closed) {
+        r.lines.push('你到了才發現隔壁已經收起來了，白跑一趟。');
+        if (this.cb.tripDone) this.cb.tripDone(r);
+        return r;
+      }
+      const { p, risk } = this.schemeOdds(sc);
+      const ok = this.rng() < p;
+      const caught = this.rng() < risk;
+      this.schemes++;
+      if (ok) {
+        const before = rival.strength;
+        rival.strength = clamp(rival.strength - sc.hit, 0, 1);
+        r.lines.push(sc.win.text);
+        this.applyPlotFx(sc.win.fx, r);
+        r.chips.push(`🏪 對手搶走的客人 ${Math.round(before * 22)}% → ${Math.round(rival.strength * 22)}%`);
+        r.outcome = 'win';
+      } else {
+        r.lines.push(sc.lose.text);
+        this.applyPlotFx(sc.lose.fx, r);
+        r.outcome = 'lose';
+      }
+      if (caught) {
+        r.lines.push(`……但是被抓包了：${sc.caught.text}`);
+        this.applyPlotFx(sc.caught.fx, r);
+        r.outcome = ok ? 'win-caught' : 'caught';
+      }
+      if (sc.legal === 'illegal') rival.grudge = (rival.grudge || 0) + 1;
+      if (this.schemes >= 3) this.achieve('schemer');
+      this.sound(caught ? 'bad' : ok ? 'level' : 'click');
+      if (this.cb.tripDone) this.cb.tripDone(r);
+      return r;
+    }
+
+    // 被記仇的對手會報復
+    revengeEvent(item) {
+      const rv = this.rival;
+      return {
+        id: 'rival_revenge',
+        icon: '😤',
+        title: `隔壁的「${rv.name}」報復了`,
+        text: item.text,
+        where: 'phone',
+        speaker: { look: 'rivalboss', name: `${rv.name}老闆` },
+        choices: [
+          { label: '算了，做好自己的', effects: { grudge: -1 }, result: '你深呼吸，決定不跟他一般見識。員工說你很有風度。' },
+          { label: '帶一盒伴手禮過去談和', effects: { cash: -2000, grudge: -3 }, result: '對面老闆收下伴手禮，嘆了口氣：「其實大家都不容易。」' },
+          { label: '「好，你給我記住」', quote: '這筆帳我記下了。', effects: { grudge: 1 }, result: '你們在騎樓互瞪了三分鐘。這條街的戰爭還沒結束。（可以到城市地圖的「🕵️ 徵信社」安排下一步）' },
+        ],
+        ignore: { effects: {}, result: '你沒有理他。' },
+      };
+    }
+
+    applyRevenge(item) {
+      const fx = item.fx;
+      if (fx.demand) this.demandMods.push({ mult: fx.demand, days: 5 });
+      if (fx.reviews) for (let i = 0; i < fx.reviews; i++) this.addReview(1, ['普普', '不用排', '隔壁比較好', '價格偏高'][i % 4]);
+      if (fx.cost) this.costMult.materials += fx.cost;
+      if (fx.followers) this.social.followers += fx.followers;
+    }
+
+    // ───── 聯名合作 ─────
+    collabReady(pt) {
+      if (pt.need && pt.need.level && this.level < pt.need.level) return `店家 Lv.${pt.need.level} 才能合作`;
+      if (pt.rival) {
+        if (!this.rival || this.rival.closed) return '隔壁沒有對手';
+        if ((this.rival.grudge || 0) >= 5) return '對方還在記仇，先去談和吧';
+      }
+      if (this.collabs.some((c) => c.id === pt.id)) return '正在合作中';
+      return null;
+    }
+
+    startCollab(id) {
+      const pt = (Fun.PARTNERS || []).find((x) => x.id === id);
+      const b = this.boss;
+      if (!pt || b.away || this.cash < pt.cost || this.collabReady(pt)) return false;
+      this.bossLeaveLane();
+      this.cash -= pt.cost;
+      this.ledger.other -= pt.cost;
+      b.away = { kind: 'collab', id, until: this.minute + pt.minutes };
+      b.ride = false;
+      this.notify(`🤝 老闆出門去找${pt.name}談合作（約 ${pt.minutes} 分鐘）`);
+      return true;
+    }
+
+    resolveCollab() {
+      const b = this.boss;
+      const pt = Fun.PARTNERS.find((x) => x.id === b.away.id);
+      b.away = null;
+      const r = { place: { icon: pt.icon, name: `${this.shopName} × ${pt.name}` }, lines: [], chips: [] };
+      const chance = pt.rival ? clamp(0.65 - ((this.rival && this.rival.grudge) || 0) * 0.1 + (this.rating - 3.5) * 0.1, 0.1, 0.9) : clamp(0.8 + (this.rating - 3.5) * 0.1, 0.4, 0.97);
+      if (this.rng() < chance) {
+        const pick = [...pt.lines].sort(() => this.rng() - 0.5).slice(0, 2);
+        r.lines.push(`談成了！「${pt.collab}」上線，為期 ${pt.days} 天。`, ...pick);
+        this.collabs.push({ id: pt.id, name: pt.name, icon: pt.icon, collab: pt.collab, until: this.day + pt.days, mult: pt.mult, types: pt.types });
+        this.social.followers += pt.followers;
+        r.chips.push(`📈 客人 +${Math.round((pt.mult - 1) * 100)}%（${pt.days} 天）`, `📱 粉絲 +${pt.followers}`);
+        if (pt.rival && this.rival) {
+          this.rival.truceUntil = this.day + pt.days;
+          this.rival.grudge = 0;
+          r.chips.push('🕊️ 休戰期間對手不搶客人');
+        }
+        if (this.collabs.length >= 1) this.achieve('collab');
+        r.outcome = 'win';
+        this.sound('level');
+      } else {
+        const refund = Math.round(pt.cost * 0.5);
+        this.cash += refund;
+        this.ledger.other += refund;
+        r.lines.push(
+          pt.rival
+            ? '對面老闆聽完你的提議，冷冷地說：「你先把上次的帳算清楚再說。」'
+            : ['對方老闆說要回去考慮，結果已讀不回。', '談到一半才發現對方把你的店名寫錯了，合作延期。', '對方覺得你們的風格不太搭，客氣地拒絕了。'][Math.floor(this.rng() * 3)],
+          `退回一半的費用 $${refund.toLocaleString()}。`
+        );
+        r.outcome = 'lose';
+      }
+      if (this.cb.tripDone) this.cb.tripDone(r);
+      return r;
+    }
+
+    get collabMult() {
+      return this.collabs.reduce((m, c) => m * c.mult, 1);
     }
 
     // 去隔壁對手店探班
@@ -1860,7 +2046,7 @@
       const loyal = this.loyalty ? 1.04 : 1;
       // 菜單越豐富，越多人想進來看看
       const variety = 1 + Math.max(0, this.availableProducts().length - this.ind.products.filter((p) => !p.rd).length) * 0.035;
-      return ratingF * priceF * beautyF * lotF * summer * heat * mods * this.festivalMult() * cleanF * loyal * variety * this.socialBoost * (this.shopCat ? 1.04 : 1) * this.rivalPull();
+      return ratingF * priceF * beautyF * lotF * summer * heat * mods * this.festivalMult() * cleanF * loyal * variety * this.socialBoost * (this.shopCat ? 1.04 : 1) * (this.copiedDish ? 1.04 : 1) * this.collabMult * this.rivalPull();
     }
 
     availableProducts() {
@@ -2790,6 +2976,8 @@
       const f = this.festival;
       if (f && this.cb.festival) this.cb.festival(f);
       this.hygiene.at = null;
+      for (const c of this.collabs.filter((x) => x.until < this.day)) this.notify(`🤝 跟${c.name}的聯名「${c.collab}」結束了`);
+      this.collabs = this.collabs.filter((x) => x.until >= this.day);
       if (!this.openToday) return;
       this.morningOrder();
       // 衛生稽查：平常很少來，開了限期改善就一定會回來複查
@@ -2828,6 +3016,12 @@
       if (this.rivalNews && this.rival) {
         this.rivalNews = false;
         this.pendingEvents.push({ ev: rivalEvent(this), at: this.hours.open + 40, where: 'door' });
+      }
+      if (this.rivalRevenge && this.rival && !this.rival.closed && Fun.REVENGE) {
+        this.rivalRevenge = false;
+        const item = Fun.REVENGE[Math.floor(this.rng() * Fun.REVENGE.length)];
+        this.applyRevenge(item);
+        this.pendingEvents.push({ ev: this.revengeEvent(item), at: this.hours.open + 60, where: 'phone' });
       }
       if (this.rivalPoach) {
         const e = this.staff.find((x) => x.id === this.rivalPoach);
@@ -2943,6 +3137,7 @@
       if (fx.karenReview) this.addReview(1, fx.karenReview);
       if (fx.fakeReviews) for (let i = 0; i < fx.fakeReviews; i++) this.addReview(5, '老闆很帥');
       if (fx.review) this.addReview(fx.review[0], fx.review[1]);
+      if (fx.grudge && this.rival) this.rival.grudge = Math.max(0, (this.rival.grudge || 0) + fx.grudge);
       if (fx.shopCat) {
         this.shopCat = true;
         this.achieve('shopcat');
@@ -3309,6 +3504,9 @@
         ownedFloors: [...this.ownedFloors],
         social: this.social,
         shopCat: !!this.shopCat,
+        collabs: this.collabs,
+        copiedDish: !!this.copiedDish,
+        schemes: this.schemes,
       });
     }
 
@@ -3340,6 +3538,9 @@
       s.ownedFloors = new Set(d.ownedFloors || ['default']);
       if (d.social) s.social = { ...s.social, ...d.social };
       s.shopCat = !!d.shopCat;
+      s.collabs = d.collabs || [];
+      s.copiedDish = !!d.copiedDish;
+      s.schemes = d.schemes || 0;
       s.achievements = new Set(d.achievements);
       s.rel = d.rel || {};
       s.xp = d.xp || 0;
@@ -3515,6 +3716,8 @@
     { id: 'gold', name: '年度好店金獎', desc: '在年度評選拿到金獎', reward: 0 },
     { id: 'hygiene', name: '衛生優良', desc: '衛生稽查拿到「優」', reward: 20000 },
     { id: 'viral', name: '小編爆紅', desc: '發了一篇爆紅的貼文', reward: 15000 },
+    { id: 'schemer', name: '這條街的陰謀家', desc: '執行 3 次陰謀計畫', reward: 0 },
+    { id: 'collab', name: '聯名達人', desc: '談成一次聯名合作', reward: 10000 },
     { id: 'shopcat', name: '店長是貓', desc: '收養一隻店貓', reward: 5000 },
     { id: 'karen', name: '奧客剋星', desc: '在奧客擂台嗆贏奧客，影片爆紅', reward: 15000 },
     { id: 'rival', name: '隔壁收攤了', desc: '撐過競爭，讓隔壁的對手收起來', reward: 40000 },
