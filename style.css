@@ -4410,3 +4410,119 @@ kbd {
     transform: translate(-50%, 8px);
   }
 }
+
+/* ───── 主管 ───── */
+.career-row .career-info {
+  flex: 1 1 100%;
+  font-size: 0.82rem;
+}
+
+.style-tag {
+  display: inline-block;
+  background: #fdf1d6;
+  color: #7a5a12;
+  border-radius: 10px;
+  padding: 0 8px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.toggle-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin: 8px 0 4px;
+}
+
+.toggle-row input {
+  margin-top: 4px;
+}
+
+.toggle-row span {
+  display: grid;
+  gap: 2px;
+}
+
+.toggle-row small {
+  color: var(--muted, #7a6f66);
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.lead-card,
+.pot-row {
+  display: grid;
+  grid-template-columns: 44px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  background: var(--card, #fff);
+}
+
+.lead-card.manager {
+  border-color: #e2a12a;
+  background: #fffaf0;
+}
+
+.lead-card > div,
+.pot-row > span:nth-child(2) {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.lead-card small,
+.pot-row small {
+  font-size: 0.76rem;
+}
+
+.lead-card .mini-face,
+.pot-row .mini-face {
+  width: 44px;
+  height: 44px;
+  font-size: 1.6rem;
+  display: grid;
+  place-items: center;
+}
+
+.lead-btns {
+  display: flex;
+  gap: 4px;
+}
+
+.lead-btns button {
+  display: grid;
+  justify-items: center;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  border-radius: 10px;
+  padding: 4px 8px;
+  font-size: 1rem;
+}
+
+.lead-btns button small {
+  font-size: 0.66rem;
+}
+
+.lead-btns button.warn {
+  color: #b5442e;
+}
+
+@media (max-width: 640px) {
+  .lead-card,
+  .pot-row {
+    grid-template-columns: 40px 1fr;
+  }
+
+  .lead-btns {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+  }
+}

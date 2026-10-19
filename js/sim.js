@@ -98,6 +98,7 @@
         insurance: true, // 幫員工保勞健保、提繳勞退
         closingClean: true, // 打烊後大家花半小時打掃
         cleaner: false, // 外包清潔阿姨
+        delegate: true, // 老闆來不及處理的事件，讓在班上的店長代為處理
         autoStock: this.mode !== 'hell', // 依昨天的用量自動調整進貨量
       };
       this.idx = { cpi: 1, wage: 1, oil: 1, power: 1 };
@@ -442,16 +443,18 @@
       const need = this.branchNeedOf(b.size || 'medium');
       const wm = { low: 0.92, market: 1, high: 1.12 }[b.wage];
       const pm = { cheap: 0.9, normal: 1, premium: 1.15 }[b.price];
-      const load = need / Math.max(1, b.staff);
+      const load = need / Math.max(1, b.staff + (b.manager ? 1 : 0));
       const traffic = site.traffic * this.siteFit(site) * this.siteSeason(site) * (site.weekdayOnly ? 0.85 : 1);
       const premiumHit = site.rich ? 0.94 : 0.82;
+      const mf = this.branchMgrFx(b);
       const demand = R0 * traffic * size.draw * clamp((b.rating - 2.4) / 1.4, 0.15, 1.5) * (pm < 1 ? 1.15 : pm > 1 ? premiumHit : 1) * (est ? 1 : 0.9 + this.rng() * 0.2);
-      const sold = Math.min(demand, (R0 * 1.3 * size.cap * b.staff) / need);
+      const cap = (R0 * 1.3 * size.cap * (b.staff + (b.manager ? 1 : 0)) * mf.cap) / need;
+      const sold = Math.min(demand, cap);
       const revenue = sold * pm;
-      const materials = sold * costShare * this.costMult.materials * (0.85 + 0.15 * this.idx.oil);
-      const wages = b.staff * 38 * this.marketWage * wm * (1 + (this.policy.insurance ? INS_TOTAL : 0));
+      const materials = sold * costShare * this.costMult.materials * (0.85 + 0.15 * this.idx.oil) * mf.mat;
+      const wages = (b.staff * 38 * this.marketWage * wm + mf.wage) * (1 + (this.policy.insurance ? INS_TOTAL : 0));
       const rent = (this.ind.rent * site.rent * size.rent) / 4;
-      return { revenue, profit: revenue - materials - wages - rent - revenue * 0.01, load, wm, pm, demand, cap: (R0 * 1.3 * size.cap * b.staff) / need };
+      return { revenue, profit: revenue - materials - wages - rent - revenue * 0.01, load, wm, pm, demand, cap };
     }
 
     // 選址畫面用：照預設設定估算每週營收和淨利
@@ -469,10 +472,11 @@
         const need = this.branchNeedOf(size);
         const wm = { low: 0.92, market: 1, high: 1.12 }[b.wage];
         const pm = { cheap: 0.9, normal: 1, premium: 1.15 }[b.price];
-        const load = need / Math.max(1, b.staff);
+        const load = need / Math.max(1, b.staff + (b.manager ? 1 : 0));
         const mt = 62 + (wm - 1) * 160 + b.reno * 4 - Math.max(0, load - 1) * 35 - (this.jerk > 60 ? 8 : 0) - (this.policy.insurance ? 0 : 10);
-        b.morale = clamp(b.morale + (mt - b.morale) * 0.45, 0, 100);
-        const rt = 3.5 + (b.morale - 55) / 45 + b.reno * 0.18 + (pm < 1 ? 0.2 : pm > 1 ? -0.25 : 0) + (this.rating - 3.8) * 0.3 - Math.max(0, load - 1.2) * 0.8;
+        const mf = this.branchMgrFx(b);
+        b.morale = clamp(b.morale + (mt + mf.morale - b.morale) * 0.45, 0, 100);
+        const rt = 3.5 + mf.rating + (b.morale - 55) / 45 + b.reno * 0.18 + (pm < 1 ? 0.2 : pm > 1 ? -0.25 : 0) + (this.rating - 3.8) * 0.3 - Math.max(0, load - 1.2) * 0.8;
         b.rating = clamp(b.rating + (rt - b.rating) * 0.4, 1, 5);
         const r = this.branchWeek(b);
         const p = Math.round(r.profit);
@@ -1251,7 +1255,11 @@
       const look = Looks.randomLook(this.rng, gender, { shirt: (u.shirts || ['#4a6fa5'])[Math.floor(this.rng() * (u.shirts || [1]).length)], hat: u.hat, hatColor: u.hatColor });
       const plus = traits.includes('veteran') ? TRAITS.veteran.wagePlus : 0;
       const wage = Math.max(MIN_WAGE, Math.round((this.marketWage * (0.92 + skill / 500 + plus) * this.diff.wage) / 5) * 5);
-      return { name, gender, look, traits, skill: Math.round(skill), wage };
+      const c = { name, gender, look, traits, skill: Math.round(skill), wage };
+      // 面試時就決定好領導力、企圖心和風格（看得到的只有印象）
+      const tmp = this.ensureCareer({ traits });
+      for (const k of ['lead', 'ambition', 'style', 'leadSeen', 'hint']) c[k] = tmp[k];
+      return c;
     }
 
     rollCandidates() {
@@ -1295,6 +1303,8 @@
         restDays: null, // null：照輪休規則；陣列：每週固定休哪幾天（0 = 週一）
         post: null, // 固定崗位：設備的 id
       };
+      for (const k of ['lead', 'ambition', 'style', 'leadSeen', 'hint']) if (c[k] != null) e[k] = c[k];
+      this.ensureCareer(e);
       this.staff.push(e);
       if (!silent) this.notify(`👋 ${e.name} 加入了團隊！`, 'good');
       return e;
@@ -1327,10 +1337,16 @@
       this.notify(`📄 你依法資遣了 ${e.name}，付了資遣費 $${pay.toLocaleString()}。`);
     }
 
-    removeEmployee(e) {
+    removeEmployee(e, transfer) {
       this.dropTask(e);
+      this._fxAt = null;
+      // 店長走了，大家會有點慌
+      if (e.rank === 'manager' && !transfer) {
+        for (const o of this.staff) if (o !== e) o.mood = clamp(o.mood - 5, 0, 100);
+        this.notify(`😟 店長${e.name}走了，大家有點不知所措。`, 'bad');
+      }
       // 好朋友走了，留下來的人會難過，太難過也可能跟著走
-      for (const o of this.friendsOf(e)) {
+      if (!transfer) for (const o of this.friendsOf(e)) {
         o.mood = clamp(o.mood - 12, 0, 100);
         this.say(o, `${e.name}走了，好捨不得……`, 120);
         if (o.mood < 30) o.lowMoodDays += 1;
@@ -2195,34 +2211,309 @@
       return true;
     }
 
+    // ───── 升遷與主管 ─────
+    // 領導力、企圖心、管理風格：一開始就決定好，但風格要升上去才知道
+    ensureCareer(e) {
+      if (e.lead == null) {
+        let lead = 20 + this.rng() * 60;
+        if (e.traits.includes('veteran')) lead += 10;
+        if (e.traits.includes('chatty')) lead += 8;
+        if (e.traits.includes('fragile')) lead -= 12;
+        if (e.traits.includes('rookie')) lead -= 6;
+        e.lead = Math.round(clamp(lead, 5, 95));
+      }
+      if (e.ambition == null) {
+        let a = this.rng() * 100;
+        if (e.traits.includes('hardworking')) a += 12;
+        if (e.traits.includes('nightowl')) a -= 5;
+        e.ambition = Math.round(clamp(a, 0, 100));
+      }
+      if (!e.style) {
+        const w = { warm: 1, strict: 1, mentor: 0.8, numbers: 0.8, slacker: 0.5 };
+        if (e.traits.includes('cheerful')) w.warm += 1.5;
+        if (e.traits.includes('chatty')) (w.warm += 0.8), (w.mentor += 0.6);
+        if (e.traits.includes('hardworking')) (w.strict += 1.2), (w.numbers += 0.6);
+        if (e.traits.includes('veteran')) (w.mentor += 1), (w.strict += 0.5);
+        if (e.traits.includes('fragile')) w.strict *= 0.4;
+        if (e.ambition < 30) w.slacker += 1;
+        if (e.lead > 65) w.slacker *= 0.4;
+        let r = this.rng() * Object.values(w).reduce((s, x) => s + x, 0);
+        e.style = Object.keys(w).find((k) => (r -= w[k]) < 0) || 'warm';
+      }
+      // 看起來的領導力（面試、同事印象），跟真正的會差一點
+      if (e.leadSeen == null) e.leadSeen = Math.round(clamp(e.lead + (this.rng() - 0.5) * 36, 5, 95));
+      if (!e.hint) {
+        const keys = Object.keys(Fun.STYLE_HINTS || { warm: 1 });
+        const k = this.rng() < 0.7 ? e.style : keys[Math.floor(this.rng() * keys.length)];
+        const list = (Fun.STYLE_HINTS || {})[k] || [''];
+        e.hint = list[Math.floor(this.rng() * list.length)];
+      }
+      if (e.rank && e.revealed == null) e.revealed = true;
+      if (!e.kpi) e.kpi = { days: 0, served: 0, angry: 0, visitors: 0 };
+      return e;
+    }
+
+    // 玩家看得到的領導力：升上去三天後才知道真正的數字
+    leadKnown(e) {
+      return e.revealed ? e.lead : null;
+    }
+
+    leaderCap() {
+      return Math.max(1, Math.floor(this.staff.length / 3));
+    }
+
+    promoteBlock(e, rank) {
+      const R = Fun.RANKS || {};
+      if (!R[rank] || e.rank === rank) return '已經是了';
+      if (rank === 'leader' && e.rank !== 'manager' && this.staff.filter((o) => o.rank === 'leader').length >= this.leaderCap()) return `組長最多 ${this.leaderCap()} 位（每 3 個員工 1 位）`;
+      return null;
+    }
+
     // 升職：組長、店長
     promote(e, rank) {
       const R = Fun.RANKS || {};
-      if (!R[rank] || e.rank === rank) return false;
-      if (rank === 'manager') for (const o of this.staff) if (o.rank === 'manager') o.rank = 'leader';
+      if (!e || this.promoteBlock(e, rank)) return false;
+      this.ensureCareer(e);
+      if (rank === 'manager') for (const o of this.staff) if (o !== e && o.rank === 'manager') o.rank = 'leader';
       const old = e.rank && R[e.rank] ? R[e.rank].wage : 0;
+      const first = !e.rank;
       e.rank = rank;
       e.wage += R[rank].wage - old;
-      e.mood = clamp(e.mood + 12, 0, 100);
-      this.say(e, `我升${R[rank].name}了！`, 120);
-      // 技能比他高、卻沒被升的人會有點不爽
-      for (const o of this.staff) if (o !== e && !o.rank && o.skill > e.skill + 5) {
-        o.mood = clamp(o.mood - 5, 0, 100);
-        this.say(o, `為什麼是${e.name}……`, 90);
+      this._fxAt = null;
+      e.mood = clamp(e.mood + (e.ambition >= 60 ? 16 : e.ambition < 30 ? 2 : 10), 0, 100);
+      if (first) {
+        e.rankDay = this.day;
+        e.kpi = { days: 0, served: 0, angry: 0, visitors: 0 };
       }
-      this.notify(`${R[rank].icon} ${e.name} 升為${R[rank].name}！`, 'good');
+      this.say(e, e.ambition < 30 ? '我……其實沒有很想當主管……' : `我升${R[rank].name}了！`, 120);
+      // 年資、技能比他高卻沒被升的人會不爽；空降的更明顯
+      const tenure = this.day - e.hiredDay;
+      for (const o of this.staff) {
+        if (o === e || o.rank) continue;
+        const senior = this.day - o.hiredDay > tenure + 7;
+        if (o.skill > e.skill + 5 || senior) {
+          o.mood = clamp(o.mood - (o.ambition >= 60 ? 9 : 5) - (tenure < 7 ? 4 : 0), 0, 100);
+          this.say(o, senior ? `我比${e.name}早來欸……` : `為什麼是${e.name}……`, 90);
+        }
+      }
+      this.notify(`${R[rank].icon} ${e.name} 升為${R[rank].name}！${first ? '試用 14 天，三天後就會知道他是哪一種主管。' : ''}`, 'good');
       return true;
     }
 
+    // 降職：試用期內比較不傷感情
     demote(e) {
       const R = Fun.RANKS || {};
-      if (!e.rank) return false;
+      if (!e || !e.rank) return false;
+      const trial = this.inTrial(e);
       e.wage = Math.max(MIN_WAGE, e.wage - (R[e.rank] ? R[e.rank].wage : 0));
       e.rank = null;
-      e.mood = clamp(e.mood - 15, 0, 100);
-      this.jerk = clamp(this.jerk + 1, 0, JERK_LIMIT);
-      this.say(e, '……我做錯什麼了嗎', 120);
+      e.mood = clamp(e.mood - (trial ? 6 : 15), 0, 100);
+      this._fxAt = null;
+      if (!trial) this.jerk = clamp(this.jerk + 1, 0, JERK_LIMIT);
+      if (e.ambition >= 60 && !trial) e.lowMoodDays += 1;
+      this.say(e, trial ? '好吧，我可能還沒準備好' : '……我做錯什麼了嗎', 120);
       return true;
+    }
+
+    inTrial(e) {
+      return !!(e.rank && e.rankDay != null && this.day - e.rankDay < 14);
+    }
+
+    get leadTrainCost() {
+      return Math.round((4000 * this.idx.cpi) / 100) * 100;
+    }
+
+    // 主管培訓課：領導力 +8
+    leadTrain(e) {
+      const cost = this.leadTrainCost;
+      if (!e || e.leadTrainWeek === this.week || this.cash < cost || e.lead >= 100) return false;
+      this.ensureCareer(e);
+      this.cash -= cost;
+      this.ledger.welfare += cost;
+      e.leadTrainWeek = this.week;
+      e.lead = Math.min(100, e.lead + 8);
+      e.leadSeen = Math.min(100, e.leadSeen + 8);
+      e.energy = clamp(e.energy - 10, 0, 100);
+      this.say(e, '主管課教我們要「先處理心情，再處理事情」', 100);
+      return true;
+    }
+
+    // 在班上的主管加起來的效果（每個 tick 算一次）
+    teamFx() {
+      if (this._fxAt === this.minute && this._fxDay === this.day) return this._fx;
+      const ST = Fun.STYLES || {};
+      const fx = { speed: 1, calm: 1, learn: 1, fragile: 0, mood: new Map(), list: [] };
+      for (const o of this.staff) {
+        if (!o.rank || (o.state !== 'working' && o.state !== 'break')) continue;
+        const st = ST[o.style] || {};
+        const k = (0.4 + (o.lead ?? 50) / 100) * (o.rank === 'manager' ? 1.5 : 1);
+        if (o.rank === 'manager') fx.speed *= 1.04;
+        fx.speed *= 1 + (st.speed || 0) * k;
+        fx.calm *= 1 - (st.calm || 0) * k;
+        fx.learn *= 1 + ((st.learn || 1) - 1) * k;
+        fx.fragile += (st.fragile || 0) * k;
+        // 基本加成：店長 +3、組長 +2；風格再加減；領導力太低的人帶起來大家都很累
+        let m = (o.rank === 'manager' ? 3 : 2) + (st.mood || 0) * k;
+        if ((o.lead ?? 50) < 35) m -= 2.5;
+        fx.mood.set(o, m);
+        fx.list.push(o);
+      }
+      fx.calm = Math.max(0.7, fx.calm);
+      this._fx = fx;
+      this._fxAt = this.minute;
+      this._fxDay = this.day;
+      return fx;
+    }
+
+    teamMoodFor(e) {
+      const fx = this.teamFx();
+      let t = 0;
+      for (const [o, m] of fx.mood) {
+        if (o === e) continue;
+        // 店長的加成給所有人，組長的加成只給一般員工
+        if (o.rank === 'leader' && e.rank) continue;
+        t += m;
+      }
+      if (fx.fragile && e.traits.includes('fragile') && !fx.mood.has(e)) t += fx.fragile;
+      // 沒什麼企圖心的人被升上去，壓力很大
+      if (e.rank && (e.ambition ?? 50) < 30) t -= 4;
+      return t;
+    }
+
+    // 精算型主管：食材報廢變少（不用在班上，他會先交代好）
+    get wasteMult() {
+      let m = 1;
+      const st = (Fun.STYLES || {}).numbers;
+      if (!st) return 1;
+      for (const o of this.staff) if (o.rank && o.style === 'numbers') m *= 1 - (1 - st.waste) * (0.4 + (o.lead ?? 50) / 100) * (o.rank === 'manager' ? 1.2 : 0.8);
+      return Math.max(0.35, m);
+    }
+
+    // 店長代理：老闆來不及處理的事件，在班上的店長（或很會帶人的組長）會照自己的風格處理
+    delegateEvent(ev) {
+      if (!this.policy.delegate || ev.karen || String(ev.ev.id).startsWith('career_') || this.minute < this.hours.open) return null;
+      const on = this.staff.filter((o) => o.rank && (o.state === 'working' || o.state === 'break') && o !== ev.staff);
+      const m = on.find((o) => o.rank === 'manager') || on.filter((o) => o.lead >= 60).sort((a, b) => b.lead - a.lead)[0];
+      if (!m) return null;
+      if (m.style === 'slacker' && this.rng() < 0.5) {
+        this.notify(`🐟 ${m.name} 說「等一下我來處理」，結果就忘了……`, 'bad');
+        return null;
+      }
+      const choices = ev.ev.choices.map((c, i) => ({ c, i, fx: this.resolveEffects(c) })).filter(({ c, fx }) => !c.minigame && !fx.brawl && !fx.leave && !fx.demoteOf && !fx.promoteOf);
+      if (!choices.length) return null;
+      const lowLead = this.rng() < (1 - m.lead / 100) * 0.5;
+      const score = ({ fx }) => {
+        const cash = (fx.cash || 0) / 1000;
+        const mood = (fx.morale || 0) * 2 + (fx.moodOf ? fx.moodOf.reduce((s, [, d]) => s + d, 0) / 3 : 0);
+        const jerk = fx.jerk || 0;
+        if (m.style === 'warm' || m.style === 'mentor') return mood * 2 + cash * 0.5 - jerk * 5;
+        if (m.style === 'strict') return cash * 1.5 + mood * 0.3 - (lowLead ? 0 : jerk * 3);
+        if (m.style === 'numbers') return cash * 2 + mood * 0.5 - jerk * 4;
+        return this.rng() - jerk;
+      };
+      const best = choices.sort((a, b) => score(b) - score(a))[0];
+      const r = this.applyChoice(ev, best.c);
+      if (!r) return null;
+      r.by = m;
+      r.choice = best.c;
+      if (this.cb.delegated) this.cb.delegated(r, ev, m);
+      else this.notify(`👑 ${m.name} 幫你處理了「${ev.ev.title}」：${best.c.label}`);
+      return r;
+    }
+
+    // 主管相關的事件：要求升遷、被投訴、摸魚、店長被挖角
+    planCareerEvents() {
+      const C = Fun.CAREER;
+      if (!C || !this.roster) return;
+      const at = () => this.hours.open + 90 + this.rng() * Math.max(60, Math.min(this.hours.span, 600) - 150);
+      const onRoster = (e) => this.roster.has(e.id);
+      const ask = this.staff.find((e) => !e.rank && onRoster(e) && e.ambition >= 60 && this.day - e.hiredDay >= 14 && e.skill >= 50 && this.day - (e.askDay || -99) >= 14);
+      if (ask && this.rng() < 0.18 * this.diff.events) {
+        ask.askDay = this.day;
+        this.pendingEvents.push({ ev: C.ask(this, ask), at: at(), where: 'staff', staffPref: ask });
+        return;
+      }
+      const strict = this.staff.find((e) => e.rank && e.revealed && e.style === 'strict' && e.lead < 60 && onRoster(e));
+      const victim = strict && this.staff.find((o) => o !== strict && !o.rank && onRoster(o) && this.roster.get(o.id) === this.roster.get(strict.id) && (o.traits.includes('fragile') || o.skill < 45));
+      if (victim && this.rng() < 0.12 * this.diff.events) {
+        this.pendingEvents.push({ ev: C.complaint(this, strict, victim), at: at(), where: 'staff', staffPref: victim });
+        return;
+      }
+      const slack = this.staff.find((e) => e.rank && e.revealed && e.style === 'slacker' && onRoster(e));
+      if (slack && this.rng() < 0.1 * this.diff.events) {
+        this.pendingEvents.push({ ev: C.slack(this, slack), at: at(), where: 'staff' });
+        return;
+      }
+      const mgr = this.staff.find((e) => e.rank === 'manager' && onRoster(e) && e.mood < 58);
+      if (mgr && this.rival && !this.rival.closed && this.rng() < 0.06 * this.diff.rival) {
+        const friend = this.friendsOf(mgr, 50).filter((o) => o.rank !== 'manager')[0] || null;
+        this.pendingEvents.push({ ev: C.poachManager(this, mgr, friend), at: at(), where: 'staff', staffPref: mgr });
+      }
+    }
+
+    // 每天打烊：主管帶班的成績、試用期結束、真面目揭曉
+    careerDayEnd(worked) {
+      const ST = Fun.STYLES || {};
+      for (const e of this.staff) {
+        if (!e.rank) continue;
+        if (worked.has(e)) {
+          e.kpi.days += 1;
+          e.kpi.served += this.today.served;
+          e.kpi.angry += this.today.angry;
+          e.kpi.visitors += this.today.visitors;
+        }
+        const d = e.rankDay == null ? 99 : this.day - e.rankDay;
+        if (!e.revealed && d >= 3) {
+          e.revealed = true;
+          const st = ST[e.style] || { name: '', icon: '' };
+          const good = e.lead >= 60;
+          const bad = e.lead < 35;
+          this.notify(`🔍 ${e.name} 當主管三天了：原來是「${st.icon} ${st.name}」，領導力 ${e.lead}${good ? '，很會帶人！' : bad ? '……其實不太會帶人（試用期內降職不傷感情）' : '。'}`, good ? 'good' : bad ? 'bad' : '');
+        }
+        if (d === 14) this.notify(`✅ ${e.name} 通過主管試用期。`, 'good');
+      }
+    }
+
+    // ───── 分店店長 ─────
+    // 派一位員工去分店當店長：他會離開本店，分店的士氣、評價、成本會照他的風格變化
+    assignBranchManager(e, i) {
+      const b = this.branches[i];
+      if (!e || !b || b.manager || !this.staff.includes(e)) return false;
+      this.ensureCareer(e);
+      const R = Fun.RANKS || {};
+      const wage = e.wage + (e.rank === 'manager' ? 0 : (R.manager ? R.manager.wage : 50) - (e.rank && R[e.rank] ? R[e.rank].wage : 0));
+      this.removeEmployee(e, true);
+      b.manager = { name: e.name, gender: e.gender, look: e.look, traits: e.traits, skill: e.skill, lead: e.lead, ambition: e.ambition, style: e.style, hint: e.hint, leadSeen: e.leadSeen, wage, hiredDay: e.hiredDay, since: this.week, mood: Math.min(100, e.mood + 10) };
+      this.notify(`🏙️ ${e.name} 去${b.district}店當店長了！（時薪 $${wage}）`, 'good');
+      return true;
+    }
+
+    recallBranchManager(i) {
+      const b = this.branches[i];
+      const m = b && b.manager;
+      if (!m) return false;
+      const e = this.addEmployee({ name: m.name, gender: m.gender, look: m.look, traits: m.traits, skill: m.skill, wage: m.wage }, true);
+      Object.assign(e, { lead: m.lead, ambition: m.ambition, style: m.style, hint: m.hint, leadSeen: m.leadSeen, hiredDay: m.hiredDay, rank: 'leader', rankDay: this.day - 99, revealed: true });
+      e.wage = Math.max(MIN_WAGE, m.wage - ((Fun.RANKS.manager || {}).wage || 50) + ((Fun.RANKS.leader || {}).wage || 25));
+      this.ensureCareer(e);
+      if (this.staff.filter((o) => o.rank === 'leader').length > this.leaderCap()) e.rank = null;
+      b.manager = null;
+      this.notify(`🏪 ${e.name} 從${b.district}店調回本店了。`);
+      return true;
+    }
+
+    // 分店店長的效果：士氣、評價、容量、食材
+    branchMgrFx(b) {
+      const m = b.manager;
+      if (!m) return { morale: 0, rating: 0, cap: 1, mat: 1, wage: 0 };
+      const k = 0.4 + m.lead / 100;
+      const fx = { morale: (m.lead - 45) / 5, rating: 0, cap: 1, mat: 1, wage: m.wage * 45 };
+      if (m.style === 'warm') fx.morale += 5 * k;
+      if (m.style === 'strict') (fx.cap = 1 + 0.07 * k), (fx.morale -= 5);
+      if (m.style === 'mentor') (fx.rating += 0.12 * k), (fx.morale += 2);
+      if (m.style === 'numbers') fx.mat = 1 - 0.08 * k;
+      if (m.style === 'slacker') (fx.rating -= 0.15), (fx.morale += 2);
+      return fx;
     }
 
     // 有店長或組長在班上
@@ -2720,7 +3011,7 @@
       this.today.served++;
       if (e) {
         e.served++;
-        e.skill = clamp(e.skill + 0.08 * (e.traits.includes('rookie') ? TRAITS.rookie.learn : 1), 0, 100);
+        e.skill = clamp(e.skill + 0.08 * (e.traits.includes('rookie') ? TRAITS.rookie.learn : 1) * (e.rank ? 1 : this.teamFx().learn), 0, 100);
       }
       this.gainXp(((price - cost) / 25) * (this.ind.xpMult || 1));
       this.popup(c, `+$${price}`, 'money');
@@ -2963,7 +3254,7 @@
             break;
           case 'queue':
           case 'toLane':
-            c.waited += dt * (c.waitSeat ? 0.6 : 1);
+            c.waited += dt * (c.waitSeat ? 0.6 : 1) * this.teamFx().calm;
             if (c.state === 'toLane' && arrived) {
               c.state = 'atLane';
               this.freeWaitSeat(c);
@@ -3041,7 +3332,8 @@
       if (e.traits.includes('chatty')) s *= TRAITS.chatty.speed;
       if (e.hustle && e.hustle > this.minute) s *= 1.08;
       if (this.isSummer && !this.cooling) s *= 0.92;
-      if (this.leaderOnDuty('manager')) s *= 1.04;
+      s *= this.teamFx().speed;
+      if (e.rank && e.style === 'slacker' && e.revealed) s *= (Fun.STYLES || {}).slacker ? Fun.STYLES.slacker.self : 1;
       return s;
     }
 
@@ -3293,8 +3585,7 @@
       if (this.jerk > 60) target -= 5;
       if (this.cleanliness < 55) target -= (55 - this.cleanliness) / 6;
       if (this.shopCat) target += 2;
-      if (e.rank !== 'manager' && this.leaderOnDuty('manager')) target += 3;
-      else if (!e.rank && this.leaderOnDuty('leader')) target += 2;
+      if (e.state === 'working' || e.state === 'break') target += this.teamMoodFor(e);
       if (!this.policy.insurance) target -= 6;
       const regen = e.traits.includes('cheerful') ? TRAITS.cheerful.moodRegen : 1;
       e.mood = clamp(e.mood + (target - e.mood) * 0.004 * regen * dt, 0, 100);
@@ -3386,6 +3677,7 @@
         if (ye) this.pendingEvents.push({ ev: ye, at: this.policy.open + 120, where: 'staff' });
       }
       this.planSocialEvents();
+      this.planCareerEvents();
       if (this.rivalNews && this.rival) {
         this.rivalNews = false;
         this.pendingEvents.push({ ev: rivalEvent(this), at: this.hours.open + 40, where: 'door' });
@@ -3487,6 +3779,35 @@
         this.removeEmployee(who);
         this.notify(`🚪 ${who.name} 跳槽到${this.rival ? this.rival.name : '別家店'}了。`, 'bad');
       }
+      if (fx.leave2 && byId(fx.leave2)) {
+        const who = byId(fx.leave2);
+        this.removeEmployee(who);
+        this.notify(`🚪 ${who.name} 也跟著走了。`, 'bad');
+      }
+      if (fx.promoteOf && byId(fx.promoteOf[0])) {
+        const who = byId(fx.promoteOf[0]);
+        if (!this.promote(who, fx.promoteOf[1])) {
+          who.askDay = this.day;
+          this.notify(`🎖️ 組長名額滿了，${who.name}只能先等等。`, 'bad');
+        }
+      }
+      if (fx.demoteOf && byId(fx.demoteOf)) this.demote(byId(fx.demoteOf));
+      if (fx.askLater && byId(fx.askLater)) {
+        const who = byId(fx.askLater);
+        who.asks = (who.asks || 0) + 1;
+        who.askDay = this.day;
+      }
+      if (fx.lead && byId(fx.lead[0])) byId(fx.lead[0]).lead = clamp(byId(fx.lead[0]).lead + fx.lead[1], 0, 100);
+      if (fx.talkLeader && byId(fx.talkLeader)) {
+        const who = byId(fx.talkLeader);
+        if (this.rng() < 0.45) {
+          who.style = 'warm';
+          choice = { ...choice, result: `${choice.result}${who.name}沉默了一下：「我以為嚴格才是對大家好。」之後他講話溫和多了（變成🤗暖心型）。` };
+        } else {
+          who.lead = clamp(who.lead + 5, 0, 100);
+          choice = { ...choice, result: `${choice.result}${who.name}說會注意，但個性一時改不了。至少領導力 +5。` };
+        }
+      }
       if (fx.rel) this.addRel(byId(fx.rel[0]), byId(fx.rel[1]), fx.rel[2]);
       if (fx.moodOf) for (const [id, d] of fx.moodOf) if (byId(id)) byId(id).mood = clamp(byId(id).mood + d, 0, 100);
       if (fx.separate) this.separate.add(fx.separate.join('-'));
@@ -3526,6 +3847,7 @@
     }
 
     ignoreEvent(ev) {
+      if (this.delegateEvent(ev)) return;
       const r = this.applyChoice(ev, ev.ev.ignore || IGNORE[ev.where]);
       if (r && this.cb.ignored) this.cb.ignored(r, ev);
     }
@@ -3549,6 +3871,7 @@
       const lastShift = this.hours.shifts - 1;
       // 薪水：上班時數 × 時薪，超過八小時算加班
       let unpaidOT = 0;
+      const worked = new Set(this.staff.filter((e) => e.minutesToday > 0));
       for (const e of this.staff) {
         const hours = e.minutesToday / 60;
         if (hours <= 0) continue;
@@ -3590,7 +3913,7 @@
       }
       // 食材：隔夜報廢一部分，記下今天的用量
       for (const g of this.ind.stock || []) {
-        const lost = Math.floor(this.stock[g.id] * g.spoil);
+        const lost = Math.floor(this.stock[g.id] * g.spoil * this.wasteMult);
         if (lost > 0) {
           this.stock[g.id] -= lost;
           const v = Math.round(lost * this.unitCost(g));
@@ -3662,6 +3985,7 @@
         }
       }
 
+      this.careerDayEnd(worked);
       if (report.served >= 150) this.achieve('busy');
       if (this.day === 1) this.achieve('open');
       if (this.staff.length >= 3 && this.staff.every((e) => e.mood > 70)) this.achieve('happy');
@@ -3949,6 +4273,7 @@
       s.yearProfit = d.yearProfit || 0;
       s.separate = new Set(d.separate || []);
       s.staff = d.staff.map((e) => ({ shiftPref: 'auto', restDays: null, post: null, ...e, task: null, path: [], state: 'off', x: -OUT_W, z: s.H }));
+      for (const e of s.staff) s.ensureCareer(e);
       s.minute = s.dayStart;
       s.customers = [];
       s.candidates = s.rollCandidates();

@@ -330,6 +330,10 @@
       },
       dayEnd: (r) => toast(`🌙 今天服務 ${r.served} 位客人，營收 ${money(r.revenue)}${r.angry ? `，${r.angry} 位等到生氣離開` : ''}${r.holiday ? '（國定假日薪水加倍）' : ''}`),
       festival: (f) => toast(f.news, 'event'),
+      delegated: (r, ev, m) => {
+        toast(`👑 ${m.name} 幫你處理了「${r.event.title}」：${r.choice.label}`, (r.delta && r.delta.jerk > 0) || (r.choice.effects && r.choice.effects.jerk > 0) ? 'bad' : '');
+        renderInbox();
+      },
       tripDone: (r) => {
         ui.dialog = { type: 'trip', result: r };
         renderDialog();
@@ -1241,11 +1245,12 @@
   function drawerStaff() {
     const s = ui.sim;
     const tab = ui.staffTab || 'overview';
-    const tabs = [['overview', `👥 總覽（${s.staff.length}）`], ['activity', '🎉 活動'], ['schedule', '📅 排班與崗位'], ['hire', `🙋 應徵者（${s.candidates.length}）`]];
+    const tabs = [['overview', `👥 總覽（${s.staff.length}）`], ['lead', '👑 主管'], ['activity', '🎉 活動'], ['schedule', '📅 排班與崗位'], ['hire', `🙋 應徵者（${s.candidates.length}）`]];
     const head = `<div class="drawer-tabs">${tabs.map(([id, l]) => `<button data-action="staff-tab" data-v="${id}" class="${tab === id ? 'active' : ''}">${l}</button>`).join('')}</div>`;
     if (tab === 'schedule') return head + staffSchedule();
     if (tab === 'activity') return head + staffActivity();
     if (tab === 'hire') return head + staffHire();
+    if (tab === 'lead') return head + staffLeaders();
     const here = s.staff.filter((e) => e.state === 'working' || e.state === 'break');
     const risk = s.staff.filter((e) => e.mood < 30 || e.lowMoodDays > 0);
     const tired = s.staff.filter((e) => e.state !== 'off' && e.energy < 30);
@@ -1266,7 +1271,7 @@
               const sh = s.shiftOf(e);
               const sel = ui.inspect && ui.inspect.ref === e;
               return `<div class="st-row ${sel ? 'sel' : ''} ${e.mood < 30 ? 'risk' : ''}">
-                <button class="st-who" data-action="insp-staff" data-id="${e.id}"><span class="mini-face">${portraitSVG(e.look, moodOf(e))}</span><span><b>${e.rank && Fun.RANKS[e.rank] ? `${Fun.RANKS[e.rank].icon} ` : ''}${esc(e.name)}${e.rank && Fun.RANKS[e.rank] ? `<em class="rank">${Fun.RANKS[e.rank].name}</em>` : ''}</b><small>${e.traits.map((t) => TRAITS[t].name).join('・')}${e.hangoverDay === s.day ? '・🤢宿醉' : ''}</small><small>${sh ? `${hhmm(sh.start)}～${hhmm(sh.end)}` : '今天休假'}</small></span></button>
+                <button class="st-who" data-action="insp-staff" data-id="${e.id}"><span class="mini-face">${portraitSVG(e.look, moodOf(e))}</span><span><b>${e.rank && Fun.RANKS[e.rank] ? `${Fun.RANKS[e.rank].icon} ` : ''}${esc(e.name)}${e.rank && Fun.RANKS[e.rank] ? `<em class="rank">${Fun.RANKS[e.rank].name}${e.revealed && Fun.STYLES[e.style] ? `・${Fun.STYLES[e.style].icon}${Fun.STYLES[e.style].name}` : '・試用中'}</em>` : ''}</b><small>${e.traits.map((t) => TRAITS[t].name).join('・')}${e.hangoverDay === s.day ? '・🤢宿醉' : ''}</small><small>${sh ? `${hhmm(sh.start)}～${hhmm(sh.end)}` : '今天休假'}</small></span></button>
                 <span class="st-now"><b>${nowDoing(e)}</b><small>${e.thought && e.thought.until > s.minute ? `💭 ${esc(e.thought.text)}` : `今天服務 ${e.served} 人`}</small></span>
                 ${cell(e.mood, 'm')}${cell(e.energy, 'e')}${cell(e.hunger, 'h')}${cell(e.skill, 's')}
                 <span class="st-wage"><button data-action="wage" data-id="${e.id}" data-d="-5" aria-label="減薪">－</button><b class="${e.wage < s.marketWage ? 'neg' : e.wage > s.marketWage * 1.05 ? 'pos' : ''}">${money(e.wage)}</b><button data-action="wage" data-id="${e.id}" data-d="5" aria-label="加薪">＋</button></span>
@@ -1317,15 +1322,122 @@
         <button class="act-btn" data-action="chat" data-id="${e.id}" ${e.chatDay === s.day ? 'disabled' : ''}>💬 聊天談心</button>
         <button class="act-btn" data-action="treat" data-id="${e.id}" ${e.treatDay === s.day ? 'disabled' : ''}>🧋 請喝飲料 $65</button>
         <button class="act-btn" data-action="train" data-id="${e.id}" ${e.trainWeek === s.week || s.cash < s.trainCost || e.skill >= 100 ? 'disabled' : ''}>🎓 送去上課 $3,000<small>${e.trainWeek === s.week ? '這週上過了' : '技能 +10'}</small></button>
-        ${e.rank !== 'leader' ? `<button class="act-btn" data-action="promote" data-id="${e.id}" data-rank="leader">🎖️ 升組長 +$${Fun.RANKS.leader.wage}</button>` : ''}
-        ${e.rank !== 'manager' ? `<button class="act-btn" data-action="promote" data-id="${e.id}" data-rank="manager">👑 升店長 +$${Fun.RANKS.manager.wage}</button>` : ''}
-        ${e.rank ? `<button class="act-btn warn" data-action="demote" data-id="${e.id}">⬇️ 降職</button>` : ''}
       </div>
+      ${careerRow(e)}
       <div class="st-detail-row muted">
         <span>${e.traits.map((t) => `${TRAITS[t].name}：${TRAITS[t].desc}`).join('；')}</span>
         <span>到職 ${weeks} 週・資遣費約 ${money(s.severanceOf(e))}</span>
       </div>
       ${relationsHtml(e)}
+    </div>`;
+  }
+
+  // 領導力：知道真正的數字就顯示數字，不然只顯示「看起來」的星星
+  const leadStars = (v) => {
+    const n = Math.max(1, Math.min(5, Math.round(v / 20)));
+    return '★'.repeat(n) + '☆'.repeat(5 - n);
+  };
+  function leadText(e) {
+    const s = ui.sim;
+    const k = s.leadKnown(e);
+    return k != null ? `領導力 <b>${k}</b>` : `領導力 <span title="看起來的印象，升上去三天後才知道真正的數字">${leadStars(e.leadSeen)}？</span>`;
+  }
+  function styleText(e) {
+    const st = Fun.STYLES[e.style];
+    if (e.revealed && st) return `<span class="style-tag" title="${esc(st.desc)}">${st.icon} ${st.name}</span>`;
+    return `<span class="muted">同事說：「${esc(e.hint || '……')}」</span>`;
+  }
+
+  // 員工設定裡的升遷那一行
+  function careerRow(e) {
+    const s = ui.sim;
+    const R = Fun.RANKS;
+    const blockL = s.promoteBlock(e, 'leader');
+    const trial = s.inTrial(e);
+    const freeBranches = s.branches.map((b, i) => [b, i]).filter(([b]) => !b.manager);
+    return `<div class="st-detail-row career-row">
+        <span>升遷</span>
+        <span class="career-info">${leadText(e)}・${Fun.AMBITION_LABEL(e.ambition)}・${styleText(e)}</span>
+        ${e.rank !== 'leader' ? `<button class="act-btn" data-action="promote" data-id="${e.id}" data-rank="leader" ${blockL ? `disabled title="${esc(blockL)}"` : ''}>🎖️ 升組長 +$${R.leader.wage}${blockL ? `<small>${esc(blockL)}</small>` : ''}</button>` : ''}
+        ${e.rank !== 'manager' ? `<button class="act-btn" data-action="promote" data-id="${e.id}" data-rank="manager">👑 升店長 +$${R.manager.wage}${s.staff.some((o) => o.rank === 'manager') ? '<small>現任店長會變組長</small>' : ''}</button>` : ''}
+        ${e.rank ? `<button class="act-btn warn" data-action="demote" data-id="${e.id}">⬇️ 降職<small>${trial ? '試用期內，不傷感情' : '心情大跌、慣老闆 +1'}</small></button>` : ''}
+        <button class="act-btn" data-action="lead-train" data-id="${e.id}" ${e.leadTrainWeek === s.week || s.cash < s.leadTrainCost || e.lead >= 100 ? 'disabled' : ''}>📚 主管培訓 ${money(s.leadTrainCost)}<small>${e.leadTrainWeek === s.week ? '這週上過了' : '領導力 +8'}</small></button>
+        ${freeBranches.length ? `<label class="act-btn">🏙️ 派去當分店店長 <select data-action="assign-branch" data-id="${e.id}"><option value="">選分店</option>${freeBranches.map(([b, i]) => `<option value="${i}">${esc(s.siteOf(b).city)}${esc(b.district)}店</option>`).join('')}</select></label>` : ''}
+      </div>`;
+  }
+
+  // 主管分頁：一眼看完誰在帶人、帶得怎樣、誰有潛力
+  function staffLeaders() {
+    const s = ui.sim;
+    const R = Fun.RANKS;
+    const ST = Fun.STYLES;
+    const mgr = s.staff.find((e) => e.rank === 'manager');
+    const leaders = s.staff.filter((e) => e.rank === 'leader');
+    const others = s.staff.filter((e) => !e.rank).sort((a, b) => b.leadSeen - a.leadSeen);
+    const fx = s.teamFx();
+    const pct = (v) => `${v >= 0 ? '+' : ''}${Math.round(v * 100)}%`;
+    const now = [];
+    if (fx.speed !== 1) now.push(`做事速度 ${pct(fx.speed - 1)}`);
+    if (fx.calm !== 1) now.push(`客人耐心 ${pct(1 / fx.calm - 1)}`);
+    if (fx.learn !== 1) now.push(`學習 ${pct(fx.learn - 1)}`);
+    const moodSum = [...fx.mood.values()].reduce((a, b) => a + b, 0);
+    if (fx.mood.size) now.push(`同事心情 ${moodSum >= 0 ? '+' : ''}${Math.round(moodSum)}`);
+    if (s.wasteMult < 1) now.push(`食材報廢 ${pct(s.wasteMult - 1)}`);
+    const kpi = (e) => (e.kpi && e.kpi.days ? `帶班 ${e.kpi.days} 天・客人生氣率 ${((e.kpi.angry / Math.max(1, e.kpi.visitors)) * 100).toFixed(1)}%` : '還沒帶過班');
+    const card = (e) => {
+      const st = ST[e.style];
+      const on = e.state === 'working' || e.state === 'break';
+      return `<div class="lead-card ${e.rank}">
+        <span class="mini-face">${portraitSVG(e.look, moodOf(e))}</span>
+        <div>
+          <b>${R[e.rank].icon} ${esc(e.name)}</b> <small>${R[e.rank].name}${s.inTrial(e) ? `・試用中（還有 ${14 - (s.day - e.rankDay)} 天）` : ''}${on ? '・🟢 在班' : ''}</small>
+          <div>${e.revealed && st ? `<span class="style-tag">${st.icon} ${st.name}</span> <small>${esc(st.desc)}</small>` : '<small class="muted">🔍 風格還在觀察中（升上去三天後揭曉）</small>'}</div>
+          <small>${leadText(e)}・${Fun.AMBITION_LABEL(e.ambition)}・心情 ${Math.round(e.mood)}・${kpi(e)}</small>
+        </div>
+        <span class="lead-btns">
+          <button data-action="lead-train" data-id="${e.id}" ${e.leadTrainWeek === s.week || s.cash < s.leadTrainCost || e.lead >= 100 ? 'disabled' : ''} title="主管培訓：領導力 +8">📚<small>培訓</small></button>
+          ${e.rank === 'leader' ? `<button data-action="promote" data-id="${e.id}" data-rank="manager" title="升店長">👑<small>升店長</small></button>` : ''}
+          <button data-action="demote" data-id="${e.id}" class="warn" title="${s.inTrial(e) ? '試用期內降職不傷感情' : '降職：心情大跌、慣老闆 +1'}">⬇️<small>降職</small></button>
+        </span>
+      </div>`;
+    };
+    return `<div class="drawer-body">
+      <div class="staff-sum">
+        <span>👑 店長 <b>${mgr ? esc(mgr.name) : '從缺'}</b></span>
+        <span>🎖️ 組長 <b>${leaders.length}/${s.leaderCap()}</b></span>
+        <span>現在在班的主管：${fx.list.length ? fx.list.map((e) => esc(e.name)).join('、') : '沒有'}</span>
+        ${now.length ? `<span class="pos">效果：${now.join('・')}</span>` : ''}
+      </div>
+      <label class="toggle-row"><input type="checkbox" data-action="delegate" ${s.policy.delegate ? 'checked' : ''} /> <span><b>店長代理處理事件</b><small>你來不及處理（或出門在外）的事件，在班上的店長（沒有店長就找領導力 60 以上的組長）會照他的風格幫你決定：暖心型顧員工、鐵血型顧業績（領導力低的話可能做出慣老闆的選擇）、摸魚型有一半會忘記。</small></span></label>
+      <h3>👑 店長</h3>
+      ${mgr ? card(mgr) : '<p class="muted">還沒有店長。店長在班上時大家做事快一點、心情好一點，也能幫你處理事件；全店只能有一位。</p>'}
+      <h3>🎖️ 組長（每 3 個員工可以有 1 位）</h3>
+      ${leaders.map(card).join('') || '<p class="muted">還沒有組長。組長在班上時，一般員工心情會好一點，效果看他的風格。</p>'}
+      <h3>🌱 潛力名單</h3>
+      <div class="pot-list">${others
+        .map(
+          (e) => `<div class="pot-row">
+          <span class="mini-face">${portraitSVG(e.look, moodOf(e))}</span>
+          <span><b>${esc(e.name)}</b><small>技能 ${Math.round(e.skill)}・到職 ${Math.max(0, Math.floor((s.day - e.hiredDay) / 7))} 週・${e.traits.map((t) => TRAITS[t].name).join('、')}</small><small>${leadText(e)}・${Fun.AMBITION_LABEL(e.ambition)}</small><small class="muted">同事說：「${esc(e.hint || '……')}」</small></span>
+          <span class="lead-btns">
+            <button data-action="promote" data-id="${e.id}" data-rank="leader" ${s.promoteBlock(e, 'leader') ? 'disabled' : ''} title="${esc(s.promoteBlock(e, 'leader') || '升組長')}">🎖️<small>升組長</small></button>
+            <button data-action="promote" data-id="${e.id}" data-rank="manager" title="升店長">👑<small>升店長</small></button>
+          </span>
+        </div>`
+        )
+        .join('') || '<p class="muted">大家都是主管了（？）</p>'}</div>
+      ${
+        s.branches.length
+          ? `<h3>🏙️ 分店店長</h3><div class="pot-list">${s.branches
+              .map((b, i) => {
+                const m = b.manager;
+                const st = m && ST[m.style];
+                return `<div class="pot-row"><span class="mini-face">${m ? portraitSVG(m.look, 'happy') : '🏪'}</span><span><b>${esc(s.siteOf(b).city)}${esc(b.district)}店</b><small>${m ? `店長 ${esc(m.name)}・${st ? `${st.icon}${st.name}` : ''}・領導力 ${m.lead}・時薪 ${money(m.wage)}` : '沒有店長：到員工設定的「派去當分店店長」指派'}</small><small>士氣 ${Math.round(b.morale)}・★ ${b.rating.toFixed(1)}</small></span>${m ? `<span class="lead-btns"><button data-action="recall-mgr" data-i="${i}">🏪<small>調回本店</small></button></span>` : ''}</div>`;
+              })
+              .join('')}</div>`
+          : ''
+      }
+      <p class="drawer-tip">每個人都有看不到的「領導力」和「企圖心」：技能好不一定會帶人（彼得原理），企圖心太低的人被升上去會壓力很大，企圖心高的人等太久會主動來要求升遷。升職後有 14 天試用期。</p>
     </div>`;
   }
 
@@ -1416,7 +1528,7 @@
             (c, i) => `<div class="cand card">
               <span class="mini-face">${portraitSVG(c.look, 'neutral')}</span>
               <div><b>${esc(c.name)}</b><div class="chips">${c.traits.map((t) => `<span class="chip" title="${TRAITS[t].desc}">${TRAITS[t].name}</span>`).join('')}</div>
-              <small>技能 ${c.skill}・希望時薪 ${money(c.wage)}</small><small class="muted">${c.traits.map((t) => TRAITS[t].desc).join('；')}</small></div>
+              <small>技能 ${c.skill}・希望時薪 ${money(c.wage)}</small><small>面試印象：領導力 ${leadStars(c.leadSeen || 50)}？・${Fun.AMBITION_LABEL(c.ambition ?? 50)}</small><small class="muted">${c.traits.map((t) => TRAITS[t].desc).join('；')}</small></div>
               <button class="primary" data-action="hire" data-i="${i}">錄取</button>
             </div>`
           )
@@ -1765,6 +1877,7 @@
       <div class="branch-body">
         <div class="branch-title"><b>${site.icon} ${esc(site.city)}${esc(b.district)}店</b><small>${size.name}・人潮 ${site.traffic >= 1.3 ? '超多' : site.traffic >= 1.05 ? '多' : site.traffic <= 0.9 ? '少' : '普通'}・房租 ${site.rent >= 1.5 ? '很貴' : site.rent >= 1.05 ? '貴' : site.rent <= 0.8 ? '便宜' : '普通'}${s.siteSeason(site) > 1 ? '・🔥 旺季' : s.siteSeason(site) < 1 ? '・🥶 淡季' : ''}</small></div>
         ${b.busy ? '<p class="calc warn">客人多到做不完：加人手或擴建店面</p>' : ''}
+        <p class="calc">${b.manager ? `👑 店長 ${esc(b.manager.name)}（${Fun.STYLES[b.manager.style] ? Fun.STYLES[b.manager.style].icon + Fun.STYLES[b.manager.style].name : ''}・領導力 ${b.manager.lead}）<button class="link" data-action="recall-mgr" data-i="${i}">調回本店</button>` : '👑 沒有店長：到「員工 → 主管」派一位過來，會照他的風格影響士氣、評價和成本'}</p>
         <div class="branch-stats">
           <span>★ ${b.rating.toFixed(1)}</span><span>士氣 ${Math.round(b.morale)}</span><span>上週 <b class="${b.last < 0 ? 'neg' : 'pos'}">${signedMoney(b.last)}</b></span>
         </div>
@@ -2425,10 +2538,23 @@
       }
       case 'promote': {
         const who = staffOf(btn);
-        if (who) s.promote(who, btn.dataset.rank);
+        const why = who && s.promoteBlock(who, btn.dataset.rank);
+        if (why) toast(why, 'bad');
+        else if (who) s.promote(who, btn.dataset.rank);
         refreshStaffViews();
         break;
       }
+      case 'lead-train': {
+        const who = staffOf(btn);
+        if (who && s.leadTrain(who)) toast(`📚 ${who.name} 去上了主管培訓課，領導力 +8`);
+        else toast('這週上過了，或錢不夠', 'bad');
+        refreshStaffViews();
+        break;
+      }
+      case 'recall-mgr':
+        s.recallBranchManager(Number(btn.dataset.i));
+        renderDrawer();
+        break;
       case 'demote': {
         const who = staffOf(btn);
         if (who && s.demote(who)) toast(`⬇️ ${who.name} 被降職了`, 'bad');
@@ -2667,6 +2793,16 @@
       renderDrawer();
     } else if (t.dataset.action === 'menu') {
       s.menu[t.dataset.id] = t.checked;
+      renderDrawer();
+    } else if (t.dataset.action === 'delegate') {
+      s.policy.delegate = t.checked;
+      renderDrawer();
+    } else if (t.dataset.action === 'assign-branch') {
+      const who = s.staff.find((x) => String(x.id) === t.dataset.id);
+      if (who && t.value !== '' && s.assignBranchManager(who, Number(t.value))) {
+        if (ui.inspect && ui.inspect.ref === who) closeInspector();
+        ui.staffOpen = null;
+      }
       renderDrawer();
     } else if (t.dataset.action === 'sched') {
       const who = s.staff.find((x) => String(x.id) === t.dataset.id);

@@ -6,6 +6,7 @@ require('../js/weird.js');
 require('../js/activities.js');
 require('../js/city.js');
 require('../js/plots.js');
+require('../js/career.js');
 require('../js/portraits.js');
 require('../js/industries.js');
 require('../js/sim.js');

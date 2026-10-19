@@ -1,7 +1,7 @@
 // AI 玩家：照一般玩家會做的事去經營，試著撐滿一年破關
 // 只用遊戲裡玩家按得到的操作（招人、排班、調薪、進貨、打掃、買設備、選事件、發文、開分店……）
 // 用法：node tools/playtest.js [難度] [產業] [隨機種子]
-for (const f of ['data', 'fun', 'weird', 'activities', 'city', 'plots', 'portraits', 'industries', 'sim']) require(`../js/${f}.js`);
+for (const f of ['data', 'fun', 'weird', 'activities', 'city', 'plots', 'career', 'portraits', 'industries', 'sim']) require(`../js/${f}.js`);
 const { Sim, CATALOG, catalogById } = globalThis.BossSim;
 const Fun = globalThis.BossFun;
 
@@ -35,6 +35,8 @@ function pickChoice(ev) {
     let score = (fx.cash || 0) / 1000 + (fx.morale || 0) * 2 - (fx.jerk || 0) * 4 + (fx.followers || 0) / 300 + (fx.rivalHit ? 3 : 0);
     if (fx.jerk > 0) score -= 20;
     if (fx.raiseOf) score += 4;
+    if (fx.promoteOf) score += s.promoteBlock(s.staff.find((e) => e.id === fx.promoteOf[0]) || {}, 'leader') ? -5 : 5;
+    if (fx.talkLeader) score += 3;
     if (fx.karenServe) score -= 2;
     if (score > bestScore) {
       bestScore = score;
@@ -104,6 +106,17 @@ function daily(r) {
     const ids = s.staff.map((e) => e.id);
     const a = s.morale < 55 ? 'hotpot' : 'stirfry';
     if (s.holdActivity(a, ids)) note(`第 ${s.day} 天：辦了${Fun.ACTIVITIES.find((x) => x.id === a).name}`);
+  }
+
+  // 主管：挑看起來會帶人的升組長；試用期發現不會帶人就降回來；表現好的組長升店長
+  for (const e of s.staff) if (e.rank && s.inTrial(e) && e.revealed && (e.lead < 35 || e.style === 'slacker')) s.demote(e);
+  if (s.staff.length >= 3) {
+    const pot = s.staff.filter((e) => !e.rank && e.skill >= 45 && s.day - e.hiredDay >= 7 && !s.promoteBlock(e, 'leader')).sort((a, b) => b.leadSeen - a.leadSeen)[0];
+    if (pot && pot.leadSeen >= 50 && s.promote(pot, 'leader')) note(`第 ${s.day} 天：${pot.name}升組長`);
+    if (!s.staff.some((e) => e.rank === 'manager')) {
+      const m = s.staff.filter((e) => e.rank === 'leader' && e.revealed && !s.inTrial(e) && e.lead >= 55 && e.style !== 'strict').sort((a, b) => b.lead - a.lead)[0];
+      if (m && s.promote(m, 'manager')) note(`第 ${s.day} 天：${m.name}升店長（${Fun.STYLES[m.style].name}）`);
+    }
   }
 
   // 清潔
