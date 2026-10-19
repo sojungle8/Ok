@@ -310,7 +310,7 @@
       }
     }
     get branchCost() {
-      return Math.round((this.ind.cash * 2.5) / 10000) * 10000;
+      return Math.round((this.ind.cash * 4) / 10000) * 10000;
     }
     openBranch() {
       if (this.level < 5 || this.cash < this.branchCost || this.branches.length >= DISTRICTS.length) return null;
@@ -1861,6 +1861,7 @@
     // 物理超度：結果看運氣
     brawl() {
       const list = Fun.BRAWL || [];
+      if (!list.length) return '你捲起袖子，對方看了你一眼就走了。';
       let r = this.rng();
       let out = list[list.length - 1];
       for (const b of list) {
@@ -3366,6 +3367,12 @@
       this.candidates = this.rollCandidates();
       this.lastWeek = report;
       this.checkEnding(true);
+      // 通關：撐滿一年（48 週）
+      if (!this.over && !this.wonYear && this.week - 1 >= 48) {
+        this.wonYear = true;
+        report.victory = this.victory();
+        this.achieve('year');
+      }
       if (this.cb.weekEnd) this.cb.weekEnd(report);
     }
 
@@ -3424,6 +3431,25 @@
       if (a.medal === '🥇') this.achieve('gold');
       this.yearProfit = 0;
       return award;
+    }
+
+    // 一年的總評：評價、慣老闆指數、員工心情、現金、分店、獎項
+    victory() {
+      const hist = this.history.slice(-48);
+      const profit = hist.reduce((a, h) => a + h.profit, 0);
+      const parts = [
+        ['評價', Math.round(clamp((this.rating - 3) * 25, 0, 50)), `${this.rating.toFixed(1)} ★`],
+        ['不當慣老闆', Math.round(clamp((60 - this.jerk) / 2, 0, 30)), `慣老闆指數 ${Math.round(this.jerk)}`],
+        ['員工心情', Math.round(clamp((this.morale - 40) / 2, 0, 25)), `平均 ${Math.round(this.morale)}`],
+        ['一年淨利', Math.round(clamp(profit / 40000, -10, 30)), `$${Math.round(profit).toLocaleString()}`],
+        ['分店', Math.min(15, this.branches.length * 5), `${this.branches.length} 間`],
+        ['獎項', this.awards.some((a) => a.medal === '🥇') ? 15 : this.awards.some((a) => a.reward) ? 8 : 0, this.awards.map((a) => a.medal).join(' ') || '—'],
+      ];
+      const score = parts.reduce((a, p) => a + p[1], 0);
+      const grade = score >= 120 ? { medal: '🥇', title: '傳說中的佛心老闆' } : score >= 85 ? { medal: '🥈', title: '員工捨不得走的好老闆' } : score >= 50 ? { medal: '🥉', title: '撐過一年的努力老闆' } : { medal: '🎗️', title: '勉強撐過一年' };
+      const v = { score, parts, profit, ...grade, mode: this.mode, ind: this.ind.name, day: this.day };
+      this.victoryInfo = v;
+      return v;
     }
 
     borrow(amount) {
@@ -3507,6 +3533,7 @@
         collabs: this.collabs,
         copiedDish: !!this.copiedDish,
         schemes: this.schemes,
+        wonYear: !!this.wonYear,
       });
     }
 
@@ -3541,6 +3568,7 @@
       s.collabs = d.collabs || [];
       s.copiedDish = !!d.copiedDish;
       s.schemes = d.schemes || 0;
+      s.wonYear = !!d.wonYear;
       s.achievements = new Set(d.achievements);
       s.rel = d.rel || {};
       s.xp = d.xp || 0;
@@ -3716,6 +3744,7 @@
     { id: 'gold', name: '年度好店金獎', desc: '在年度評選拿到金獎', reward: 0 },
     { id: 'hygiene', name: '衛生優良', desc: '衛生稽查拿到「優」', reward: 20000 },
     { id: 'viral', name: '小編爆紅', desc: '發了一篇爆紅的貼文', reward: 15000 },
+    { id: 'year', name: '破關：撐過一年', desc: '經營滿 48 週沒有被收店', reward: 100000 },
     { id: 'schemer', name: '這條街的陰謀家', desc: '執行 3 次陰謀計畫', reward: 0 },
     { id: 'collab', name: '聯名達人', desc: '談成一次聯名合作', reward: 10000 },
     { id: 'shopcat', name: '店長是貓', desc: '收養一隻店貓', reward: 5000 },

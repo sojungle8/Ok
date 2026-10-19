@@ -349,7 +349,7 @@
       },
       weekEnd: (r) => {
         save();
-        ui.dialog = { type: 'week', report: r };
+        ui.dialog = r.victory ? { type: 'victory', report: r } : { type: 'week', report: r };
         renderDialog();
       },
     };
@@ -1873,6 +1873,18 @@
         <p class="calc">🎵 正在播放：${window.BossAudio.trackName ? window.BossAudio.trackName() : ''}（會跟著時段、天氣和忙碌程度換曲）</p>
         <div class="insp-actions"><button data-action="tut-restart">📘 重新看新手教學</button><button data-action="quit" class="warn">🚪 存檔並回主選單</button></div>
       </div>`;
+    } else if (d.type === 'victory') {
+      const v = d.report.victory;
+      const diff = window.BossIndustries.DIFFICULTY[v.mode];
+      inner = `<div class="card ending win">
+        <div class="ending-face">${portraitSVG(bossLook(ui.settings.gender), 'happy')}<span>${v.medal}</span></div>
+        <div class="event-kicker">🎉 破關！${esc(s.shopName)}撐過了一整年・${v.ind}・${diff ? diff.name : ''}模式</div>
+        <h2>${v.title}</h2>
+        <table class="ledger">${v.parts.map(([k, pts, txt]) => `<tr><th>${k}<small>（${txt}）</small></th><td class="${pts < 0 ? 'neg' : 'pos'}">${pts > 0 ? '+' : ''}${pts}</td></tr>`).join('')}
+          <tr class="total"><th>總分</th><td>${v.score}</td></tr></table>
+        <p class="calc">🥇 120 分以上・🥈 85 分以上・🥉 50 分以上。遊戲可以繼續玩，看看第二年能不能拿更好的評價。</p>
+        <div class="ending-actions"><button class="primary" data-action="close-dialog">繼續經營</button><button data-action="quit">回主選單</button></div>
+      </div>`;
     } else if (d.type === 'ending') {
       const e = s.ending;
       inner = `<div class="card ending lose">
@@ -1887,7 +1899,7 @@
         <div class="ending-actions"><button class="primary" data-action="quit">回主選單</button></div>
       </div>`;
     }
-    box.innerHTML = d.type === 'minigame' ? '' : `<div class="dialog-backdrop ${['week', 'ending', 'menu', 'advice', 'activity', 'boss-menu', 'city', 'trip', 'rival-visit', 'schemes', 'collabs'].includes(d.type) ? 'center' : ''}">${inner}</div>`;
+    box.innerHTML = d.type === 'minigame' ? '' : `<div class="dialog-backdrop ${['week', 'ending', 'victory', 'menu', 'advice', 'activity', 'boss-menu', 'city', 'trip', 'rival-visit', 'schemes', 'collabs'].includes(d.type) ? 'center' : ''}">${inner}</div>`;
     ui.dialogShownAt = performance.now();
   }
 
