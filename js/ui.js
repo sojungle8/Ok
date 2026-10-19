@@ -987,16 +987,53 @@
                 ${cell(e.mood, 'm')}${cell(e.energy, 'e')}${cell(e.hunger, 'h')}${cell(e.skill, 's')}
                 <span class="st-wage"><button data-action="wage" data-id="${e.id}" data-d="-5" aria-label="減薪">－</button><b class="${e.wage < s.marketWage ? 'neg' : e.wage > s.marketWage * 1.05 ? 'pos' : ''}">${money(e.wage)}</b><button data-action="wage" data-id="${e.id}" data-d="5" aria-label="加薪">＋</button></span>
                 <span class="st-act">
-                  <button data-action="praise" data-id="${e.id}" ${e.praiseDay === s.day ? 'disabled' : ''} title="稱讚">👍</button>
-                  <button data-action="sendhome" data-id="${e.id}" ${e.state === 'off' || e.sentHomeDay === s.day ? 'disabled' : ''} title="先下班">🏠</button>
-                  <button data-action="insp-staff" data-id="${e.id}" title="詳細">🔍</button>
+                  <button data-action="raise" data-id="${e.id}" title="加薪 $10（心情變好）">💵<small>加薪</small></button>
+                  <button data-action="praise" data-id="${e.id}" ${e.praiseDay === s.day ? 'disabled' : ''} title="稱讚（一天一次）">👍<small>稱讚</small></button>
+                  <button data-action="scold" data-id="${e.id}" class="warn" title="罵他（心情大跌、慣老闆指數上升）">😠<small>罵人</small></button>
+                  <button data-action="rest-now" data-id="${e.id}" ${e.state !== 'working' ? 'disabled' : ''} title="叫他先去休息">☕<small>休息</small></button>
+                  <button data-action="sendhome" data-id="${e.id}" ${e.state === 'off' || e.sentHomeDay === s.day ? 'disabled' : ''} title="今天先下班">🏠<small>下班</small></button>
+                  <button data-action="fire" data-id="${e.id}" class="${ui.confirmFire === e ? 'danger' : ''}" title="依法資遣">${ui.confirmFire === e ? `確定？${money(s.severanceOf(e))}` : '📄<small>資遣</small>'}</button>
+                  <button data-action="staff-open" data-id="${e.id}" class="${ui.staffOpen === e.id ? 'active' : ''}" title="排班、崗位、人際關係">⚙️<small>${ui.staffOpen === e.id ? '收起' : '設定'}</small></button>
                 </span>
+                ${ui.staffOpen === e.id ? staffDetail(e) : ''}
               </div>`;
             })
             .join('') || '<p class="muted">一個員工都沒有，店開不起來。到「應徵者」分頁招人！</p>'}
         </div>
         <p class="drawer-tip">點名字可以看詳細資料和人際關係；時薪＋／－一次 $5，減薪會讓員工不開心。</p>
       </div>`;
+  }
+
+  // 總覽裡展開的設定：班別、休假日、固定崗位、人際關係
+  function staffDetail(e) {
+    const s = ui.sim;
+    const n = s.policy.shifts;
+    const shiftNames = n === 1 ? ['全天'] : n === 2 ? ['早班', '晚班'] : ['早班', '晚班', '大夜'];
+    const stations = s.objects.filter((o) => o.def.cat === 'station' && !o.def.selfServe);
+    const rest = s.restCount(e);
+    const weeks = Math.max(0, Math.floor((s.day - e.hiredDay) / 7));
+    return `<div class="st-detail">
+      <div class="st-detail-row">
+        <label>班別 <select data-action="sched" data-id="${e.id}" data-key="shiftPref"><option value="auto" ${e.shiftPref === 'auto' ? 'selected' : ''}>自動</option>${shiftNames.map((nm, i) => `<option value="${i}" ${e.shiftPref === i ? 'selected' : ''}>${nm}</option>`).join('')}</select></label>
+        <label>固定崗位 <select data-action="sched" data-id="${e.id}" data-key="post"><option value="" ${!e.post ? 'selected' : ''}>不限</option>${stations.map((o) => `<option value="${o.id}" ${e.post === o.id ? 'selected' : ''}>${o.def.icon} ${o.def.name}</option>`).join('')}</select></label>
+        <span class="st-wage-set">時薪 <button data-action="wage" data-id="${e.id}" data-d="-10">－10</button><b>${money(e.wage)}</b><button data-action="wage" data-id="${e.id}" data-d="10">＋10</button><button data-action="wage-market" data-id="${e.id}" ${e.wage >= s.marketWage ? 'disabled' : ''}>調到行情 ${money(s.marketWage)}</button></span>
+      </div>
+      <div class="st-detail-row">
+        <span>休假</span>
+        ${WEEKDAYS.map((d, i) => {
+          const p = s.plannedShift(e, i);
+          const closed = s.policy.closedDay === i;
+          return `<button class="sc-day ${p === null ? 'off' : 'on'}" data-action="rest-day" data-id="${e.id}" data-d="${i}" ${closed ? 'disabled' : ''}>${d}${closed ? '公休' : p === null ? '休' : ''}</button>`;
+        }).join('')}
+        <span class="${rest < 1 ? 'neg' : ''}">每週休 ${rest} 天${rest < 1 ? '（違法）' : ''}</span>
+        ${Array.isArray(e.restDays) ? `<button class="link" data-action="rest-auto" data-id="${e.id}">改回輪休</button>` : ''}
+      </div>
+      <div class="st-detail-row muted">
+        <span>${e.traits.map((t) => `${TRAITS[t].name}：${TRAITS[t].desc}`).join('；')}</span>
+        <span>到職 ${weeks} 週・資遣費約 ${money(s.severanceOf(e))}</span>
+      </div>
+      ${relationsHtml(e)}
+    </div>`;
   }
 
   function staffSchedule() {
@@ -1824,10 +1861,36 @@
         inspect('staff', s.staff.find((x) => String(x.id) === btn.dataset.id));
         if (ui.tab === 'staff') renderDrawer();
         break;
-      case 'raise':
-        s.raise(ui.inspect.ref);
-        renderInspector();
+      case 'raise': {
+        const who = staffOf(btn);
+        if (who) {
+          s.raise(who);
+          toast(`💵 ${who.name} 時薪調到 ${money(who.wage)}`);
+        }
+        refreshStaffViews();
         break;
+      }
+      case 'wage-market': {
+        const who = staffOf(btn);
+        if (who) s.setWage(who, s.marketWage);
+        refreshStaffViews();
+        break;
+      }
+      case 'rest-now': {
+        const who = staffOf(btn);
+        if (who) {
+          const ok = s.restNow(who);
+          toast(ok ? `☕ ${who.name} 去休息了` : `${who.name} 正在服務客人，等一下再去`, ok ? '' : 'bad');
+        }
+        refreshStaffViews();
+        break;
+      }
+      case 'staff-open': {
+        const id = Number(btn.dataset.id);
+        ui.staffOpen = ui.staffOpen === id ? null : id;
+        renderDrawer();
+        break;
+      }
       case 'praise': {
         const who = btn.dataset.id ? s.staff.find((x) => String(x.id) === btn.dataset.id) : ui.inspect.ref;
         if (who && s.praise(who)) toast(`👍 稱讚了${who.name}`);
@@ -1887,10 +1950,15 @@
         store.set('boss-sim-autopause', ui.autoPause ? '1' : '0');
         renderDialog();
         break;
-      case 'scold':
-        s.scold(ui.inspect.ref);
-        renderInspector();
+      case 'scold': {
+        const who = staffOf(btn);
+        if (who) {
+          s.scold(who);
+          toast(`😠 你罵了${who.name}（慣老闆指數上升）`, 'bad');
+        }
+        refreshStaffViews();
         break;
+      }
       case 'sendhome': {
         const who = btn.dataset.id ? s.staff.find((x) => String(x.id) === btn.dataset.id) : ui.inspect.ref;
         if (!who) break;
@@ -1899,15 +1967,25 @@
         if (ui.tab === 'staff') renderDrawer();
         break;
       }
-      case 'fire':
-        if (ui.confirmFire === ui.inspect.ref) {
-          s.fire(ui.inspect.ref);
-          closeInspector();
+      case 'fire': {
+        const who = staffOf(btn);
+        if (!who) break;
+        if (ui.confirmFire === who) {
+          s.fire(who);
+          ui.confirmFire = null;
+          if (ui.inspect && ui.inspect.ref === who) closeInspector();
         } else {
-          ui.confirmFire = ui.inspect.ref;
-          renderInspector();
+          ui.confirmFire = who;
+          // 三秒內沒按第二次就取消，免得誤按
+          clearTimeout(ui.fireT);
+          ui.fireT = setTimeout(() => {
+            ui.confirmFire = null;
+            refreshStaffViews();
+          }, 3000);
         }
+        refreshStaffViews();
         break;
+      }
       case 'move-obj':
         startMove(ui.inspect.ref);
         break;
@@ -1971,6 +2049,18 @@
         break;
     }
   });
+
+  // 按鈕上有 data-id 就用它（員工總覽），沒有就用檢視面板裡的那個人
+  function staffOf(btn) {
+    const s = ui.sim;
+    if (btn.dataset.id) return s.staff.find((x) => String(x.id) === btn.dataset.id) || null;
+    return ui.inspect && ui.inspect.kind === 'staff' ? ui.inspect.ref : null;
+  }
+
+  function refreshStaffViews() {
+    if (ui.inspect) renderInspector();
+    if (ui.tab === 'staff') renderDrawer();
+  }
 
   function closeDialog() {
     const wasWelcome = ui.dialog && ui.dialog.type === 'welcome';

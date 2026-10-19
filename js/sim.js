@@ -1270,6 +1270,15 @@
       this.say(e, k > 1 ? '……（快哭了）' : '……是，我會注意。', 120);
     }
 
+    // 叫他先去休息一下（服務中的客人做完才去）
+    restNow(e) {
+      if (e.state !== 'working') return false;
+      if (e.task && e.task.lane && e.task.lane.customer && e.task.lane.customer.state === 'atLane') return false;
+      this.startBreak(e);
+      e.mood = clamp(e.mood + 2, 0, 100);
+      return true;
+    }
+
     sendHome(e) {
       e.sentHomeDay = this.day;
       if (e.state === 'working' || e.state === 'break') this.goHome(e);
