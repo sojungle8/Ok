@@ -1,7 +1,7 @@
 // 開店模擬核心：店面格子、客人與員工的自主行為、營業時間與班表、財務、事件
 // 不碰 DOM，可以在 Node 裡跑
 (function (root) {
-  const { INDUSTRIES, CATALOG, LOTS, NAMES, TRAITS, LEVELS, DISTRICTS, DISTRICT_INFO, CUSTOMER_TYPES, DIFFICULTY, FLOORS, WALLS, SIGNS } = root.BossIndustries;
+  const { INDUSTRIES, CATALOG, LOTS, NAMES, TRAITS, LEVELS, DISTRICTS, DISTRICT_INFO, CUSTOMER_TYPES, DIFFICULTY, FLOORS, WALLS, SIGNS, BRANCH_SITES, BRANCH_SIZES, TOURIST_PREF } = root.BossIndustries;
   const { EVENTS, IGNORE, VIOLATIONS } = root.BossData;
   const Looks = root.BossLooks;
   const Fun = root.BossFun || { KARENS: [], TRENDS: [], POST_HOOKS: [], POST_BODIES: [], POST_ENDINGS: [], COMMENTS: {}, HEADLINES: [], STAFF_QUIPS: [], FUNNY_REVIEWS: { good: [], bad: [] } };
@@ -309,33 +309,94 @@
         this.sound('level');
       }
     }
-    get branchCost() {
-      return Math.round((this.ind.cash * 4) / 10000) * 10000;
+    // ───── 分店：自己挑地點和店面大小 ─────
+    // 舊存檔只有地區名稱：用以前的人潮和房租資料湊一個地點
+    siteOf(b) {
+      const found = BRANCH_SITES.find((x) => x.id === b.site);
+      if (found) return found;
+      const info = DISTRICT_INFO[b.district] || { traffic: 1, rent: 1 };
+      return { id: 'legacy', city: '', name: b.district, icon: '🏙️', desc: '', traffic: info.traffic, rent: info.rent, cost: 1, mix: { student: 0.25, office: 0.25, elderly: 0.2, family: 0.3, tourist: 0 } };
     }
-    openBranch() {
-      if (this.level < 5 || this.cash < this.branchCost || this.branches.length >= DISTRICTS.length) return null;
-      const district = DISTRICTS.find((d) => !this.branches.some((b) => b.district === d));
-      this.cash -= this.branchCost;
-      this.ledger.other -= this.branchCost;
-      const b = { district, week: this.week, last: 0, total: 0, revenue: 0, wage: 'market', price: 'normal', staff: this.branchNeed, morale: 65, rating: 3.8, reno: 0, hist: [] };
+
+    // 這個地點的客群跟你的產業合不合
+    siteFit(site) {
+      const pref = (t) => (t === 'tourist' ? TOURIST_PREF[this.ind.id] || 1 : (this.ind.mix && this.ind.mix[t]) || 1);
+      const keys = Object.keys(site.mix);
+      const tot = keys.reduce((a, k) => a + site.mix[k], 0) || 1;
+      const avgPref = keys.reduce((a, k) => a + pref(k), 0) / keys.length;
+      const w = keys.reduce((a, k) => a + site.mix[k] * pref(k), 0) / tot;
+      return clamp(w / avgPref, 0.6, 1.5);
+    }
+
+    siteSeason(site) {
+      const m = this.monthOfYear;
+      if (!site.season) return 1;
+      if (site.season.high.includes(m)) return 1.35;
+      if (site.season.low.includes(m)) return 0.75;
+      return 1;
+    }
+
+    get branchCost() {
+      return Math.round((this.ind.cash * 2.5) / 10000) * 10000;
+    }
+
+    siteCost(site, size = 'medium') {
+      return Math.round((this.ind.cash * 2.5 * site.cost * BRANCH_SIZES[size].cost) / 10000) * 10000;
+    }
+
+    openBranch(siteId, size = 'medium') {
+      const site = BRANCH_SITES.find((x) => x.id === siteId) || BRANCH_SITES.find((x) => !this.branches.some((b) => b.site === x.id));
+      if (!site || !BRANCH_SIZES[size] || this.level < 5 || this.branches.some((b) => b.site === site.id)) return null;
+      const cost = this.siteCost(site, size);
+      if (this.cash < cost) return null;
+      this.cash -= cost;
+      this.ledger.other -= cost;
+      const b = { site: site.id, district: site.name, size, paid: cost, week: this.week, last: 0, total: 0, revenue: 0, wage: 'market', price: 'normal', staff: this.branchNeedOf(size), morale: 65, rating: 3.8, reno: 0, hist: [] };
       this.branches.push(b);
-      this.notify(`🏙️ ${this.shopName}${district}店開幕了！`, 'achieve');
+      this.notify(`🏙️ ${this.shopName}${site.city}${site.name}店開幕了！`, 'achieve');
       if (this.branches.length >= 3) this.achieve('chain');
       return b;
     }
+
+    // 分店擴建：小 → 中 → 大
+    expandCost(b) {
+      const next = b.size === 'small' ? 'medium' : b.size === 'medium' ? 'large' : null;
+      if (!next) return null;
+      const site = this.siteOf(b);
+      return { next, cost: Math.round(((this.siteCost(site, next) - this.siteCost(site, b.size)) * 0.9) / 1000) * 1000 };
+    }
+
+    expandBranch(i) {
+      const b = this.branches[i];
+      const ex = b && this.expandCost(b);
+      if (!ex || this.cash < ex.cost) return false;
+      this.cash -= ex.cost;
+      this.ledger.other -= ex.cost;
+      b.paid = (b.paid || this.branchCost) + ex.cost;
+      b.size = ex.next;
+      this.notify(`🏗️ ${b.district}店擴建成${BRANCH_SIZES[ex.next].name}了！記得多請一點人。`, 'good');
+      return true;
+    }
+
     sellBranch(i) {
       const b = this.branches[i];
       if (!b) return 0;
-      const refund = Math.round(this.branchCost * (0.5 + b.reno * 0.05));
+      const refund = Math.round((b.paid || this.branchCost) * (0.5 + b.reno * 0.05));
       this.branches.splice(i, 1);
       this.cash += refund;
       this.ledger.other += refund;
       this.notify(`🏙️ 把${b.district}店頂讓出去了，拿回 $${refund.toLocaleString()}。`);
       return refund;
     }
+
     get branchNeed() {
       return this.ind.starterStaff + 1;
     }
+
+    branchNeedOf(size = 'medium') {
+      return Math.max(2, Math.round(this.branchNeed * BRANCH_SIZES[size].staff));
+    }
+
     // 分店的基本盤：一週的來客營收（照本店的產業特性估算）
     branchBase() {
       const ind = this.ind;
@@ -344,13 +405,14 @@
       const total = ind.products.reduce((s, p) => s + p.weight, 0);
       const avgPrice = ind.products.reduce((s, p) => s + p.price * p.weight, 0) / total;
       const costShare = ind.products.reduce((s, p) => s + p.cost * p.weight, 0) / total / avgPrice;
-      return { revenue: ind.baseArrivals * traffic * 0.8 * (ind.basket || 1) * avgPrice * 7 * this.idx.cpi, costShare };
+      return { revenue: ind.baseArrivals * traffic * 0.8 * (ind.basket || 1) * avgPrice * 7 * this.idx.cpi * (ind.branchMult || 1), costShare };
     }
+
     setBranch(i, key, value) {
       const b = this.branches[i];
       if (!b) return false;
       if (key === 'staff') {
-        const n = clamp(b.staff + value, 1, 12);
+        const n = clamp(b.staff + value, 1, 16);
         if (n > b.staff) {
           this.cash -= 1500;
           this.ledger.other -= 1500;
@@ -367,16 +429,44 @@
       } else b[key] = value;
       return true;
     }
+
     get renoCost() {
       return Math.round((this.branchCost * 0.15) / 1000) * 1000;
     }
+
+    // 算一間分店一週的帳；est 為 true 時不加隨機（給選址畫面估算用）
+    branchWeek(b, est = false) {
+      const { revenue: R0, costShare } = this.branchBase();
+      const site = this.siteOf(b);
+      const size = BRANCH_SIZES[b.size || 'medium'];
+      const need = this.branchNeedOf(b.size || 'medium');
+      const wm = { low: 0.92, market: 1, high: 1.12 }[b.wage];
+      const pm = { cheap: 0.9, normal: 1, premium: 1.15 }[b.price];
+      const load = need / Math.max(1, b.staff);
+      const traffic = site.traffic * this.siteFit(site) * this.siteSeason(site) * (site.weekdayOnly ? 0.85 : 1);
+      const premiumHit = site.rich ? 0.94 : 0.82;
+      const demand = R0 * traffic * size.draw * clamp((b.rating - 2.4) / 1.4, 0.15, 1.5) * (pm < 1 ? 1.15 : pm > 1 ? premiumHit : 1) * (est ? 1 : 0.9 + this.rng() * 0.2);
+      const sold = Math.min(demand, (R0 * 1.3 * size.cap * b.staff) / need);
+      const revenue = sold * pm;
+      const materials = sold * costShare * this.costMult.materials * (0.85 + 0.15 * this.idx.oil);
+      const wages = b.staff * 38 * this.marketWage * wm * (1 + (this.policy.insurance ? INS_TOTAL : 0));
+      const rent = (this.ind.rent * site.rent * size.rent) / 4;
+      return { revenue, profit: revenue - materials - wages - rent - revenue * 0.01, load, wm, pm, demand, cap: (R0 * 1.3 * size.cap * b.staff) / need };
+    }
+
+    // 選址畫面用：照預設設定估算每週營收和淨利
+    estimateSite(site, size) {
+      const b = { site: site.id, size, wage: 'market', price: 'normal', staff: this.branchNeedOf(size), rating: 3.7 };
+      const r = this.branchWeek(b, true);
+      return { revenue: Math.round(r.revenue), profit: Math.round(r.profit) };
+    }
+
     // 每週結算分店：員工士氣 → 評價 → 來客；人手不夠會累垮，薪水太低會被爆料
     branchWeekly() {
-      const { revenue: R0, costShare } = this.branchBase();
-      const need = this.branchNeed;
       let total = 0;
       for (const b of this.branches) {
-        const info = DISTRICT_INFO[b.district] || { traffic: 1, rent: 1 };
+        const size = b.size || 'medium';
+        const need = this.branchNeedOf(size);
         const wm = { low: 0.92, market: 1, high: 1.12 }[b.wage];
         const pm = { cheap: 0.9, normal: 1, premium: 1.15 }[b.price];
         const load = need / Math.max(1, b.staff);
@@ -384,14 +474,10 @@
         b.morale = clamp(b.morale + (mt - b.morale) * 0.45, 0, 100);
         const rt = 3.5 + (b.morale - 55) / 45 + b.reno * 0.18 + (pm < 1 ? 0.2 : pm > 1 ? -0.25 : 0) + (this.rating - 3.8) * 0.3 - Math.max(0, load - 1.2) * 0.8;
         b.rating = clamp(b.rating + (rt - b.rating) * 0.4, 1, 5);
-        const demand = R0 * info.traffic * clamp((b.rating - 2.4) / 1.4, 0.15, 1.5) * (pm < 1 ? 1.15 : pm > 1 ? 0.82 : 1) * (0.9 + this.rng() * 0.2);
-        const sold = Math.min(demand, (R0 * 1.3 * b.staff) / need);
-        const revenue = sold * pm;
-        const materials = sold * costShare * this.costMult.materials * (0.85 + 0.15 * this.idx.oil);
-        const wages = b.staff * 38 * this.marketWage * wm * (1 + (this.policy.insurance ? INS_TOTAL : 0));
-        const rent = (this.ind.rent * info.rent) / 4;
-        const p = Math.round(revenue - materials - wages - rent - revenue * 0.01);
-        b.revenue = Math.round(revenue);
+        const r = this.branchWeek(b);
+        const p = Math.round(r.profit);
+        b.revenue = Math.round(r.revenue);
+        b.busy = r.demand > r.cap * 1.05; // 客人多到做不完
         b.last = p;
         b.total += p;
         b.hist = [...(b.hist || []), p].slice(-12);
@@ -3572,7 +3658,7 @@
       s.achievements = new Set(d.achievements);
       s.rel = d.rel || {};
       s.xp = d.xp || 0;
-      s.branches = (d.branches || []).map((b) => ({ revenue: 0, wage: 'market', price: 'normal', staff: s.branchNeed, morale: 65, rating: 3.8, reno: 0, hist: [], ...b }));
+      s.branches = (d.branches || []).map((b) => ({ revenue: 0, wage: 'market', price: 'normal', staff: s.branchNeed, morale: 65, rating: 3.8, reno: 0, hist: [], size: 'medium', ...b }));
       s.awards = d.awards || [];
       s.yearProfit = d.yearProfit || 0;
       s.separate = new Set(d.separate || []);

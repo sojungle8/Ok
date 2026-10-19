@@ -149,9 +149,12 @@ function daily(r) {
     if (pt) s.startCollab(pt.id);
   }
   // 分店
-  if (s.level >= 5 && s.cash > s.branchCost + 300000 && s.branches.length < 3) {
-    const b = s.openBranch();
-    if (b) note(`第 ${s.day} 天：在${b.district}開分店`);
+  if (s.level >= 5 && s.branches.length < 3) {
+    // 挑估算淨利最高的地點
+    const I = globalThis.BossIndustries;
+    const cand = I.BRANCH_SITES.filter((st) => !s.branches.some((b) => b.site === st.id) && s.cash > s.siteCost(st) + 300000).sort((a, c) => s.estimateSite(c, 'medium').profit - s.estimateSite(a, 'medium').profit)[0];
+    const b = cand && s.openBranch(cand.id, 'medium');
+    if (b) note(`第 ${s.day} 天：在${s.siteOf(b).city}${b.district}開分店`);
   }
   // 現金太少：借錢；有餘裕：還錢
   if (s.cash < 30000 && s.loan < 600000) s.borrow(100000);

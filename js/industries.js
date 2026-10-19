@@ -151,6 +151,7 @@
       categories: ['service'],
       shopName: '阿芬家庭理髮',
       signColor: '#3b6fb6',
+      branchMult: 0.55, // 分店營收修正（服務時間長，實際接得到的客人比較少）
       xpMult: 0.8, // 經驗值補正（營業時數不同）
       cash: 280000,
       rent: 30000,
@@ -193,6 +194,7 @@
       categories: ['service'],
       shopName: '順發機車行',
       signColor: '#e2a12a',
+      branchMult: 0.8, // 分店營收修正（服務時間長，實際接得到的客人比較少）
       xpMult: 1.1, // 經驗值補正（營業時數不同）
       cash: 420000,
       rent: 42000,
@@ -384,6 +386,31 @@
     hell: { name: '地獄', desc: '事件多、客人急、員工容易累', patience: 0.75, events: 1.6, cash: 1, rival: 1.2, inspect: 1.4, fines: 1.2, drain: 1.2, wage: 1.05 },
   };
 
+  // 分店地點：人潮、房租、開店費、客群組成、淡旺季
+  // mix：學生、上班族、長輩、家庭、觀光客的比例；rich：客人比較不在意價格；season：旺季與淡季的月份
+  const BRANCH_SITES = [
+    { id: 'xinyi', city: '台北', name: '信義商圈', icon: '🏙️', desc: '百貨和辦公大樓林立，人潮多到走路要排隊，房租也貴到老闆會哭。', traffic: 1.65, rent: 2.3, cost: 2.0, rich: true, mix: { student: 0.15, office: 0.45, elderly: 0.05, family: 0.15, tourist: 0.2 } },
+    { id: 'ximen', city: '台北', name: '西門町', icon: '🎬', desc: '年輕人和觀光客的大本營，假日人擠人，平日晚上也很熱鬧。', traffic: 1.5, rent: 1.9, cost: 1.7, mix: { student: 0.4, office: 0.1, elderly: 0.05, family: 0.1, tourist: 0.35 } },
+    { id: 'banqiao', city: '新北', name: '板橋車站', icon: '🚉', desc: '捷運、高鐵、台鐵三鐵共構，通勤族從早到晚都有。', traffic: 1.3, rent: 1.35, cost: 1.3, mix: { student: 0.2, office: 0.45, elderly: 0.1, family: 0.2, tourist: 0.05 } },
+    { id: 'xinzhuang', city: '新北', name: '新莊老街', icon: '🏘️', desc: '住宅區和老街，街坊鄰居多，長輩和家庭是主力。', traffic: 0.95, rent: 0.9, cost: 0.85, mix: { student: 0.15, office: 0.15, elderly: 0.35, family: 0.35, tourist: 0 } },
+    { id: 'fengjia', city: '台中', name: '逢甲夜市', icon: '🏮', desc: '全台最大的夜市之一，大學生和觀光客的天堂，晚上人潮爆炸。', traffic: 1.4, rent: 1.25, cost: 1.2, mix: { student: 0.5, office: 0.05, elderly: 0.05, family: 0.1, tourist: 0.3 } },
+    { id: 'beitun', city: '台中', name: '北屯', icon: '🌳', desc: '新興住宅區，年輕家庭多，房租還算親切。', traffic: 0.95, rent: 0.8, cost: 0.8, mix: { student: 0.15, office: 0.2, elderly: 0.15, family: 0.5, tourist: 0 } },
+    { id: 'tainan', city: '台南', name: '東區大學路', icon: '🎓', desc: '大學生和老台南人交會的地方，大家對吃很挑剔。', traffic: 0.95, rent: 0.7, cost: 0.75, mix: { student: 0.45, office: 0.1, elderly: 0.25, family: 0.15, tourist: 0.05 } },
+    { id: 'zuoying', city: '高雄', name: '左營高鐵站', icon: '🚄', desc: '南部的交通樞紐，旅客和通勤族都多。', traffic: 1.15, rent: 1.0, cost: 1.0, mix: { student: 0.1, office: 0.35, elderly: 0.1, family: 0.2, tourist: 0.25 } },
+    { id: 'hsinchu', city: '新竹', name: '科學園區', icon: '💻', desc: '工程師的聚集地，平日中午大爆滿，週末變空城；薪水高，不太在意價格。', traffic: 1.2, rent: 1.3, cost: 1.3, rich: true, weekdayOnly: true, mix: { student: 0.05, office: 0.75, elderly: 0, family: 0.15, tourist: 0.05 } },
+    { id: 'zhongli', city: '桃園', name: '中壢車站', icon: '🛤️', desc: '學生、移工、通勤族混在一起，熱鬧又多元。', traffic: 1.05, rent: 0.85, cost: 0.85, mix: { student: 0.35, office: 0.25, elderly: 0.1, family: 0.25, tourist: 0.05 } },
+    { id: 'hualien', city: '花蓮', name: '東大門夜市', icon: '🌊', desc: '觀光客的必訪景點，暑假和連假爆滿，冬天就冷冷清清。', traffic: 1.1, rent: 0.75, cost: 0.8, season: { high: [7, 8, 2], low: [11, 12, 1] }, mix: { student: 0.1, office: 0.05, elderly: 0.1, family: 0.2, tourist: 0.55 } },
+    { id: 'luodong', city: '宜蘭', name: '羅東夜市', icon: '🍃', desc: '在地人的生活圈，週末有台北人開車來玩。', traffic: 0.85, rent: 0.65, cost: 0.7, mix: { student: 0.15, office: 0.1, elderly: 0.3, family: 0.3, tourist: 0.15 } },
+  ];
+  // 分店店面大小：cap 能容納的客人、draw 吸引力、rent 房租、cost 開店費、staff 需要的人手
+  const BRANCH_SIZES = {
+    small: { name: '小店面', cap: 0.75, draw: 0.85, rent: 0.7, cost: 0.75, staff: 0.75 },
+    medium: { name: '中店面', cap: 1, draw: 1, rent: 1, cost: 1, staff: 1 },
+    large: { name: '大店面', cap: 1.4, draw: 1.2, rent: 1.55, cost: 1.45, staff: 1.4 },
+  };
+  // 各產業喜不喜歡觀光客
+  const TOURIST_PREF = { breakfast: 0.8, noodle: 1.2, drinks: 1.5, barber: 0.25, scooter: 0.35, store: 1.3 };
+
   // 店面裝潢樣式：地板、牆面、招牌
   const FLOORS = {
     default: { name: '原本的地磚', price: 0 },
@@ -409,5 +436,5 @@
     桃園中壢: { traffic: 0.95, rent: 0.85 },
   };
 
-  root.BossIndustries = { INDUSTRIES, CATALOG, CAT_LABELS, LOTS, NAMES, TRAITS, LEVELS, DISTRICTS, DISTRICT_INFO, CUSTOMER_TYPES, DIFFICULTY, FLOORS, WALLS, SIGNS };
+  root.BossIndustries = { INDUSTRIES, CATALOG, CAT_LABELS, LOTS, NAMES, TRAITS, LEVELS, DISTRICTS, DISTRICT_INFO, CUSTOMER_TYPES, DIFFICULTY, FLOORS, WALLS, SIGNS, BRANCH_SITES, BRANCH_SIZES, TOURIST_PREF };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -1,7 +1,7 @@
 // 介面：開始畫面、上方資訊列、底部工具列與抽屜、檢視面板、事件對話、週報、結局
 (function () {
   const { Sim, CATALOG, catalogById, ACHIEVEMENTS, MIN_WAGE, WEEKDAYS, INS, TAX_LABEL, CUSTOMER_TYPES } = window.BossSim;
-  const { INDUSTRIES, CAT_LABELS, LOTS, TRAITS, LEVELS, DISTRICTS, DISTRICT_INFO, DIFFICULTY, FLOORS, WALLS, SIGNS } = window.BossIndustries;
+  const { INDUSTRIES, CAT_LABELS, LOTS, TRAITS, LEVELS, DISTRICTS, DISTRICT_INFO, DIFFICULTY, FLOORS, WALLS, SIGNS, BRANCH_SITES, BRANCH_SIZES } = window.BossIndustries;
   const Fun = window.BossFun;
   const { portraitSVG, bossLook, VISITORS } = window.BossLooks;
   const app = document.getElementById('app');
@@ -1595,7 +1595,7 @@
     const lv = s.level;
     const next = LEVELS[lv];
     const upcoming = CATALOG.filter((d) => d.lv && d.lv > lv && (!d.industries || d.industries.includes(s.ind.id))).sort((a, b) => a.lv - b.lv).slice(0, 6);
-    const canBranch = lv >= 5 && s.branches.length < DISTRICTS.length;
+    const canBranch = lv >= 5 && s.branches.length < BRANCH_SITES.length;
     return `
       <div class="drawer-body two-col">
         <div>
@@ -1608,7 +1608,7 @@
           <div class="branch-list">
             ${s.branches.map((b, i) => branchCard(b, i)).join('') || '<p class="muted">還沒有分店。</p>'}
           </div>
-          ${canBranch ? `<button class="primary" data-action="open-branch" ${s.cash < s.branchCost ? 'disabled' : ''}>在${DISTRICTS.find((d) => !s.branches.some((b) => b.district === d))}開分店（${money(s.branchCost)}）</button>` : ''}
+          ${canBranch ? `<button class="primary" data-action="branch-sites">🗺️ 挑地點開分店</button>` : ''}
           ${s.awards.length ? `<h3>年度好店評選</h3>${s.awards.map((a) => `<p class="calc">${a.medal} 第 ${a.year} 年：${a.title}（${a.score} 分）</p>`).join('')}` : '<p class="drawer-tip">每年 12 月最後一週結束時，會舉辦年度好店評選。</p>'}
         </div>
         <div>
@@ -1666,11 +1666,15 @@
     const seg = (key, opts) => `<div class="segmented tiny">${opts.map(([v, l]) => `<button data-action="branch-set" data-i="${i}" data-key="${key}" data-value="${v}" class="${b[key] === v ? 'active' : ''}">${l}</button>`).join('')}</div>`;
     const hist = b.hist || [];
     const max = Math.max(1, ...hist.map((v) => Math.abs(v)));
-    const info = DISTRICT_INFO[b.district] || { traffic: 1, rent: 1 };
+    const site = s.siteOf(b);
+    const size = BRANCH_SIZES[b.size || 'medium'];
+    const need = s.branchNeedOf(b.size || 'medium');
+    const ex = s.expandCost(b);
     return `<div class="branch-card">
       ${branchArt(b)}
       <div class="branch-body">
-        <div class="branch-title"><b>${esc(b.district)}店</b><small>人潮 ${info.traffic >= 1.05 ? '多' : info.traffic <= 0.92 ? '少' : '普通'}・房租 ${info.rent >= 1.05 ? '貴' : info.rent <= 0.85 ? '便宜' : '普通'}</small></div>
+        <div class="branch-title"><b>${site.icon} ${esc(site.city)}${esc(b.district)}店</b><small>${size.name}・人潮 ${site.traffic >= 1.3 ? '超多' : site.traffic >= 1.05 ? '多' : site.traffic <= 0.9 ? '少' : '普通'}・房租 ${site.rent >= 1.5 ? '很貴' : site.rent >= 1.05 ? '貴' : site.rent <= 0.8 ? '便宜' : '普通'}${s.siteSeason(site) > 1 ? '・🔥 旺季' : s.siteSeason(site) < 1 ? '・🥶 淡季' : ''}</small></div>
+        ${b.busy ? '<p class="calc warn">客人多到做不完：加人手或擴建店面</p>' : ''}
         <div class="branch-stats">
           <span>★ ${b.rating.toFixed(1)}</span><span>士氣 ${Math.round(b.morale)}</span><span>上週 <b class="${b.last < 0 ? 'neg' : 'pos'}">${signedMoney(b.last)}</b></span>
         </div>
@@ -1678,7 +1682,8 @@
         <label>時薪 ${seg('wage', [['low', '低於行情'], ['market', '行情價'], ['high', '高於行情']])}</label>
         <label>定價 ${seg('price', [['cheap', '便宜'], ['normal', '一般'], ['premium', '高價']])}</label>
         <div class="branch-ctl">
-          <span>人手 <span class="price-ctl"><button data-action="branch-staff" data-i="${i}" data-d="-1">－</button><b class="${b.staff < s.branchNeed ? 'neg' : ''}">${b.staff}</b><button data-action="branch-staff" data-i="${i}" data-d="1">＋</button></span><small>建議 ${s.branchNeed} 人</small></span>
+          <span>人手 <span class="price-ctl"><button data-action="branch-staff" data-i="${i}" data-d="-1">－</button><b class="${b.staff < need ? 'neg' : ''}">${b.staff}</b><button data-action="branch-staff" data-i="${i}" data-d="1">＋</button></span><small>建議 ${need} 人</small></span>
+          ${ex ? `<button data-action="branch-expand" data-i="${i}" ${s.cash < ex.cost ? 'disabled' : ''}>🏗️ 擴建成${BRANCH_SIZES[ex.next].name}（${money(ex.cost)}）</button>` : ''}
           <button data-action="branch-reno" data-i="${i}" ${b.reno >= 3 || s.cash < s.renoCost ? 'disabled' : ''}>🔨 改裝 ${b.reno}/3（${money(s.renoCost)}）</button>
           <button data-action="sell-branch" data-i="${i}" class="warn">頂讓</button>
         </div>
@@ -1777,6 +1782,35 @@
           ${window.BossFun.PLACES.map((p) => `<button class="city-pin ${p.hub ? 'hub' : ''}" style="left:${p.x}%;top:${p.y}%" data-action="${p.hub ? 'open-hub' : 'go-out'}" data-id="${p.hub || p.id}" ${b.away || s.cash < p.cost ? 'disabled' : ''}><span>${p.icon}</span><b>${p.name}</b><small>${p.hub ? (p.hub === 'schemes' ? '陰謀計畫' : '聯名合作') : `${p.minutes} 分鐘${p.cost ? `・${money(p.cost)}` : ''}`}</small></button>`).join('')}
         </div>
         <div class="city-list">${window.BossFun.PLACES.map((p) => `<div><b>${p.icon} ${p.name}</b>：${p.desc}</div>`).join('')}</div>
+      </div>`;
+    } else if (d.type === 'sites') {
+      const sz = ui.siteSize || 'medium';
+      const T = window.BossSim.CUSTOMER_TYPES;
+      const mixLabel = { student: '🎒學生', office: '💼上班族', elderly: '🧓長輩', family: '🙂家庭', tourist: '📸觀光客' };
+      const fitN = (f) => Math.max(1, Math.min(5, Math.round((f - 0.6) / 0.15)));
+      const fitStars = (f) => "★".repeat(fitN(f)) + "☆".repeat(5 - fitN(f));
+      inner = `<div class="card menu-card plot-card">
+        <button class="x" data-action="close-dialog" aria-label="關閉">✕</button>
+        <h2>🗺️ 分店要開在哪裡？</h2>
+        <p class="calc">每個地點的人潮、房租和客群都不一樣：客群跟你的產業（${s.ind.name}）合不合，看「適合度」。估算是照行情時薪、一般定價、建議人手算的。</p>
+        <div class="segmented small">${Object.entries(BRANCH_SIZES).map(([id, z]) => `<button data-action="site-size" data-value="${id}" class="${sz === id ? 'active' : ''}">${z.name}<small>容量 ×${z.cap}・房租 ×${z.rent}</small></button>`).join('')}</div>
+        <div class="plot-list">${BRANCH_SITES.map((st) => {
+          const opened = s.branches.some((b) => b.site === st.id);
+          const cost = s.siteCost(st, sz);
+          const est = s.estimateSite(st, sz);
+          const fit = s.siteFit(st);
+          const top = Object.entries(st.mix).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, v]) => `${mixLabel[k]} ${Math.round(v * 100)}%`).join('・');
+          return `<div class="plot site ${opened ? 'opened' : ''}">
+            <div class="plot-head"><span>${st.icon}</span><div><b>${st.city}・${st.name}</b><small>${st.desc}</small></div></div>
+            <div class="site-bars">
+              <div class="ibar"><span>人潮</span><div class="bar"><div class="bar-fill morale" style="width:${Math.min(100, st.traffic * 55)}%"></div></div><b>×${st.traffic}</b></div>
+              <div class="ibar"><span>房租</span><div class="bar"><div class="bar-fill jerk" style="width:${Math.min(100, st.rent * 40)}%"></div></div><b>×${st.rent}</b></div>
+            </div>
+            <div class="plot-meta"><span>客群：${top}</span>${st.rich ? '<span>💎 不太在意價格</span>' : ''}${st.season ? '<span>🌊 有淡旺季</span>' : ''}${st.weekdayOnly ? '<span>📅 週末冷清</span>' : ''}</div>
+            <div class="plot-meta"><span>適合度 <b class="stars">${fitStars(fit)}</b></span><span>估計每週營收 ${money(est.revenue)}</span><span class="${est.profit < 0 ? 'neg' : 'pos'}">淨利約 ${signedMoney(est.profit)}</span></div>
+            <button class="primary" data-action="open-branch" data-site="${st.id}" ${opened || s.cash < cost ? 'disabled' : ''}>${opened ? '已經開了' : `開${BRANCH_SIZES[sz].name}（${money(cost)}）`}</button>
+          </div>`;
+        }).join('')}</div>
       </div>`;
     } else if (d.type === 'schemes') {
       const r = s.rival;
@@ -1899,7 +1933,7 @@
         <div class="ending-actions"><button class="primary" data-action="quit">回主選單</button></div>
       </div>`;
     }
-    box.innerHTML = d.type === 'minigame' ? '' : `<div class="dialog-backdrop ${['week', 'ending', 'victory', 'menu', 'advice', 'activity', 'boss-menu', 'city', 'trip', 'rival-visit', 'schemes', 'collabs'].includes(d.type) ? 'center' : ''}">${inner}</div>`;
+    box.innerHTML = d.type === 'minigame' ? '' : `<div class="dialog-backdrop ${['week', 'ending', 'victory', 'menu', 'advice', 'activity', 'boss-menu', 'city', 'trip', 'rival-visit', 'schemes', 'collabs', 'sites'].includes(d.type) ? 'center' : ''}">${inner}</div>`;
     ui.dialogShownAt = performance.now();
   }
 
@@ -2456,8 +2490,22 @@
         renderDrawer();
         break;
       }
+      case 'branch-sites':
+        ui.dialog = { type: 'sites' };
+        renderDialog();
+        break;
+      case 'site-size':
+        ui.siteSize = btn.dataset.value;
+        renderDialog();
+        break;
       case 'open-branch':
-        s.openBranch();
+        if (s.openBranch(btn.dataset.site, ui.siteSize || 'medium')) {
+          closeDialog();
+          if (ui.tab === 'goals') renderDrawer();
+        }
+        break;
+      case 'branch-expand':
+        s.expandBranch(Number(btn.dataset.i));
         renderDrawer();
         break;
       case 'sell-branch':
