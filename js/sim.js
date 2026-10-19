@@ -1595,6 +1595,287 @@
       return r;
     }
 
+    // ───── 走進去的小場景（夜市、廟、夜店、批發市場、隔壁對手）─────
+    // 老闆在場景裡時店照常營業；boss.away.scene 為 true，不會自動回來
+    enterPlace(id) {
+      const b = this.boss;
+      if (b.away) return false;
+      if (id === 'rival' && (!this.rival || this.rival.closed)) return false;
+      const fee = id === 'club' ? 500 : 0;
+      if (this.cash < fee) return false;
+      this.bossLeaveLane();
+      if (fee) {
+        this.cash -= fee;
+        this.ledger.other -= fee;
+      }
+      b.away = { id, scene: true, until: Infinity, did: {}, holy: 0, throws: 0, lines: [], chips: [], spent: fee };
+      b.ride = false;
+      return true;
+    }
+
+    placeAction(id) {
+      const b = this.boss;
+      const A = b.away;
+      if (!A || !A.scene) return null;
+      const pick = (arr) => arr[Math.floor(this.rng() * arr.length)];
+      const r = { text: '', chips: [] };
+      const pay = (n) => {
+        if (this.cash < n) return false;
+        this.cash -= n;
+        this.ledger.other -= n;
+        A.spent += n;
+        return true;
+      };
+      const once = (k) => {
+        if (A.did[k]) return false;
+        A.did[k] = true;
+        return true;
+      };
+      const energy = (n, show = true) => {
+        b.energy = clamp(b.energy + n, 0, 100);
+        if (show) r.chips.push(`⚡ 體力 ${n > 0 ? '+' : ''}${n}`);
+      };
+      const fans = (n) => {
+        this.social.followers += n;
+        r.chips.push(`📱 粉絲 +${n}`);
+      };
+      const broke = () => ({ text: '錢包空空的……先回店裡賺一點吧。', chips: [], fail: true });
+      const done = (t) => ({ text: t, chips: [], fail: true });
+      const working = () => this.staff.filter((e) => e.state === 'working' || e.state === 'break');
+      if (id.startsWith('buy:')) {
+        const g = (this.ind.stock || []).find((x) => x.id === id.slice(4));
+        if (!g) return null;
+        const need = Math.max(0, this.par[g.id] - this.stock[g.id]);
+        if (!need) return done(`${g.name}倉庫還是滿的，阿伯說：「買那麼多要放哪？」`);
+        const cost = Math.round(need * this.unitCost(g) * (A.did.haggle === 'ok' ? 0.8 : 0.85));
+        if (this.cash < cost) return broke();
+        this.cash -= cost;
+        this.ledger.materials += cost;
+        A.spent += cost;
+        this.stock[g.id] += need;
+        energy(-4, false);
+        r.text = `${g.icon} ${g.name}補了 ${need} 份，花 $${cost.toLocaleString()}（${A.did.haggle === 'ok' ? '八折' : '八五折'}）。你扛著箱子，腰發出了奇怪的聲音。`;
+        r.chips.push(`📦 ${g.name}補滿`);
+        A.did[id] = true;
+      } else
+        switch (id) {
+          // 夜市
+          case 'chicken':
+            if (!pay(80)) return broke();
+            r.text = pick(['雞排比你的臉還大，老闆問要不要切、要不要辣，你說「都要」。', '排了十五分鐘，前面的人一次買了二十片。', '咬下去的瞬間，你懂了為什麼大家願意排隊。']);
+            energy(12);
+            break;
+          case 'stinky':
+            if (!pay(70)) return broke();
+            r.text = pick(['你點了大辣，辣到在路邊跳了三分鐘。', '泡菜多到要滿出來，老闆說「少年仔多吃一點」。', '臭味一路跟著你，路人自動讓出一條路。']);
+            energy(10);
+            break;
+          case 'boba': {
+            const n = working().length;
+            const cost = Math.max(1, n) * 60;
+            if (!once('boba')) return done('你手上已經提了一大袋飲料，再買就拿不動了。');
+            if (!pay(cost)) {
+              A.did.boba = false;
+              return broke();
+            }
+            for (const e of working()) e.mood = clamp(e.mood + 6, 0, 100);
+            this.ledger.other += cost;
+            this.ledger.welfare += cost;
+            r.text = n ? `你幫在班上的 ${n} 個人各買了一杯珍奶（$${cost}），LINE 群組瞬間被貼圖洗版。` : '店裡沒人在班，你自己喝了一杯全糖去冰。';
+            if (n) r.chips.push('😊 在班員工心情 +6');
+            break;
+          }
+          case 'fortune':
+            if (!once('fortune')) return done('算命阿姨揮揮手：「天機不可洩漏兩次。」');
+            if (!pay(200)) {
+              A.did.fortune = false;
+              return broke();
+            }
+            r.text = `算命阿姨看了你的手相：「${pick(['你今年犯小人，但是員工都是你的貴人', '三天之內，會有一個很奧的客人……但你會贏', '你的財庫在店門口，記得把騎樓掃乾淨', '你上輩子是開早餐店的，這輩子還是', '你的員工如果離職，是因為你太常講幹話'])}。」`;
+            this.demandMods.push({ mult: 1.03, days: 3 });
+            r.chips.push('🔮 這幾天客人 +3%');
+            break;
+          case 'balloon':
+            if (!pay(100)) return broke();
+            if (this.rng() < 0.5) {
+              r.text = '連中十發！老闆娘大喊「夜市神槍手」，旁邊的人開始拍你。';
+              fans(100);
+            } else r.text = pick(['十發只中兩發，老闆娘安慰你：「氣球今天比較皮。」', '你打中了老闆娘的招牌，大家一起裝沒事。']);
+            break;
+          case 'ring':
+            if (!pay(100)) return broke();
+            if (this.rng() < 0.3) {
+              r.text = '套中了一隻巨大的熊！你抱著牠走完整條夜市。';
+              b.mood = clamp(b.mood + 10, 0, 100);
+              r.chips.push('😄 老闆心情 +10');
+            } else r.text = pick(['套到一個鑰匙圈。花了一百塊。', '圈圈彈了三下，掉在獎品旁邊。老闆說「差一點！」（每次都差一點）']);
+            break;
+          case 'fan':
+            if (!once('fan')) return done('熟客已經去排雞排了。');
+            r.text = pick(['「你是那間店的老闆嗎？我每天都去欸！」她拉著你自拍，還打卡了。', '「老闆！上次那個工讀生超可愛，記得幫他加薪喔！」她拍了一張合照上傳。']);
+            fans(80);
+            break;
+          // 廟
+          case 'incense':
+            if (!once('incense')) return done('香已經插好了，神明說「收到」。');
+            b.mood = clamp(b.mood + 5, 0, 100);
+            r.text = '你拿著香跟神明報告：店名、地址、最近營收、還有一個很難搞的員工……說了快五分鐘。';
+            r.chips.push('😌 老闆心情 +5');
+            break;
+          case 'jiao': {
+            if (A.throws >= 3) return done('今天已經擲三次了，廟公說：「神明也要休息。」');
+            A.throws++;
+            const x = this.rng();
+            const t = x < 0.5 ? 'holy' : x < 0.75 ? 'laugh' : 'no';
+            if (t === 'holy') A.holy++;
+            (A.jiaos = A.jiaos || []).push(t);
+            r.jiao = t;
+            r.text = { holy: '🌗 聖筊！一正一反，神明說「可以」。', laugh: '🌕 笑筊……兩個都朝上，神明在笑你。', no: '🌑 陰筊，兩個都朝下，神明說「不行喔」。' }[t] + `（第 ${A.throws}/3 次，聖筊 ${A.holy} 個）`;
+            if (A.throws === 3) r.text += A.holy >= 3 ? ' 連續三個聖筊！廟公跑過來看：「這陣子生意會很好喔！」' : '';
+            break;
+          }
+          case 'lots':
+            if (!once('lots')) return done('一天抽一支就好，抽到不喜歡的不能重抽。');
+            r.text = `你抽到第 ${1 + Math.floor(this.rng() * 60)} 籤：「${pick(['上上籤・財源廣進，但要對員工好一點', '中籤・客人如流水，來來去去，莫強求', '下下籤・注意排班，有人想離職', '上籤・貴人在隔壁，不要跟他吵架', '中上籤・宜發文，忌回酸民'])}」`;
+            break;
+          case 'donate':
+            if (!once('donate')) return done('香油錢箱已經被你餵飽了。');
+            if (!pay(200)) {
+              A.did.donate = false;
+              return broke();
+            }
+            this.demandMods.push({ mult: 1.03, days: 3 });
+            r.text = '你投了 $200 香油錢，旁邊的阿嬤點頭說：「少年仔有誠意。」';
+            r.chips.push('🍀 這幾天客人 +3%');
+            break;
+          case 'keeper':
+            r.text = `廟公：「${pick(['做生意喔，第一要有良心，第二要有人手，第三要有冷氣。', '你們那條街以前是田啦，我小時候在那邊抓青蛙。', '你知道為什麼土地公生意這麼好嗎？因為祂從來不罵員工。', '擲筊要問清楚一點，不要問「會不會賺錢」，要問「下個月」。', '你隔壁那家老闆也常來，他都求你倒店。'])}」`;
+            break;
+          // 夜店
+          case 'dance':
+            if (b.energy < 15) return done('你已經跳不動了，腳在發抖。');
+            energy(-15);
+            r.dance = true;
+            r.text = pick(['你跳了一段二十年前的舞步，全場愣了三秒，然後開始尖叫。', '你在舞池中間轉圈圈，被當成來表演的。', 'DJ 播了一首洗腦神曲，你和一群陌生人一起跳了整首。']);
+            fans(200 + Math.round(this.rng() * 400));
+            break;
+          case 'bar':
+            if (!pay(300)) return broke();
+            b.mood = clamp(b.mood + 10, 0, 100);
+            energy(-5, false);
+            r.text = pick(['酒保問你喝什麼，你說「有沒有無糖綠」。他給了你一杯特調。', '你跟隔壁的上班族聊了半小時，他說他老闆比你還慣。', '你點了一杯叫「慣老闆」的調酒，喝起來很苦。']);
+            r.chips.push('😄 老闆心情 +10');
+            break;
+          case 'dj':
+            if (!once('dj')) return done('DJ 對你比讚：「你的歌已經排進去了！」');
+            if (!pay(200)) {
+              A.did.dj = false;
+              return broke();
+            }
+            r.text = `你點了店裡的主題曲，DJ 還幫你喊：「這首歌送給${this.shopName}！」`;
+            fans(100);
+            break;
+          case 'students':
+            if (!once('students')) return done('大學生們已經去續攤了。');
+            {
+              const c = this.makeCandidate('cheerful');
+              if (!c.traits.includes('rookie')) c.traits.push('rookie');
+              c.skill = Math.min(c.skill, 25);
+              this.candidates.unshift(c);
+              r.text = `一個叫「${c.name}」的大學生說：「老闆你人好好，我可以去你那邊打工嗎？」他明天會來面試。`;
+              r.chips.push(`🎓 應徵名單 +1（${c.name}）`);
+            }
+            break;
+          case 'rivalboss':
+            if (!this.rival || this.rival.closed) return done('隔壁老闆已經回家了。');
+            if (!once('rivalboss')) return done('他已經醉倒在吧台上了。');
+            if (!pay(300)) {
+              A.did.rivalboss = false;
+              return broke();
+            }
+            this.rival.grudge = Math.max(0, (this.rival.grudge || 0) - 1);
+            r.text = `你請「${this.rival.name}」的老闆喝了一杯。他嘆氣說：「其實我們這行都很辛苦。」你們乾了。`;
+            r.chips.push('🕊️ 對手記仇 -1');
+            break;
+          // 批發市場
+          case 'haggle':
+            if (A.did.haggle) return done(A.did.haggle === 'ok' ? '阿伯：「已經算你八折了啦，再殺我要回家吃自己了。」' : '阿伯轉過身去，假裝在算帳。');
+            A.did.haggle = this.rng() < 0.6 ? 'ok' : 'no';
+            r.text = A.did.haggle === 'ok' ? '阿伯：「少年仔，你殺價殺得比我還狠……好啦，今天全部算你八折！」' : '阿伯：「這已經是最低價了，我孫子的奶粉錢都在裡面了。」';
+            if (A.did.haggle === 'ok') r.chips.push('💰 今天進貨打八折');
+            break;
+          // 隔壁對手
+          case 'taste': {
+            if (!once('taste')) return done('你已經吃飽了，再點會被認出來。');
+            const v = this.visitRival();
+            if (!v) return done('隔壁已經收起來了。');
+            pay(Math.min(this.cash, 100));
+            r.text = v.lines.join(' ');
+            break;
+          }
+          case 'peek':
+          case 'talk':
+          case 'flyer': {
+            const sc = (Fun.SCHEMES || []).find((x) => x.id === { peek: 'spy', talk: 'poach', flyer: 'flyers_door' }[id]);
+            if (!sc) return null;
+            if (!once(id)) return done('今天已經做過了，再來會被認出來。');
+            if (!pay(sc.cost)) {
+              A.did[id] = false;
+              return broke();
+            }
+            const out = this.runScheme(sc);
+            r.text = out.lines.join(' ');
+            r.chips.push(...out.chips);
+            r.outcome = out.outcome;
+            break;
+          }
+          default:
+            return null;
+        }
+      A.lines.push(r.text);
+      A.chips.push(...r.chips);
+      return r;
+    }
+
+    // 走出口回店裡：結算擲筊的結果，回傳這趟的總結
+    leavePlace() {
+      const b = this.boss;
+      const A = b.away;
+      if (!A || !A.scene) return null;
+      b.away = null;
+      const names = { market: ['🏮', '夜市'], temple: ['🙏', '廟裡'], club: ['🪩', '夜店'], wholesale: ['📦', '批發市場'], rival: ['🏪', this.rival ? this.rival.name : '隔壁'] };
+      const [icon, name] = names[A.id] || ['🚶', '外面'];
+      const r = { place: { icon, name }, lines: [], chips: [] };
+      if (A.id === 'temple' && A.throws) {
+        if (A.holy >= 3) {
+          this.demandMods.push({ mult: 1.15, days: 5 });
+          r.chips.push('🍀 三個聖筊：這幾天客人 +15%');
+        } else if (A.holy >= 1) {
+          this.demandMods.push({ mult: 1.05, days: 3 });
+          r.chips.push(`🍀 ${A.holy} 個聖筊：這幾天客人 +5%`);
+        }
+      }
+      if (A.jiaos) r.jiaobei = A.jiaos;
+      const n = A.lines.length;
+      if (!n) r.lines.push('你逛了一圈，什麼都沒做就回來了。');
+      else r.lines.push(...A.lines.slice(-4));
+      const merged = {};
+      for (const c of A.chips) {
+        const m = c.match(/^(.+?) ([+-])(\d+)$/);
+        if (m) merged[m[1]] = (merged[m[1]] || 0) + Number(m[2] + m[3]);
+        else if (!r.chips.includes(c)) r.chips.push(c);
+      }
+      for (const [k, v] of Object.entries(merged)) r.chips.push(`${k} ${v >= 0 ? '+' : ''}${v}`);
+      if (A.spent) r.chips.push(`💸 這趟花了 $${A.spent.toLocaleString()}`);
+      if (b.state === 'working') {
+        b.x = this.doorX;
+        b.z = this.H - 1;
+        b.path = [];
+      }
+      this.sound('level');
+      return r;
+    }
+
     // ───── 陰謀計畫 ─────
     schemeOdds(sc) {
       const g = (this.rival && this.rival.grudge) || 0;
@@ -1647,11 +1928,17 @@
       const b = this.boss;
       const sc = Fun.SCHEMES.find((x) => x.id === b.away.id);
       b.away = null;
+      const r = this.runScheme(sc);
+      if (this.cb.tripDone) this.cb.tripDone(r);
+      return r;
+    }
+
+    // 計畫的結果（出門執行或在對手店裡當場做都用這個）
+    runScheme(sc) {
       const r = { place: { icon: sc.icon, name: sc.name }, lines: [], chips: [], legal: sc.legal, tip: sc.tip };
       const rival = this.rival;
       if (!rival || rival.closed) {
         r.lines.push('你到了才發現隔壁已經收起來了，白跑一趟。');
-        if (this.cb.tripDone) this.cb.tripDone(r);
         return r;
       }
       const { p, risk } = this.schemeOdds(sc);
@@ -1678,7 +1965,6 @@
       if (sc.legal === 'illegal') rival.grudge = (rival.grudge || 0) + 1;
       if (this.schemes >= 3) this.achieve('schemer');
       this.sound(caught ? 'bad' : ok ? 'level' : 'click');
-      if (this.cb.tripDone) this.cb.tripDone(r);
       return r;
     }
 
