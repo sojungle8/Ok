@@ -958,9 +958,10 @@
   function drawerStaff() {
     const s = ui.sim;
     const tab = ui.staffTab || 'overview';
-    const tabs = [['overview', `👥 總覽（${s.staff.length}）`], ['schedule', '📅 排班與崗位'], ['hire', `🙋 應徵者（${s.candidates.length}）`]];
+    const tabs = [['overview', `👥 總覽（${s.staff.length}）`], ['activity', '🎉 活動'], ['schedule', '📅 排班與崗位'], ['hire', `🙋 應徵者（${s.candidates.length}）`]];
     const head = `<div class="drawer-tabs">${tabs.map(([id, l]) => `<button data-action="staff-tab" data-v="${id}" class="${tab === id ? 'active' : ''}">${l}</button>`).join('')}</div>`;
     if (tab === 'schedule') return head + staffSchedule();
+    if (tab === 'activity') return head + staffActivity();
     if (tab === 'hire') return head + staffHire();
     const here = s.staff.filter((e) => e.state === 'working' || e.state === 'break');
     const risk = s.staff.filter((e) => e.mood < 30 || e.lowMoodDays > 0);
@@ -982,7 +983,7 @@
               const sh = s.shiftOf(e);
               const sel = ui.inspect && ui.inspect.ref === e;
               return `<div class="st-row ${sel ? 'sel' : ''} ${e.mood < 30 ? 'risk' : ''}">
-                <button class="st-who" data-action="insp-staff" data-id="${e.id}"><span class="mini-face">${portraitSVG(e.look, moodOf(e))}</span><span><b>${esc(e.name)}</b><small>${e.traits.map((t) => TRAITS[t].name).join('・')}</small><small>${sh ? `${hhmm(sh.start)}～${hhmm(sh.end)}` : '今天休假'}</small></span></button>
+                <button class="st-who" data-action="insp-staff" data-id="${e.id}"><span class="mini-face">${portraitSVG(e.look, moodOf(e))}</span><span><b>${e.rank && Fun.RANKS[e.rank] ? `${Fun.RANKS[e.rank].icon} ` : ''}${esc(e.name)}${e.rank && Fun.RANKS[e.rank] ? `<em class="rank">${Fun.RANKS[e.rank].name}</em>` : ''}</b><small>${e.traits.map((t) => TRAITS[t].name).join('・')}${e.hangoverDay === s.day ? '・🤢宿醉' : ''}</small><small>${sh ? `${hhmm(sh.start)}～${hhmm(sh.end)}` : '今天休假'}</small></span></button>
                 <span class="st-now"><b>${nowDoing(e)}</b><small>${e.thought && e.thought.until > s.minute ? `💭 ${esc(e.thought.text)}` : `今天服務 ${e.served} 人`}</small></span>
                 ${cell(e.mood, 'm')}${cell(e.energy, 'e')}${cell(e.hunger, 'h')}${cell(e.skill, 's')}
                 <span class="st-wage"><button data-action="wage" data-id="${e.id}" data-d="-5" aria-label="減薪">－</button><b class="${e.wage < s.marketWage ? 'neg' : e.wage > s.marketWage * 1.05 ? 'pos' : ''}">${money(e.wage)}</b><button data-action="wage" data-id="${e.id}" data-d="5" aria-label="加薪">＋</button></span>
@@ -1028,11 +1029,57 @@
         <span class="${rest < 1 ? 'neg' : ''}">每週休 ${rest} 天${rest < 1 ? '（違法）' : ''}</span>
         ${Array.isArray(e.restDays) ? `<button class="link" data-action="rest-auto" data-id="${e.id}">改回輪休</button>` : ''}
       </div>
+      <div class="st-detail-row">
+        <span>互動</span>
+        <button class="act-btn" data-action="chat" data-id="${e.id}" ${e.chatDay === s.day ? 'disabled' : ''}>💬 聊天談心</button>
+        <button class="act-btn" data-action="treat" data-id="${e.id}" ${e.treatDay === s.day ? 'disabled' : ''}>🧋 請喝飲料 $65</button>
+        <button class="act-btn" data-action="train" data-id="${e.id}" ${e.trainWeek === s.week || s.cash < s.trainCost || e.skill >= 100 ? 'disabled' : ''}>🎓 送去上課 $3,000<small>${e.trainWeek === s.week ? '這週上過了' : '技能 +10'}</small></button>
+        ${e.rank !== 'leader' ? `<button class="act-btn" data-action="promote" data-id="${e.id}" data-rank="leader">🎖️ 升組長 +$${Fun.RANKS.leader.wage}</button>` : ''}
+        ${e.rank !== 'manager' ? `<button class="act-btn" data-action="promote" data-id="${e.id}" data-rank="manager">👑 升店長 +$${Fun.RANKS.manager.wage}</button>` : ''}
+        ${e.rank ? `<button class="act-btn warn" data-action="demote" data-id="${e.id}">⬇️ 降職</button>` : ''}
+      </div>
       <div class="st-detail-row muted">
         <span>${e.traits.map((t) => `${TRAITS[t].name}：${TRAITS[t].desc}`).join('；')}</span>
         <span>到職 ${weeks} 週・資遣費約 ${money(s.severanceOf(e))}</span>
       </div>
       ${relationsHtml(e)}
+    </div>`;
+  }
+
+  // 員工活動：挑活動、挑誰參加
+  function staffActivity() {
+    const s = ui.sim;
+    if (!ui.actPick) ui.actPick = new Set(s.staff.map((e) => e.id));
+    for (const id of [...ui.actPick]) if (!s.staff.some((e) => e.id === id)) ui.actPick.delete(id);
+    const pick = s.staff.filter((e) => ui.actPick.has(e.id));
+    const done = s.lastActivity === s.day;
+    const traitName = (ids) => ids.map((t) => TRAITS[t].name).join('、');
+    return `<div class="drawer-body">
+      <div class="act-people"><small>誰要參加（點頭像切換）</small>
+        ${s.staff.map((e) => `<button class="act-who ${ui.actPick.has(e.id) ? 'on' : ''}" data-action="act-who" data-id="${e.id}"><span class="mini-face">${portraitSVG(e.look, moodOf(e))}</span>${esc(e.name)}</button>`).join('')}
+        <button class="link" data-action="act-all">${pick.length === s.staff.length ? '全部取消' : '全選'}</button>
+      </div>
+      ${done ? '<p class="calc">今天已經辦過活動了，明天再來吧。</p>' : ''}
+      <div class="act-list">
+        ${(Fun.ACTIVITIES || [])
+          .filter((a) => s.activityAvailable(a))
+          .map((a) => {
+            const cost = s.activityCost(a, pick.length);
+            const likers = pick.filter((e) => e.traits.some((t) => a.likes.includes(t))).map((e) => e.name);
+            const haters = pick.filter((e) => e.traits.some((t) => a.dislikes.includes(t))).map((e) => e.name);
+            return `<div class="act-card ${a.forced ? 'forced' : ''}">
+              <div class="act-head"><span class="act-icon">${a.icon}</span><div><b>${a.name}</b><small>${a.desc}</small></div></div>
+              <div class="act-meta">
+                <span>${a.forced ? '😈 心情大跌・慣老闆指數上升' : `😊 心情 +${a.mood}・🤝 交情 +${a.rel}`}${a.energy > 0 ? `・⚡ 精力 +${a.energy}` : a.energy < 0 ? `・⚡ 精力 ${a.energy}` : ''}${a.hangover ? `・🤢 可能宿醉` : ''}</span>
+                ${a.likes.length ? `<span>喜歡：${traitName(a.likes)}${likers.length ? `（${likers.map(esc).join('、')} 會超開心）` : ''}</span>` : ''}
+                ${a.dislikes.length ? `<span class="neg">不太喜歡：${traitName(a.dislikes)}${haters.length ? `（${haters.map(esc).join('、')}）` : ''}</span>` : ''}
+              </div>
+              <button class="${a.forced ? 'warn' : 'primary'}" data-action="activity" data-id="${a.id}" ${done || !pick.length || s.cash < cost ? 'disabled' : ''}>舉辦（${money(cost)}）</button>
+            </div>`;
+          })
+          .join('')}
+      </div>
+      <p class="drawer-tip">一起玩過的人交情會變好，本來處不來的人也有機會和好；一天只能辦一次。活動費用記在帳本的「員工福利」。</p>
     </div>`;
   }
 
@@ -1290,6 +1337,7 @@
       ['房租', -L.rent],
       ['水電', -L.utilities],
       ['清潔', -(L.cleaning || 0)],
+      ['員工福利（活動、飲料、上課）', -(L.welfare || 0)],
       ['營業稅', -(L.tax || 0)],
       ['罰鍰', -(L.fines || 0)],
       ['利息', -L.interest],
@@ -1509,11 +1557,21 @@
          <h2>${r.choice.label}</h2>
          <p class="event-text">${r.choice.result}</p>
          ${deltaChips(r.delta)}
-         ${r.choice.tip ? `<div class="tip">📘 <strong>勞動法小知識：</strong>${r.choice.tip}</div>` : ''}
+         ${r.choice.tip ? `<div class="tip">📘 <strong>法律小知識：</strong>${r.choice.tip}</div>` : ''}
          <button class="primary" data-action="close-dialog">回去顧店（Enter）</button>`
       );
     } else if (d.type === 'week') {
       inner = weekReport(d.report);
+    } else if (d.type === 'activity') {
+      const r = d.result;
+      inner = `<div class="card menu-card act-result">
+        <div class="event-kicker">${r.activity.icon} 員工活動・花了 ${money(r.cost)}</div>
+        <h2>${r.activity.name}</h2>
+        <ul class="act-lines">${r.lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>
+        <div class="chips">${r.changes.map((c) => `<span class="chip ${c.d >= 0 ? 'good' : 'bad'}">${c.like === 'like' ? '😍' : c.like === 'dislike' ? '😒' : '🙂'} ${esc(c.name)} 心情 ${c.d >= 0 ? '+' : ''}${c.d}</span>`).join('')}</div>
+        ${r.activity.tip ? `<div class="tip">📘 <strong>法律小知識：</strong>${r.activity.tip}</div>` : ''}
+        <button class="primary" data-action="close-dialog">回去顧店</button>
+      </div>`;
     } else if (d.type === 'advice') {
       const list = s.advice();
       inner = `<div class="card menu-card">
@@ -1555,7 +1613,7 @@
         <div class="ending-actions"><button class="primary" data-action="quit">回主選單</button></div>
       </div>`;
     }
-    box.innerHTML = d.type === 'minigame' ? '' : `<div class="dialog-backdrop ${['week', 'ending', 'menu', 'advice'].includes(d.type) ? 'center' : ''}">${inner}</div>`;
+    box.innerHTML = d.type === 'minigame' ? '' : `<div class="dialog-backdrop ${['week', 'ending', 'menu', 'advice', 'activity'].includes(d.type) ? 'center' : ''}">${inner}</div>`;
     ui.dialogShownAt = performance.now();
   }
 
@@ -1883,6 +1941,57 @@
           toast(ok ? `☕ ${who.name} 去休息了` : `${who.name} 正在服務客人，等一下再去`, ok ? '' : 'bad');
         }
         refreshStaffViews();
+        break;
+      }
+      case 'chat': {
+        const who = staffOf(btn);
+        const t = who && s.chat(who);
+        if (t) toast(`💬 ${who.name}：「${t}」`);
+        refreshStaffViews();
+        break;
+      }
+      case 'treat': {
+        const who = staffOf(btn);
+        if (who && s.treat(who)) toast(`🧋 請${who.name}喝了一杯飲料`);
+        refreshStaffViews();
+        break;
+      }
+      case 'train': {
+        const who = staffOf(btn);
+        if (who && s.train(who)) toast(`🎓 ${who.name} 去上了一堂課，技能提升到 ${Math.round(who.skill)}`);
+        refreshStaffViews();
+        break;
+      }
+      case 'promote': {
+        const who = staffOf(btn);
+        if (who) s.promote(who, btn.dataset.rank);
+        refreshStaffViews();
+        break;
+      }
+      case 'demote': {
+        const who = staffOf(btn);
+        if (who && s.demote(who)) toast(`⬇️ ${who.name} 被降職了`, 'bad');
+        refreshStaffViews();
+        break;
+      }
+      case 'act-who': {
+        const id = Number(btn.dataset.id);
+        if (ui.actPick.has(id)) ui.actPick.delete(id);
+        else ui.actPick.add(id);
+        renderDrawer();
+        break;
+      }
+      case 'act-all':
+        ui.actPick = ui.actPick.size === s.staff.length ? new Set() : new Set(s.staff.map((e) => e.id));
+        renderDrawer();
+        break;
+      case 'activity': {
+        const r = s.holdActivity(btn.dataset.id, [...ui.actPick]);
+        if (r) {
+          ui.dialog = { type: 'activity', result: r };
+          renderDialog();
+          renderDrawer();
+        }
         break;
       }
       case 'staff-open': {

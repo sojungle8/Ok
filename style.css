@@ -3824,3 +3824,138 @@ kbd {
       'detail detail detail detail';
   }
 }
+
+/* ───── 員工活動 ───── */
+.rank {
+  font-style: normal;
+  font-size: 0.66rem;
+  font-weight: 700;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: 6px;
+  padding: 1px 5px;
+  margin-left: 4px;
+}
+
+.act-btn {
+  border: 1px solid var(--line);
+  background: var(--bg);
+  border-radius: 10px;
+  padding: 4px 10px;
+  font-size: 0.78rem;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.25;
+}
+
+.act-btn small {
+  font-size: 0.64rem;
+  color: var(--muted);
+}
+
+.act-btn.warn {
+  color: var(--bad);
+}
+
+.act-btn:disabled {
+  opacity: 0.45;
+}
+
+.act-people {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.act-people > small {
+  width: 100%;
+  color: var(--muted);
+  font-size: 0.74rem;
+}
+
+.act-who {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  border-radius: 999px;
+  padding: 2px 10px 2px 2px;
+  font-size: 0.8rem;
+  opacity: 0.5;
+}
+
+.act-who.on {
+  opacity: 1;
+  border-color: var(--good);
+  background: var(--good-bg);
+}
+
+.act-who .mini-face {
+  width: 26px;
+  height: 26px;
+}
+
+.act-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 8px;
+}
+
+.act-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--bg);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.act-card.forced {
+  background: var(--bad-bg);
+}
+
+.act-head {
+  display: flex;
+  gap: 10px;
+}
+
+.act-icon {
+  font-size: 1.8rem;
+}
+
+.act-head b {
+  display: block;
+}
+
+.act-head small {
+  font-size: 0.76rem;
+  color: var(--muted);
+}
+
+.act-meta {
+  display: grid;
+  gap: 2px;
+  font-size: 0.76rem;
+}
+
+.act-card button {
+  margin-top: auto;
+  align-self: flex-start;
+  border-radius: 10px;
+  padding: 6px 14px;
+}
+
+.act-card button.warn {
+  border: 1px solid var(--bad);
+  color: var(--bad);
+  background: var(--card);
+}
+
+.act-lines {
+  padding-left: 1.2em;
+  line-height: 1.7;
+}

@@ -302,6 +302,7 @@
       where: 'door',
       speaker: { look: 'supplier', name: '穿制服的推銷員' },
       choices: [
+        { label: '👊 物理超度', quote: '你給我出去！', note: '結果看運氣', effects: { brawl: true }, result: '' },
         { label: '「請出示證件，我打電話給消防局確認」', effects: { morale: 2 }, result: '對方說他忘了帶證件，然後很快就消失在巷口。' },
         { label: '買一支', quote: '安全第一嘛。', effects: { cash: -12000 }, result: '後來你在網路上看到，一樣的滅火器只要八百塊。', tip: '消防機關不會挨家挨戶推銷滅火器或消防設備；有疑問可以打 119 或當地消防局查證。' },
         { label: '請他離開，順便提醒隔壁店家', effects: { jerk: -1, followers: 50 }, result: '隔壁老闆說他上個月才被騙。你們在群組裡提醒大家。' },
@@ -314,6 +315,7 @@
       text: '客人拿出手機：「我付了啊，你看截圖。」但你的帳戶沒有收到錢，仔細一看，截圖是別家店的。',
       where: 'staff',
       choices: [
+        { label: '👊 物理超度', quote: '你給我出去！', note: '結果看運氣', effects: { brawl: true }, result: '' },
         { label: '「截圖上的店名不是我們耶」', effects: { cash: 300 }, result: '客人臉一紅，說是「不小心」，然後補付了錢。' },
         { label: '報警處理', effects: { morale: 1 }, result: '警察來了之後，客人說他要再找找看，然後付了錢。' },
         { label: '算了，不跟他計較', effects: { cash: -300, morale: -1 }, result: '他很滿意地走了。員工嘆氣：「這招他應該用了很多次」。' },
@@ -340,6 +342,7 @@
       speaker: { look: 'investor', name: '風水大師' },
       choices: [
         { label: '🎤 跟大師過招', minigame: { type: 'roast', karen: 'fengshui', title: '奧客擂台：風水大師' }, effects: { morale: 4, followers: 300 }, result: '大師被你堵得說不出話，收起貔貅走了。員工說：「老闆你的嘴才是最強的風水」。', fail: { effects: {}, result: '大師說了一句「你會後悔的」才走，但其實什麼事都沒發生。' } },
+        { label: '👊 物理超度', quote: '你給我出去！', note: '結果看運氣', effects: { brawl: true }, result: '' },
         { label: '花八萬買貔貅', quote: '寧可信其有。', effects: { cash: -80000, morale: -1 }, result: '貔貅放在櫃台上，客人都以為是招財貓的親戚。生意沒有變好。' },
         { label: '請他離開', effects: {}, result: '大師搖搖頭走了，臨走前還說了一句「血光之災」。' },
       ],

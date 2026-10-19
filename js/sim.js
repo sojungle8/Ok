@@ -1246,6 +1246,189 @@
       for (const ev of this.activeEvents) if (ev.staff === e) ev.staff = this.staff[0] || null;
     }
 
+    // ───── 員工活動 ─────
+    activityCost(a, n) {
+      return Math.round((a.cost * (n + 1) * this.idx.cpi) / 10) * 10;
+    }
+
+    activityAvailable(a) {
+      return !a.months || a.months.includes(this.monthOfYear);
+    }
+
+    // 舉辦活動：參加的人心情、交情、精力都會變；還會發生一些插曲
+    holdActivity(id, ids) {
+      const a = (Fun.ACTIVITIES || []).find((x) => x.id === id);
+      if (!a || !this.activityAvailable(a) || this.lastActivity === this.day) return null;
+      const people = this.staff.filter((e) => ids.includes(e.id));
+      if (!people.length) return null;
+      const cost = this.activityCost(a, people.length);
+      if (this.cash < cost) return null;
+      this.cash -= cost;
+      this.ledger.welfare += cost;
+      this.lastActivity = this.day;
+      const changes = [];
+      for (const e of people) {
+        const like = e.traits.some((t) => a.likes.includes(t)) ? 1.5 : e.traits.some((t) => a.dislikes.includes(t)) ? 0.35 : 1;
+        let d = a.forced ? a.mood : a.mood * like * (0.8 + this.rng() * 0.4);
+        if (!a.forced && e.energy < 25 && a.energy < 0) d *= 0.6; // 太累的人玩不起來
+        const before = e.mood;
+        e.mood = clamp(e.mood + d, 0, 100);
+        e.energy = clamp(e.energy + a.energy, 0, 100);
+        if (a.hangover && this.rng() < a.hangover * (e.traits.includes('nightowl') ? 0.5 : 1)) e.hangoverDay = this.day + 1;
+        changes.push({ id: e.id, name: e.name, d: Math.round(e.mood - before), like: like > 1 ? 'like' : like < 1 ? 'dislike' : '' });
+        if (like > 1 && !a.forced) this.say(e, ['好好玩！', '老闆萬歲！', '下次還要！'][Math.floor(this.rng() * 3)], 60);
+        if (like < 1 && !a.forced) this.say(e, '……其實我比較想回家睡覺', 60);
+        if (a.forced) this.say(e, '下班時間耶……', 60);
+      }
+      // 一起玩過的人交情變好（本來處不來的人改善最多）
+      for (let i = 0; i < people.length; i++) {
+        for (let j = i + 1; j < people.length; j++) {
+          const cur = this.relOf(people[i], people[j]);
+          this.addRel(people[i], people[j], a.rel * (0.6 + this.rng() * 0.8) * (cur < -20 && a.rel > 0 ? 1.5 : 1));
+        }
+      }
+      if (a.forced) {
+        this.jerk = clamp(this.jerk + a.jerk, 0, JERK_LIMIT);
+        this.flags.add('unpaidOT');
+      } else this.jerk = clamp(this.jerk - 0.5, 0, JERK_LIMIT);
+      // 插曲
+      const pick = (arr) => arr[Math.floor(this.rng() * arr.length)];
+      const pool = [...a.lines].sort(() => this.rng() - 0.5).slice(0, Math.min(3, a.lines.length));
+      const lines = [];
+      for (const ln of pool) {
+        const pa = pick(people);
+        const others = people.filter((x) => x !== pa);
+        const pb = others.length ? pick(others) : pa;
+        if (ln.text.includes('{b}') && pa === pb) continue;
+        lines.push(ln.text.replace(/\{a\}/g, pa.name).replace(/\{b\}/g, pb.name));
+        if (ln.fx === 'rel') this.addRel(pa, pb, 15);
+        if (ln.fx === 'mood') pa.mood = clamp(pa.mood + 5, 0, 100);
+        if (ln.fx === 'hangover') pa.hangoverDay = this.day + 1;
+        if (ln.fx === 'sick') {
+          pa.hangoverDay = this.day + 1;
+          pa.sickDay = this.day + 1;
+        }
+        if (ln.fx === 'followers') this.social.followers += 150 + Math.round(this.rng() * 300);
+        if (ln.fx === 'leak') {
+          this.jerk = clamp(this.jerk + 3, 0, JERK_LIMIT);
+          this.addReview(1, '聽說這間店下班還要上心靈成長課');
+        }
+      }
+      this.sound(a.forced ? 'bad' : 'level');
+      return { activity: a, cost, lines, changes };
+    }
+
+    // ───── 跟員工的個人互動 ─────
+    chat(e) {
+      if (e.chatDay === this.day) return null;
+      e.chatDay = this.day;
+      const C = Fun.CHAT || { random: ['……'] };
+      const pick = (arr) => arr[Math.floor(this.rng() * arr.length)];
+      const friend = this.staff.find((o) => o !== e && this.relOf(e, o) >= 40);
+      const rival = this.staff.find((o) => o !== e && this.relOf(e, o) <= -30);
+      const pool = [];
+      if (e.energy < 40) pool.push(...C.tired);
+      if (e.wage < this.marketWage) pool.push(...C.poor);
+      if (this.restCount(e) < 2) pool.push(...C.norest);
+      if (rival) pool.push(...C.rival.map((t) => t.replace('{r}', rival.name)));
+      if (friend) pool.push(...C.friend.map((t) => t.replace('{f}', friend.name)));
+      if (e.mood > 70) pool.push(...C.happy);
+      if (!pool.length || this.rng() < 0.4) pool.push(...C.random);
+      const text = pick(pool);
+      e.mood = clamp(e.mood + 4, 0, 100);
+      this.say(e, text, 90);
+      return text;
+    }
+
+    treat(e) {
+      if (e.treatDay === this.day || this.cash < 65) return false;
+      e.treatDay = this.day;
+      this.cash -= 65;
+      this.ledger.welfare += 65;
+      e.mood = clamp(e.mood + 5, 0, 100);
+      e.hunger = clamp(e.hunger + 25, 0, 100);
+      e.energy = clamp(e.energy + 5, 0, 100);
+      this.say(e, ['謝謝老闆的飲料！', '半糖少冰，老闆記得我的口味！', '續命成功'][Math.floor(this.rng() * 3)], 60);
+      return true;
+    }
+
+    // 送去上課：每週一次，技能大幅提升
+    get trainCost() {
+      return 3000;
+    }
+
+    train(e) {
+      if (e.trainWeek === this.week || this.cash < this.trainCost || e.skill >= 100) return false;
+      e.trainWeek = this.week;
+      this.cash -= this.trainCost;
+      this.ledger.welfare += this.trainCost;
+      e.skill = clamp(e.skill + 10 * (e.traits.includes('rookie') ? 1.5 : 1), 0, 100);
+      e.energy = clamp(e.energy - 15, 0, 100);
+      e.mood = clamp(e.mood + 3, 0, 100);
+      this.say(e, '上完課覺得自己變強了！', 90);
+      return true;
+    }
+
+    // 升職：組長、店長
+    promote(e, rank) {
+      const R = Fun.RANKS || {};
+      if (!R[rank] || e.rank === rank) return false;
+      if (rank === 'manager') for (const o of this.staff) if (o.rank === 'manager') o.rank = 'leader';
+      const old = e.rank && R[e.rank] ? R[e.rank].wage : 0;
+      e.rank = rank;
+      e.wage += R[rank].wage - old;
+      e.mood = clamp(e.mood + 12, 0, 100);
+      this.say(e, `我升${R[rank].name}了！`, 120);
+      // 技能比他高、卻沒被升的人會有點不爽
+      for (const o of this.staff) if (o !== e && !o.rank && o.skill > e.skill + 5) {
+        o.mood = clamp(o.mood - 5, 0, 100);
+        this.say(o, `為什麼是${e.name}……`, 90);
+      }
+      this.notify(`${R[rank].icon} ${e.name} 升為${R[rank].name}！`, 'good');
+      return true;
+    }
+
+    demote(e) {
+      const R = Fun.RANKS || {};
+      if (!e.rank) return false;
+      e.wage = Math.max(MIN_WAGE, e.wage - (R[e.rank] ? R[e.rank].wage : 0));
+      e.rank = null;
+      e.mood = clamp(e.mood - 15, 0, 100);
+      this.jerk = clamp(this.jerk + 1, 0, JERK_LIMIT);
+      this.say(e, '……我做錯什麼了嗎', 120);
+      return true;
+    }
+
+    // 有店長或組長在班上
+    leaderOnDuty(rank) {
+      return this.staff.some((o) => o.rank === rank && (o.state === 'working' || o.state === 'break'));
+    }
+
+    // 物理超度：結果看運氣
+    brawl() {
+      const list = Fun.BRAWL || [];
+      let r = this.rng();
+      let out = list[list.length - 1];
+      for (const b of list) {
+        r -= b.p;
+        if (r <= 0) {
+          out = b;
+          break;
+        }
+      }
+      const fx = out.fx;
+      if (fx.cash) {
+        this.cash += fx.cash;
+        this.ledger.fines -= fx.cash;
+      }
+      if (fx.followers) this.social.followers += fx.followers;
+      if (fx.morale) for (const e of this.staff) e.mood = clamp(e.mood + fx.morale, 0, 100);
+      if (fx.demand) this.demandMods.push({ mult: fx.demand, days: 10 });
+      if (fx.review) this.addReview(fx.review[0], fx.review[1]);
+      this.sound(fx.followers ? 'level' : 'bad');
+      return out.text;
+    }
+
     raise(e, amount = 10) {
       e.wage += amount;
       e.mood = clamp(e.mood + 6, 0, 100);
@@ -2021,6 +2204,7 @@
       if (e.traits.includes('chatty')) s *= TRAITS.chatty.speed;
       if (e.hustle && e.hustle > this.minute) s *= 1.08;
       if (this.isSummer && !this.cooling) s *= 0.92;
+      if (this.leaderOnDuty('manager')) s *= 1.04;
       return s;
     }
 
@@ -2272,6 +2456,8 @@
       if (this.jerk > 60) target -= 5;
       if (this.cleanliness < 55) target -= (55 - this.cleanliness) / 6;
       if (this.shopCat) target += 2;
+      if (e.rank !== 'manager' && this.leaderOnDuty('manager')) target += 3;
+      else if (!e.rank && this.leaderOnDuty('leader')) target += 2;
       if (!this.policy.insurance) target -= 6;
       const regen = e.traits.includes('cheerful') ? TRAITS.cheerful.moodRegen : 1;
       e.mood = clamp(e.mood + (target - e.mood) * 0.004 * regen * dt, 0, 100);
@@ -2312,6 +2498,17 @@
       this.pendingEvents = [];
       this.rollWeather();
       this.makeRoster();
+      // 前一晚狂歡的後遺症
+      for (const e of this.staff) {
+        if (e.hangoverDay === this.day) {
+          e.energy = Math.min(e.energy, 55);
+          e.mood = clamp(e.mood - 3, 0, 100);
+        }
+        if (e.sickDay === this.day && this.roster.has(e.id)) {
+          e.sentHomeDay = this.day;
+          this.notify(`🤢 ${e.name} 宿醉，今天請病假`, 'bad');
+        }
+      }
       const f = this.festival;
       if (f && this.cb.festival) this.cb.festival(f);
       this.hygiene.at = null;
@@ -2408,6 +2605,7 @@
       if (!this.activeEvents.includes(ev)) return null;
       const fx = this.resolveEffects(choice);
       const before = { cash: this.cash, morale: Math.round(this.morale), jerk: Math.round(this.jerk), staff: this.staff.length };
+      if (fx.brawl) choice = { ...choice, result: this.brawl(), tip: choice.tip || Fun.BRAWL_TIP };
       if (fx.cash) {
         this.cash += fx.cash;
         this.ledger.events += fx.cash;
@@ -2488,12 +2686,12 @@
 
     // ───── 每日、每週、每月 ─────
     emptyLedger() {
-      return { revenue: 0, materials: 0, wages: 0, labor: 0, health: 0, pension: 0, rent: 0, utilities: 0, interest: 0, tax: 0, fines: 0, cleaning: 0, events: 0, branches: 0, other: 0, waste: 0 };
+      return { revenue: 0, materials: 0, wages: 0, labor: 0, health: 0, pension: 0, rent: 0, utilities: 0, interest: 0, tax: 0, fines: 0, cleaning: 0, welfare: 0, events: 0, branches: 0, other: 0, waste: 0 };
     }
 
     // 報廢（waste）只是記錄：那些食材進貨時已經付過錢了
     profitOf(L) {
-      return L.revenue - L.materials - L.wages - L.labor - L.health - L.pension - L.rent - L.utilities - L.interest - L.tax - L.fines - L.cleaning + L.events + L.branches + L.other;
+      return L.revenue - L.materials - L.wages - L.labor - L.health - L.pension - L.rent - L.utilities - L.interest - L.tax - L.fines - L.cleaning - (L.welfare || 0) + L.events + L.branches + L.other;
     }
 
     emptyDay() {
@@ -2962,6 +3160,7 @@
           result: `全店爆笑，${k.name}臉一陣青一陣白，丟下一句「我會再來的」就走了。${v}偷偷跟你比讚。`,
           fail: { effects: { morale: 2, karenReview: '老闆態度超差，還嗆客人' }, result: `你一時語塞，${k.name}得意地走了，還留了一星。但員工很感謝你有站出來。` },
         },
+        { label: '👊 物理超度', quote: '今天不是你走，就是我請你走。', note: '結果看運氣', effects: { brawl: true, karenWin: true }, result: '' },
         { label: '送一份小菜，息事寧人', effects: victim ? { cash: -500, karenServe: true, moodOf: [[victim.id, -3]] } : { cash: -500, karenServe: true }, result: `${k.name}心滿意足地坐下，${v}小聲說：「又被吃夠夠了。」` },
         { label: '站在員工這邊，請他離開', effects: victim ? { morale: 4, jerk: -1, karenReview: '店員態度差，還被趕出來', moodOf: [[victim.id, 8]] } : { morale: 4, jerk: -1 }, result: `你冷靜地請${k.name}離開，${v}鬆了一口氣。` },
         {

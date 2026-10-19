@@ -3,6 +3,7 @@
 require('../js/data.js');
 require('../js/fun.js');
 require('../js/weird.js');
+require('../js/activities.js');
 require('../js/portraits.js');
 require('../js/industries.js');
 require('../js/sim.js');
