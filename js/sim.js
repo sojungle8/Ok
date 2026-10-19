@@ -132,6 +132,8 @@
       this.taxStatus = null;
       this.social = { followers: 80, posts: [], trend: null, trendDay: 0, lastPost: 0, viral: 0 };
       this.karenAt = null;
+      // 老闆本人：可以自己操控在店裡和街上走動
+      this.boss = { id: 'boss', isBoss: true, x: 0, z: 0, dir: Math.PI, moving: false, energy: 100, fit: 0, hunger: 80, mood: 70, skill: 60, traits: [], state: 'off', task: null, path: [], ride: false, away: null, served: 0, mopUntil: 0 };
       this.initStock();
       this.rollTrend();
 
@@ -1246,6 +1248,272 @@
       for (const ev of this.activeEvents) if (ev.staff === e) ev.staff = this.staff[0] || null;
     }
 
+    // ───── 老闆本人 ─────
+    bossEnter() {
+      const b = this.boss;
+      b.state = 'working';
+      b.x = this.doorX;
+      b.z = this.H - 1;
+      b.path = [];
+      b.ride = false;
+    }
+
+    bossExit() {
+      this.bossLeaveLane();
+      this.boss.state = 'off';
+      this.boss.ride = false;
+    }
+
+    // 老闆可以站的格子：騎機車時只能在店外
+    bossCanStand(x, z) {
+      const cx = Math.round(x);
+      const cz = Math.round(z);
+      if (!this.valid(cx, cz)) return false;
+      if (this.boss.ride && cz < this.H) return false;
+      return this.passable(cx, cz) || this.objects.some((o) => o.lanes.some((l) => l.staffSpot && l.staffSpot.x === cx && l.staffSpot.z === cz));
+    }
+
+    // 用鍵盤／搖桿移動（實際秒數）
+    moveBoss(vx, vz, sec) {
+      const b = this.boss;
+      if (b.state !== 'working' || b.away) return;
+      const len = Math.hypot(vx, vz);
+      b.moving = len > 0.05;
+      if (!b.moving) return;
+      const tired = b.energy < 20 ? 0.7 : 1;
+      const sp = (b.ride ? 6.5 : 3) * tired * sec;
+      const dx = (vx / Math.max(1, len)) * sp;
+      const dz = (vz / Math.max(1, len)) * sp;
+      const tryMove = (nx, nz) => {
+        const fx = Math.round(b.x);
+        const fz = Math.round(b.z);
+        const tx = Math.round(nx);
+        const tz = Math.round(nz);
+        if ((fx !== tx || fz !== tz) && (!this.bossCanStand(nx, nz) || !this.canStep(fx, fz, tx, tz))) return false;
+        if (!this.valid(tx, tz)) return false;
+        b.x = nx;
+        b.z = nz;
+        return true;
+      };
+      tryMove(b.x + dx, b.z);
+      tryMove(b.x, b.z + dz);
+      b.dir = Math.atan2(dx, dz);
+      if (b.lane && Math.hypot(b.x - b.lane.staffSpot.x, b.z - b.lane.staffSpot.z) > 0.7) this.bossLeaveLane();
+      // 走近員工，員工會打招呼
+      for (const e of this.staff) {
+        if ((e.state === 'working' || e.state === 'break') && Math.hypot(e.x - b.x, e.z - b.z) < 1.2 && (e.helloAt || 0) < this.minute - 90) {
+          e.helloAt = this.minute;
+          if (this.rng() < 0.6) this.say(e, Fun.BOSS_HELLO[Math.floor(this.rng() * Fun.BOSS_HELLO.length)], 25);
+        }
+      }
+    }
+
+    // 走到街的盡頭：可以出門
+    get bossAtEdge() {
+      const b = this.boss;
+      return b.state === 'working' && !b.away && b.z >= this.H && (b.x <= -OUT_W + 0.4 || b.x >= this.W + OUT_W - 1.4);
+    }
+
+    // 老闆身邊可以互動的東西（最近的排前面）
+    bossTargets() {
+      const b = this.boss;
+      if (b.state !== 'working' || b.away) return [];
+      const out = [];
+      const near = (a, r) => Math.hypot(a.x - b.x, a.z - b.z) <= r;
+      const d = (a) => Math.hypot(a.x - b.x, a.z - b.z);
+      if (b.lane) out.push({ kind: 'leaveLane', d: -1, label: '離開櫃台', actions: [['boss-leave-lane', '🚶 離開櫃台']] });
+      for (const c of this.customers) {
+        if (c.state === 'leaving' || !near(c, 1.3)) continue;
+        if (c.karen) out.push({ kind: 'karen', ref: c, d: d(c) - 0.5, label: `處理奧客：${c.karen.name}`, actions: [['boss-karen', '🎤 出面處理']] });
+        else if (!c.supplier && !c.inspector) out.push({ kind: 'customer', ref: c, d: d(c), label: '跟客人互動', actions: [['boss-greet', '😊 打招呼'], ['boss-gift', '🎁 招待一份小菜（$30）']] });
+      }
+      for (const e of this.staff) {
+        if ((e.state === 'working' || e.state === 'break') && near(e, 1.4)) out.push({ kind: 'staff', ref: e, d: d(e), label: `跟${e.name}互動`, actions: [['chat', '💬 聊天'], ['praise', '👍 稱讚'], ['treat', '🧋 請飲料'], ['rest-now', '☕ 叫他休息'], ['scold', '😠 罵人']] });
+      }
+      if (!b.ride) {
+        for (const dd of this.dirt) if (near(dd, 0.9)) out.push({ kind: 'dirt', ref: dd, d: d(dd) + 0.2, label: '拖地', actions: [['boss-mop', '🧹 拖地']] });
+        if (!b.lane) {
+          for (const o of this.stations) for (const l of o.lanes) if (!l.self && !l.staff && near(l.staffSpot, 0.9)) out.push({ kind: 'lane', ref: l, obj: o, d: d(l.staffSpot), label: `親自顧${o.def.name}`, actions: [['boss-lane', `🧑‍🍳 親自顧${o.def.name}`]] });
+        }
+      }
+      if (b.z >= this.H - 0.2) {
+        for (const p of this.passers) if (p.kind === 'passer' && !p.flyered && near(p, 1.6)) out.push({ kind: 'passer', ref: p, d: d(p), label: '發傳單', actions: [['boss-flyer', '📄 發傳單']] });
+        if (b.z >= this.H + 0.5) out.push({ kind: 'scooter', d: 2, label: b.ride ? '下車' : '騎機車', actions: [[b.ride ? 'boss-unride' : 'boss-ride', b.ride ? '🛑 下車' : '🛵 騎上機車']] });
+        if (this.rival && !this.rival.closed && b.x < -0.3) out.push({ kind: 'rival', d: 1.5, label: `去隔壁「${this.rival.name}」看看`, actions: [['boss-rival', '🕵️ 進去探班']] });
+      }
+      if (this.bossAtEdge) out.push({ kind: 'city', d: -0.5, label: '出門', actions: [['boss-city', '🗺️ 打開地圖']] });
+      return out.sort((a, c) => a.d - c.d);
+    }
+
+    bossTakeLane(lane) {
+      const b = this.boss;
+      if (lane.staff) return false;
+      b.x = lane.staffSpot.x;
+      b.z = lane.staffSpot.z;
+      lane.staff = b;
+      b.lane = lane;
+      b.task = { type: 'serve', lane, obj: this.stations.find((o) => o.lanes.includes(lane)) };
+      this.refreshQueue(b.task.obj);
+      return true;
+    }
+
+    bossLeaveLane() {
+      const b = this.boss;
+      if (b.lane && b.lane.staff === b) b.lane.staff = null;
+      const o = b.task && b.task.obj;
+      b.lane = null;
+      b.task = null;
+      if (o) this.refreshQueue(o);
+    }
+
+    bossMop(spot) {
+      const b = this.boss;
+      for (const d of [...this.dirt]) if (Math.hypot(d.x - b.x, d.z - b.z) <= 1.1 && !d.by) this.dirt = this.dirt.filter((x) => x !== d);
+      b.mopUntil = this.minute + 3;
+      b.energy = clamp(b.energy - 1, 0, 100);
+      this.popup(b, '✨', 'good');
+      // 員工看到老闆自己拖地
+      for (const e of this.staff) if (e.state === 'working' && Math.hypot(e.x - b.x, e.z - b.z) < 3 && this.rng() < 0.4) this.say(e, '老闆自己在拖地耶……', 30);
+    }
+
+    bossFlyer(p) {
+      p.flyered = true;
+      const yes = this.rng() < 0.3 + (this.rating - 3) * 0.1 + (this.promoOn ? 0.15 : 0);
+      const say = yes ? Fun.FLYER_YES : Fun.FLYER_NO;
+      this.popups.push({ id: uid++, x: p.x, z: p.z, text: say[Math.floor(this.rng() * say.length)], kind: yes ? 'good' : 'muted', t: -1 });
+      if (yes && this.isOpen) {
+        const before = this.customers.length;
+        this.spawnCustomer();
+        const c = this.customers[before];
+        if (c) {
+          c.x = Math.round(p.x);
+          c.z = this.H;
+          c.look = p.look;
+          this.walkTo(c, { x: this.doorX, z: this.H - 1 });
+        }
+        p.gone = true;
+      }
+      return yes;
+    }
+
+    bossGreet(c) {
+      c.patience += 4;
+      c.waited = Math.max(0, c.waited - 2);
+      this.popup(c, '😊', 'good');
+      this.say(this.boss, ['歡迎光臨！', '今天吃什麼？', '慢慢來不急喔'][Math.floor(this.rng() * 3)], 15);
+    }
+
+    bossGift(c) {
+      if (this.cash < 30 || c.gifted) return false;
+      c.gifted = true;
+      this.cash -= 30;
+      this.ledger.other -= 30;
+      c.patience += 8;
+      this.popup(c, '🎁😍', 'good');
+      return true;
+    }
+
+    // 出門：老闆離開一段時間，回來時結算
+    goOut(placeId) {
+      const pl = (Fun.PLACES || []).find((p) => p.id === placeId);
+      const b = this.boss;
+      if (!pl || b.away || this.cash < pl.cost) return false;
+      this.bossLeaveLane();
+      this.cash -= pl.cost;
+      this.ledger.other -= pl.cost;
+      b.away = { id: pl.id, until: this.minute + pl.minutes };
+      b.ride = false;
+      this.notify(`${pl.icon} 老闆出門去${pl.name}了（約 ${pl.minutes} 分鐘）`);
+      return true;
+    }
+
+    finishTrip() {
+      const b = this.boss;
+      const pl = (Fun.PLACES || []).find((p) => p.id === b.away.id);
+      b.away = null;
+      const pick = (arr) => arr[Math.floor(this.rng() * arr.length)];
+      const r = { place: pl, lines: [], chips: [] };
+      if (pl.lines.length) r.lines.push(pick(pl.lines));
+      if (pl.id === 'market') {
+        b.energy = clamp(b.energy + 30, 0, 100);
+        const n = this.staff.filter((e) => e.state === 'working' || e.state === 'break').length;
+        const snack = n * 80;
+        if (n && this.cash >= snack) {
+          this.cash -= snack;
+          this.ledger.welfare += snack;
+          for (const e of this.staff) if (e.state === 'working' || e.state === 'break') e.mood = clamp(e.mood + 6, 0, 100);
+          r.lines.push(`你幫在班上的 ${n} 個人帶了鹽酥雞和珍奶（${'$' + snack}），大家歡呼！`);
+          r.chips.push('😊 員工心情 +6');
+        }
+        r.chips.push('⚡ 老闆體力 +30');
+      } else if (pl.id === 'wholesale') {
+        let cost = 0;
+        for (const g of this.ind.stock || []) {
+          const need = Math.max(0, this.par[g.id] - this.stock[g.id]);
+          if (!need) continue;
+          cost += need * this.unitCost(g) * 0.85;
+          this.stock[g.id] += need;
+        }
+        cost = Math.round(cost);
+        this.cash -= cost;
+        this.ledger.materials += cost;
+        b.energy = clamp(b.energy - 15, 0, 100);
+        r.lines.push(cost ? `所有食材都補滿了，花了 $${cost.toLocaleString()}（比平常便宜一成五）。` : '倉庫本來就是滿的，你逛了一圈什麼都沒買。');
+        r.chips.push('📦 庫存補滿');
+      } else if (pl.id === 'temple') {
+        const throws = [0, 1, 2].map(() => {
+          const x = this.rng();
+          return x < 0.5 ? 'holy' : x < 0.75 ? 'laugh' : 'no';
+        });
+        r.jiaobei = throws;
+        const holy = throws.filter((t) => t === 'holy').length;
+        if (holy >= 3) {
+          this.demandMods.push({ mult: 1.15, days: 5 });
+          r.lines.push('連續三個聖筊！廟公都跑過來看，說你「這陣子生意會很好」。');
+          r.chips.push('🍀 這幾天客人 +15%');
+        } else if (holy >= 1) {
+          this.demandMods.push({ mult: 1.05, days: 3 });
+          r.lines.push(`擲了 ${holy} 個聖筊，神明說「還可以，繼續努力」。`);
+          r.chips.push('🍀 這幾天客人 +5%');
+        } else {
+          r.lines.push('一個聖筊都沒有……旁邊的阿嬤拍拍你的肩膀說：「下次問清楚一點」。');
+        }
+        if (throws.includes('laugh')) r.lines.push('其中有一次是笑筊，廟公說神明覺得你問的問題很好笑。');
+      } else if (pl.id === 'club') {
+        b.energy = clamp(b.energy - 40, 0, 100);
+        b.mood = clamp(b.mood + 20, 0, 100);
+        const f = 300 + Math.round(this.rng() * 900);
+        this.social.followers += f;
+        r.chips.push(`📱 粉絲 +${f}`, '⚡ 老闆體力 -40');
+        if (this.rng() < 0.3) {
+          r.lines.push('隔天早上你睡過頭，員工打了十通電話。');
+          b.energy = Math.min(b.energy, 20);
+        }
+      } else if (pl.id === 'gym') {
+        b.fit = Math.min(5, b.fit + 1);
+        b.energy = clamp(b.energy - 10, 0, 100);
+        r.chips.push(`💪 老闆體能 ${b.fit}/5（顧店比較不容易累）`);
+      } else if (pl.id === 'bank') {
+        r.lines.push(`目前借款 $${this.loan.toLocaleString()}，月息 2%，上限 $600,000。`);
+      }
+      this.sound('level');
+      if (this.cb.tripDone) this.cb.tripDone(r);
+      return r;
+    }
+
+    // 去隔壁對手店探班
+    visitRival() {
+      const r = this.rival;
+      if (!r || r.closed) return null;
+      const lines = [
+        `你點了一杯他們的招牌，味道……${r.quality > 0.55 ? '老實說還不錯，難怪有人排隊' : '普普，你偷偷鬆了一口氣'}。`,
+        r.strength > 0.5 ? '店裡坐滿了人，你看到你的常客也在裡面，對方尷尬地跟你揮手。' : '店裡冷冷清清，店員在滑手機。',
+        `他們的價格大概是你的 ${r.quality > 0.55 ? '一點一倍' : '九成'}。`,
+      ];
+      this.boss.energy = clamp(this.boss.energy - 3, 0, 100);
+      return { name: r.name, strength: r.strength, lines };
+    }
+
     // ───── 員工活動 ─────
     activityCost(a, n) {
       return Math.round((a.cost * (n + 1) * this.idx.cpi) / 10) * 10;
@@ -1914,6 +2182,8 @@
       if (e && e.skill > 70) stars += 0.2;
       // 長輩喜歡愛聊天的店員；店裡髒會被扣分
       if (c.type === 'elderly' && e && e.traits.includes('chatty')) stars += 0.3;
+      if (c.gifted) stars += 0.6;
+      if (e && e.isBoss) stars += 0.2;
       const clean = this.cleanliness;
       if (clean < 70) stars -= (70 - clean) / 35;
       else if (clean > 90) stars += 0.15;
@@ -2049,6 +2319,14 @@
       }
       const daylight = this.hour >= 6 && this.hour < 22 ? 1 : 0.25;
       if (this.rng() < 0.55 * daylight * (this.weather ? this.weather.walk : 1) * dt) this.spawnPasser();
+
+      // 老闆：出門回來、顧店會累
+      const B = this.boss;
+      if (B.away && this.minute >= B.away.until) this.finishTrip();
+      if (B.state === 'working' && !B.away) {
+        if (B.lane && B.lane.customer && B.lane.customer.state === 'atLane') B.energy = clamp(B.energy - 0.12 * (1 - B.fit * 0.1) * dt, 0, 100);
+        else B.energy = clamp(B.energy + 0.04 * dt, 0, 100);
+      }
 
       // 奧客：一天大概一個
       if (this.isOpen && !this.customers.some((c) => c.karen) && this.rng() < (0.9 * this.diff.events * dt) / Math.max(240, this.hours.span)) this.spawnKaren();

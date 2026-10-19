@@ -1438,6 +1438,7 @@
       this.syncObjects();
       this.syncAgents(dt, now);
       this.syncDirt();
+      this.updateBoss(dt, now);
       this.updateStorefront(dt);
       this.updateLight();
       this._shadowT = (this._shadowT || 0) + dt;
@@ -1451,6 +1452,62 @@
       this.renderer.render(this.world, this.camera);
       this.updateOverlay();
       this.trackPerf(now);
+    }
+
+    // 老闆本人：自己操控的角色，鏡頭跟著走
+    updateBoss(dt, now) {
+      const s = this.sim;
+      const b = s.boss;
+      const show = b.state === 'working' && !b.away;
+      if (!this.bossView) {
+        const p = People.make(window.BossLooks.bossLook(this.opts.bossGender ? this.opts.bossGender() : 'm'), { boss: true });
+        const root = new THREE.Group();
+        root.add(p.group);
+        const sc = scooterModel('#d9482b');
+        sc.visible = false;
+        root.add(sc);
+        // 腳下的金色圓圈：一眼找到自己
+        const ring = new THREE.Mesh(staffRingGeo, new THREE.MeshBasicMaterial({ color: '#f2c14e', transparent: true, opacity: 0.95, depthWrite: false }));
+        ring.rotation.x = -Math.PI / 2;
+        ring.position.y = 0.025;
+        ring.scale.setScalar(1.25);
+        root.add(ring);
+        this.world.add(root);
+        this.bossView = { p, root, sc };
+      }
+      const v = this.bossView;
+      v.root.visible = show;
+      if (!show) return;
+      v.root.position.set(b.x + 0.5, 0, b.z + 0.5);
+      let diff = b.dir - v.root.rotation.y;
+      diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+      v.root.rotation.y += diff * Math.min(1, dt * 14);
+      v.sc.visible = b.ride;
+      v.p.group.position.y = b.ride ? 0.25 : 0;
+      People.walk(v.p, b.moving && !b.ride, dt, 1.2);
+      const serving = b.lane && b.lane.customer && b.lane.customer.state === 'atLane';
+      const mopping = b.mopUntil > s.minute;
+      People.setCarry(v.p, mopping ? 'mop' : null);
+      if (serving || mopping) {
+        v.p.armR.rotation.x = -0.9 + Math.sin(now / 90) * 0.35;
+        v.p.armL.rotation.x = -0.9 + Math.cos(now / 90) * 0.35;
+        if (serving) v.root.rotation.y = Math.atan2(b.lane.custSpot.x - b.lane.staffSpot.x, b.lane.custSpot.z - b.lane.staffSpot.z);
+      }
+      People.setMood(v.p, b.energy < 25 ? 'sad' : serving ? 'happy' : 'smug');
+      // 鏡頭跟著老闆（平滑移動）
+      if (this.opts.follow && this.opts.follow()) {
+        const cz = (s.H + 1.2) / 2 + 0.4;
+        const tx = b.x + 0.5 - s.W / 2;
+        const tz = b.z + 0.5 - cz;
+        const k = Math.min(1, dt * 4);
+        const nx = this.pan.x + (tx - this.pan.x) * k;
+        const nz = this.pan.z + (tz - this.pan.z) * k;
+        if (Math.abs(nx - this.pan.x) > 0.001 || Math.abs(nz - this.pan.z) > 0.001) {
+          this.pan.x = nx;
+          this.pan.z = nz;
+          this.updateCamera();
+        }
+      }
     }
 
     // 量每秒幾幀：太慢就自動降畫質
@@ -1732,6 +1789,22 @@
             el.innerHTML = `<i>${c.product.icon}${c.qty > 1 ? `×${c.qty}` : ''}</i><b></b>`;
           }
           add(el, c.x + 0.5, 1.75, c.z + 0.5, 42, 28, 2);
+        }
+      }
+      // 老闆：頭上的「你」、說的話、附近可以互動的東西
+      const B = s.boss;
+      if (B.state === 'working' && !B.away) {
+        const tag = this.label('boss-tag', 'boss-tag');
+        const tt = B.thought && B.thought.until > s.minute ? `👑 ${B.thought.text}` : '👑 你';
+        if (tag.textContent !== tt) tag.textContent = tt;
+        add(tag, B.x + 0.5, 2.25, B.z + 0.5, Math.min(180, tt.length * 12 + 16), 22, 4);
+        const tg = this.opts.bossPrompt && this.opts.bossPrompt();
+        if (tg) {
+          const el = this.label('boss-prompt', 'boss-prompt');
+          const text = `${tg.key} ${tg.label}`;
+          if (el.textContent !== text) el.textContent = text;
+          const at = tg.ref && tg.ref.x !== undefined ? tg.ref : tg.ref && tg.ref.staffSpot ? tg.ref.staffSpot : B;
+          add(el, at.x + 0.5, at === B ? 2.7 : 1.9, at.z + 0.5, Math.min(220, text.length * 12 + 20), 24, 5);
         }
       }
       // 奧客在大聲嚷嚷

@@ -62,6 +62,9 @@
     quality: store.get(QUALITY_KEY) || 'auto',
     autoPause: store.get('boss-sim-autopause') !== '0',
     staffTab: 'overview',
+    bossMode: false,
+    keys: new Set(),
+    joy: null,
     post: { hook: 'confess', body: null, end: 'tag' },
   };
   ui.settings.tutorial = !store.get(TUT_KEY);
@@ -269,6 +272,8 @@
     ui.speed = 2;
     ui.tut = null;
     ui.tutFlags = {};
+    ui.bossMode = false;
+    ui.keys.clear();
     ui.tab = null;
     ui.build = null;
     ui.inspect = null;
@@ -283,6 +288,10 @@
           <div class="toasts" id="toasts"></div>
           <div class="build-hint" id="build-hint" hidden></div>
           <div class="tut-card card" id="tut" hidden></div>
+          <button class="boss-toggle" id="boss-toggle" data-action="boss-mode" title="自己操控老闆（B 鍵以外的快捷鍵：G）">🕹️ 老闆下場</button>
+          <div class="boss-hud card" id="boss-hud" hidden></div>
+          <div class="joy" id="joy" hidden><div class="joy-knob"></div></div>
+          <button class="boss-act" id="boss-act" data-action="boss-act" hidden></button>
           <aside class="inspector card" id="inspector" hidden></aside>
           <div class="cam-buttons">
             <button data-action="cam-rot" data-dir="-1" title="向左轉（Q）">⟲</button>
@@ -321,6 +330,10 @@
       },
       dayEnd: (r) => toast(`🌙 今天服務 ${r.served} 位客人，營收 ${money(r.revenue)}${r.angry ? `，${r.angry} 位等到生氣離開` : ''}${r.holiday ? '（國定假日薪水加倍）' : ''}`),
       festival: (f) => toast(f.news, 'event'),
+      tripDone: (r) => {
+        ui.dialog = { type: 'trip', result: r };
+        renderDialog();
+      },
       hygiene: () => {
         if (ui.tab === 'stock') renderDrawer();
       },
@@ -347,6 +360,12 @@
       },
       dragLocked: () => !!ui.build,
       peek: () => ui.tab === 'build' || !!ui.build,
+      follow: () => ui.bossMode && !ui.build,
+      bossGender: () => ui.settings.gender,
+      bossPrompt: () => {
+        if (!ui.bossMode || !ui.bossTarget) return null;
+        return { key: isTouch ? '👆' : '[E]', label: ui.bossTarget.label, ref: ui.bossTarget.ref };
+      },
       quality: effectiveQuality(),
       autoQuality: () => ui.quality === 'auto',
       onQuality: (q) => toast(`🖥️ 畫面有點卡，自動把畫質調成「${{ medium: '中', low: '低' }[q]}」`),
@@ -456,6 +475,7 @@
       ui.lastWeather = sim.weather.id;
       window.BossAudio.setWeather(sim.weather.id);
     }
+    if (ui.bossMode) updateBossControl(dt);
     // 建造預覽
     if (ui.build && ui.view.ghost) {
       const t = ui.hover;
@@ -480,6 +500,174 @@
       refreshDrawerLive();
     }
     ui.raf = requestAnimationFrame(loop);
+  }
+
+  // ───── 老闆下場：自己操控角色 ─────
+  function setBossMode(on) {
+    const s = ui.sim;
+    ui.bossMode = on;
+    if (on) {
+      s.bossEnter();
+      ui.view.setZoom(Math.max(ui.view.zoom, 1.7));
+      if (ui.tab) openTab(ui.tab);
+      toast(isTouch ? '🕹️ 用左下角的搖桿走路，或點地板走過去；靠近東西按右下角的按鈕互動' : '🕹️ WASD／方向鍵走路，也可以點地板走過去；靠近東西按 E 互動，走到街尾可以出門');
+    } else {
+      s.bossExit();
+      ui.view.pan.set(0, 0, 0);
+      ui.view.setZoom(1);
+    }
+    document.getElementById('boss-toggle').classList.toggle('on', on);
+    document.getElementById('boss-toggle').textContent = on ? '🏪 回到經營' : '🕹️ 老闆下場';
+    document.getElementById('joy').hidden = !(on && isTouch);
+    renderBossHud();
+  }
+
+  function updateBossControl(dt) {
+    const s = ui.sim;
+    const b = s.boss;
+    let ix = 0;
+    let iy = 0;
+    const k = ui.keys;
+    if (k.has('a') || k.has('arrowleft')) ix -= 1;
+    if (k.has('d') || k.has('arrowright')) ix += 1;
+    if (k.has('w') || k.has('arrowup')) iy -= 1;
+    if (k.has('s') || k.has('arrowdown')) iy += 1;
+    if (ui.joy) {
+      ix += ui.joy.x;
+      iy += ui.joy.y;
+    }
+    let vx = 0;
+    let vz = 0;
+    if (ix || iy) {
+      b.path = [];
+      // 螢幕的上下左右換成地面方向（跟著鏡頭旋轉）
+      const az = Math.PI / 4 + (ui.view.camRot * Math.PI) / 2;
+      const right = [Math.cos(az), -Math.sin(az)];
+      const fwd = [-Math.sin(az), -Math.cos(az)];
+      vx = right[0] * ix - fwd[0] * iy;
+      vz = right[1] * ix - fwd[1] * iy;
+    } else if (b.path && b.path.length) {
+      // 點地板：沿著路線走過去
+      const n = b.path[0];
+      const dx = n.x - b.x;
+      const dz = n.z - b.z;
+      if (Math.hypot(dx, dz) < 0.12) {
+        b.x = n.x;
+        b.z = n.z;
+        b.path.shift();
+      } else {
+        vx = dx;
+        vz = dz;
+      }
+    }
+    s.moveBoss(vx, vz, dt);
+    ui.bossT = (ui.bossT || 0) + dt;
+    if (ui.bossT > 0.15) {
+      ui.bossT = 0;
+      const ts = s.bossTargets();
+      ui.bossTarget = ts[0] || null;
+      const btn = document.getElementById('boss-act');
+      if (btn) {
+        btn.hidden = !ui.bossTarget;
+        const t = ui.bossTarget ? `${ui.bossTarget.actions.length > 1 ? '…' : ''}${ui.bossTarget.label}` : '';
+        if (btn.textContent !== t) btn.textContent = t;
+      }
+      renderBossHud();
+    }
+  }
+
+  function renderBossHud() {
+    const el = document.getElementById('boss-hud');
+    if (!el) return;
+    const s = ui.sim;
+    const b = s.boss;
+    el.hidden = !ui.bossMode;
+    if (!ui.bossMode) return;
+    const st = b.away ? `${(window.BossFun.PLACES.find((p) => p.id === b.away.id) || {}).icon || ''} 出門中・還要 ${Math.max(0, Math.round(b.away.until - s.minute))} 分鐘` : b.lane ? '🧑‍🍳 親自顧櫃台中' : b.ride ? '🛵 騎機車中' : '🚶 巡店中';
+    const html = `<b>👑 老闆</b><small>${st}</small><div class="ibar"><span>體力</span><div class="bar"><div class="bar-fill energy" style="width:${Math.round(b.energy)}%"></div></div><b>${Math.round(b.energy)}</b></div><button data-action="boss-city" ${b.away ? 'disabled' : ''}>🗺️ 出門</button>`;
+    if (el.dataset.html !== html) {
+      morph(el, html);
+      el.dataset.html = html;
+    }
+  }
+
+  // 按 E 或右下角按鈕：一個動作直接做，多個動作就跳出選單
+  function bossInteract() {
+    const ts = ui.sim.bossTargets().slice(0, 4);
+    if (!ts.length) return toast('附近沒有可以互動的東西');
+    if (ts.length === 1 && ts[0].actions.length === 1) return bossAction(ts[0], ts[0].actions[0][0]);
+    ui.dialog = { type: 'boss-menu', targets: ts };
+    renderDialog();
+  }
+
+  // 用總覽同一套按鈕處理員工的動作
+  function clickAction(action, data) {
+    const b = document.createElement('button');
+    b.dataset.action = action;
+    for (const [k, v] of Object.entries(data)) b.dataset[k] = v;
+    b.hidden = true;
+    app.appendChild(b);
+    b.click();
+    b.remove();
+  }
+
+  function bossAction(t, act) {
+    const s = ui.sim;
+    if (['chat', 'praise', 'treat', 'rest-now', 'scold'].includes(act)) return clickAction(act, { id: String(t.ref.id) });
+    switch (act) {
+      case 'boss-greet':
+        s.bossGreet(t.ref);
+        break;
+      case 'boss-gift':
+        if (!s.bossGift(t.ref)) toast('已經招待過了，或錢不夠', 'bad');
+        break;
+      case 'boss-mop':
+        s.bossMop(t.ref);
+        window.BossAudio.play('click');
+        break;
+      case 'boss-lane':
+        if (s.bossTakeLane(t.ref)) toast(`🧑‍🍳 你站上了${t.obj.def.name}，客人過來就會幫他服務（離開就走開）`);
+        break;
+      case 'boss-leave-lane':
+        s.bossLeaveLane();
+        break;
+      case 'boss-flyer':
+        s.bossFlyer(t.ref);
+        break;
+      case 'boss-ride':
+        s.boss.ride = true;
+        toast('🛵 騎上機車了！只能在店外騎，靠近店門口按「下車」');
+        break;
+      case 'boss-unride':
+        s.boss.ride = false;
+        s.boss.z = Math.max(s.H, Math.round(s.boss.z));
+        break;
+      case 'boss-karen': {
+        const c = t.ref;
+        let ev = s.activeEvents.find((e) => e.karen === c);
+        if (!ev) {
+          s.karenScene(c);
+          ev = s.activeEvents.find((e) => e.karen === c);
+        }
+        if (ev) {
+          ui.dialog = { type: 'event', ev };
+          renderDialog();
+        }
+        break;
+      }
+      case 'boss-rival': {
+        const r = s.visitRival();
+        if (r) {
+          ui.dialog = { type: 'rival-visit', result: r };
+          renderDialog();
+        }
+        break;
+      }
+      case 'boss-city':
+        ui.dialog = { type: 'city' };
+        renderDialog();
+        break;
+    }
   }
 
   // 背景音樂跟著店裡的狀況換曲
@@ -657,6 +845,11 @@
       }
       else toast('這裡放不下：要放在店裡、不能擋住門口，設備的服務位置也要留空', 'bad');
       if (ui.tab === 'build' && !smallScreen()) renderDrawer();
+      return;
+    }
+    if (ui.bossMode && hit.kind === 'tile' && !s.boss.away) {
+      const path = s.findPath(s.boss, { x: hit.x, z: hit.z });
+      if (path) s.boss.path = path;
       return;
     }
     if (hit.kind === 'staff') return inspect('staff', hit.staff);
@@ -1512,6 +1705,7 @@
            <li>🏗️ <b>建造</b>：買設備、座位、裝潢、員工休息區，自由擺放</li>
            <li>👥 <b>員工</b>：點員工看他的心情和想法；人手不夠就招人</li>
            <li>⚙️ <b>經營</b>：營業時間、排班、加班費、定價</li>
+           <li>🕹️ <b>老闆下場</b>：右下角的按鈕（或 G 鍵）可以自己操控老闆，在店裡和街上走動、顧櫃台、拖地、發傳單、騎機車、出門去夜市和廟裡</li>
            <li>⏩ 右上角可以暫停或快轉；打烊後會自動快轉到隔天</li>
          </ul>
          <div class="tip">${isTouch ? '拖曳畫面可以移動視角，兩指縮放；' : '拖曳畫面可以移動視角，滾輪縮放，Q／E 旋轉；'}員工頭上出現 <b class="bang">!</b> 是有事找你，左上角也會列出來。</div>
@@ -1562,6 +1756,44 @@
       );
     } else if (d.type === 'week') {
       inner = weekReport(d.report);
+    } else if (d.type === 'boss-menu') {
+      inner = `<div class="card menu-card boss-menu">
+        <button class="x" data-action="close-dialog" aria-label="關閉">✕</button>
+        <h2>要做什麼？</h2>
+        ${d.targets.map((t, i) => `<h3>${esc(t.label)}</h3><div class="boss-menu-list">${t.actions.map(([a, l]) => `<button data-action="boss-do" data-t="${i}" data-act="${a}">${l}</button>`).join('')}</div>`).join('')}
+      </div>`;
+    } else if (d.type === 'city') {
+      const b = s.boss;
+      inner = `<div class="card menu-card city-card">
+        <button class="x" data-action="close-dialog" aria-label="關閉">✕</button>
+        <h2>🗺️ 出門去哪？</h2>
+        <p class="calc">出門會花遊戲時間，這段時間老闆不在店裡（員工照常營業）。現在 ${s.clockLabel}・老闆體力 ${Math.round(b.energy)}</p>
+        <div class="city-map">
+          <div class="city-home" style="left:46%;top:58%">🏪<small>你的店</small></div>
+          ${window.BossFun.PLACES.map((p) => `<button class="city-pin" style="left:${p.x}%;top:${p.y}%" data-action="go-out" data-id="${p.id}" ${b.away || s.cash < p.cost ? 'disabled' : ''}><span>${p.icon}</span><b>${p.name}</b><small>${p.minutes} 分鐘${p.cost ? `・${money(p.cost)}` : ''}</small></button>`).join('')}
+        </div>
+        <div class="city-list">${window.BossFun.PLACES.map((p) => `<div><b>${p.icon} ${p.name}</b>：${p.desc}</div>`).join('')}</div>
+      </div>`;
+    } else if (d.type === 'trip') {
+      const r = d.result;
+      const J = window.BossFun.JIAOBEI;
+      inner = `<div class="card menu-card act-result">
+        <div class="event-kicker">${r.place.icon} 老闆回來了</div>
+        <h2>${r.place.name}</h2>
+        ${r.jiaobei ? `<div class="jiaobei">${r.jiaobei.map((j) => `<div><span>${J[j].icon}</span><b>${J[j].name}</b><small>${J[j].text}</small></div>`).join('')}</div>` : ''}
+        <ul class="act-lines">${r.lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>
+        ${r.chips.length ? `<div class="chips">${r.chips.map((c) => `<span class="chip good">${esc(c)}</span>`).join('')}</div>` : ''}
+        <button class="primary" data-action="close-dialog">回店裡</button>
+      </div>`;
+    } else if (d.type === 'rival-visit') {
+      const r = d.result;
+      inner = `<div class="card menu-card act-result">
+        <div class="event-kicker">🕵️ 探班</div>
+        <h2>隔壁的「${esc(r.name)}」</h2>
+        <ul class="act-lines">${r.lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>
+        <p class="calc">他們大約搶走了 ${Math.round(r.strength * 22)}% 的客人。</p>
+        <button class="primary" data-action="close-dialog">回去自己的店</button>
+      </div>`;
     } else if (d.type === 'activity') {
       const r = d.result;
       inner = `<div class="card menu-card act-result">
@@ -1613,7 +1845,7 @@
         <div class="ending-actions"><button class="primary" data-action="quit">回主選單</button></div>
       </div>`;
     }
-    box.innerHTML = d.type === 'minigame' ? '' : `<div class="dialog-backdrop ${['week', 'ending', 'menu', 'advice', 'activity'].includes(d.type) ? 'center' : ''}">${inner}</div>`;
+    box.innerHTML = d.type === 'minigame' ? '' : `<div class="dialog-backdrop ${['week', 'ending', 'menu', 'advice', 'activity', 'boss-menu', 'city', 'trip', 'rival-visit'].includes(d.type) ? 'center' : ''}">${inner}</div>`;
     ui.dialogShownAt = performance.now();
   }
 
@@ -1943,6 +2175,29 @@
         refreshStaffViews();
         break;
       }
+      case 'boss-mode':
+        setBossMode(!ui.bossMode);
+        break;
+      case 'boss-act':
+        bossInteract();
+        break;
+      case 'boss-do': {
+        const t = ui.dialog && ui.dialog.targets && ui.dialog.targets[Number(btn.dataset.t)];
+        closeDialog();
+        if (t) bossAction(t, btn.dataset.act);
+        break;
+      }
+      case 'boss-city':
+        if (!ui.bossMode) setBossMode(true);
+        ui.dialog = { type: 'city' };
+        renderDialog();
+        break;
+      case 'go-out':
+        if (s.goOut(btn.dataset.id)) {
+          closeDialog();
+          renderBossHud();
+        }
+        break;
       case 'chat': {
         const who = staffOf(btn);
         const t = who && s.chat(who);
@@ -2266,6 +2521,17 @@
       return;
     }
     const k = e.key.toLowerCase();
+    if (ui.bossMode) {
+      if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(k)) {
+        e.preventDefault();
+        ui.keys.add(k);
+        return;
+      }
+      if (k === 'e' || k === 'f') return bossInteract();
+      if (k === 'c') return ui.view.rotate(1);
+      if (k === 'm') return clickAction('boss-city', {});
+    }
+    if (k === 'g') return setBossMode(!ui.bossMode);
     if (k === ' ') {
       e.preventDefault();
       if (ui.speed > 0) {
@@ -2290,8 +2556,40 @@
     }
   });
 
+  window.addEventListener('keyup', (e) => ui.keys.delete(e.key.toLowerCase()));
+  window.addEventListener('blur', () => ui.keys.clear());
+
+  // 手機的虛擬搖桿
+  app.addEventListener('pointerdown', (e) => {
+    const joy = e.target.closest('#joy');
+    if (!joy) return;
+    e.preventDefault();
+    const r = joy.getBoundingClientRect();
+    const knob = joy.querySelector('.joy-knob');
+    const move = (ev) => {
+      const dx = ev.clientX - (r.left + r.width / 2);
+      const dy = ev.clientY - (r.top + r.height / 2);
+      const max = r.width / 2;
+      const len = Math.min(max, Math.hypot(dx, dy));
+      const ang = Math.atan2(dy, dx);
+      ui.joy = { x: (Math.cos(ang) * len) / max, y: (Math.sin(ang) * len) / max };
+      knob.style.transform = `translate(${Math.cos(ang) * len}px, ${Math.sin(ang) * len}px)`;
+    };
+    const up = () => {
+      ui.joy = null;
+      knob.style.transform = '';
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+    };
+    move(e);
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+  });
+
   // 自動化測試用：網址加上 #debug 才會開放
-  if (location.hash === '#debug') window.BossDebug = { ui, renderDialog, renderDrawer };
+  if (location.hash === '#debug') window.BossDebug = { ui, renderDialog, renderDrawer, setBossMode, bossInteract };
 
   renderStart();
 })();
