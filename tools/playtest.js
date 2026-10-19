@@ -139,7 +139,7 @@ function daily(r) {
   if (next) {
     const lot = globalThis.BossIndustries.LOTS[s.lotIdx + 1];
     const last4 = s.history.slice(-4);
-    const earning = last4.length === 4 && last4.every((h) => h.profit - (h.branches || 0) - (h.other || 0) > 15000);
+    const earning = last4.length === 4 && last4.every((h) => h.profit - (h.branches || 0) - (h.other || 0) - (h.rewards || 0) > 15000);
     if (s.level >= (lot.lv || 0) && earning && s.cash > lot.cost + 250000 && s.upgradeLot()) note(`第 ${s.day} 天：擴建成${lot.name}`);
   }
   // 研發新品

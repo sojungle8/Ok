@@ -213,7 +213,8 @@
       id: 'sick',
       icon: '🤒',
       title: '員工發燒請病假',
-      text: '早上七點，一位員工傳訊息說燒到 39 度，今天沒辦法上班。',
+      where: 'phone',
+      text: '手機跳出一則訊息：一位員工燒到 39 度，明天沒辦法上班。',
       ignore: { effects: { morale: -4, jerk: 5 }, result: '他傳的訊息你已讀不回，他只好吃了退燒藥硬撐著來上班。' },
       choices: [
         { label: '准假，叫他好好休息', effects: { cash: -3000, morale: 2, jerk: -1 }, result: '他回了一個感動的貼圖，隔兩天就生龍活虎地回來了。' },

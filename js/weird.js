@@ -125,7 +125,12 @@
     '剛剛有人問我們有沒有賣「普通的」',
     '我今天被叫了三次「妹妹」，我是男生'
   );
-  Fun.FUNNY_REVIEWS.good.push('店員記得我不要香菜，我差點哭出來', '比我前任還溫暖', '老闆的冷笑話很冷，但飲料更冰，讚', '我是來看店貓的，結果被餐點收服');
+  Fun.FUNNY_REVIEWS.good.push('店員記得我的習慣，我差點哭出來', '比我前任還溫暖', '老闆的冷笑話很冷，但冷氣更冷，讚');
+
+  // 只有吃東西的店才會遇到的奧客（理髮店、機車行不會有人「吃完才說難吃」）
+  const FOOD = ['breakfast', 'noodle', 'drinks', 'store'];
+  const KAREN_IND = { custom: ['drinks'], refund: FOOD, mystery: FOOD, note: FOOD, influencer: FOOD, pet: FOOD };
+  for (const k of Fun.KARENS) if (KAREN_IND[k.id]) k.ind = KAREN_IND[k.id];
   Fun.FUNNY_REVIEWS.bad.push('老闆沒有對我笑，一星', '停車不方便（我把車停在店門口被拖吊）', '今天下雨，一星', '店員太有禮貌，讓我很不自在');
   Fun.COMMENTS.viral.push('這小編是天才吧', '老闆快幫小編加薪', '我笑到隔壁同事以為我在哭');
   Fun.COMMENTS.flop.push('小編是不是被盜帳號', '這篇好像我阿公會發的');

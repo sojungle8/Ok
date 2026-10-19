@@ -321,6 +321,12 @@
       sound: (n) => window.BossAudio.play(n),
       notify: (t, k) => toast(t, k),
       event: (ev, text) => {
+        // 快轉中有事找你：先把速度調回正常，不然一眨眼事件就過期了
+        if (ui.autoPause && ui.speed > 2) {
+          ui.speed = 2;
+          renderTopbar();
+          text += '（先調回正常速度）';
+        }
         toast(text, 'event');
         renderInbox();
       },
@@ -328,7 +334,11 @@
         toast(`😤 ${r.event.title}：你沒處理`, 'bad');
         renderInbox();
       },
-      dayEnd: (r) => toast(`🌙 今天服務 ${r.served} 位客人，營收 ${money(r.revenue)}${r.angry ? `，${r.angry} 位等到生氣離開` : ''}${r.holiday ? '（國定假日薪水加倍）' : ''}`),
+      dayEnd: (r) => {
+        // 等這一輪結算完（日期換到隔天）再存，不然讀檔會把同一天再玩一次
+        setTimeout(() => save(), 0);
+        toast(`🌙 今天服務 ${r.served} 位客人，營收 ${money(r.revenue)}${r.angry ? `，${r.angry} 位等到生氣離開` : ''}${r.holiday ? '（國定假日薪水加倍）' : ''}`);
+      },
       festival: (f) => toast(f.news, 'event'),
       delegated: (r, ev, m) => {
         toast(`👑 ${m.name} 幫你處理了「${r.event.title}」：${r.choice.label}`, (r.delta && r.delta.jerk > 0) || (r.choice.effects && r.choice.effects.jerk > 0) ? 'bad' : '');
@@ -455,7 +465,7 @@
     el.style.bottom = open ? `${Math.max(10, vp.bottom - drawer.getBoundingClientRect().top + 10)}px` : '';
     el.classList.toggle('compact', !!(open && smallScreen() && st.short));
     document.querySelectorAll('.tut-glow').forEach((n) => n.classList.remove('tut-glow'));
-    if (st.target) document.querySelectorAll(st.target).forEach((n) => n.classList.add('tut-glow'));
+    if (st.target) document.querySelectorAll(st.target).forEach((n) => !n.classList.contains('drawer-x') && n.classList.add('tut-glow'));
   }
 
   function loop(now) {
@@ -622,6 +632,7 @@
     }
     closeInspector();
     ui.place = new window.BossPlace3D(ui.view, s, id, { gender: ui.settings.gender, touch: isTouch });
+    if (ui.place.intro) ui.place.showLog(ui.place.intro);
     ui.view.overlay.hidden = true;
     ui.keys.clear();
     closeDialog();
@@ -1514,6 +1525,11 @@
             </div>`;
           })
           .join('')}
+        ${(() => {
+          const cov = s.coverage();
+          const cells = cov.days.map((per) => (per ? `<span class="sc-cover ${Math.min(...per) < cov.lanes ? 'neg' : 'pos'}" title="${shiftNames.map((nm, k) => `${nm} ${per[k]} 人`).join('、')}">${per.join('／')}</span>` : '<span class="muted">—</span>'));
+          return `<div class="sc-row sc-foot"><span><b>每班人數</b></span><span><small>服務位 ${cov.lanes} 個</small></span>${cells.join('')}<span></span><span class="muted"><small>${n > 1 ? `${shiftNames.join('／')}的人數；` : ''}比服務位少（紅色）尖峰時客人會等很久</small></span></div>`;
+        })()}
       </div>
       <p class="drawer-tip">點星期幾可以切換上班／休假（改了今天馬上生效）。勞基法規定每 7 天至少要有 1 天例假、1 天休息日，每週休不到 1 天就違法；休 2 天最好。<br>班別和一天幾班在「⚙️ 經營」設定；固定崗位的員工只會在那台設備工作。</p>
     </div>`;
@@ -1738,7 +1754,8 @@
       ['利息', -L.interest],
       ['事件', L.events],
       ['分店', L.branches || 0],
-      ['設備與其他', L.other],
+      ['成就獎金', L.rewards || 0],
+      ['設備、研發與其他', L.other],
     ].filter(([, v]) => Math.round(v) !== 0);
   }
 
@@ -2015,6 +2032,7 @@
             </div>
             <div class="plot-meta"><span>客群：${top}</span>${st.rich ? '<span>💎 不太在意價格</span>' : ''}${st.season ? '<span>🌊 有淡旺季</span>' : ''}${st.weekdayOnly ? '<span>📅 週末冷清</span>' : ''}</div>
             <div class="plot-meta"><span>適合度 <b class="stars">${fitStars(fit)}</b></span><span>估計每週營收 ${money(est.revenue)}</span><span class="${est.profit < 0 ? 'neg' : 'pos'}">淨利約 ${signedMoney(est.profit)}</span></div>
+            ${est.full ? `<p class="calc warn">客人比${BRANCH_SIZES[sz].name}做得完的還多（營收卡在容量上限）${sz !== 'large' ? '：開大一點的店面更划算' : ''}</p>` : ''}
             <button class="primary" data-action="open-branch" data-site="${st.id}" ${opened || s.cash < cost ? 'disabled' : ''}>${opened ? '已經開了' : `開${BRANCH_SIZES[sz].name}（${money(cost)}）`}</button>
           </div>`;
         }).join('')}</div>
@@ -2110,7 +2128,7 @@
           ${[['auto', '自動'], ['high', '高'], ['medium', '中'], ['low', '低（省電）']].map(([v, l]) => `<button data-action="quality" data-value="${v}" class="${q === v ? 'active' : ''}">${l}</button>`).join('')}
         </div>
         <h3>操作</h3>
-        <button class="toggle ${ui.autoPause ? 'on' : 'off'} neutral" data-action="autopause"><span class="knob"></span><span>${ui.autoPause ? '打開員工、庫存、經營等面板時，時間自動暫停' : '打開面板時時間照走'}</span></button>
+        <button class="toggle ${ui.autoPause ? 'on' : 'off'} neutral" data-action="autopause"><span class="knob"></span><span>${ui.autoPause ? '打開員工、庫存、經營等面板時時間自動暫停；快轉中有事找你會調回正常速度' : '打開面板、有事找你時，時間照走'}</span></button>
         <p class="calc">🎵 正在播放：${window.BossAudio.trackName ? window.BossAudio.trackName() : ''}（會跟著時段、天氣和忙碌程度換曲）</p>
         <div class="insp-actions"><button data-action="tut-restart">📘 重新看新手教學</button><button data-action="quit" class="warn">🚪 存檔並回主選單</button></div>
       </div>`;
@@ -2235,6 +2253,13 @@
     renderDialog();
     renderInbox();
   }
+
+  // 關掉分頁或切到背景時也存一下（只在開門前存：存檔不記時間，營業中存會讓同一天重玩一次）
+  const saveIfMorning = () => ui.sim && ui.sim.minute < ui.sim.hours.open && !ui.sim.today.served && save();
+  window.addEventListener('pagehide', saveIfMorning);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') saveIfMorning();
+  });
 
   function save(slot = ui.slot) {
     if (!ui.sim || ui.sim.over) return false;
@@ -2866,6 +2891,9 @@
     if (e.target.matches('input, select, textarea')) return;
     const d = ui.dialog;
     if (d) {
+      // 對話框開著時，Enter／空白鍵不要順便按到後面還有焦點的按鈕
+      const box = document.getElementById('dialog');
+      if ((e.key === 'Enter' || e.key === ' ') && !(box && box.contains(document.activeElement))) e.preventDefault();
       if (d.type === 'event') {
         const n = Number(e.key);
         if (n >= 1 && n <= d.ev.ev.choices.length) choose(n - 1);

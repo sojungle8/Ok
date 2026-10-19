@@ -218,6 +218,12 @@
       this.scene.add(this.root);
       const def = SCENES[id](this.root, sim);
       Object.assign(this, def);
+      // 白天去夜市：天還亮著、人很少，攤販才剛在備料
+      if (id === 'market' && sim.hour >= 6 && sim.hour < 17) {
+        this.night = false;
+        this.crowd = 3;
+        this.intro = '白天的夜市冷冷清清，攤販都還在備料……不過有幾攤已經開了。';
+      }
       this.done = new Set();
       // 燈光：夜市和夜店是晚上
       this.scene.background = new THREE.Color(this.night ? '#141a2b' : this.indoor ? '#d9cfc0' : '#cfdde8');

@@ -125,7 +125,7 @@
   const POST_BODIES = [
     { id: 'menu', text: '{item} 今天也是 ${price}，沒漲價，因為老闆忘記了。', score: 3 },
     { id: 'staff', text: '{staff} 今天被誇可愛，現在整個人在飄，出餐速度變兩倍。', score: 4 },
-    { id: 'karen', text: '感謝今天那位要「半糖少冰去冰」的客人，我們研發出了量子飲料。', score: 4 },
+    { id: 'karen', text: '感謝今天那位要「不要蔥、不要辣、但要很有味道」的客人，我們研發出了量子料理。', score: 4 },
     { id: 'promo', text: '來店說「小編好帥」打九折（小編其實是阿姨）。', score: 4 },
     { id: 'honest', text: '我們不是最好吃的，但我們是這條街上最努力的。', score: 2 },
     { id: 'hardsell', text: '快來買！快來買！快來買！好吃！便宜！大碗！', score: 0 },
