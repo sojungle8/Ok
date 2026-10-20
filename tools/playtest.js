@@ -1,7 +1,7 @@
 // AI 玩家：照一般玩家會做的事去經營，試著撐滿一年破關
 // 只用遊戲裡玩家按得到的操作（招人、排班、調薪、進貨、打掃、買設備、選事件、發文、開分店……）
 // 用法：node tools/playtest.js [難度] [產業] [隨機種子]
-for (const f of ['data', 'fun', 'weird', 'activities', 'city', 'plots', 'career', 'progress', 'slash', 'sidebiz', 'backroom', 'portraits', 'industries', 'sim']) require(`../js/${f}.js`);
+for (const f of ['data', 'fun', 'weird', 'activities', 'city', 'plots', 'career', 'progress', 'slash', 'sidebiz', 'backroom', 'pets', 'portraits', 'industries', 'sim']) require(`../js/${f}.js`);
 const { Sim, CATALOG, catalogById } = globalThis.BossSim;
 const Fun = globalThis.BossFun;
 
@@ -163,6 +163,12 @@ function daily(r) {
   if (!s.boss.away && s.cash > 250000 && !s.collabs.length && s.day % 10 === 0) {
     const pt = Fun.PARTNERS.find((p) => !s.collabReady(p) && s.cash > p.cost + 200000);
     if (pt) s.startCollab(pt.id);
+  }
+  // 寵物：生意穩了養一隻；每天陪玩，生病就看醫生
+  if (!s.pets.length && s.level >= 4 && s.cash > 250000) s.adoptPet(s.isFood ? 'turtle' : 'cat');
+  for (const p of s.pets) {
+    s.playPet(p.id);
+    if (p.health < 60) s.vetPet(p.id);
   }
   // 後場：照順序蓋（儲藏室、廁所、休息室、辦公室），錢夠再升級
   for (const id of ['storage', 'toilet', 'rest', 'office']) {

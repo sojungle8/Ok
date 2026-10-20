@@ -1008,6 +1008,7 @@
     if (hit.kind === 'staff') return inspect('staff', hit.staff);
     if (hit.kind === 'customer') return inspect('customer', hit.customer);
     if (hit.kind === 'object') return inspect('object', hit.obj);
+    if (hit.kind === 'pet') return inspect('pet', hit.pet);
     closeInspector();
   }
 
@@ -1148,6 +1149,20 @@
         ${bar('耐心', 100 - (c.waited / c.patience) * 100, 'morale')}
         ${c.state !== 'leaving' && !s.boss.away ? `<div class="insp-actions"><button data-action="cust-greet" ${c.greeted ? 'disabled' : ''}>😊 打招呼<small>耐心 +</small></button><button data-action="cust-gift" ${c.gifted || s.cash < 30 ? 'disabled' : ''}>🎁 招待小菜<small>$30・評價 +</small></button></div>` : ''}`;
       }
+    } else if (kind === 'pet') {
+      const p = ref;
+      if (!s.pets.includes(p)) return closeInspector();
+      const d = Fun.PETS[p.kind];
+      const T = Fun.PET_TRAITS[p.trait] || { name: '', desc: '' };
+      html = `
+        <div class="insp-head">
+          <div class="insp-icon">${d.icon}</div>
+          <div><h3>${esc(p.name)}</h3><small>${d.name}・${T.name}：${T.desc}</small></div>
+          <button class="x" data-action="close-insp" aria-label="關閉">✕</button>
+        </div>
+        ${bar('開心', p.joy, 'morale')}${bar('健康', p.health, 'skill')}
+        <p class="insp-meta">${d.desc}</p>
+        <div class="insp-actions"><button data-action="pet-play" data-id="${p.id}" ${p.playDay === s.day ? 'disabled' : ''}>🤗 陪牠玩</button><button data-action="pet-vet" data-id="${p.id}" ${s.cash < d.vet || p.vetDay === s.day ? 'disabled' : ''}>🩺 看獸醫 ${money(d.vet)}</button></div>`;
     } else if (kind === 'object') {
       const o = ref;
       if (!s.objects.includes(o)) return closeInspector();
@@ -1252,12 +1267,15 @@
       <div class="drawer-tabs">
         ${cats.map((c) => `<button data-action="build-cat" data-cat="${c}" class="${ui.buildCat === c ? 'active' : ''}">${c === 'side' ? '🧰 兼營業務' : CAT_LABELS[c]}</button>`).join('')}
         <button data-action="build-cat" data-cat="back" class="${ui.buildCat === 'back' ? 'active' : ''}">🚪 後場</button>
+        <button data-action="build-cat" data-cat="pets" class="${ui.buildCat === 'pets' ? 'active' : ''}">🐾 寵物</button>
         <button data-action="build-cat" data-cat="lot" class="${ui.buildCat === 'lot' ? 'active' : ''}">店面與裝潢</button>
       </div>
       <div class="drawer-body">
         ${
           ui.buildCat === 'back'
             ? backroomPanel()
+            : ui.buildCat === 'pets'
+            ? petsPanel()
             : ui.buildCat === 'lot'
             ? `<div class="lot-card card">
                 <p>目前：<b>${s.lot.name}</b>（${s.W} × ${s.H} 格），月租約 ${money(s.ind.rent * s.lot.rentMult)}</p>
@@ -1522,6 +1540,29 @@
       ${authPanel()}
       <p class="drawer-tip">每個人都有看不到的「領導力」和「企圖心」：技能好不一定會帶人（彼得原理），企圖心太低的人被升上去會壓力很大，企圖心高的人等太久會主動來要求升遷。升職後有 14 天試用期。</p>
     </div>`;
+  }
+
+  // 🐾 寵物：店寵和寵物友善
+  function petsPanel() {
+    const s = ui.sim;
+    const P = Fun.PETS || {};
+    const T = Fun.PET_TRAITS || {};
+    const mine = s.pets.map((p) => {
+      const d = P[p.kind];
+      return `<div class="pet-card">
+        <div class="room-head"><span class="room-icon">${d.icon}</span><div><b>${esc(p.name)}</b><small>${d.name}・${T[p.trait] ? T[p.trait].name : ''}・來店第 ${s.day - p.since + 1} 天${p.calm ? '・有圍欄' : ''}</small></div></div>
+        <div class="ibar"><span>開心</span><div class="bar"><div class="bar-fill morale" style="width:${Math.round(p.joy)}%"></div></div><b>${Math.round(p.joy)}</b></div>
+        <div class="ibar"><span>健康</span><div class="bar"><div class="bar-fill ${p.health < 55 ? 'jerk' : 'skill'}" style="width:${Math.round(p.health)}%"></div></div><b>${Math.round(p.health)}</b></div>
+        <div class="insp-actions"><button data-action="pet-play" data-id="${p.id}" ${p.playDay === s.day ? 'disabled' : ''}>🤗 陪牠玩</button><button data-action="pet-vet" data-id="${p.id}" ${s.cash < d.vet || p.vetDay === s.day ? 'disabled' : ''}>🩺 看獸醫 ${money(d.vet)}</button><button data-action="pet-rehome" data-id="${p.id}" class="warn">🏡 送養</button></div>
+      </div>`;
+    });
+    return `<p class="calc">寵物越開心，吸引力越強；但每天要飼料錢，餐飲業養寵物要注意衛生（稽查會扣分，裝圍欄可以降低），對貓狗過敏的客人和員工也會不開心。最多養 3 隻。</p>
+      ${mine.length ? `<div class="room-list">${mine.join('')}</div>` : '<p class="muted">店裡還沒有寵物。</p>'}
+      ${s.pets.length < 3 ? `<h3>領養</h3><div class="catalog">${Object.entries(P)
+        .map(([k, d]) => `<button class="cat-item" data-action="pet-adopt" data-kind="${k}" ${s.cash < d.adopt ? 'disabled' : ''}><span class="cat-icon">${d.icon}</span><b>${d.name}</b><span class="cat-price">${money(d.adopt)}</span><small>${d.desc}・每週約 ${money(d.weekly)}</small></button>`)
+        .join('')}</div>` : ''}
+      <h3>🐾 寵物友善</h3>
+      <label class="toggle-row"><input type="checkbox" data-action="pet-friendly" ${s.policy.petFriendly ? 'checked' : ''} /> <span><b>歡迎客人帶毛孩</b><small>帶毛孩的客人會來、常順便買點心、粉絲變多；但會有狗打架、尿尿、過敏客人抗議${s.isFood ? '，衛生稽查也會比較嚴' : ''}。${s.policy.petStrict ? '目前有「牽繩守則」：問題少一點，客人也少一點。' : ''}${s.flags.has('petZone') ? '已經劃了無毛孩區。' : ''}</small></span></label>`;
   }
 
   // 🚪 後場：四個房間，各三級
@@ -1973,6 +2014,7 @@
     image: ['📰', '形象', '炎上、負面新聞、對員工太刻薄'],
     rival: ['🏪', '對手', '隔壁搞小動作'],
     event: ['⚡', '事件', '事件的選擇造成的'],
+    pet: ['🐾', '毛孩', '對貓狗過敏的客人：劃無毛孩區、店寵裝圍欄，或關掉寵物友善'],
     toilet: ['🚽', '廁所', '沒有廁所、廁所太髒或要排很久：到「建造 → 後場」蓋廁所，記得有人打掃'],
   };
   // 長期目標的進度
@@ -2938,6 +2980,28 @@
         refreshStaffViews();
         break;
       }
+      case 'pet-adopt':
+        if (s.adoptPet(btn.dataset.kind)) {
+          confetti(30);
+          window.BossAudio.play('cheer');
+        }
+        renderDrawer();
+        break;
+      case 'pet-play':
+        if (s.playPet(Number(btn.dataset.id))) window.BossAudio.play('pop');
+        if (ui.tab === 'build') renderDrawer();
+        if (ui.inspect) renderInspector();
+        break;
+      case 'pet-vet':
+        if (s.vetPet(Number(btn.dataset.id))) toast('🩺 看完獸醫，健康滿分', 'good');
+        if (ui.tab === 'build') renderDrawer();
+        if (ui.inspect) renderInspector();
+        break;
+      case 'pet-rehome':
+        s.rehomePet(Number(btn.dataset.id));
+        if (ui.inspect && ui.inspect.kind === 'pet') closeInspector();
+        renderDrawer();
+        break;
       case 'build-room':
         if (s.buildRoom(btn.dataset.id)) {
           window.BossAudio.play('place');
@@ -3312,6 +3376,9 @@
     } else if (t.dataset.action === 'auth-set') {
       s.policy.auth[t.dataset.key] = t.dataset.key === 'budget' ? Number(t.value) : t.value;
       s.checkProgress();
+      renderDrawer();
+    } else if (t.dataset.action === 'pet-friendly') {
+      s.policy.petFriendly = t.checked;
       renderDrawer();
     } else if (t.dataset.action === 'toilet-open') {
       s.policy.toiletOpen = t.checked;

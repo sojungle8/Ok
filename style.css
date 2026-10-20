@@ -5045,3 +5045,4 @@ kbd {
 .room-now { margin: 0; font-size: 0.85rem; }
 .room-card .primary { justify-self: start; padding: 7px 14px; }
 .toggle-row.small small { font-size: 0.75rem; }
+.pet-card { border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; display: grid; gap: 6px; background: var(--card); }

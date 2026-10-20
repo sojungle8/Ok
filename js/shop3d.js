@@ -756,6 +756,69 @@
   const staffRingGeo = new THREE.RingGeometry(0.24, 0.31, 24);
   const staffRingMat = new THREE.MeshBasicMaterial({ color: '#2fbf71', transparent: true, opacity: 0.85, depthWrite: false });
 
+  // 寵物模型：kind 是 cat／dog／parrot／turtle；pup 是客人帶的小狗；carrier 是貓籠
+  function petModel(kind, seed = 0) {
+    const g = new THREE.Group();
+    const add = (geo, color, x, y, z, sx = 1, sy = 1, sz = 1) => {
+      const m = new THREE.Mesh(geo, mat(color));
+      m.position.set(x, y, z);
+      m.scale.set(sx, sy, sz);
+      m.castShadow = true;
+      g.add(m);
+      return m;
+    };
+    const sph = (r) => new THREE.SphereGeometry(r, 12, 10);
+    if (kind === 'cat') {
+      const fur = ['#e8933a', '#3a3a3a', '#f3efe8', '#9a8572'][seed % 4];
+      add(sph(0.2), fur, 0, 0.14, 0, 1, 0.7, 1.4);
+      add(sph(0.13), fur, 0, 0.24, 0.26);
+      add(new THREE.ConeGeometry(0.045, 0.09, 6), fur, -0.07, 0.36, 0.26);
+      add(new THREE.ConeGeometry(0.045, 0.09, 6), fur, 0.07, 0.36, 0.26);
+      const tail = add(new THREE.CylinderGeometry(0.03, 0.025, 0.36, 6), fur, 0.12, 0.12, -0.3);
+      tail.rotation.set(1.2, 0, 0.5);
+    } else if (kind === 'dog' || kind === 'pup') {
+      const k = kind === 'pup' ? 0.6 : 1;
+      const fur = kind === 'pup' ? ['#f3efe8', '#c9873e', '#3a3a3a', '#e0c08a'][seed % 4] : '#d98a4e';
+      add(sph(0.2 * k), fur, 0, 0.3 * k, 0, 1, 0.8, 1.5);
+      add(sph(0.15 * k), fur, 0, 0.48 * k, 0.28 * k);
+      add(sph(0.06 * k), '#f3efe8', 0, 0.44 * k, 0.4 * k);
+      add(new THREE.ConeGeometry(0.05 * k, 0.1 * k, 6), fur, -0.08 * k, 0.62 * k, 0.26 * k);
+      add(new THREE.ConeGeometry(0.05 * k, 0.1 * k, 6), fur, 0.08 * k, 0.62 * k, 0.26 * k);
+      for (const [x, z] of [[-0.09, 0.15], [0.09, 0.15], [-0.09, -0.15], [0.09, -0.15]]) add(new THREE.CylinderGeometry(0.035 * k, 0.035 * k, 0.2 * k, 6), fur, x * k, 0.1 * k, z * k);
+      const tail = add(new THREE.CylinderGeometry(0.03 * k, 0.02 * k, 0.18 * k, 6), fur, 0, 0.4 * k, -0.3 * k);
+      tail.rotation.x = -0.8;
+      g.userData.tail = tail;
+    } else if (kind === 'parrot') {
+      add(new THREE.CylinderGeometry(0.025, 0.025, 1.3, 6), '#6b4a32', 0, 0.65, 0);
+      add(new THREE.CylinderGeometry(0.15, 0.18, 0.04, 10), '#6b4a32', 0, 0.02, 0);
+      const perch = add(new THREE.CylinderGeometry(0.02, 0.02, 0.4, 6), '#6b4a32', 0, 1.3, 0);
+      perch.rotation.z = Math.PI / 2;
+      const bird = new THREE.Group();
+      const body = new THREE.Mesh(sph(0.09), mat('#2ecc71'));
+      body.scale.set(0.9, 1.3, 0.9);
+      body.position.y = 0.1;
+      const head = new THREE.Mesh(sph(0.07), mat('#27ae60'));
+      head.position.set(0, 0.24, 0.02);
+      const beak = new THREE.Mesh(new THREE.ConeGeometry(0.025, 0.06, 6), mat('#f1c40f'));
+      beak.rotation.x = Math.PI / 2;
+      beak.position.set(0, 0.23, 0.09);
+      const tail = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.16, 0.02), mat('#e74c3c'));
+      tail.position.set(0, 0.0, -0.06);
+      bird.add(body, head, beak, tail);
+      bird.position.y = 1.32;
+      g.add(bird);
+      g.userData.bird = bird;
+    } else if (kind === 'turtle') {
+      add(sph(0.16), '#5a7d3a', 0, 0.06, 0, 1, 0.55, 1.2);
+      add(sph(0.06), '#8fb06a', 0, 0.07, 0.2);
+      for (const [x, z] of [[-0.12, 0.1], [0.12, 0.1], [-0.12, -0.1], [0.12, -0.1]]) add(sph(0.04), '#8fb06a', x, 0.03, z);
+    } else if (kind === 'carrier') {
+      add(new THREE.BoxGeometry(0.28, 0.22, 0.36), '#c97b2c', 0, 0.35, 0);
+      add(new THREE.BoxGeometry(0.2, 0.12, 0.02), '#2b2b30', 0, 0.36, 0.185);
+    }
+    return g;
+  }
+
   function umbrellaModel(color) {
     const g = new THREE.Group();
     const canopy = new THREE.Mesh(new THREE.ConeGeometry(0.42, 0.22, 10, 1, true), new THREE.MeshStandardMaterial({ color, side: THREE.DoubleSide, roughness: 0.6 }));
@@ -1130,6 +1193,7 @@
       const targets = [];
       for (const a of this.agents.values()) if (a.pickable) targets.push(a.p.group);
       for (const m of this.objMeshes.values()) targets.push(m.group);
+      for (const v of (this.petViews || new Map()).values()) targets.push(v.g);
       const hits = rc.intersectObjects(targets, true);
       const found = [];
       for (const h of hits) {
@@ -1138,7 +1202,7 @@
         if (o) found.push(o.userData.pick);
       }
       // 人比家具優先（員工會走動，比較難點到）
-      const pri = { staff: 0, customer: 1, object: 2 };
+      const pri = { staff: 0, customer: 1, pet: 2, object: 3 };
       found.sort((a, b) => pri[a.kind] - pri[b.kind]);
       if (found.length) return found[0];
       const t = this.pickTile(clientX, clientY);
@@ -1902,6 +1966,12 @@
             v.root = p.group;
             this.world.add(p.group);
           }
+          // 帶毛孩的客人：腳邊跟著一隻小狗（或提著貓籠）
+          if (kind === 'customer' && a.pet) {
+            const pm = petModel(a.pet === 'dog' ? 'pup' : 'carrier', a.id);
+            pm.position.set(0.32, 0, 0.1);
+            p.group.add(pm);
+          }
           if (kind === 'passer' || kind === 'customer') {
             v.umbrella = umbrellaModel(['#2c6fbb', '#d9482b', '#2f8f6b', '#f1c40f', '#8e44ad', '#34495e'][a.id % 6]);
             p.group.add(v.umbrella);
@@ -2290,51 +2360,76 @@
       this.updateShopCat();
     }
 
-    // 店貓：收養之後會在店裡找個角落睡覺，偶爾換位置
+    // 店寵：貓在角落睡覺、狗在門口迎客、鸚鵡站在架子上、烏龜在地上慢慢爬
     updateShopCat() {
       const s = this.sim;
-      if (!s.shopCat) {
-        if (this.cat) this.cat.visible = false;
-        return;
+      this.petViews = this.petViews || new Map();
+      const now = performance.now();
+      const seen = new Set();
+      const free = () => {
+        const out = [];
+        for (let z = 0; z < s.H - 1; z++) for (let x = 0; x < s.W; x++) if (s.passable(x, z) && !s.objects.some((o) => o.custSpots && o.custSpots.some((c) => c.x === x && c.z === z))) out.push([x, z]);
+        return out;
+      };
+      (s.pets || []).forEach((p, idx) => {
+        seen.add(p.id);
+        let v = this.petViews.get(p.id);
+        if (!v) {
+          const g = petModel(p.kind, p.id);
+          g.userData.pick = { kind: 'pet', pet: p };
+          const hit = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.6), hitMat);
+          hit.position.y = 0.3;
+          g.add(hit);
+          this.world.add(g);
+          v = { g, slot: -1 };
+          this.petViews.set(p.id, v);
+        }
+        const g = v.g;
+        const slot = Math.floor(s.minute / 180) + idx * 5;
+        if (p.kind === 'cat') {
+          if (v.slot !== slot) {
+            v.slot = slot;
+            const f = free();
+            const pick = f[(slot * 7 + 3) % Math.max(1, f.length)] || [0, 0];
+            g.position.set(pick[0] + 0.5, 0.01, pick[1] + 0.5);
+            g.rotation.y = (slot % 4) * 1.3;
+          }
+          g.scale.y = 1 + Math.sin(now / 600) * 0.04;
+        } else if (p.kind === 'dog') {
+          // 營業中在門口迎客，打烊了趴在角落
+          const x = s.isOpen ? s.doorX - 0.4 : 0.6;
+          const z = s.isOpen ? s.H - 1.2 : 0.6;
+          g.position.set(x + 0.5, 0.01, z + 0.5);
+          g.rotation.y = s.isOpen ? Math.PI : 0.6;
+          if (g.userData.tail) g.userData.tail.rotation.z = Math.sin(now / (p.joy > 50 ? 90 : 300)) * 0.6;
+        } else if (p.kind === 'parrot') {
+          g.position.set(0.55 + idx * 0.1, 0, 0.45);
+          if (g.userData.bird) g.userData.bird.rotation.y = Math.sin(now / 1500) * 0.8;
+        } else if (p.kind === 'turtle') {
+          // 每三小時換一個目標，慢慢爬過去
+          if (v.slot !== slot) {
+            v.slot = slot;
+            const f = free();
+            v.to = f[(slot * 11 + 5) % Math.max(1, f.length)] || [1, 1];
+            v.from = [g.position.x - 0.5, g.position.z - 0.5];
+            if (!v.started) {
+              v.from = v.to;
+              v.started = true;
+            }
+          }
+          const k = Math.min(1, ((s.minute % 180) / 180) * 3);
+          const x = v.from[0] + (v.to[0] - v.from[0]) * k;
+          const z = v.from[1] + (v.to[1] - v.from[1]) * k;
+          if (Math.abs(x + 0.5 - g.position.x) > 0.001) g.rotation.y = Math.atan2(x + 0.5 - g.position.x, z + 0.5 - g.position.z);
+          g.position.set(x + 0.5, 0.01, z + 0.5);
+        }
+      });
+      for (const [id, v] of this.petViews) {
+        if (!seen.has(id)) {
+          this.world.remove(v.g);
+          this.petViews.delete(id);
+        }
       }
-      if (!this.cat) {
-        const g = new THREE.Group();
-        const fur = mat('#e8933a');
-        const body = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 10), fur);
-        body.scale.set(1, 0.7, 1.4);
-        body.position.y = 0.14;
-        const head = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 10), fur);
-        head.position.set(0, 0.24, 0.26);
-        const earGeo = new THREE.ConeGeometry(0.045, 0.09, 6);
-        const e1 = new THREE.Mesh(earGeo, fur);
-        e1.position.set(-0.07, 0.36, 0.26);
-        const e2 = e1.clone();
-        e2.position.x = 0.07;
-        const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.025, 0.36, 6), mat('#d17a2a'));
-        tail.position.set(0.12, 0.12, -0.3);
-        tail.rotation.set(1.2, 0, 0.5);
-        const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.03, 0.06), mat('#c96b1f'));
-        stripe.position.set(0, 0.27, 0.02);
-        g.add(body, head, e1, e2, tail, stripe);
-        g.traverse((o) => (o.castShadow = true));
-        People.mergeGroup(g);
-        this.cat = g;
-        this.world.add(g);
-        this.catSpot = null;
-      }
-      this.cat.visible = true;
-      // 每隔一段遊戲時間換個地方睡
-      const slot = Math.floor(s.minute / 180);
-      if (this.catSlot !== slot || !this.catSpot) {
-        this.catSlot = slot;
-        const free = [];
-        for (let z = 0; z < s.H - 1; z++) for (let x = 0; x < s.W; x++) if (s.passable(x, z) && !s.objects.some((o) => o.custSpots && o.custSpots.some((c) => c.x === x && c.z === z))) free.push([x, z]);
-        const pick = free[(slot * 7 + 3) % Math.max(1, free.length)] || [0, 0];
-        this.catSpot = pick;
-        this.cat.position.set(pick[0] + 0.5, 0.01, pick[1] + 0.5);
-        this.cat.rotation.y = (slot % 4) * 1.3;
-      }
-      this.cat.scale.y = 1 + Math.sin(performance.now() / 600) * 0.04; // 睡覺的呼吸
     }
 
     // 對手門口排隊的人：對手越強，排越多

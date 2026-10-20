@@ -120,6 +120,7 @@
       this.xp = 0;
       this.owner = { wealth: 0, taken: 0 }; // 老闆個人的錢（領分紅才會進來），跟公司的現金分開
       this.rooms = { storage: 0, rest: 0, office: 0, toilet: 0 }; // 後場的房間等級
+      this.pets = []; // 店寵
       this.toiletClean = 100;
       this.progress = { chapter: 0, done: [], chapters: [], features: [], route: null, ended: false };
       this.branches = [];
@@ -1431,7 +1432,9 @@
     }
 
     finishInspection(c) {
-      const cl = this.cleanliness;
+      // 餐飲業有養寵物、又沒有隔開：稽查員會扣分
+      const petRisk = this.isFood ? this.pets.reduce((t, p) => t + (p.calm ? 0.3 : 1) * ((Fun.PETS[p.kind] || {}).hygiene || 0), 0) * 4 + (this.policy.petFriendly && !this.flags.has('petZone') ? 4 : 0) : 0;
+      const cl = this.cleanliness - petRisk;
       const org = this.inspectorOrg;
       let r;
       if (cl >= 80) {
@@ -1793,6 +1796,7 @@
       // 有面試間：比較看得出這個人會不會帶人；員工休息室做得好，來應徵的人素質比較好
       if (this.roomLv('office') >= 2) c.leadSeen = Math.round(c.lead * 0.75 + c.leadSeen * 0.25);
       if (this.roomLv('rest') >= 3) c.skill = Math.min(95, c.skill + 5);
+      c.allergic = this.rng() < 0.08; // 看不到：對貓狗過敏
       return c;
     }
 
@@ -1837,7 +1841,7 @@
         restDays: null, // null：照輪休規則；陣列：每週固定休哪幾天（0 = 週一）
         post: null, // 固定崗位：設備的 id
       };
-      for (const k of ['lead', 'ambition', 'style', 'leadSeen', 'hint', 'side']) if (c[k] != null) e[k] = c[k];
+      for (const k of ['lead', 'ambition', 'style', 'leadSeen', 'hint', 'side', 'allergic']) if (c[k] != null) e[k] = c[k];
       this.ensureCareer(e);
       this.staff.push(e);
       if (!silent) this.notify(`👋 ${e.name} 加入了團隊！`, 'good');
@@ -3412,6 +3416,7 @@
       const k = e.traits.includes('fragile') ? TRAITS.fragile.scold : 1;
       e.mood = clamp(e.mood - 15 * k, 0, 100);
       e.hustle = this.minute + 60;
+      this.scoldCount = (this.scoldCount || 0) + 1;
       this.jerk = clamp(this.jerk + 3, 0, JERK_LIMIT);
       // 沒有辦公室：當著大家的面罵，其他人心情也會變差
       if (!this.roomLv('office')) for (const o of this.staff) if (o !== e) o.mood = clamp(o.mood - 2, 0, 100);
@@ -3594,7 +3599,7 @@
       const loyal = this.loyalty ? 1.04 : 1;
       // 菜單越豐富，越多人想進來看看
       const variety = 1 + Math.max(0, this.availableProducts().filter((p) => !p.side).length - this.ind.products.filter((p) => !p.rd && !p.side).length) * 0.035;
-      return ratingF * priceF * beautyF * lotF * summer * heat * mods * this.festivalMult() * cleanF * loyal * variety * this.socialBoost * (this.shopCat ? 1.04 : 1) * (this.copiedDish ? 1.04 : 1) * this.collabMult * this.rivalPull();
+      return ratingF * priceF * beautyF * lotF * summer * heat * mods * this.festivalMult() * cleanF * loyal * variety * this.socialBoost * this.petMult * (this.copiedDish ? 1.04 : 1) * this.collabMult * this.rivalPull();
     }
 
     availableProducts() {
@@ -3634,6 +3639,126 @@
     // 店裡開了幾項兼營業務
     get sideCount() {
       return this.ownedSide().length;
+    }
+
+    // ───── 🐾 寵物 ─────
+    get shopCat() {
+      return (this.pets || []).some((p) => p.kind === 'cat');
+    }
+
+    petInfo(p) {
+      return Fun.PETS && Fun.PETS[p.kind];
+    }
+
+    // 寵物越開心，吸引力越強；寵物友善店也會多一些帶毛孩的客人
+    get petMult() {
+      let m = 1;
+      for (const p of this.pets || []) {
+        const P = this.petInfo(p);
+        if (P) m *= 1 + P.draw * (0.4 + p.joy / 166);
+      }
+      if (this.policy.petFriendly) m *= this.policy.petStrict ? 1.03 : 1.06;
+      return m;
+    }
+
+    petMoodFor(e) {
+      let t = 0;
+      for (const p of this.pets || []) {
+        const P = this.petInfo(p);
+        if (!P) continue;
+        if (e.allergic && !e.allergyOk && (p.kind === 'cat' || p.kind === 'dog')) t -= 6;
+        else t += P.mood;
+      }
+      return Math.min(6, t);
+    }
+
+    adoptPet(kind, name, free) {
+      const P = Fun.PETS && Fun.PETS[kind];
+      if (!P || this.pets.length >= 3 || (!free && this.cash < P.adopt)) return null;
+      if (!free) {
+        this.cash -= P.adopt;
+        this.ledger.other -= P.adopt;
+      }
+      const traits = Object.keys(Fun.PET_TRAITS);
+      const used = new Set(this.pets.map((p) => p.name));
+      const nm = name || P.names.find((n) => !used.has(n)) || P.names[0];
+      const p = { id: uid++, kind, name: nm, trait: traits[Math.floor(this.rng() * traits.length)], joy: 75, health: 90, since: this.day };
+      this.pets.push(p);
+      this.notify(`${P.icon} ${nm} 成為店裡的一份子了！（${Fun.PET_TRAITS[p.trait].name}）`, 'achieve');
+      return p;
+    }
+
+    // 送養：找一個好人家（不會傷心，但常客會想念）
+    rehomePet(id) {
+      const p = this.pets.find((x) => x.id === id);
+      if (!p) return false;
+      this.pets = this.pets.filter((x) => x !== p);
+      for (const e of this.staff) e.mood = clamp(e.mood - 4, 0, 100);
+      this.notify(`🏡 ${p.name} 被一位常客帶回家照顧了。大家有點捨不得。`);
+      return true;
+    }
+
+    vetPet(id) {
+      const p = this.pets.find((x) => x.id === id);
+      const P = p && this.petInfo(p);
+      if (!P || this.cash < P.vet || p.vetDay === this.day) return false;
+      this.cash -= P.vet;
+      this.ledger.other -= P.vet;
+      p.health = 100;
+      p.vetDay = this.day;
+      return true;
+    }
+
+    // 摸摸、陪玩：每隻每天一次
+    playPet(id) {
+      const p = this.pets.find((x) => x.id === id);
+      if (!p || p.playDay === this.day) return false;
+      p.playDay = this.day;
+      p.joy = clamp(p.joy + (p.kind === 'dog' ? 20 : 12), 0, 100);
+      this.boss.energy = clamp(this.boss.energy + 4, 0, 100);
+      return true;
+    }
+
+    // 每天打烊：飼料錢、心情和健康慢慢變化；狗要有人帶去散步
+    petDaily(report) {
+      for (const p of this.pets || []) {
+        const P = this.petInfo(p);
+        if (!P) continue;
+        const food = Math.round(P.weekly / 7);
+        this.cash -= food;
+        this.ledger.other -= food;
+        p.joy = clamp(p.joy - (p.trait === 'lazy' ? 2 : 4) - (p.calm ? 2 : 0), 0, 100);
+        p.health = clamp(p.health - (p.joy < 35 ? 2.5 : 0.8) - (p.trait === 'shy' && this.today.visitors > 250 ? 1.5 : 0), 0, 100);
+        if (P.walk) {
+          // 有三個人以上在班，就有人帶牠去散步（那個人會累一點）
+          const here = this.staff.filter((e) => this.roster && this.roster.has(e.id));
+          if (here.length >= 3) {
+            const w = here[Math.floor(this.rng() * here.length)];
+            w.energy = clamp(w.energy - 8, 0, 100);
+            p.joy = clamp(p.joy + 8, 0, 100);
+          } else p.joy = clamp(p.joy - 6, 0, 100);
+        }
+      }
+    }
+
+    planPetEvents() {
+      if (!this.roster) return;
+      const at = () => this.hours.open + 60 + this.rng() * Math.max(60, Math.min(this.hours.span, 600) - 120);
+      this.petEvDay = this.petEvDay || -99;
+      if (this.pets.length && Fun.PET_EVENTS && this.day - this.petEvDay >= 6 && this.rng() < 0.12 * this.diff.events + 0.03 * this.pets.length) {
+        const p = this.pets[Math.floor(this.rng() * this.pets.length)];
+        const ok = Fun.PET_EVENTS.filter((x) => x.ok(this, p));
+        if (ok.length) {
+          this.petEvDay = this.day;
+          this.pendingEvents.push({ ev: ok[Math.floor(this.rng() * ok.length)].make(this, p), at: at(), where: 'staff' });
+          return;
+        }
+      }
+      if (this.policy.petFriendly && Fun.PET_FRIENDLY_EVENTS && this.day - this.petEvDay >= 6 && this.rng() < (this.policy.petStrict ? 0.05 : 0.1) * this.diff.events) {
+        this.petEvDay = this.day;
+        const f = Fun.PET_FRIENDLY_EVENTS.filter((x, i) => !(this.policy.petStrict && i < 2));
+        this.pendingEvents.push({ ev: f[Math.floor(this.rng() * f.length)](this), at: at(), where: 'staff' });
+      }
     }
 
     // ───── 🚪 後場：儲藏室、休息室、辦公室、廁所 ─────
@@ -3874,7 +3999,9 @@
         path: [],
         state: 'arriving',
         waited: 0,
-        patience: 16 * (this.ind.patience || 1) * this.diff.patience * (opt.rider ? 1.4 : 1) * (type ? type.patience : 1) * (this.level >= 19 ? 1.1 : 1),
+        patience: 16 * (this.ind.patience || 1) * this.diff.patience * (opt.rider ? 1.4 : 1) * (type ? type.patience : 1) * (this.level >= 19 ? 1.1 : 1) * (this.pets.some((p) => p.kind === 'dog' && p.joy > 40) ? 1.1 : 1),
+        // 寵物友善：有些客人帶毛孩來
+        pet: !opt.rider && !opt.product && this.policy.petFriendly && type && type.id !== 'office' && this.rng() < (this.policy.petStrict ? 0.08 : 0.14) ? (this.rng() < 0.75 ? 'dog' : 'cat') : null,
         speed: type ? type.speed : 1.1,
         progress: 0,
         scooter: !!this.ind.arriveByScooter || !!opt.rider,
@@ -4071,6 +4198,7 @@
       }
       if (c.obj) this.refreshQueue(c.obj);
       c.obj = null;
+      if (c.pet && reason === 'done' && this.rng() < (this.policy.petStrict ? 0.08 : 0.2)) this.addDirt(c.x, c.z, 1, 'mud');
     }
 
     finishService(c, e) {
@@ -4091,6 +4219,14 @@
         this.ledger.materials += k;
       }
       if (p.side) this.sideServed(c, e, p.side);
+      // 帶毛孩的客人：常常順便買毛孩的點心
+      if (c.pet && this.rng() < 0.4) {
+        const v = Math.round(unit * 0.3);
+        this.cash += v;
+        this.ledger.revenue += v;
+        this.today.revenue += v;
+        this.popup(c, '🦴毛孩點心', 'good');
+      }
       // 服務完留下的髒污：麵渣、頭髮、油漬
       const mess = { barber: p.id === 'wash' ? 0.25 : 0.55, scooter: 0.3, store: 0.08 }[this.ind.id] ?? 0.18;
       if (this.rng() < mess) this.addDirt(c.x, c.z);
@@ -4121,6 +4257,13 @@
       if (c.type === 'elderly' && e && e.traits.includes('chatty')) stars += 0.3;
       if (c.type === 'student' && this.sideOf(e) && this.sideOf(e).charm) stars += this.sideOf(e).charm;
       if (c.gifted) stars += 0.6;
+      // 對貓狗過敏的客人：店裡有毛孩就扣分（劃了無毛孩區比較好）
+      const furry = this.pets.filter((x) => x.kind === 'cat' || x.kind === 'dog').length + (this.policy.petFriendly ? (this.policy.petStrict ? 0.5 : 1.2) : 0);
+      if (furry && !c.pet && this.rng() < 0.025 * furry * (this.flags.has('petZone') ? 0.3 : 1)) {
+        stars -= 0.8;
+        c.whyLow = 'pet';
+      }
+      if (c.pet) stars += 0.2;
       if (e && e.isBoss) stars += 0.2;
       const clean = this.cleanliness;
       if (clean < 70) stars -= (70 - clean) / 35;
@@ -4182,7 +4325,7 @@
       const pools = {
         good: [this.w(`${p}{w:good}，會再來！`), '老闆和員工都很親切', '店裡乾淨又舒服', `${p}CP 值很高`, this.w('{w:serve}超快，上班族救星'), '店員很有耐心'],
         ok: [`${p}還可以`, '中規中矩', '有點小貴', '等有點久，但還行'],
-        bad: { wait: ['等太久了', '排隊排到腳痠'], price: ['價格偏高', '這個價錢有點不划算'], service: ['店員看起來很累，態度普通', '店員臉好臭'], hot: ['店裡好熱', '沒有冷氣熱到流汗'], clean: ['桌子黏黏的，地上也髒髒的', '店裡有點髒，衛生堪慮'] }[(c && c.whyLow) || 'wait'],
+        bad: { wait: ['等太久了', '排隊排到腳痠'], price: ['價格偏高', '這個價錢有點不划算'], service: ['店員看起來很累，態度普通', '店員臉好臭'], hot: ['店裡好熱', '沒有冷氣熱到流汗'], clean: ['桌子黏黏的，地上也髒髒的', '店裡有點髒，衛生堪慮'], toilet: ['廁所好髒，不想再來', '想上廁所結果沒有廁所，只好吃快一點', '廁所要排好久'], pet: ['店裡有貓狗，我過敏一直打噴嚏', '到處都是動物的毛'] }[(c && c.whyLow) || 'wait'] || ['普普通通'],
         angry: ['等了快二十分鐘都沒人理，直接走人', '排隊排到天荒地老', '人手明顯不夠，老闆不請人嗎'],
       };
       let arr = pools[kind];
@@ -4866,7 +5009,7 @@
       if (this.isSummer && !this.cooling) target -= 6;
       if (this.jerk > 60) target -= 5;
       if (this.cleanliness < 55) target -= (55 - this.cleanliness) / 6;
-      if (this.shopCat) target += 2;
+      target += this.petMoodFor(e);
       if (this.roomLevel('rest')) target += this.roomLevel('rest').mood;
       // 十項全能的代價：店裡的業務比他會的多太多，會覺得被當萬用工具人
       const n = this.sideCount;
@@ -4979,6 +5122,7 @@
       this.planSideEvents();
       this.planSideBizEvents();
       this.planRoomEvents();
+      this.planPetEvents();
       if (this.toiletDuty) {
         const { e, n } = this.toiletDuty;
         this.toiletDuty = null;
@@ -5231,6 +5375,15 @@
         }
       }
       if (fx.followers) this.social.followers = Math.max(0, this.social.followers + fx.followers);
+      const pet = (pid) => this.pets.find((x) => x.id === pid);
+      if (fx.petJoy && pet(fx.petJoy[0])) pet(fx.petJoy[0]).joy = clamp(pet(fx.petJoy[0]).joy + fx.petJoy[1], 0, 100);
+      if (fx.petHeal && pet(fx.petHeal)) pet(fx.petHeal).health = 100;
+      if (fx.petHurt && pet(fx.petHurt[0])) pet(fx.petHurt[0]).health = clamp(pet(fx.petHurt[0]).health - fx.petHurt[1], 0, 100);
+      if (fx.petCalm && pet(fx.petCalm)) pet(fx.petCalm).calm = true;
+      if (fx.allergyFix && byId(fx.allergyFix)) byId(fx.allergyFix).allergyOk = true;
+      if (fx.petPolicyStrict) this.policy.petStrict = true;
+      if (fx.petZone) this.flags.add('petZone');
+      if (fx.dirt) for (let i = 0; i < fx.dirt; i++) this.addDirt(Math.floor(this.rng() * this.W), Math.floor(this.rng() * this.H), 1, 'mud');
       if (fx.toiletFix) this.toiletDownUntil = 0;
       if (fx.toiletDown) this.toiletDownUntil = this.day + fx.toiletDown - 1;
       if (fx.sideHot) this.sideHot = { id: fx.sideHot[0], mult: fx.sideHot[1], until: this.day + fx.sideHot[2] - 1 };
@@ -5279,7 +5432,7 @@
       if (fx.review) this.addReview(fx.review[0], fx.review[1]);
       if (fx.grudge && this.rival) this.rival.grudge = Math.max(0, (this.rival.grudge || 0) + fx.grudge);
       if (fx.shopCat) {
-        this.shopCat = true;
+        if (!this.pets.some((p) => p.kind === 'cat')) this.adoptPet('cat', '店長', true);
         this.achieve('shopcat');
       }
       const after = { cash: this.cash, morale: Math.round(this.morale), jerk: Math.round(this.jerk), staff: this.staff.length };
@@ -5319,6 +5472,7 @@
     endDay() {
       const report = { day: this.day, ...this.today, wages: 0, ot: 0, insurance: 0, waste: 0 };
       const lastShift = this.hours.shifts - 1;
+      this.petDaily(report);
       // 薪水：上班時數 × 時薪，超過八小時算加班
       let unpaidOT = 0;
       const worked = new Set(this.staff.filter((e) => e.minutesToday > 0));
@@ -5750,6 +5904,7 @@
         ownedFloors: [...this.ownedFloors],
         social: this.social,
         shopCat: !!this.shopCat,
+        pets: this.pets,
         collabs: this.collabs,
         copiedDish: !!this.copiedDish,
         schemes: this.schemes,
@@ -5790,7 +5945,7 @@
       s.style = { floor: 'default', wall: null, sign: null, ...(d.style || {}) };
       s.ownedFloors = new Set(d.ownedFloors || ['default']);
       if (d.social) s.social = { ...s.social, ...d.social };
-      s.shopCat = !!d.shopCat;
+      s.pets = d.pets || (d.shopCat ? [{ id: 1, kind: 'cat', name: '店長', trait: 'lazy', joy: 80, health: 90, since: d.day || 1 }] : []);
       s.collabs = d.collabs || [];
       s.copiedDish = !!d.copiedDish;
       s.schemes = d.schemes || 0;
