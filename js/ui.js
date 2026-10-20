@@ -379,8 +379,15 @@
         confetti(60);
         buzz([20, 40, 30]);
       },
+      // 連續好評的里程碑：徽章自己發光；只有 50 位以上才撒彩帶
       combo: (n) => {
-        confetti(n >= 50 ? 70 : 36);
+        const cb = document.getElementById('combo-badge');
+        if (cb) {
+          cb.classList.remove('milestone');
+          void cb.offsetWidth;
+          cb.classList.add('milestone');
+        }
+        if (n >= 50) confetti(30);
         buzz([15, 30, 15]);
       },
       weekEnd: (r) => {
@@ -525,10 +532,18 @@
       ui.view.updateGhost(t, ui.build.rot, ok);
     }
     ui.view.selected = ui.inspect && (ui.inspect.kind === 'staff' || ui.inspect.kind === 'customer') ? ui.inspect.ref : null;
-    if (ui.place) {
-      ui.place.update(dt, now);
-      ui.place.render();
-    } else ui.view.render(now);
+    // 省電：最多每秒 60 幀（低畫質 30）；暫停、看對話框、沒在操作時降到每秒 12 幀
+    const v = ui.view;
+    const idle = (blocked || ui.speed === 0) && !v.busy && !ui.build && !ui.bossMode;
+    if (idle) v.perf.start = 0;
+    if (now - (ui.lastDraw || 0) >= 1000 / (idle ? 12 : v.fpsCap) - 3) {
+      const ddt = Math.min(0.1, (now - (ui.lastDraw || now)) / 1000);
+      ui.lastDraw = now;
+      if (ui.place) {
+        ui.place.update(ddt, now);
+        ui.place.render();
+      } else v.render(now);
+    }
     ui.hudT = (ui.hudT || 0) + dt;
     if (ui.hudT > 0.25) {
       ui.hudT = 0;
@@ -3511,6 +3526,10 @@
   function confetti(n = 50) {
     const vp = document.querySelector('.viewport');
     if (!vp || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    // 跟著畫質：中畫質減半、低畫質（省電）不撒
+    const q = ui.view ? ui.view.quality : 'high';
+    n = Math.round(n * (q === 'low' ? 0 : q === 'medium' ? 0.5 : 1));
+    if (!n) return;
     const box = document.createElement('div');
     box.className = 'confetti';
     const cols = ['#d9482b', '#f2c14e', '#2c8a57', '#4f7cac', '#e0478a', '#8e44ad'];
@@ -3538,7 +3557,7 @@
     for (const p of sim.popups) {
       if (p.id <= last) continue;
       ui.lastPopup = Math.max(ui.lastPopup || 0, p.id);
-      if (p.kind !== 'money' || flying >= 6 || !cashEl || ui.speed > 5) continue;
+      if (p.kind !== 'money' || flying >= (ui.view.quality === 'low' ? 2 : 6) || !cashEl || ui.speed > 5) continue;
       const pt = ui.view.project(p.x + 0.5, 1.4, p.z + 0.5);
       const vr = vp.getBoundingClientRect();
       const cr = cashEl.getBoundingClientRect();
@@ -3577,11 +3596,17 @@
       vp.appendChild(cb);
     }
     const n = sim.combo || 0;
-    const show = n >= 3 && !ui.place;
+    const show = n >= 3 && !ui.place && !ui.tab;
     if (cb.hidden === show) cb.hidden = !show;
     if (show && cb.dataset.n !== String(n)) {
       cb.dataset.n = String(n);
-      cb.innerHTML = `🔥 <b>${n}</b> 連續好評<small>${n < 10 ? '10' : n < 25 ? '25' : n < 50 ? '50' : n < 100 ? '100' : n < 200 ? '200' : '500'} 位有獎勵・最佳 ${sim.bestCombo || n}</small>`;
+      // 底下的細條：離下一個獎勵還差多少
+      const steps = [0, 10, 25, 50, 100, 200, 500];
+      const k = steps.findIndex((x) => x > n);
+      const lo = steps[Math.max(0, k - 1)];
+      const hi = k < 0 ? n : steps[k];
+      cb.title = `連續好評 ${n}・${hi} 位有獎勵・最佳 ${sim.bestCombo || n}`;
+      cb.innerHTML = `🔥<b>${n}</b><span>連續好評</span><i style="--p:${k < 0 ? 100 : Math.round(((n - lo) / (hi - lo)) * 100)}%"></i>`;
       cb.classList.remove('pulse');
       void cb.offsetWidth;
       cb.classList.add('pulse');

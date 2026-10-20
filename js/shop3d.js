@@ -837,8 +837,11 @@
       this.sim = sim;
       this.container = container;
       this.opts = opts;
-      const r = new THREE.WebGLRenderer({ antialias: !opts.lowEnd, preserveDrawingBuffer: false, powerPreference: 'high-performance' });
-      r.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+      // 手機高解析螢幕（DPR ≥ 2）本身就很細，鋸齒看不太出來：關掉反鋸齒省下大量 GPU
+      const dpr0 = window.devicePixelRatio || 1;
+      const touch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      const r = new THREE.WebGLRenderer({ antialias: !opts.lowEnd && !(touch && dpr0 >= 2), preserveDrawingBuffer: false, powerPreference: touch ? 'default' : 'high-performance' });
+      r.setPixelRatio(Math.min(dpr0, 1.5));
       r.shadowMap.enabled = true;
       // 陰影不用每一幀重畫：家具變動或太陽移動時才更新
       r.shadowMap.autoUpdate = false;
@@ -904,7 +907,16 @@
 
     // 畫質：high 全開；medium 降解析度、陰影變小；low 關陰影、雨變少、沒有蒸氣
     setQuality(q) {
+      const prev = this.quality;
       this.quality = q;
+      // CSS 也跟著畫質走（毛玻璃、彩帶這些很吃 GPU 的效果）
+      document.documentElement.dataset.quality = q;
+      // 柔邊陰影只給高畫質；換陰影種類要讓材質重新編譯
+      const type = q === 'high' ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
+      if (this.renderer.shadowMap.type !== type) {
+        this.renderer.shadowMap.type = type;
+        if (prev) this.world.traverse((o) => { if (o.material) [].concat(o.material).forEach((m) => (m.needsUpdate = true)); });
+      }
       const dpr = window.devicePixelRatio || 1;
       this.renderer.setPixelRatio({ high: Math.min(dpr, 1.5), medium: Math.min(dpr, 1), low: Math.min(dpr, 0.75) }[q]);
       this.sun.castShadow = q !== 'low';
@@ -1050,10 +1062,23 @@
         if (nx === this.panT.x && nz === this.panT.z) this.panT = null;
       }
       if (moved) this.updateCamera();
+      this.camMoving = moved;
+    }
+
+    // 畫面需不需要高更新率：鏡頭在動、手指在滑，或剛操作完
+    get busy() {
+      return this.camMoving || performance.now() - (this.lastInput || 0) < 1500;
+    }
+
+    // 最高每秒幾幀：高 60、中 60、低（省電）30；120Hz 的手機也不會多畫一倍
+    get fpsCap() {
+      return this.quality === 'low' ? 30 : 60;
     }
 
     bindControls() {
       const el = this.dom;
+      const touched = () => (this.lastInput = performance.now());
+      for (const t of ['pointerdown', 'pointermove', 'wheel']) el.addEventListener(t, touched, { passive: true });
       let drag = null;
       const pts = new Map();
       this._down = (e) => {
@@ -1485,6 +1510,7 @@
       this.clockH = hand(0.1, 0.022, '#2a2420');
       this.clockM = hand(0.15, 0.014, '#2a2420');
       this.clock.position.set(0.7, 2.08, 0.03);
+      People.mergeGroup(this.clock, [this.clockH, this.clockM], { cast: false });
       g.add(this.clock);
       // 馬路上的車流、騎樓的鴿子（純裝飾，不影響經營）
       this.trafficGroup = new THREE.Group();
@@ -1882,7 +1908,7 @@
       g.userData.pick = { kind: 'object', obj: o };
       Object.assign(g.userData, inner.userData);
       const u = inner.userData;
-      People.mergeGroup(inner, [u.wave, u.spin, u.pole, u.art, u.robotHead, u.liftScooter, ...(u.fish || [])]);
+      People.mergeGroup(inner, [u.wave, u.spin, u.pole, u.art, u.robotHead, u.liftScooter, u.screen, ...(u.fish || [])]);
       this.placeGroup(g, o);
       return g;
     }
@@ -1932,13 +1958,35 @@
     }
 
     // ───── 人物 ─────
+    // 腳下的圓形陰影：所有人共用一個 InstancedMesh，一次畫完（原本每人各畫一次）
+    syncBlobs() {
+      if (!this.blobs) {
+        this.blobs = new THREE.InstancedMesh(People.blobGeo, People.blobMat, 160);
+        this.blobs.renderOrder = -1;
+        this.blobs.frustumCulled = false;
+        this.world.add(this.blobs);
+      }
+      let n = 0;
+      const add = (p, root) => {
+        if (!p || !p.blob || n >= 160) return;
+        p.blob.visible = false;
+        for (let o = p.group; o; o = o.parent) if (!o.visible) return;
+        root.updateMatrixWorld();
+        this.blobs.setMatrixAt(n++, p.blob.matrixWorld);
+      };
+      for (const v of this.agents.values()) add(v.p, v.root);
+      if (this.bossView) add(this.bossView.p, this.bossView.root);
+      this.blobs.count = n;
+      this.blobs.instanceMatrix.needsUpdate = true;
+    }
+
     syncAgents(dt, now) {
       const s = this.sim;
       const seen = new Set();
       const list = [
         ...s.staff.filter((e) => e.state !== 'off').map((e) => ({ a: e, kind: 'staff' })),
         ...s.customers.map((c) => ({ a: c, kind: 'customer' })),
-        ...(this.quality === 'low' ? s.passers.slice(0, 6) : s.passers).map((p) => ({ a: p, kind: p.kind })),
+        ...(this.quality === 'low' ? s.passers.slice(0, 6) : this.quality === 'medium' ? s.passers.slice(0, 12) : s.passers).map((p) => ({ a: p, kind: p.kind })),
       ];
       for (const { a, kind } of list) {
         seen.add(a.id);
@@ -1981,12 +2029,13 @@
         if (v.umbrella) v.umbrella.visible = this.raining && a.z >= this.sim.H - 0.3 && !(v.scooter && v.scooter.visible);
         this.updateAgent(v, a, kind, dt, now);
       }
+      this.syncBlobs();
       for (const [id, v] of this.agents) {
         if (!seen.has(id)) {
           this.world.remove(v.root);
           v.root.traverse((o) => {
             // 合併出來的網格是每個人獨有的，要釋放；共用的幾何不能動
-            if (o.geometry && o.material === People.vcMat) o.geometry.dispose();
+            if (o.geometry && (o.material === People.vcMat || o.material === People.vcBasic)) o.geometry.dispose();
           });
           if (v.p.faceTex) v.p.faceTex.dispose();
           this.agents.delete(id);
@@ -2290,7 +2339,7 @@
       p.start = now;
       p.frames = 0;
       if (document.hidden || !this.opts.autoQuality || !this.opts.autoQuality()) return;
-      p.slow = this.fps < 26 ? p.slow + 1 : 0;
+      p.slow = this.fps < this.fpsCap * 0.43 ? p.slow + 1 : 0;
       if (p.slow >= 2 && this.quality !== 'low') {
         p.slow = 0;
         const next = this.quality === 'high' ? 'medium' : 'low';
@@ -2554,6 +2603,7 @@
         g.add(w);
         wings.push(w);
       }
+      People.mergeGroup(g, [head, ...wings], { cast: false });
       g.traverse((o) => {
         if (o.isMesh) o.castShadow = false;
       });

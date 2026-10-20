@@ -49,13 +49,28 @@
   }
 
   // 把 group 底下可以合併的零件合成一個網格；skip 裡的物件（含子孫）保留原樣
+  // 不受光的單色零件（馬路標線、時鐘刻度、螢幕底色……）另外合成一個
+  const vcBasic = new THREE.MeshBasicMaterial({ vertexColors: true });
+  function mergeableBasic(m) {
+    const mt = m.material;
+    return m.isMesh && !Array.isArray(mt) && mt.isMeshBasicMaterial && !mt.map && !mt.transparent && !mt.vertexColors && !m.userData.keep;
+  }
+
   function mergeGroup(group, skip = [], { cast = true } = {}) {
     const skipSet = new Set();
     for (const o of skip) if (o) o.traverse((x) => skipSet.add(x));
     const list = [];
+    const basics = [];
     group.traverse((o) => {
-      if (o !== group && !skipSet.has(o) && mergeable(o)) list.push(o);
+      if (o === group || skipSet.has(o)) return;
+      if (mergeable(o)) list.push(o);
+      else if (mergeableBasic(o)) basics.push(o);
     });
+    if (basics.length >= 2) {
+      const geo = mergeMeshes(basics, group);
+      for (const m of basics) m.parent.remove(m);
+      group.add(new THREE.Mesh(geo, vcBasic));
+    }
     if (list.length < 2) return null;
     const geo = mergeMeshes(list, group);
     for (const m of list) m.parent.remove(m);
@@ -75,6 +90,7 @@
   const People = {
     mergeGroup,
     vcMat,
+
     make(look, { boss = false } = {}) {
       const group = new THREE.Group();
       const skin = mat(look.skin);
@@ -272,7 +288,7 @@
       blob.position.y = 0.012;
       blob.renderOrder = -1;
       group.add(blob);
-      const person = { group, legL, legR, armL, armR, head, faceCanvas, faceTex, mood: null, boss, phase: Math.random() * 6, carry, female: look.gender === 'f' };
+      const person = { group, legL, legR, armL, armR, head, blob, faceCanvas, faceTex, mood: null, boss, phase: Math.random() * 6, carry, female: look.gender === 'f' };
       People.setMood(person, boss ? 'smug' : 'neutral');
       return person;
     },
@@ -475,5 +491,8 @@
   const blobGeo = new THREE.CircleGeometry(0.26, 16);
   const blobMat = new THREE.MeshBasicMaterial({ color: '#000000', transparent: true, opacity: 0.22, depthWrite: false });
 
+  People.vcBasic = vcBasic;
+  People.blobGeo = blobGeo;
+  People.blobMat = blobMat;
   root.BossPeople = People;
 })(typeof window !== 'undefined' ? window : globalThis);
