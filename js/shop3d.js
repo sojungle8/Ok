@@ -357,6 +357,100 @@
       sign.position.set(0, 0.35, 0.19);
       g.add(sign);
     },
+    // ───── 兼營業務的小設備：同一個櫃台造型，上面放不同的道具、掛自己的招牌 ─────
+    kiosk(g, view, def) {
+      const k = (def && def.kiosk) || { color: '#7f8c8d', prop: 'boxes' };
+      const self = def && def.selfServe;
+      const seat = def && def.seatCust;
+      const col = k.color;
+      if (seat) {
+        // 坐著服務的（掏耳朵、按摩、寵物）：一張躺椅＋旁邊的小推車
+        B(g, 0.62, 0.42, 0.62, '#3a3a40', 0, 0, 0);
+        B(g, 0.66, 0.1, 0.66, col, 0, 0.42, 0, { roughness: 0.5 });
+        const back = B(g, 0.66, 0.6, 0.1, col, 0, 0.5, -0.3, { roughness: 0.5 });
+        back.rotation.x = -0.25;
+        B(g, 0.18, 0.5, 0.18, '#d8d8d8', 0.42, 0, 0.25);
+      } else if (self) {
+        // 自助機台：直立的機器＋螢幕
+        B(g, 0.62, 1.45, 0.5, col, 0, 0, -0.12, { roughness: 0.45, metalness: 0.15 });
+        const scr = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.32), basic('#bfe6ff'));
+        scr.position.set(0, 1.08, 0.135);
+        scr.rotation.x = -0.15;
+        g.add(scr);
+        g.userData.screen = scr;
+        B(g, 0.3, 0.04, 0.1, '#1d1d1d', 0, 0.75, 0.15);
+      } else {
+        // 一般小櫃台
+        B(g, 0.9, 0.85, 0.6, col, 0, 0, -0.05, { roughness: 0.55 });
+        B(g, 0.96, 0.05, 0.66, '#f3efe8', 0, 0.85, -0.05);
+      }
+      const top = seat ? 0.95 : self ? 1.45 : 0.9;
+      const p = k.prop;
+      const box = (w, h, d, c, x, y, z) => B(g, w, h, d, c, x, y, z);
+      if (!self && !seat) {
+        if (p === 'boxes') {
+          box(0.28, 0.2, 0.22, '#c99a5b', -0.22, top, -0.05);
+          box(0.22, 0.16, 0.18, '#d8b07a', 0.12, top, 0.02);
+          box(0.18, 0.14, 0.16, '#b98a4f', -0.18, top + 0.2, -0.05);
+        } else if (p === 'grill' || p === 'pot' || p === 'fryer') {
+          box(0.7, 0.12, 0.45, '#9aa1a9', 0, top, -0.05);
+          for (let i = 0; i < 4; i++) C(g, 0.035, 0.035, 0.5, p === 'grill' ? '#c0392b' : '#d4a017', -0.25 + i * 0.17, top + 0.14, -0.05, 8).rotation.x = Math.PI / 2;
+          g.userData.steam = [new THREE.Vector3(0, top + 0.3, 0)];
+        } else if (p === 'machine') {
+          box(0.6, 0.35, 0.45, '#ececec', 0, top, -0.08);
+          box(0.4, 0.04, 0.25, '#ffffff', 0, top + 0.35, -0.05);
+        } else if (p === 'coffee') {
+          C(g, 0.09, 0.07, 0.22, '#e8e2d8', -0.15, top, 0, 12);
+          C(g, 0.05, 0.05, 0.3, '#3a2c25', 0.15, top, -0.1, 10);
+          C(g, 0.08, 0.08, 0.04, '#6b4a32', 0.15, top + 0.3, -0.1, 12);
+        } else if (p === 'freezer') {
+          box(0.8, 0.12, 0.5, basic('#cfe8ff', { transparent: true, opacity: 0.6 }), 0, top, -0.05);
+        } else if (p === 'fruit' || p === 'toys' || p === 'bottles' || p === 'helmets' || p === 'tickets') {
+          const cs = { fruit: ['#e74c3c', '#f1c40f', '#2ecc71'], toys: ['#f4a3c0', '#ffe066', '#9ad1f5'], bottles: ['#5aa9a0', '#f3efe8', '#2c6fbb'], helmets: ['#d9482b', '#f2c14e', '#2c6fbb'], tickets: ['#f2c14e', '#e74c3c', '#ffffff'] }[p];
+          cs.forEach((c, i) => {
+            const m = new THREE.Mesh(p === 'helmets' || p === 'fruit' ? new THREE.SphereGeometry(0.1, 10, 8) : boxGeo(0.12, 0.2, 0.08), mat(c, { roughness: 0.5 }));
+            m.position.set(-0.25 + i * 0.25, top + 0.1, -0.05);
+            m.castShadow = true;
+            g.add(m);
+          });
+        } else if (p === 'desk' || p === 'keys') {
+          box(0.32, 0.02, 0.24, '#ffffff', -0.15, top, 0);
+          box(0.28, 0.2, 0.02, '#2b2b30', 0.2, top, -0.15);
+        } else if (p === 'washer') {
+          box(0.5, 0.5, 0.4, '#f3f3f3', 0, top, -0.08);
+          const door = new THREE.Mesh(new THREE.CircleGeometry(0.13, 18), basic('#9fc7e6'));
+          door.position.set(0, top + 0.25, 0.125);
+          g.add(door);
+        } else if (p === 'scooter') {
+          box(0.18, 0.2, 0.55, '#d9482b', 0, top, -0.05);
+          C(g, 0.1, 0.1, 0.06, '#1d1d1d', 0, top, 0.25, 10).rotation.z = Math.PI / 2;
+        }
+      } else if (self && p === 'washer') {
+        const door = new THREE.Mesh(new THREE.CircleGeometry(0.16, 20), basic('#9fc7e6'));
+        door.position.set(0, 0.55, 0.135);
+        g.add(door);
+      }
+      // 招牌：圖示＋名稱
+      if (def) {
+        const tex = canvasTex(256, 96, (c, w, h) => {
+          c.fillStyle = col;
+          c.fillRect(0, 0, w, h);
+          c.fillStyle = 'rgba(255,255,255,.92)';
+          c.fillRect(6, 6, w - 12, h - 12);
+          c.fillStyle = '#2a2420';
+          c.textAlign = 'center';
+          c.textBaseline = 'middle';
+          c.font = 'bold 40px sans-serif';
+          const name = def.name.length > 5 ? def.name.slice(0, 5) : def.name;
+          c.fillText(`${def.icon}${name}`, w / 2, h / 2 + 2);
+        });
+        const sign = new THREE.Mesh(new THREE.PlaneGeometry(0.72, 0.27), new THREE.MeshBasicMaterial({ map: tex }));
+        sign.position.set(0, (self ? 1.62 : seat ? 1.3 : 1.55), self ? 0.14 : -0.3);
+        g.add(sign);
+        if (!self) B(g, 0.03, (seat ? 1.3 : 1.55) - top, 0.03, '#555', 0, top, -0.32);
+      }
+    },
+
     // ───── 高等級裝潢（Lv.11 以後） ─────
     mural(g, view) {
       const sign = view && view.sim ? view.sim.ind.signColor : '#d9482b';
@@ -1567,7 +1661,7 @@
       const g = new THREE.Group();
       const inner = new THREE.Group();
       g.add(inner);
-      (MODELS[o.def.model] || MODELS.plant)(inner, this);
+      (MODELS[o.def.model] || MODELS.plant)(inner, this, o.def);
       if (!o.def.wall) {
         // 佔地框：深色底板加外框，看得出這件東西佔哪幾格
         const w = o.def.w || 1;
@@ -1868,7 +1962,7 @@
       const g = new THREE.Group();
       const inner = new THREE.Group();
       g.add(inner);
-      (MODELS[def.model] || MODELS.plant)(inner, this);
+      (MODELS[def.model] || MODELS.plant)(inner, this, def);
       g.traverse((o) => {
         if (o.isMesh) {
           o.material = o.material.clone();

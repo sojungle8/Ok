@@ -1,7 +1,7 @@
 // 開店模擬核心：店面格子、客人與員工的自主行為、營業時間與班表、財務、事件
 // 不碰 DOM，可以在 Node 裡跑
 (function (root) {
-  const { fillWords, applyNames, FOOD_IND, INDUSTRIES, CATALOG, LOTS, NAMES, TRAITS, LEVELS, DISTRICTS, DISTRICT_INFO, CUSTOMER_TYPES, DIFFICULTY, FLOORS, WALLS, SIGNS, BRANCH_SITES, BRANCH_SIZES, TOURIST_PREF } = root.BossIndustries;
+  const { SIDE_BIZ, fillWords, applyNames, FOOD_IND, INDUSTRIES, CATALOG, LOTS, NAMES, TRAITS, LEVELS, DISTRICTS, DISTRICT_INFO, CUSTOMER_TYPES, DIFFICULTY, FLOORS, WALLS, SIGNS, BRANCH_SITES, BRANCH_SIZES, TOURIST_PREF } = root.BossIndustries;
   const { EVENTS, IGNORE, VIOLATIONS } = root.BossData;
   const Looks = root.BossLooks;
   const Fun = root.BossFun || { KARENS: [], TRENDS: [], POST_HOOKS: [], POST_BODIES: [], POST_ENDINGS: [], COMMENTS: {}, HEADLINES: [], STAFF_QUIPS: [], FUNNY_REVIEWS: { good: [], bad: [] } };
@@ -2705,6 +2705,39 @@
     }
 
     // 送去上課：每週一次，技能大幅提升
+    sideNames(n) {
+      const list = this.ownedSide().map((b) => b.name);
+      return list.slice(0, n).join('、') || '什麼都做';
+    }
+
+    // 每天早上：兼營業務的麻煩和機會、員工被逼成十項全能的心聲
+    planSideBizEvents() {
+      if (!Fun.SIDE_EVENTS || !this.roster) return;
+      const owned = this.ownedSide();
+      if (!owned.length) return;
+      const at = () => this.hours.open + 60 + this.rng() * Math.max(60, Math.min(this.hours.span, 600) - 120);
+      const working = this.staff.filter((e) => this.roster.has(e.id));
+      const pickStaff = () => working[Math.floor(this.rng() * working.length)] || null;
+      this.sideEvDay = this.sideEvDay || {};
+      const b = owned[Math.floor(this.rng() * owned.length)];
+      const mk = Fun.SIDE_EVENTS[b.id];
+      if (mk && this.day - (this.sideEvDay[b.id] ?? -99) >= 12 && this.rng() < 0.12 * this.diff.events + 0.04 * owned.length) {
+        this.sideEvDay[b.id] = this.day;
+        const e = pickStaff();
+        this.pendingEvents.push({ ev: mk(this, e), at: at(), where: e ? 'staff' : 'phone', staffPref: e, subject: e || undefined });
+        return;
+      }
+      // 業務比員工會的多太多：有人會來抱怨
+      const lost = working.filter((e) => owned.filter((x) => !this.knows(e, x.id)).length >= 2 && !e.rank);
+      if (owned.length >= 2 && lost.length && this.day - (this.sideEvDay._over ?? -99) >= 10 && this.rng() < 0.1 + owned.length * 0.03) {
+        this.sideEvDay._over = this.day;
+        const e = lost[Math.floor(this.rng() * lost.length)];
+        const nb = owned.find((x) => !this.knows(e, x.id));
+        const f = Fun.SIDE_OVERLOAD[owned.length >= 4 && this.rng() < 0.35 ? 1 : 0];
+        this.pendingEvents.push({ ev: f(this, e, nb), at: at(), where: 'staff', staffPref: e, subject: e });
+      }
+    }
+
     get trainCost() {
       return 3000;
     }
@@ -3460,14 +3493,73 @@
       const cleanF = 0.82 + 0.18 * (this.cleanliness / 100);
       const loyal = this.loyalty ? 1.04 : 1;
       // 菜單越豐富，越多人想進來看看
-      const variety = 1 + Math.max(0, this.availableProducts().length - this.ind.products.filter((p) => !p.rd).length) * 0.035;
+      const variety = 1 + Math.max(0, this.availableProducts().filter((p) => !p.side).length - this.ind.products.filter((p) => !p.rd && !p.side).length) * 0.035;
       return ratingF * priceF * beautyF * lotF * summer * heat * mods * this.festivalMult() * cleanF * loyal * variety * this.socialBoost * (this.shopCat ? 1.04 : 1) * (this.copiedDish ? 1.04 : 1) * this.collabMult * this.rivalPull();
     }
 
     availableProducts() {
       if (this.gridDirty) this.rebuildGrid();
       const have = new Set(this.stations.flatMap((s) => s.def.serves));
-      return this.ind.products.filter((p) => this.menu[p.id] && this.hasRecipe(p) && have.has(p.id));
+      const down = this.sideDownUntil || {};
+      return this.ind.products.filter((p) => this.menu[p.id] && this.hasRecipe(p) && have.has(p.id) && !(down[p.id] >= this.day));
+    }
+
+    // ───── 兼營業務 ─────
+    sideProducts() {
+      if (this._sideT === this.minute) return this._side;
+      this._sideT = this.minute;
+      this._side = this.availableProducts().filter((p) => p.side);
+      return this._side;
+    }
+
+    // 這個時段每小時大約幾位客人
+    sideRate(p) {
+      const b = p.side;
+      if (b.months && !b.months.includes(this.monthOfYear)) return 0;
+      let r = b.rate * (b.hours && b.hours[this.hour] != null ? b.hours[this.hour] : b.base ?? 0.4);
+      const wx = this.weather ? this.weather.id : 'sunny';
+      const wet = wx === 'rain' || wx === 'typhoon';
+      if (b.rain) r *= wet ? b.rain : 1;
+      if (b.summer && this.isSummer) r *= b.summer;
+      if (b.winter && [12, 1, 2].includes(this.monthOfYear)) r *= b.winter;
+      if (b.weekend && this.weekday >= 5) r *= b.weekend;
+      // 店的名聲好，來辦事的人也多一點（但沒有本業那麼敏感）
+      r *= Math.sqrt(Math.max(0.3, this.attractiveness()));
+      if (this.sideHot && this.sideHot.id === p.id && this.sideHot.until >= this.day) r *= this.sideHot.mult;
+      return r;
+    }
+
+    // 店裡開了幾項兼營業務
+    get sideCount() {
+      return this.ownedSide().length;
+    }
+
+    // 店裡有開的兼營業務
+    ownedSide() {
+      if (this.gridDirty || !this.stations) this.rebuildGrid();
+      return (SIDE_BIZ[this.ind.id] || []).filter((b) => this.stations.some((o) => o.def.side === b.id));
+    }
+
+    knows(e, id) {
+      return !!(e.skills && e.skills.includes(id));
+    }
+
+    // 教員工一項新業務：花錢上課，馬上學會
+    trainSkill(e, id) {
+      const b = (SIDE_BIZ[this.ind.id] || []).find((x) => x.id === id);
+      const cost = this.trainCost;
+      if (!b || this.knows(e, id) || this.cash < cost || e.trainDay === this.day) return false;
+      this.cash -= cost;
+      this.ledger.welfare = (this.ledger.welfare || 0) + cost;
+      e.skills = [...(e.skills || []), id];
+      e.trainDay = this.day;
+      e.mood = clamp(e.mood + 2, 0, 100);
+      this.say(e, `學會${b.name}了！`, 60);
+      return true;
+    }
+
+    get trainCost() {
+      return Math.round(this.marketWage * 16 / 100) * 100;
     }
 
     hasRecipe(p) {
@@ -3476,8 +3568,8 @@
 
     // 菜單上有在賣的品項（用來算價格高低）
     menuProducts() {
-      const list = this.ind.products.filter((p) => this.menu[p.id] && this.hasRecipe(p));
-      return list.length ? list : this.ind.products.filter((p) => !p.rd);
+      const list = this.ind.products.filter((p) => !p.side && this.menu[p.id] && this.hasRecipe(p));
+      return list.length ? list : this.ind.products.filter((p) => !p.rd && !p.side);
     }
 
     priceRatio() {
@@ -3528,7 +3620,8 @@
     }
 
     spawnCustomer(opt = {}) {
-      const prods = this.availableProducts();
+      // 兼營業務的客人：指定要辦的事；一般客人只點本業的品項
+      const prods = opt.product ? [opt.product] : this.availableProducts().filter((p) => !p.side);
       if (!prods.length) return;
       const type = opt.rider ? null : this.pickType();
       if (type && !this.typeAccepts(type)) return;
@@ -3762,6 +3855,13 @@
       this.cash += price;
       this.ledger.revenue += price;
       this.today.revenue += price;
+      // 不用進貨的品項（兼營業務的成本、抽成）直接扣
+      if (!this.ingOf[p.id] && p.cost) {
+        const k = Math.round(p.cost * c.qty * this.idx.cpi);
+        this.cash -= k;
+        this.ledger.materials += k;
+      }
+      if (p.side) this.sideServed(c, e, p.side);
       // 服務完留下的髒污：麵渣、頭髮、油漬
       const mess = { barber: p.id === 'wash' ? 0.25 : 0.55, scooter: 0.3, store: 0.08 }[this.ind.id] ?? 0.18;
       if (this.rng() < mess) this.addDirt(c.x, c.z);
@@ -3862,6 +3962,41 @@
       return arr[Math.floor(this.rng() * arr.length)];
     }
 
+    // 兼營業務的客人辦完事：順便消費、做公益、員工邊做邊學
+    sideServed(c, e, b) {
+      this.today.side = (this.today.side || 0) + 1;
+      if (b.impulse && this.rng() < b.impulse) {
+        const core = this.availableProducts().filter((p) => !p.side);
+        const q = core[Math.floor(this.rng() * core.length)];
+        if (q) {
+          const v = Math.round(this.effPrice(q.id) * 0.9);
+          // 順便買的東西是貨架上的：也要算進貨成本
+          const k = Math.round(q.cost * this.idx.cpi);
+          this.cash += v - k;
+          this.ledger.materials += k;
+          this.ledger.revenue += v;
+          this.today.revenue += v;
+          this.today.impulse = (this.today.impulse || 0) + 1;
+          this.popup(c, `順便買${q.icon}`, 'good');
+        }
+      }
+      if (b.goodwill) {
+        this.social.followers += 6;
+        if (this.rng() < 0.5) this.addReview(5, '幫要捐髮的人免費修剪，好暖的店');
+      }
+      if (e && !this.knows(e, b.id)) {
+        // 硬著頭皮做久了也會學會，但過程很挫折
+        e.sideXp = e.sideXp || {};
+        e.sideXp[b.id] = (e.sideXp[b.id] || 0) + 1;
+        e.mood = clamp(e.mood - 0.6, 0, 100);
+        if (e.sideXp[b.id] >= 15) {
+          e.skills = [...(e.skills || []), b.id];
+          this.say(e, `${b.name}……我終於會了`, 60);
+          this.notify(`🎓 ${e.name} 自己摸索學會了「${b.name}」`);
+        }
+      }
+    }
+
     // 🔥 連續好評：連續幾位客人都滿意（4 星以上），到里程碑有小獎勵；有人不滿意就歸零
     comboStep(ok) {
       if (!ok) {
@@ -3953,6 +4088,11 @@
         if (this.rng() < base * this.weatherMult('walk') * dt) this.spawnCustomer();
         // 外送平台的訂單：外送員騎車來取餐
         if (this.policy.delivery && this.ind.delivery && this.rng() < base * 0.22 * this.weatherMult('delivery') * dt) this.spawnCustomer({ rider: true });
+        // 兼營業務：專門為這件事來的客人（不搶原本的生意）
+        for (const p of this.sideProducts()) {
+          const r = this.sideRate(p);
+          if (r > 0 && this.rng() < (r / 60) * dt) this.spawnCustomer({ product: p });
+        }
       }
       // 路上的奇景
       if (Fun.STREET_GAGS && this.passers.length && this.rng() < 0.012 * dt) {
@@ -4085,7 +4225,9 @@
             }
             const e = lane && lane.staff && lane.staff.state === 'working' && lane.staff.task && lane.staff.task.lane === lane && !lane.staff.path.length ? lane.staff : null;
             if (e) {
-              c.progress += (dt * this.speedOf(e) * spd) / work;
+              // 兼營業務：沒學過的人手忙腳亂，慢很多
+              const raw = c.obj && c.obj.def.side && !this.knows(e, c.obj.def.side) ? 0.55 : 1;
+              c.progress += (dt * this.speedOf(e) * spd * raw) / work;
               c.servedBy = e;
               if (c.progress >= 1) this.finishService(c, e);
             } else {
@@ -4407,6 +4549,14 @@
       if (this.jerk > 60) target -= 5;
       if (this.cleanliness < 55) target -= (55 - this.cleanliness) / 6;
       if (this.shopCat) target += 2;
+      // 十項全能的代價：店裡的業務比他會的多太多，會覺得被當萬用工具人
+      const n = this.sideCount;
+      if (n) {
+        const known = (e.skills || []).length;
+        target -= Math.max(0, n - known - 1) * 2.5;
+        // 會的多、薪水卻沒比較多
+        if (known >= 3 && e.wage < this.marketWage + known * 8) target -= 4;
+      }
       if (e.state === 'working' || e.state === 'break') target += this.teamMoodFor(e);
       if (!this.policy.insurance) target -= 6;
       const regen = (e.traits.includes('cheerful') ? TRAITS.cheerful.moodRegen : 1) * (this.level >= 23 ? 1.2 : 1);
@@ -4508,6 +4658,7 @@
       this.planSocialEvents();
       this.planCareerEvents();
       this.planSideEvents();
+      this.planSideBizEvents();
       // 一般客訴：有時候是店裡真的做錯，有時候是客人誤會
       if (Fun.complaintEvent && this.rng() < 0.22 * this.diff.events) {
         const at = this.hours.open + 60 + this.rng() * Math.max(60, Math.min(this.hours.span, 600) - 120);
@@ -4523,6 +4674,24 @@
         const item = Fun.REVENGE[Math.floor(this.rng() * Fun.REVENGE.length)];
         this.applyRevenge(item);
         this.pendingEvents.push({ ev: this.revengeEvent(item), at: this.hours.open + 60, where: 'phone' });
+      }
+      if (this.floodBikeIssue) {
+        this.floodBikeIssue = false;
+        this.pendingEvents.push({
+          ev: {
+            id: 'sbe_floodback',
+            icon: '🛵',
+            title: '泡水車的買主回來了',
+            text: '上次那台「中古車」的買主牽著車回來，電路系統整個壞掉：「我去別家檢查，師傅說這台是泡水車！你們沒有說！」他手機已經在錄影了。',
+            choices: [
+              { label: '全額退費、公開道歉', effects: { cash: -9000, followers: 50, review: [3, '賣到泡水車，但老闆有全額退費'] }, result: '買主收下退款，影片最後沒有上傳。' },
+              { label: '「出門就不負責」', effects: { review: [1, '這家機車行賣泡水車還不認帳'], jerk: 4, followers: -400 }, result: '影片上了爆料社團，標題是〈機車行賣泡水車〉。', tip: '販售中古車隱匿泡水等重大瑕疵，買方可主張解除契約或減少價金；情節重大還可能涉及詐欺。' },
+            ],
+            ignore: { effects: { review: [1, '賣泡水車還不處理'], jerk: 3 }, result: '買主在店門口站了一個小時才走。' },
+          },
+          at: this.hours.open + 90,
+          where: 'door',
+        });
       }
       if (this.kitchenIssue && this.kitchen) {
         this.kitchenIssue = false;
@@ -4737,6 +4906,19 @@
         }
       }
       if (fx.followers) this.social.followers = Math.max(0, this.social.followers + fx.followers);
+      if (fx.sideHot) this.sideHot = { id: fx.sideHot[0], mult: fx.sideHot[1], until: this.day + fx.sideHot[2] - 1 };
+      if (fx.sideDown) {
+        this.sideDownUntil = this.sideDownUntil || {};
+        this.sideDownUntil[fx.sideDown[0]] = this.day + fx.sideDown[1] - 1;
+      }
+      if (fx.trainOf && byId(fx.trainOf[0])) {
+        const t = byId(fx.trainOf[0]);
+        if (!this.knows(t, fx.trainOf[1])) {
+          t.skills = [...(t.skills || []), fx.trainOf[1]];
+          this.cash -= this.trainCost;
+          this.ledger.welfare = (this.ledger.welfare || 0) + this.trainCost;
+        }
+      }
       if (fx.franchiseFix && this.franchises && this.franchises[fx.franchiseFix[0]]) this.franchises[fx.franchiseFix[0]].decency = clamp(this.franchises[fx.franchiseFix[0]].decency + fx.franchiseFix[1], 0, 100);
       if (fx.franchiseEnd != null && this.franchises && this.franchises[fx.franchiseEnd]) this.franchises.splice(fx.franchiseEnd, 1);
       if (fx.ipoTarget && this.ipo) this.ipo.target = Math.round(this.ipo.target * (1 + fx.ipoTarget));
@@ -4957,6 +5139,18 @@
         // Lv.11 以後的經驗主要靠連鎖賺的錢
         if (L.branches > 0) this.gainXp(L.branches / 60);
       }
+      // 兼營業務留下的伏筆
+      if (this.flags.has('oldBrine') && this.rng() < 0.12) {
+        this.flags.delete('oldBrine');
+        const fine = 12000;
+        this.cash -= fine;
+        L.fines += fine;
+        this.notify(`🧑‍⚕️ 衛生局抽驗「三個月老滷」，生菌數超標，罰款 $${fine.toLocaleString()}，限期改善。`, 'bad');
+      }
+      if (this.flags.has('floodBike') && this.rng() < 0.2) {
+        this.flags.delete('floodBike');
+        this.floodBikeIssue = true;
+      }
       const grp = this.groupWeekly();
       this.cash += grp;
       if (grp > 0) this.gainXp(grp / 60);
@@ -5171,6 +5365,8 @@
         owner: this.owner,
         areaManager: this.areaManager || null,
         bestCombo: this.bestCombo || 0,
+        sideDownUntil: this.sideDownUntil || {},
+        sideHot: this.sideHot || null,
         kitchen: this.kitchen || null,
         seasonal: this.seasonal || null,
         seasonalCount: this.seasonalCount || 0,
@@ -5233,6 +5429,7 @@
       s.taxStatus = d.taxStatus || null;
       s.recipes = new Set(d.recipes || []);
       for (const p of s.ind.products) if (p.rd && !(p.id in d.menu)) s.menu[p.id] = s.recipes.has(p.id);
+      for (const p of s.ind.products) if (p.side && !(p.id in s.menu)) s.menu[p.id] = true;
       for (const p of s.ind.products) if (!(p.id in s.prices)) s.prices[p.id] = p.price;
       s.style = { floor: 'default', wall: null, sign: null, ...(d.style || {}) };
       s.ownedFloors = new Set(d.ownedFloors || ['default']);
@@ -5249,6 +5446,8 @@
       s.xp = d.xp || 0;
       s.areaManager = d.areaManager || null;
       s.bestCombo = d.bestCombo || 0;
+      s.sideDownUntil = d.sideDownUntil || {};
+      s.sideHot = d.sideHot || null;
       s.kitchen = d.kitchen || null;
       s.seasonal = d.seasonal || null;
       s.seasonalCount = d.seasonalCount || 0;

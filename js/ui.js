@@ -1104,6 +1104,7 @@
         ${bar('心情', e.mood, 'morale')}${bar('精力', e.energy, 'energy')}${bar('飽足', e.hunger, 'hunger')}${bar('技能', e.skill, 'skill')}
         <p class="insp-meta">時薪 <b>${money(e.wage)}</b>（行情 ${money(s.marketWage)}）・今天服務 ${e.served} 人</p>
         ${relationsHtml(e)}
+        ${skillsHtml(e)}
         <div class="insp-actions">
           <button data-action="raise">💵 加薪 $10</button>
           <button data-action="cheer" ${(e.state !== 'working' && e.state !== 'break') || (e.cheerAt && s.minute - e.cheerAt < 120) ? 'disabled' : ''} title="做事快一點、心情 +2（每人每兩小時一次）">💪 加油</button>
@@ -1231,12 +1232,15 @@
 
   function drawerBuild() {
     const s = ui.sim;
-    const cats = Object.keys(CAT_LABELS).filter((c) => CATALOG.some((d) => d.cat === c && (!d.industries || d.industries.includes(s.ind.id))));
-    const items = CATALOG.filter((d) => d.cat === ui.buildCat && (!d.industries || d.industries.includes(s.ind.id)));
+    const mine = (d) => !d.industries || d.industries.includes(s.ind.id);
+    const cats = Object.keys(CAT_LABELS).filter((c) => CATALOG.some((d) => d.cat === c && mine(d)));
+    // 兼營業務的設備另外一個分頁
+    if (CATALOG.some((d) => d.side && mine(d))) cats.splice(1, 0, 'side');
+    const items = ui.buildCat === 'side' ? CATALOG.filter((d) => d.side && mine(d)) : CATALOG.filter((d) => d.cat === ui.buildCat && !d.side && mine(d));
     const lotNext = LOTS[s.lotIdx + 1];
     return `
       <div class="drawer-tabs">
-        ${cats.map((c) => `<button data-action="build-cat" data-cat="${c}" class="${ui.buildCat === c ? 'active' : ''}">${CAT_LABELS[c]}</button>`).join('')}
+        ${cats.map((c) => `<button data-action="build-cat" data-cat="${c}" class="${ui.buildCat === c ? 'active' : ''}">${c === 'side' ? '🧰 兼營業務' : CAT_LABELS[c]}</button>`).join('')}
         <button data-action="build-cat" data-cat="lot" class="${ui.buildCat === 'lot' ? 'active' : ''}">店面與裝潢</button>
       </div>
       <div class="drawer-body">
@@ -1273,6 +1277,16 @@
                   if (d.staffMood) tags.push('員工心情 +');
                   if (d.speed && d.speed > 1) tags.unshift(`速度 ×${d.speed}`);
                   if (d.selfServe) tags.unshift('不用店員');
+                  const sb = d.side && s.ind.products.find((p) => p.id === d.side);
+                  if (sb) {
+                    const b = sb.side;
+                    tags.length = 0;
+                    tags.push(b.desc);
+                    tags.push(`尖峰每小時約 ${b.rate} 位客人`);
+                    tags.push(b.price ? `每次收 $${b.price}${b.cost ? `（成本 $${b.cost}）` : ''}` : '不收錢（做口碑）');
+                    if (b.impulse) tags.push(`${Math.round(b.impulse * 100)}% 會順便買東西`);
+                    tags.push(d.selfServe ? '自助設備，不用店員' : '員工要學過才做得快');
+                  }
                   const locked = !s.unlocked(d);
                   return `<button class="cat-item ${ui.build && ui.build.type === d.id ? 'active' : ''} ${locked ? 'locked' : ''}" data-action="pick-build" data-type="${d.id}" ${s.cash < d.price || locked ? 'disabled' : ''}>
                     <span class="cat-icon">${locked ? '🔒' : d.icon}</span><b>${d.name}</b><span class="cat-price">${locked ? `Lv.${d.lv} 解鎖` : money(d.price)}</span><small>${tags.join('・')}</small>
@@ -1495,6 +1509,17 @@
       ${authPanel()}
       <p class="drawer-tip">每個人都有看不到的「領導力」和「企圖心」：技能好不一定會帶人（彼得原理），企圖心太低的人被升上去會壓力很大，企圖心高的人等太久會主動來要求升遷。升職後有 14 天試用期。</p>
     </div>`;
+  }
+
+  // 🧰 會做哪些兼營業務；沒學過的可以花錢送去上課
+  function skillsHtml(e) {
+    const s = ui.sim;
+    const owned = s.ownedSide().filter((b) => !b.self);
+    if (!owned.length) return '';
+    const known = owned.filter((b) => s.knows(e, b.id)).length;
+    return `<div class="skill-row"><small>🧰 兼營技能 ${known}/${owned.length}${owned.length - known >= 2 ? '・<span class="neg">業務太雜，心情會變差</span>' : ''}</small><div>${owned
+      .map((b) => (s.knows(e, b.id) ? `<span class="chip ok">${b.icon} ${b.name} ✓</span>` : `<button class="chip-btn" data-action="train" data-id="${b.id}" ${s.cash < s.trainCost || e.trainDay === s.day ? 'disabled' : ''} title="送去上課學會（$${s.trainCost.toLocaleString()}，每人每天一門）">${b.icon} ${b.name}・📚 $${s.trainCost.toLocaleString()}</button>`))
+      .join('')}</div></div>`;
   }
 
   // 🔀 斜槓員工的副業標籤
@@ -1810,6 +1835,7 @@
           <h3>{w:menu}與價格 <small>建議價會跟著物價漲</small></h3>
           <div class="price-list">
             ${s.ind.products
+              .filter((pr) => !pr.side || s.stations.some((o) => o.def.serves.includes(pr.id)))
               .map((pr) => {
                 if (pr.rd && !s.recipes.has(pr.id)) {
                   const can = s.level >= (pr.lv || 1);
@@ -2940,6 +2966,15 @@
         const id = Number(btn.dataset.id);
         ui.staffOpen = ui.staffOpen === id ? null : id;
         renderDrawer();
+        break;
+      }
+      case 'train': {
+        const who = ui.inspect && ui.inspect.ref;
+        if (who && s.trainSkill(who, btn.dataset.id)) {
+          toast(`📚 ${who.name} 學會了新業務`, 'good');
+          window.BossAudio.play('cheer');
+        }
+        renderInspector();
         break;
       }
       case 'cheer': {

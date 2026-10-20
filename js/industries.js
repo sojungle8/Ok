@@ -483,5 +483,103 @@
     桃園中壢: { traffic: 0.95, rent: 0.85 },
   };
 
-  root.BossIndustries = { WORDS, FOOD_IND, word, fillWords, applyNames, INDUSTRIES, CATALOG, CAT_LABELS, LOTS, NAMES, TRAITS, LEVELS, DISTRICTS, DISTRICT_INFO, CUSTOMER_TYPES, DIFFICULTY, FLOORS, WALLS, SIGNS, BRANCH_SITES, BRANCH_SIZES, TOURIST_PREF };
+  // ───── 兼營業務：在台灣，每一行最後都會被逼成十項全能 ─────
+  // 每項業務要買一台小設備；會帶來「額外」的客人（不搶原本的生意），有些還會讓客人順便買東西
+  // rate：尖峰時每小時大約幾位客人；hours：各時段倍率（沒寫的時段用 base）；impulse：順便消費的機率
+  // self：自助設備（不用店員）；seat：客人要坐下（像理髮椅）；rain／summer／winter／weekend：天氣季節加成
+  const SIDE_BIZ = {
+    store: [
+      { id: 'sb_parcel', name: '包裹店到店', icon: '📦', desc: '下班後一堆人來領網購包裹，順便買飲料', price: 20, cost: 0, time: 1.6, rate: 5, base: 0.4, hours: { 12: 0.8, 18: 1, 19: 1, 20: 1, 21: 0.9 }, impulse: 0.45, lv: 2, stationPrice: 26000, kiosk: { color: '#c97b2c', prop: 'boxes' } },
+      { id: 'sb_atm', name: 'ATM', icon: '🏧', desc: '自助設備，不用店員；領完錢的人常常順手買東西', price: 5, cost: 0, time: 0.8, rate: 5, base: 0.5, hours: { 0: 0.3, 1: 0.2, 7: 0.8, 12: 1, 18: 1, 19: 0.9 }, impulse: 0.35, self: true, lv: 2, stationPrice: 45000, kiosk: { color: '#2c6fbb', prop: 'screen' } },
+      { id: 'sb_copy', name: '影印傳真', icon: '🖨️', desc: '學生、報稅季、補件的人，常常要店員幫忙', price: 30, cost: 8, time: 3, rate: 1.6, base: 0.4, hours: { 9: 1, 10: 1, 14: 0.9, 15: 0.9, 16: 0.8 }, impulse: 0.2, lv: 3, stationPrice: 38000, kiosk: { color: '#7f8c8d', prop: 'machine' } },
+      { id: 'sb_hotdog', name: '熱狗大亨小傳', icon: '🌭', desc: '轉個不停的熱狗機，中午和半夜特別多人', price: 45, cost: 16, time: 1.2, rate: 3, base: 0.4, hours: { 12: 1, 13: 0.7, 22: 0.8, 23: 0.9, 0: 0.7 }, lv: 3, stationPrice: 32000, kiosk: { color: '#d9482b', prop: 'grill' } },
+      { id: 'sb_kiosk', name: '多媒體機（售票繳費）', icon: '🎫', desc: '自助設備；演唱會開賣那天會大排長龍', price: 10, cost: 0, time: 1.5, rate: 2.5, base: 0.5, hours: { 11: 1, 12: 1, 19: 0.8 }, impulse: 0.3, self: true, lv: 4, stationPrice: 52000, kiosk: { color: '#8e44ad', prop: 'screen' } },
+      { id: 'sb_power', name: '行動電源租借', icon: '🔋', desc: '自助設備；手機沒電的人會衝進來', price: 30, cost: 4, time: 0.6, rate: 1.2, base: 0.6, hours: { 17: 1, 18: 1, 21: 1 }, impulse: 0.25, self: true, lv: 4, stationPrice: 22000, kiosk: { color: '#2f8f6b', prop: 'screen' } },
+      { id: 'sb_lotto', name: '彩券', icon: '🎰', desc: '抽成不多，但頭獎開出來會變觀光景點', price: 50, cost: 46, time: 1, rate: 2.5, base: 0.5, hours: { 17: 1, 18: 1, 19: 1, 20: 0.9 }, impulse: 0.3, lv: 5, stationPrice: 18000, kiosk: { color: '#f2c14e', prop: 'tickets' } },
+      { id: 'sb_laundry', name: '投幣洗衣', icon: '🧺', desc: '自助設備；下雨天、梅雨季爆滿', price: 60, cost: 14, time: 2, rate: 1.4, base: 0.5, hours: { 20: 1, 21: 1, 22: 0.9 }, rain: 2.2, self: true, lv: 6, stationPrice: 68000, kiosk: { color: '#5aa9a0', prop: 'washer' } },
+    ],
+    breakfast: [
+      { id: 'sb_parcelb', name: '代收社區包裹', icon: '📦', desc: '鄰居白天不在家，包裹都寄你這裡；來拿的人會順便買早餐', price: 10, cost: 0, time: 1, rate: 1.5, base: 0.5, hours: { 7: 1, 8: 1, 12: 0.8 }, impulse: 0.5, lv: 2, stationPrice: 6000, kiosk: { color: '#c97b2c', prop: 'boxes' } },
+      { id: 'sb_lunchbox', name: '中午加賣便當', icon: '🍱', desc: '早餐收攤前再賺一波；營業到中午以後才有用', price: 95, cost: 48, time: 2.5, rate: 6, base: 0, hours: { 11: 0.8, 12: 1, 13: 0.6 }, lv: 3, stationPrice: 42000, kiosk: { color: '#e67e22', prop: 'grill' } },
+      { id: 'sb_pourover', name: '精品手沖咖啡', icon: '☕', desc: '吸引文青和上班族，但手沖很花時間', price: 90, cost: 20, time: 4, rate: 2.2, base: 0.3, hours: { 7: 1, 8: 1, 9: 0.8, 10: 0.7 }, lv: 4, stationPrice: 36000, kiosk: { color: '#6b4a32', prop: 'coffee' } },
+      { id: 'sb_kidsbrunch', name: '親子早午餐', icon: '🧸', desc: '週末的大客單，小朋友會在店裡跑來跑去', price: 220, cost: 85, time: 6, rate: 1, base: 0.2, hours: { 8: 0.8, 9: 1, 10: 1, 11: 0.8 }, weekend: 3, lv: 6, stationPrice: 30000, kiosk: { color: '#e0478a', prop: 'toys' } },
+    ],
+    noodle: [
+      { id: 'sb_luwei', name: '外帶滷味攤', icon: '🍢', desc: '晚上下班的人最愛，自己夾自己選', price: 130, cost: 55, time: 3, rate: 3.5, base: 0.3, hours: { 17: 0.9, 18: 1, 19: 1, 20: 0.8 }, lv: 3, stationPrice: 34000, kiosk: { color: '#8e5a2b', prop: 'pot' } },
+      { id: 'sb_bentob', name: '便當外帶', icon: '🍱', desc: '附近辦公室的團訂，中午一次來一大批', price: 100, cost: 52, time: 2, rate: 4.5, base: 0.2, hours: { 11: 0.9, 12: 1, 13: 0.5 }, lv: 3, stationPrice: 30000, kiosk: { color: '#e67e22', prop: 'grill' } },
+      { id: 'sb_dumpling', name: '網路團購冷凍水餃', icon: '🥟', desc: '團購主幫你賣，客人來取貨；做太多會壓到現場人手', price: 260, cost: 125, time: 1.5, rate: 1.2, base: 0.5, hours: { 17: 1, 18: 1, 19: 1 }, impulse: 0.3, lv: 5, stationPrice: 40000, kiosk: { color: '#2c6fbb', prop: 'freezer' } },
+      { id: 'sb_newyear', name: '年菜代訂', icon: '🧧', desc: '只有過年前（1、2 月）有人訂，一單很大', price: 1880, cost: 1050, time: 8, rate: 0.5, base: 0.6, months: [1, 2], lv: 8, stationPrice: 25000, kiosk: { color: '#c0392b', prop: 'boxes' } },
+    ],
+    drinks: [
+      { id: 'sb_chicken', name: '雞排炸物', icon: '🍗', desc: '珍奶配雞排，晚上生意翻倍；油煙和燙傷要小心', price: 85, cost: 34, time: 4, rate: 4, base: 0.2, hours: { 16: 0.8, 17: 1, 18: 1, 19: 1, 20: 0.9, 21: 0.8 }, lv: 3, stationPrice: 48000, kiosk: { color: '#d4a017', prop: 'fryer' } },
+      { id: 'sb_dessert', name: '甜點冰品', icon: '🍮', desc: '下午茶時段的好幫手，夏天更好賣', price: 75, cost: 24, time: 2, rate: 2.4, base: 0.4, hours: { 14: 1, 15: 1, 16: 0.9 }, summer: 1.6, lv: 4, stationPrice: 36000, kiosk: { color: '#f4a3c0', prop: 'freezer' } },
+      { id: 'sb_fruit', name: '現切水果杯', icon: '🍉', desc: '夏天的祕密武器，但水果放太久會壞', price: 65, cost: 26, time: 2.5, rate: 2.5, base: 0.4, hours: { 13: 1, 14: 1, 15: 1, 16: 0.8 }, summer: 2, winter: 0.4, lv: 5, stationPrice: 28000, kiosk: { color: '#2f8f6b', prop: 'fruit' } },
+      { id: 'sb_merch', name: '聯名周邊小物', icon: '🧸', desc: '粉絲會專程來買，貼文效果更好', price: 380, cost: 160, time: 1, rate: 0.8, base: 0.5, hours: { 15: 1, 19: 1, 20: 1 }, weekend: 2, lv: 7, stationPrice: 42000, kiosk: { color: '#8e44ad', prop: 'toys' } },
+    ],
+    barber: [
+      { id: 'sb_ear', name: '掏耳朵', icon: '👂', desc: '長輩的最愛，聊天聊到捨不得走', price: 200, cost: 5, time: 14, rate: 1, base: 0.6, hours: { 9: 1, 10: 1, 14: 0.9 }, seat: true, lv: 2, stationPrice: 16000, kiosk: { color: '#c97b2c', prop: 'chair' } },
+      { id: 'sb_shampoo', name: '洗髮精、髮蠟販售', icon: '🧴', desc: '剪完順便推銷，推太用力客人會覺得煩', price: 380, cost: 200, time: 1, rate: 1, base: 0.6, hours: { 11: 1, 16: 1, 17: 1 }, lv: 3, stationPrice: 12000, kiosk: { color: '#5aa9a0', prop: 'bottles' } },
+      { id: 'sb_massage', name: '肩頸按摩', icon: '💆', desc: '上班族下班來放鬆，客單高、但很耗員工體力', price: 450, cost: 10, time: 25, rate: 0.9, base: 0.3, hours: { 17: 1, 18: 1, 19: 0.9 }, seat: true, lv: 4, stationPrice: 32000, kiosk: { color: '#6c5ce7', prop: 'chair' } },
+      { id: 'sb_donate', name: '剪髮捐贈', icon: '🎗️', desc: '幫要捐髮的客人免費修剪；不賺錢，但口碑和粉絲會變好', price: 0, cost: 0, time: 18, rate: 0.3, base: 0.6, hours: { 10: 1, 14: 1 }, goodwill: true, seat: true, lv: 5, stationPrice: 8000, kiosk: { color: '#e0478a', prop: 'chair' } },
+      { id: 'sb_pet', name: '寵物修剪', icon: '🐶', desc: '狗狗在店裡吠，其他客人有人愛、有人怕', price: 650, cost: 60, time: 40, rate: 0.5, base: 0.5, hours: { 10: 1, 11: 1, 15: 1 }, weekend: 2, seat: true, lv: 7, stationPrice: 45000, kiosk: { color: '#d4a017', prop: 'chair' } },
+    ],
+    scooter: [
+      { id: 'sb_gear', name: '雨衣安全帽', icon: '🧥', desc: '下雨天臨時衝進來買雨衣的人超多', price: 450, cost: 260, time: 1, rate: 1, base: 0.6, hours: { 7: 1, 8: 1, 17: 1, 18: 1 }, rain: 4, lv: 2, stationPrice: 15000, kiosk: { color: '#2c6fbb', prop: 'helmets' } },
+      { id: 'sb_inspect', name: '代辦驗車過戶', icon: '📋', desc: '幫客人跑監理站的流程，很花時間但很賺', price: 600, cost: 220, time: 10, rate: 0.6, base: 0.6, hours: { 9: 1, 10: 1, 14: 1, 15: 1 }, lv: 3, stationPrice: 10000, kiosk: { color: '#7f8c8d', prop: 'desk' } },
+      { id: 'sb_wash', name: '機車美容洗車', icon: '🧽', desc: '晴天週末生意好，地板會變很濕', price: 150, cost: 20, time: 12, rate: 1.2, base: 0.4, hours: { 10: 1, 11: 1, 15: 1, 16: 1 }, weekend: 1.8, rain: 0.2, lv: 3, stationPrice: 26000, kiosk: { color: '#5aa9a0', prop: 'washer' } },
+      { id: 'sb_used', name: '二手車買賣', icon: '🛵', desc: '一台賺好幾千，但要小心泡水車和贓車', price: 3800, cost: 2600, time: 25, rate: 0.35, base: 0.6, hours: { 11: 1, 15: 1, 16: 1 }, weekend: 1.6, lv: 4, stationPrice: 60000, kiosk: { color: '#d9482b', prop: 'scooter' } },
+      { id: 'sb_rent', name: '機車出租', icon: '🔑', desc: '觀光客和學生租車；車子回來的狀況不一定', price: 500, cost: 90, time: 5, rate: 0.8, base: 0.5, hours: { 9: 1, 10: 1 }, weekend: 2.2, lv: 5, stationPrice: 55000, kiosk: { color: '#f2c14e', prop: 'keys' } },
+      { id: 'sb_swap', name: '電池交換站', icon: '🔋', desc: '自助設備；電動機車騎士來換電池，順便問保養', price: 40, cost: 26, time: 1, rate: 3, base: 0.5, hours: { 7: 1, 8: 1, 18: 1, 19: 1 }, impulse: 0.12, self: true, lv: 6, stationPrice: 90000, kiosk: { color: '#2f8f6b', prop: 'screen' } },
+    ],
+  };
+  // 平衡：照「設備費大約 6 週回本（已經扣掉員工時間）」反推每項業務的客流量
+  // 每項業務的個性（尖峰時段、順便消費、要不要店員、事件）不變，只校正客人有多少
+  const PAYBACK_WEEKS = 6;
+  for (const ind of INDUSTRIES) {
+    const core = ind.products.filter((p) => !p.rd);
+    const cw = core.reduce((t, p) => t + p.weight, 0);
+    const coreMargin = core.reduce((t, p) => t + (p.price - p.cost) * p.weight, 0) / cw;
+    for (const b of SIDE_BIZ[ind.id] || []) {
+      let hrs = 0;
+      for (let m = ind.open; m < ind.close; m += 60) {
+        const h = Math.floor(m / 60) % 24;
+        hrs += b.hours && b.hours[h] != null ? b.hours[h] : b.base ?? 0.4;
+      }
+      const wk = 7 * (b.weekend ? (5 + 2 * b.weekend) / 7 : 1) * (b.months ? b.months.length / 12 : 1);
+      const perCust = b.price - b.cost + (b.impulse || 0) * coreMargin * 0.9;
+      const labor = b.self ? 0 : (b.time / 60) * ind.hourlyWage * 1.3;
+      const net = perCust - labor;
+      const want = b.stationPrice / PAYBACK_WEEKS;
+      b.rate0 = b.rate;
+      // 不賺錢的（像剪髮捐贈）保留原本的客流：它的回報是口碑和粉絲
+      if (net > 0 && hrs > 0) b.rate = Math.max(0.15, Math.min(12, want / (wk * hrs * net)));
+    }
+  }
+  for (const ind of INDUSTRIES) {
+    for (const b of SIDE_BIZ[ind.id] || []) {
+      // weight 0：一般客人不會點，只有專門為這項業務來的客人
+      ind.products.push({ id: b.id, name: b.name, icon: b.icon, price: b.price, cost: b.cost, time: b.time, station: `${b.id}_st`, weight: 0, side: b });
+      CATALOG.push({
+        id: `${b.id}_st`,
+        name: b.name,
+        icon: b.icon,
+        cat: 'station',
+        side: b.id,
+        price: b.stationPrice,
+        w: 1,
+        kw: 0.6,
+        serves: [b.id],
+        staff: b.self ? [] : b.seat ? [[0, 1]] : [[0, -1]],
+        cust: b.seat ? [[0, 0]] : [[0, 1]],
+        seatCust: !!b.seat,
+        selfServe: !!b.self,
+        industries: [ind.id],
+        model: 'kiosk',
+        kiosk: b.kiosk,
+        lv: b.lv,
+      });
+    }
+  }
+
+  root.BossIndustries = { SIDE_BIZ, WORDS, FOOD_IND, word, fillWords, applyNames, INDUSTRIES, CATALOG, CAT_LABELS, LOTS, NAMES, TRAITS, LEVELS, DISTRICTS, DISTRICT_INFO, CUSTOMER_TYPES, DIFFICULTY, FLOORS, WALLS, SIGNS, BRANCH_SITES, BRANCH_SIZES, TOURIST_PREF };
 })(typeof window !== 'undefined' ? window : globalThis);

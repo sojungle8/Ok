@@ -1,7 +1,7 @@
 // AI 玩家：照一般玩家會做的事去經營，試著撐滿一年破關
 // 只用遊戲裡玩家按得到的操作（招人、排班、調薪、進貨、打掃、買設備、選事件、發文、開分店……）
 // 用法：node tools/playtest.js [難度] [產業] [隨機種子]
-for (const f of ['data', 'fun', 'weird', 'activities', 'city', 'plots', 'career', 'progress', 'slash', 'portraits', 'industries', 'sim']) require(`../js/${f}.js`);
+for (const f of ['data', 'fun', 'weird', 'activities', 'city', 'plots', 'career', 'progress', 'slash', 'sidebiz', 'portraits', 'industries', 'sim']) require(`../js/${f}.js`);
 const { Sim, CATALOG, catalogById } = globalThis.BossSim;
 const Fun = globalThis.BossFun;
 
@@ -163,6 +163,17 @@ function daily(r) {
   if (!s.boss.away && s.cash > 250000 && !s.collabs.length && s.day % 10 === 0) {
     const pt = Fun.PARTNERS.find((p) => !s.collabReady(p) && s.cash > p.cost + 200000);
     if (pt) s.startCollab(pt.id);
+  }
+  // 兼營業務：等級夠、錢夠就一項一項開（數量跟著等級慢慢增加），並送員工去學
+  const SB = globalThis.BossIndustries.SIDE_BIZ[s.ind.id] || [];
+  const owned = s.ownedSide();
+  if (owned.length < 1 + Math.floor(s.level / 4) && s.day % 7 === 3) {
+    const nb = SB.find((b) => s.level >= b.lv && !owned.includes(b) && s.cash > b.stationPrice + 200000);
+    if (nb && tryPlace(`${nb.id}_st`)) note(`第 ${s.day} 天：開始兼營${nb.name}`);
+  }
+  for (const e of s.staff) {
+    const b = owned.find((x) => !x.self && !s.knows(e, x.id));
+    if (b && s.cash > s.trainCost + 100000) s.trainSkill(e, b.id);
   }
   // 章節解鎖的玩法
   if (s.feature('seasonal') && !(s.seasonal && s.seasonal.until >= s.day) && s.cash > s.seasonalCost + 150000 && s.launchSeasonal()) note(`第 ${s.day} 天：季節限定 ${s.seasonal.name}`);

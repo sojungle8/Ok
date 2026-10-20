@@ -5027,3 +5027,10 @@ kbd {
 @media (prefers-reduced-motion: reduce) {
   .coin-fly, .combo-badge.pulse, [data-f='cash'].bump, [data-f='cash'].drop { animation: none; }
 }
+
+/* 🧰 兼營技能 */
+.skill-row { margin: 8px 0; display: grid; gap: 4px; }
+.skill-row > div { display: flex; flex-wrap: wrap; gap: 4px; }
+.chip.ok { background: var(--good-bg); color: var(--good); }
+.chip-btn { font: inherit; font-size: 0.78rem; padding: 3px 8px; border-radius: 999px; border: 1px dashed var(--line); background: var(--card); color: var(--text); }
+.chip-btn:disabled { opacity: 0.5; }

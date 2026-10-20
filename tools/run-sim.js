@@ -9,6 +9,7 @@ require('../js/plots.js');
 require('../js/career.js');
 require('../js/progress.js');
 require('../js/slash.js');
+require('../js/sidebiz.js');
 require('../js/portraits.js');
 require('../js/industries.js');
 require('../js/sim.js');
