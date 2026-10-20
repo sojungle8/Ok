@@ -38,16 +38,36 @@
         icon: '🙋',
         title: `${e.name}想升組長`,
         text: again
-          ? `${e.name}又來找你了：「老闆，上次你說再觀察看看……我覺得我已經準備好了。如果這次還是不行，我可能要想想自己的未來。」`
+          ? `${e.name}又來找你了：「老闆，上次你說再觀察看看……我覺得我已經準備好了。如果這次還是不行，我可能要想想自己的未來。」${e.askSnap ? `（比起上次第 ${e.askSnap.day} 天來問：技能 ${e.askSnap.skill} → ${Math.round(e.skill)}${e.askSnap.lead != null ? `，領導力印象 ${'★'.repeat(Math.max(1, Math.round(e.askSnap.lead / 20)))} → ${'★'.repeat(Math.max(1, Math.round(e.leadSeen / 20)))}` : ''}${Math.round(e.skill) - e.askSnap.skill >= 5 ? '，進步很明顯' : '，進步不太多'}）` : ''}`
           : `${e.name}下班前把你拉到一旁：「老闆，我在這裡做了 ${Math.max(1, Math.floor((sim.day - e.hiredDay) / 7))} 週，大部分的事我都會了。我想試試看當組長，帶新人。」`,
         choices: [
           { label: '好，從明天開始你就是組長', note: `時薪 +$${Fun.RANKS.leader.wage}`, effects: { promoteOf: [e.id, 'leader'] }, result: `${e.name}眼睛一亮：「我不會讓你失望的！」同事們拍手起鬨。` },
-          { label: '再給我兩週觀察看看', effects: { askLater: e.id, moodOf: [[e.id, -4]] }, result: `${e.name}點點頭：「好，我會表現給你看。」但看得出來有點失落。` },
+          ...(!e.senior && e.skill >= 60 ? [{ label: '先升「資深」：不用帶人，時薪 +$15', note: '技術職', effects: { seniorOf: e.id }, result: `${e.name}想了一下：「其實我比較喜歡專心做事……好，資深也很棒！」名牌上多了一顆星。` }] : []),
+          { label: '再給我兩週觀察看看', note: '兩週後會看到進步了多少', effects: { askLater: e.id, moodOf: [[e.id, -4]] }, result: `${e.name}點點頭：「好，我會表現給你看。」但看得出來有點失落。` },
           again
             ? { label: '「你還不夠格，不要再問了」', quote: '組長不是你想當就能當的。', effects: { leave: e.id, jerk: 2 }, result: `${e.name}隔天遞了辭呈：「對面說可以讓我當組長。」`, tip: '員工主動爭取升遷是好事；就算現在不適合，說清楚還差哪些能力、給一個時間點，比直接打槍更能留住人。' }
             : { label: '「你還不夠格」', quote: '先把手上的事做好再說。', effects: { moodOf: [[e.id, -14]], askLater: e.id }, result: `${e.name}低著頭說了聲「好」，整個下午都沒講話。` },
         ],
         ignore: { effects: { moodOf: [[e.id, -8]], askLater: e.id }, result: `你一直沒回應，${e.name}覺得自己被當空氣。` },
+      };
+    },
+    // 試用期滿 14 天：看帶班成績，決定要不要正式任用
+    trial(sim, e, st) {
+      const R = Fun.RANKS[e.rank] || { name: '主管' };
+      const S = Fun.STYLES[e.style] || { icon: '', name: '' };
+      const fmt = (v) => `${(v * 100).toFixed(1)}%`;
+      const better = st.angryNow <= st.angryBefore && st.moraleNow >= st.moraleBefore - 2;
+      return {
+        id: 'career_trial',
+        icon: '📋',
+        title: `${e.name}的${R.name}試用期到了`,
+        text: `${e.name}當${R.name}的試用期到了（${S.icon}${S.name}・領導力 ${e.lead}）。\n帶班前：同事平均心情 ${Math.round(st.moraleBefore)}、客人生氣率 ${fmt(st.angryBefore)}\n試用期間：同事平均心情 ${Math.round(st.moraleNow)}、客人生氣率 ${fmt(st.angryNow)}（帶班 ${e.kpi.days} 天）\n${better ? '整體看起來帶得不錯。' : st.angryNow > st.angryBefore ? '客人等到生氣的比例變高了，可能人手調度還不熟。' : '同事的心情變差了，可能帶人的方式要調整。'}`,
+        choices: [
+          { label: '正式任用', effects: { moodOf: [[e.id, 6]] }, result: `${e.name}拿到正式的${R.name}名牌，認真地說：「謝謝老闆，我會繼續加油。」` },
+          { label: '延長試用一週，先送去上主管課', note: `$${(sim.leadTrainCost || 4000).toLocaleString()}・領導力 +8`, effects: { extendTrial: e.id, cash: -(sim.leadTrainCost || 4000) * 2, lead: [e.id, 8] }, result: `${e.name}去上了主管課，回來後說要把學到的「先處理心情，再處理事情」用在店裡。下週再評估一次。` },
+          { label: '謝謝他，先回到原本的職位', note: '試用期內，不傷感情', effects: { demoteOf: e.id, trialDemote: true }, result: `你跟${e.name}好好聊了一下：「你做事很棒，只是帶人可能還要再等等。」${e.name}有點失落，但也鬆了一口氣。` },
+        ],
+        ignore: { effects: {}, result: `你沒有特別說什麼，${e.name}就繼續當${R.name}了。` },
       };
     },
     // 鐵血主管被投訴

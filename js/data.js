@@ -176,8 +176,8 @@
       months: [6, 7, 8, 9, 10],
       ignore: { effects: { cash: 10000, morale: -8, jerk: 9, flag: 'typhoonAbsence' }, result: '你一直沒宣布，大家不敢不來，只好冒著風雨來上班。' },
       choices: [
-        { label: '依規定放假，薪水照發', effects: { cash: -12000, morale: 5, jerk: -2 }, result: '員工在家追劇吃泡麵，群組裡出現一排「老闆讚」貼圖。' },
-        { label: '照常營業，自願來的給加班費', effects: { cash: 5000, morale: -1, jerk: 1 }, result: '有兩個人冒雨來上班，沒有人被逼，大家也沒話說。' },
+        { label: '依規定放假，薪水照發', note: '今天停業', effects: { cash: -12000, morale: 5, jerk: -2, closeToday: true }, result: '你在門口貼上「颱風停業一天」。員工在家追劇吃泡麵，群組裡出現一排「老闆讚」貼圖。今天不營業，明天照常開。' },
+        { label: '照常營業，自願來的給加班費', effects: { cash: 5000, morale: -1, jerk: 1 }, result: '有兩個人冒雨來上班，沒有人被逼，大家也沒話說。店照常營業，只是客人比平常少很多。' },
         {
           label: '照常上班，沒來的算曠職',
           quote: '颱風天外送訂單最多，生意更好啊！',
@@ -330,7 +330,8 @@
       id: 'newbie',
       icon: '🐣',
       title: '新人說沒有人教',
-      text: '上週剛來的新人私下跟你說：「我不知道該做什麼，問人大家都很忙……」',
+      text: '剛來的{who}私下跟你說：「我不知道該做什麼，問人大家都很忙……」',
+      target: (s) => s.newestStaff(14, 55),
       choices: [
         {
           label: '老闆親自帶新人',
@@ -453,7 +454,8 @@
       id: 'resign',
       icon: '🚪',
       title: '員工提離職',
-      text: '一位能幹的員工拿到了更好的 offer，下個月要離職。',
+      text: '能幹的{who}拿到了更好的 offer，下個月要離職。',
+      target: (s) => s.staff.filter((e) => e.rank !== 'manager' && e.skill >= 55).sort((a, b) => b.skill - a.skill)[0] || null,
       choices: [
         { label: '誠心祝福，好好交接', effects: { staff: -1, morale: 2, jerk: -2 }, result: '他離開前把交接文件寫得清清楚楚，還說以後有機會再合作。' },
         { label: '提高待遇慰留', effects: { cash: -30000, morale: 1 }, result: '他決定留下來，不過你知道這不是長久之計。' },

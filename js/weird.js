@@ -506,7 +506,9 @@
       id: 'w_quitagent',
       icon: '📨',
       title: '收到離職代辦公司寄來的信',
-      text: '一封很正式的信：「您好，我們受○○委託，代為辦理離職事宜。」你看了三遍才想起來，○○是上週才來的工讀生。',
+      text: '一封很正式的信：「您好，我們受{who}委託，代為辦理離職事宜。」你看了三遍才想起來，{who}是前幾天才來的新人。',
+      // 只會發生在剛到職、還沒升職的人身上
+      target: (s) => s.newestStaff(10),
       where: 'phone',
       speaker: { look: 'hq', name: '離職代辦公司' },
       choices: [
@@ -641,4 +643,73 @@
 
   Data.EVENTS.push(...W);
   Fun.WEIRD_EVENTS = W;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+// 一般客訴：不是每個抱怨的客人都是奧客
+// legit：真的是店裡做錯（道歉補償最好；硬挺員工反而被罵）；misread：客人誤會了（好好說明最好）
+(function (root) {
+  const Fun = root.BossFun;
+  if (!Fun) return;
+  const G = (id) => (['breakfast', 'noodle'].includes(id) ? 'food' : id);
+  Fun.COMPLAINTS = {
+    legit: {
+      food: ['湯裡撈到一根頭髮', '說好不要辣，結果做成大辣', '點了三樣只來兩樣，等了二十分鐘才發現漏單'],
+      drinks: ['點微糖，喝起來根本是全糖', '珍珠沒煮透，咬起來硬硬的', '杯子封膜沒封好，在包包裡漏了一半'],
+      barber: ['瀏海剪得比說好的短兩公分', '染出來的顏色跟色卡差很多', '洗頭的時候水太燙，頭皮都紅了'],
+      scooter: ['剛換的煞車皮兩天就開始吱吱叫', '修完回家路上又熄火了', '說好一小時，結果等了三個小時沒人通知'],
+      store: ['店員找錢少找了一百塊', '架上的便當已經過期了', '集點貼紙明明有活動，店員說沒有'],
+    },
+    misread: {
+      food: [['等這麼久是怎樣', '他點的是要現做二十分鐘的'], ['我沒有點這個', '這是同桌朋友點的'], ['份量怎麼變少了', '他以前點的是大份']],
+      drinks: [['你們的杯子會漏水', '是吸管插歪了'], ['珍珠怎麼這麼少', '他點的其實是椰果'], ['價格是不是亂漲', '他今天點的是大杯']],
+      barber: [['洗頭水怎麼這麼冰', '熱水器剛好在重開，等一下就熱了'], ['怎麼要等這麼久', '他沒有預約，前面還有兩位'], ['剪太短了吧', '照片是他自己指定的']],
+      scooter: [['換個機油也要這麼貴，是在坑人嗎', '他的車三萬公里沒保養，濾網都塞住了'], ['我的車被你們刮傷了', '監視器顯示是他自己騎進來時擦到的'], ['輪胎怎麼換這麼貴', '他指定要名牌胎']],
+      store: [['你們找錯錢了', '他再算一次發現是自己記錯'], ['優惠怎麼沒有折', '活動昨天就結束了'], ['這個商品過期了', '他看成製造日期了']],
+    },
+  };
+  // 選項順序打亂：不能每次都按第一個
+  const shuffle = (sim, ev) => {
+    const c = [...ev.choices];
+    for (let i = c.length - 1; i > 0; i--) {
+      const j = Math.floor(sim.rng() * (i + 1));
+      [c[i], c[j]] = [c[j], c[i]];
+    }
+    return { ...ev, choices: c };
+  };
+  Fun.complaintEvent = (sim, kind, victim) => shuffle(sim, buildComplaint(sim, kind, victim));
+  const buildComplaint = (sim, kind, victim) => {
+    const pick = (arr) => arr[Math.floor(sim.rng() * arr.length)];
+    const what = pick(Fun.COMPLAINTS[kind][G(sim.ind.id)] || Fun.COMPLAINTS[kind].food);
+    const v = victim ? victim.name : '店員';
+    const vid = victim ? victim.id : null;
+    const mo = (d) => (vid ? { moodOf: [[vid, d]] } : {});
+    if (kind === 'legit') {
+      return {
+        id: 'cmp_legit',
+        icon: '🙇',
+        title: '客人來客訴',
+        text: `一位客人回來找你：「${what}。」他不是來鬧的，語氣還算客氣，但很明顯不太開心。${v}在旁邊臉色發白。`,
+        choices: [
+          { label: '馬上道歉、處理好，再送一份{w:gift}', effects: { cash: -800, review: [5, '有出錯，但店家處理得超好，會再來'], ...mo(2) }, result: `你先跟客人道歉，馬上處理，還多送了一點心意。客人離開前說：「謝謝，你們很有誠意。」${v}鬆了一口氣，說下次會更小心。`, tip: '客人反映的問題確實是店家疏失時，先道歉、立刻補救，通常比爭論誰對誰錯更能留住客人。' },
+          { label: '道歉並退費', effects: { cash: -400, review: [3, '有退費，但感覺不太用心'] }, result: '客人收下退費，點點頭走了。沒有生氣，但大概也不會特別推薦。' },
+          { label: `站在${v}這邊：「我們不可能出錯」`, effects: { review: [1, '明明是店家的錯還不承認，態度很差'], ...mo(3), jerk: 0 }, result: `客人愣了一下，拍下照片走了，晚上評論區多了一則一星。${v}很感謝你挺他，但大家心裡都知道這次確實是店裡的問題。`, tip: '保護員工很重要，但對真正的疏失，挺員工的方式是「一起扛、一起改進」，而不是否認問題。' },
+          { label: `當著客人的面罵${v}`, effects: { cash: -400, review: [2, '老闆當場罵員工，看了很不舒服'], jerk: 3, ...mo(-12) }, result: `${v}低著頭一直道歉。客人反而覺得尷尬，退費後匆匆離開。` },
+        ],
+        ignore: { effects: { review: [1, '客訴了半天都沒人理'] }, result: '沒人處理，客人等到不耐煩，留下一星評論走了。' },
+      };
+    }
+    return {
+      id: 'cmp_misread',
+      icon: '🤔',
+      title: '客人說你們弄錯了',
+      text: `一位客人有點激動：「${what[0]}！」${v}查了一下，小聲跟你說：「老闆，其實是……${what[1]}。」`,
+      choices: [
+        { label: '耐心說明，順便送一點小東西', effects: { cash: -150, review: [5, '原來是我誤會了，老闆人超好，還送我小東西'], ...mo(2) }, result: '你拿出單據慢慢解釋，客人看了一下，不好意思地笑了：「歹勢歹勢，是我搞錯了。」走之前還買了一點東西。', tip: '客人誤會時，拿出證據、語氣放軟，保住客人的面子，通常能把抱怨變成好感。' },
+        { label: '不想吵，直接照他說的退費', effects: { cash: -400, ...mo(-6) }, result: `客人拿了錢就走了。${v}有點委屈：「明明不是我們的錯……」` },
+        { label: '「你自己搞錯了啦！」', effects: { review: [2, '就算是我記錯，老闆口氣也太兇了吧'], jerk: 1 }, result: '你說的沒錯，但客人覺得很丟臉，留了一則酸酸的評論。' },
+        { label: `叫${v}先道歉了事`, effects: { ...mo(-10), jerk: 2 }, result: `${v}照做了，但下班前一句話都沒說。明明是對的，卻要道歉。` },
+      ],
+      ignore: { effects: { review: [2, '反映問題沒人理，算了'] }, result: '客人等不到人處理，碎念著走了。' },
+    };
+  };
 })(typeof window !== 'undefined' ? window : globalThis);

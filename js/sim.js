@@ -225,7 +225,7 @@
       this.hours = { open, close: open + span, span, shifts };
     }
     get openToday() {
-      return this.policy.closedDay !== this.weekday;
+      return this.policy.closedDay !== this.weekday && this.shutDay !== this.day;
     }
     get span() {
       return this.hours.span;
@@ -413,7 +413,7 @@
       const total = ind.products.reduce((s, p) => s + p.weight, 0);
       const avgPrice = ind.products.reduce((s, p) => s + p.price * p.weight, 0) / total;
       const costShare = ind.products.reduce((s, p) => s + p.cost * p.weight, 0) / total / avgPrice;
-      return { revenue: ind.baseArrivals * traffic * 0.8 * (ind.basket || 1) * avgPrice * 7 * this.idx.cpi * (ind.branchMult || 1), costShare };
+      return { revenue: ind.baseArrivals * traffic * 0.8 * (ind.basket || 1) * avgPrice * 7 * this.idx.cpi * (ind.branchMult || 1), costShare, ticket: avgPrice * (ind.basket || 1) * this.idx.cpi };
     }
 
     setBranch(i, key, value) {
@@ -444,7 +444,7 @@
 
     // 算一間分店一週的帳；est 為 true 時不加隨機（給選址畫面估算用）
     branchWeek(b, est = false) {
-      const { revenue: R0, costShare } = this.branchBase();
+      const { revenue: R0, costShare, ticket } = this.branchBase();
       const site = this.siteOf(b);
       const size = BRANCH_SIZES[b.size || 'medium'];
       const need = this.branchNeedOf(b.size || 'medium');
@@ -455,13 +455,15 @@
       const premiumHit = site.rich ? 0.94 : 0.82;
       const mf = this.branchMgrFx(b);
       const demand = R0 * traffic * size.draw * clamp((b.rating - 2.4) / 1.4, 0.15, 1.5) * (pm < 1 ? 1.15 : pm > 1 ? premiumHit : 1) * (est ? 1 : 0.9 + this.rng() * 0.2);
-      const cap = (R0 * 1.3 * size.cap * (b.staff + (b.manager ? 1 : 0)) * mf.cap) / need;
+      const cap = ((R0 * 1.3 * size.cap * (b.staff + (b.manager ? 1 : 0)) * mf.cap) / need) * (b.broken > 0 ? 0.8 : 1);
       const sold = Math.min(demand, cap);
       const revenue = sold * pm;
       const materials = sold * costShare * this.costMult.materials * (0.85 + 0.15 * this.idx.oil) * mf.mat;
       const wages = (b.staff * 38 * this.marketWage * wm + mf.wage) * (1 + (this.policy.insurance ? INS_TOTAL : 0));
-      const rent = (this.ind.rent * site.rent * size.rent) / 4;
-      return { revenue, profit: revenue - materials - wages - rent - revenue * 0.01, load, wm, pm, demand, cap };
+      const rent = ((this.ind.rent * site.rent * size.rent) / 4) * (b.rentMult || 1);
+      // 總部管理費：分店兩間以上要有人跑帳、巡店、培訓；有分店店長的分店省一半
+      const fee = this.branches.length >= 2 && !est ? revenue * 0.04 * (b.manager ? 0.5 : 1) : 0;
+      return { revenue, profit: revenue - materials - wages - rent - revenue * 0.01 - fee, load, wm, pm, demand, cap, fee, sold, ticket };
     }
 
     // 選址畫面用：照預設設定估算每週營收和淨利
@@ -489,6 +491,13 @@
         const p = Math.round(r.profit);
         b.revenue = Math.round(r.revenue);
         b.busy = r.demand > r.cap * 1.05; // 客人多到做不完
+        // 換算成人數：想來多少人、服務了多少人、流失多少人
+        b.wantN = Math.round(r.demand / r.ticket);
+        b.servedN = Math.round(r.sold / r.ticket);
+        b.lostN = Math.max(0, b.wantN - b.servedN);
+        b.util = r.cap ? r.sold / r.cap : 0;
+        b.fee = Math.round(r.fee);
+        if (b.broken > 0) b.broken -= 1;
         b.last = p;
         b.total += p;
         b.hist = [...(b.hist || []), p].slice(-12);
@@ -503,6 +512,15 @@
         this.jerk = clamp(this.jerk + 3, 0, JERK_LIMIT);
         this.notify('📰 分店員工在網路上爆料總店的管理方式……', 'bad');
       }
+      // 分店出狀況：士氣、評價先亮警告，撐不住就打電話來；也有房東漲租、設備故障這種意外
+      const issues = [];
+      this.branches.forEach((b, i) => {
+        if (b.morale < 45) issues.push({ i, type: 'morale' });
+        else if (b.rating < 3.6) issues.push({ i, type: 'rating' });
+        else if (this.week - b.week > 8 && !b.rentRaised && this.rng() < 0.07) issues.push({ i, type: 'rent' });
+        else if (!b.broken && this.rng() < 0.03) issues.push({ i, type: 'broken' });
+      });
+      if (issues.length) this.branchIssue = issues[Math.floor(this.rng() * issues.length)];
       return total;
     }
 
@@ -970,7 +988,7 @@
         this.cash -= fine;
         this.ledger.fines += fine;
         this.demandMods.push({ mult: 0.88, days: 10 });
-        this.addReview(1, '看到新聞說這家衛生不合格，不敢再去了');
+        this.addReview(1, '看到新聞說這家衛生不合格，不敢再去了', 'clean');
         this.hygiene.warned = true;
       }
       r.day = this.day;
@@ -1152,7 +1170,7 @@
       } else if (fire) {
         this.demandMods.push({ mult: 0.9, days: 4 });
         this.jerk = clamp(this.jerk + 1, 0, JERK_LIMIT);
-        this.addReview(1, '看到粉專的貼文，不想支持了');
+        this.addReview(1, '看到粉專的貼文，不想支持了', 'image');
         this.notify(`🔥 炎上了：${fire}`, 'bad');
         this.sound('bad');
       } else this.notify(`📱 貼文發出去了：${likes} 個讚`);
@@ -2047,7 +2065,7 @@
     applyRevenge(item) {
       const fx = item.fx;
       if (fx.demand) this.demandMods.push({ mult: fx.demand, days: 5 });
-      if (fx.reviews) for (let i = 0; i < fx.reviews; i++) this.addReview(1, ['普普', '不用排', '隔壁比較好', '價格偏高'][i % 4]);
+      if (fx.reviews) for (let i = 0; i < fx.reviews; i++) this.addReview(1, ['普普', '不用排', '隔壁比較好', '價格偏高'][i % 4], 'rival');
       if (fx.cost) this.costMult.materials += fx.cost;
       if (fx.followers) this.social.followers += fx.followers;
     }
@@ -2195,7 +2213,7 @@
         if (ln.fx === 'followers') this.social.followers += 150 + Math.round(this.rng() * 300);
         if (ln.fx === 'leak') {
           this.jerk = clamp(this.jerk + 3, 0, JERK_LIMIT);
-          this.addReview(1, '聽說這間店下班還要上心靈成長課');
+          this.addReview(1, '聽說這間店下班還要上心靈成長課', 'image');
         }
       }
       this.sound(a.forced ? 'bad' : 'level');
@@ -2286,7 +2304,7 @@
         if (fx.brawl || fx.leave || fx.demoteOf || fx.promoteOf) return;
         if (fx.cash < 0 && -fx.cash > this.cash * 0.6) return; // 不要為了當好人把店搞倒
         const mood = (fx.morale || 0) * 3 + (fx.moodOf ? fx.moodOf.reduce((t, [, d]) => t + d, 0) / 2 : 0);
-        const sc = mood + (fx.cash || 0) / 2000 - (fx.jerk || 0) * 8 - (fx.karenServe ? 1 : 0);
+        const sc = mood + (fx.cash || 0) / 2000 - (fx.jerk || 0) * 8 - (fx.karenServe ? 1 : 0) + (fx.review ? (fx.review[0] - 3) * 4 : 0);
         if (sc > bs) {
           bs = sc;
           best = i;
@@ -2302,6 +2320,7 @@
         if (waited < 30 && this.minute < ev.deadline - 10) continue;
         const i = this.kindChoice(ev);
         if (i < 0) continue;
+        ev.by = '🤖 小幫手';
         const r = this.applyChoice(ev, ev.ev.choices[i]);
         if (r) {
           this.helperSay(this.w(`「${ev.ev.title}」放太久了，幫你選了「${ev.ev.choices[i].label}」`));
@@ -2467,6 +2486,10 @@
       if (first) {
         e.rankDay = this.day;
         e.kpi = { days: 0, served: 0, angry: 0, visitors: 0 };
+        // 記下升職前的樣子，試用期滿時拿來比較
+        const lw = this.history[this.history.length - 1];
+        const others = this.staff.filter((o) => o !== e);
+        e.trialBase = { morale: others.length ? others.reduce((t, o) => t + o.mood, 0) / others.length : 70, angry: lw && lw.visitors ? lw.angry / lw.visitors : this.lastDay && this.lastDay.visitors ? this.lastDay.angry / this.lastDay.visitors : 0.03 };
       }
       this.say(e, e.ambition < 30 ? '我……其實沒有很想當主管……' : `我升${R[rank].name}了！`, 120);
       // 年資、技能比他高卻沒被升的人會不爽；空降的更明顯
@@ -2480,6 +2503,26 @@
         }
       }
       this.notify(`${R[rank].icon} ${e.name} 升為${R[rank].name}！${first ? `試用 14 天，三天後就會知道${e.gender === 'f' ? '她' : '他'}是哪一種主管。` : ''}`, 'good');
+      return true;
+    }
+
+    // 技術職：「資深」不用帶人，時薪 +$15，做事快一點；適合技術好但不想（或不適合）當主管的人
+    seniorBlock(e) {
+      if (!e || e.senior) return '已經是資深了';
+      if (this.day - e.hiredDay < 21) return '到職滿 3 週才能升資深';
+      if (e.skill < 60) return '技能 60 以上才能升資深';
+      return null;
+    }
+
+    promoteSenior(e, force) {
+      if (!e || e.senior || (!force && this.seniorBlock(e))) return false;
+      e.senior = true;
+      e.wage += 15;
+      e.mood = clamp(e.mood + (e.ambition >= 60 ? 8 : 12), 0, 100);
+      e.askDay = this.day;
+      e.asks = 0;
+      this.say(e, '我是資深了！', 100);
+      this.notify(`⭐ ${e.name} 升為資深（技術職，不用帶人，時薪 +$15）`, 'good');
       return true;
     }
 
@@ -2589,12 +2632,14 @@
         const cash = (fx.cash || 0) / 1000;
         const mood = (fx.morale || 0) * 2 + (fx.moodOf ? fx.moodOf.reduce((s, [, d]) => s + d, 0) / 3 : 0);
         const jerk = fx.jerk || 0;
-        if (m.style === 'warm' || m.style === 'mentor') return mood * 2 + cash * 0.5 - jerk * 5;
-        if (m.style === 'strict') return cash * 1.5 + mood * 0.3 - (lowLead ? 0 : jerk * 3);
-        if (m.style === 'numbers') return cash * 2 + mood * 0.5 - jerk * 4;
+        const rv = fx.review ? (fx.review[0] - 3) * (m.lead / 25) : 0; // 會帶人的店長比較懂得顧評價
+        if (m.style === 'warm' || m.style === 'mentor') return mood * 2 + cash * 0.5 - jerk * 5 + rv;
+        if (m.style === 'strict') return cash * 1.5 + mood * 0.3 - (lowLead ? 0 : jerk * 3) + rv;
+        if (m.style === 'numbers') return cash * 2 + mood * 0.5 - jerk * 4 + rv;
         return this.rng() - jerk;
       };
       const best = choices.sort((a, b) => score(b) - score(a))[0];
+      ev.by = `${(Fun.RANKS[m.rank] || {}).name || ''}${m.name}代理`;
       const r = this.applyChoice(ev, best.c);
       if (!r) return null;
       r.by = m;
@@ -2610,6 +2655,17 @@
       if (!C || !this.roster) return;
       const at = () => this.hours.open + 90 + this.rng() * Math.max(60, Math.min(this.hours.span, 600) - 150);
       const onRoster = (e) => this.roster.has(e.id);
+      // 試用期評估優先
+      this.trialQueue = (this.trialQueue || []).filter((id) => this.staff.some((e) => e.id === id && e.rank));
+      const tr = this.trialQueue.map((id) => this.staff.find((e) => e.id === id)).find((e) => onRoster(e));
+      if (tr && C.trial) {
+        this.trialQueue = this.trialQueue.filter((id) => id !== tr.id);
+        const others = this.staff.filter((o) => o !== tr);
+        const base = tr.trialBase || { morale: 70, angry: 0.03 };
+        const st = { moraleBefore: base.morale, angryBefore: base.angry, moraleNow: others.length ? others.reduce((t, o) => t + o.mood, 0) / others.length : 70, angryNow: tr.kpi.visitors ? tr.kpi.angry / tr.kpi.visitors : 0 };
+        this.pendingEvents.push({ ev: C.trial(this, tr, st), at: this.hours.open + 30, where: 'staff', staffPref: tr });
+        return;
+      }
       const ask = this.staff.find((e) => !e.rank && onRoster(e) && e.ambition >= 60 && this.day - e.hiredDay >= 14 && e.skill >= 50 && this.day - (e.askDay || -99) >= 14);
       if (ask && this.rng() < 0.18 * this.diff.events) {
         ask.askDay = this.day;
@@ -2653,7 +2709,8 @@
           const bad = e.lead < 35;
           this.notify(`🔍 ${e.name} 當主管三天了：原來是「${st.icon} ${st.name}」，領導力 ${e.lead}${good ? '，很會帶人！' : bad ? '……其實不太會帶人（試用期內降職不傷感情）' : '。'}`, good ? 'good' : bad ? 'bad' : '');
         }
-        if (d === 14) this.notify(`✅ ${e.name} 通過主管試用期。`, 'good');
+        // 試用期滿：下次上班時跳出評估
+        if (d === 14 && !(this.trialQueue || []).includes(e.id)) (this.trialQueue = this.trialQueue || []).push(e.id);
       }
     }
 
@@ -2808,6 +2865,11 @@
     rotateRest(i, wd) {
       const off = Math.round((i * 7) / Math.max(1, this.staff.length));
       return (wd + off) % 7 < 2;
+    }
+
+    // 最近到職的一般員工（事件用：新人沒人教、離職代辦）
+    newestStaff(maxDays, maxSkill = 101) {
+      return this.staff.filter((e) => !e.rank && this.day - e.hiredDay <= maxDays && e.skill < maxSkill).sort((a, b) => b.hiredDay - a.hiredDay)[0] || null;
     }
 
     // 一週每天每班大概有幾個人（固定班先算，「自動」的平均分到人少的班），跟服務位比
@@ -3191,7 +3253,7 @@
       if (reason === 'angry' && wasWaiting) {
         this.today.angry++;
         this.sound('angry');
-        this.addReview(1 + (this.rng() < 0.3 ? 1 : 0), this.pickComment('angry', c));
+        this.addReview(1 + (this.rng() < 0.3 ? 1 : 0), this.pickComment('angry', c), 'wait');
         this.popup(c, '😡', 'bad');
       } else if (reason === 'tooLong') {
         this.today.balked++;
@@ -3203,7 +3265,7 @@
       } else if (reason === 'soldOut') {
         this.today.soldOut++;
         this.popup(c, '賣完了😢', 'bad');
-        if (this.rng() < 0.25) this.addReview(2, this.isFood ? `想{w:eat}${c.product.name}結果賣完了` : `想來${c.product.name}，結果說材料用完了`);
+        if (this.rng() < 0.25) this.addReview(2, this.isFood ? `想{w:eat}${c.product.name}結果賣完了` : `想來${c.product.name}，結果說材料用完了`, 'soldout');
       }
       if (c.obj) this.refreshQueue(c.obj);
       c.obj = null;
@@ -3253,6 +3315,9 @@
       const clean = this.cleanliness;
       if (clean < 70) stars -= (70 - clean) / 35;
       else if (clean > 90) stars += 0.15;
+      // 記下扣最多分的原因，評論會照這個寫，評論面板也會統計
+      const minus = { wait: (c.waited / c.patience) * 2, price: ratio > 1.1 ? (ratio - 1.1) * 4 * sens : 0, service: e && e.mood < 55 ? (55 - e.mood) / 90 + 0.2 : 0, hot: this.isSummer && !this.cooling ? 0.4 : 0, clean: clean < 70 ? (70 - clean) / 35 : 0 };
+      c.whyLow = Object.keys(minus).reduce((a, k) => (minus[k] > minus[a] ? k : a), 'wait');
 
       const o = c.obj;
       if (c.lane) c.lane.customer = null;
@@ -3288,12 +3353,14 @@
     }
 
     reviewFor(c) {
-      if (this.rng() < 0.55) this.addReview(c.stars, this.pickComment(c.stars >= 4 ? 'good' : c.stars >= 3 ? 'ok' : 'bad', c));
+      if (this.rng() < 0.55) this.addReview(c.stars, this.pickComment(c.stars >= 4 ? 'good' : c.stars >= 3 ? 'ok' : 'bad', c), c.stars >= 4 ? null : c.whyLow);
       this.popup(c, c.stars >= 4.5 ? '😍' : c.stars >= 3.5 ? '🙂' : c.stars >= 2.5 ? '😐' : '😠', c.stars >= 3.5 ? 'good' : 'bad');
     }
 
-    addReview(stars, text) {
-      this.reviews.push({ stars, text: this.w(text), day: this.day });
+    // why：低分的原因（wait 排隊、price 價格、service 服務、hot 太熱、clean 衛生、soldout 缺貨、image 形象、rival 對手、event 事件）
+    addReview(stars, text, why) {
+      if (stars <= 3 && !why) why = 'event';
+      this.reviews.push({ stars, text: this.w(text), day: this.day, why: why || undefined });
       if (stars >= 5) this.gainXp(3);
       if (this.reviews.length > 200) this.reviews.shift();
       if (this.reviews.length >= 30 && this.rating >= 4.5) this.achieve('rating');
@@ -3304,7 +3371,7 @@
       const pools = {
         good: [this.w(`${p}{w:good}，會再來！`), '老闆和員工都很親切', '店裡乾淨又舒服', `${p}CP 值很高`, this.w('{w:serve}超快，上班族救星'), '店員很有耐心'],
         ok: [`${p}還可以`, '中規中矩', '有點小貴', '等有點久，但還行'],
-        bad: this.cleanliness < 55 ? ['桌子黏黏的，地上也髒髒的', '店裡有點髒，衛生堪慮', '等太久了'] : ['等太久了', '店員看起來很累，態度普通', '價格偏高', '店裡好熱'],
+        bad: { wait: ['等太久了', '排隊排到腳痠'], price: ['價格偏高', '這個價錢有點不划算'], service: ['店員看起來很累，態度普通', '店員臉好臭'], hot: ['店裡好熱', '沒有冷氣熱到流汗'], clean: ['桌子黏黏的，地上也髒髒的', '店裡有點髒，衛生堪慮'] }[(c && c.whyLow) || 'wait'],
         angry: ['等了快二十分鐘都沒人理，直接走人', '排隊排到天荒地老', '人手明顯不夠，老闆不請人嗎'],
       };
       let arr = pools[kind];
@@ -3558,6 +3625,7 @@
       if (this.isSummer && !this.cooling) s *= 0.92;
       s *= this.teamFx().speed;
       if (e.rank && e.style === 'slacker' && e.revealed) s *= (Fun.STYLES || {}).slacker ? Fun.STYLES.slacker.self : 1;
+      if (e.senior) s *= 1.05;
       return s;
     }
 
@@ -3886,6 +3954,7 @@
             (!e.industries || e.industries.some((x) => cats.includes(x) || x === this.ind.id)) &&
             (!e.months || e.months.includes(this.monthOfYear)) &&
             (!e.cond || e.cond(this.eventCtx)) &&
+            (!e.target || e.target(this)) &&
             !this.usedEvents.has(e.id)
         );
         if (!eligible.length) {
@@ -3895,7 +3964,9 @@
         const ev = eligible[Math.floor(this.rng() * eligible.length)];
         this.usedEvents.add(ev.id);
         const at = this.policy.open + 30 + this.rng() * Math.max(60, Math.min(this.span, 900) - 90);
-        this.pendingEvents.push({ ev, at, where: ev.where || 'staff' });
+        // 有指定對象的事件（新人、能幹的員工）：記下是誰，文字和結果都會用這個人
+        const subject = ev.target ? ev.target(this) : null;
+        this.pendingEvents.push({ ev, at, where: ev.where || 'staff', subject, staffPref: subject });
       }
       // 年底的年終
       if (this.monthOfYear === 12 && this.week % WEEKS_PER_MONTH === 0 && this.weekday === 5) {
@@ -3904,6 +3975,12 @@
       }
       this.planSocialEvents();
       this.planCareerEvents();
+      // 一般客訴：有時候是店裡真的做錯，有時候是客人誤會
+      if (Fun.complaintEvent && this.rng() < 0.22 * this.diff.events) {
+        const at = this.hours.open + 60 + this.rng() * Math.max(60, Math.min(this.hours.span, 600) - 120);
+        const pend = { ev: null, at, where: 'staff', complaint: this.rng() < 0.55 ? 'legit' : 'misread' };
+        this.pendingEvents.push(pend);
+      }
       if (this.rivalNews && this.rival) {
         this.rivalNews = false;
         this.pendingEvents.push({ ev: rivalEvent(this), at: this.hours.open + 40, where: 'door' });
@@ -3913,6 +3990,11 @@
         const item = Fun.REVENGE[Math.floor(this.rng() * Fun.REVENGE.length)];
         this.applyRevenge(item);
         this.pendingEvents.push({ ev: this.revengeEvent(item), at: this.hours.open + 60, where: 'phone' });
+      }
+      if (this.branchIssue && this.branches[this.branchIssue.i]) {
+        const iss = this.branchIssue;
+        this.branchIssue = null;
+        this.pendingEvents.push({ ev: branchIssueEvent(this, iss.i, iss.type), at: this.hours.open + 50, where: 'phone' });
       }
       if (this.rivalPoach) {
         const e = this.staff.find((x) => x.id === this.rivalPoach);
@@ -3933,9 +4015,10 @@
           if (!both) continue;
           this.fightDay = this.fightDay || {};
           const fk = this.relKey(a, b);
-          if (v <= -35 && this.day - (this.fightDay[fk] ?? -99) >= 7 && this.rng() < 0.3) {
+          // 人越多配對越多，單一配對吵架的機率要調低，不然大團隊天天在吵
+          if (v <= -35 && this.day - (this.fightDay[fk] ?? -99) >= 7 && this.rng() < 0.3 * Math.min(1, 6 / Math.max(6, this.staff.length))) {
             this.fightDay[fk] = this.day;
-            this.pendingEvents.push({ ev: fightEvent(a, b), at: at(), where: 'staff', staffPref: a });
+            this.pendingEvents.push({ ev: fightEvent(a, b, this), at: at(), where: 'staff', staffPref: a });
           }
           const k = this.relKey(a, b);
           if (v >= 85 && a.gender !== b.gender && !this.romanced.has(k) && this.rng() < 0.2) {
@@ -3950,8 +4033,11 @@
       const working = this.staff.filter((e) => e.state === 'working' || e.state === 'break');
       if (p.where === 'staff') {
         if (!working.length) return;
+        // 指定對象今天沒來或已經離職：這件事就不發生
+        if (p.subject && !working.includes(p.subject)) return;
         p.staff = p.staffPref && working.includes(p.staffPref) ? p.staffPref : working[Math.floor(this.rng() * working.length)];
       }
+      if (p.complaint) p.ev = Fun.complaintEvent(this, p.complaint, p.staff);
       p.spawnedAt = this.minute;
       p.deadline = this.minute + (p.karen ? 60 : { staff: 150, phone: 50, door: 70 }[p.where]);
       p.id = uid++;
@@ -3981,10 +4067,18 @@
       if (fx.morale) for (const e of this.staff) e.mood = clamp(e.mood + fx.morale * (e === ev.staff ? 1.5 : 1), 0, 100);
       if (fx.jerk) this.jerk = clamp(this.jerk + fx.jerk, 0, JERK_LIMIT);
       if (fx.staff > 0) this.addEmployee(this.makeCandidate());
+      const left = [];
+      const leave = (who, why) => {
+        if (!who || !this.staff.includes(who)) return;
+        left.push({ name: who.name, rank: who.rank && Fun.RANKS && Fun.RANKS[who.rank] ? Fun.RANKS[who.rank].name : null, days: this.day - who.hiredDay, why });
+        this.removeEmployee(who);
+      };
       if (fx.staff < 0) {
-        const who = ev.staff && this.staff.includes(ev.staff) ? ev.staff : this.staff[Math.floor(this.rng() * this.staff.length)];
+        // 誰離開：事件指定的人＞來找你的人＞最資淺的一般員工（不會隨便抽走主管）
+        const pool = this.staff.filter((e) => !e.rank).sort((a, b) => b.hiredDay - a.hiredDay);
+        const who = (ev.subject && this.staff.includes(ev.subject) && ev.subject) || (ev.staff && this.staff.includes(ev.staff) && ev.staff) || pool[0] || this.staff[this.staff.length - 1];
         if (who) {
-          this.removeEmployee(who);
+          leave(who, '離職');
           this.notify(`🚪 ${who.name} 離開了公司。`, 'bad');
         }
       }
@@ -4001,18 +4095,40 @@
       }
       if (fx.demand) this.demandMods.push({ mult: fx.demand.mult, days: fx.demand.months * 7 });
       if (fx.flag) this.flags.add(fx.flag);
+      if (fx.branch && this.branches[fx.branch.i]) {
+        const b = this.branches[fx.branch.i];
+        const f = fx.branch;
+        if (f.morale) b.morale = clamp(b.morale + f.morale, 0, 100);
+        if (f.rating) b.rating = clamp(b.rating + f.rating, 1, 5);
+        if (f.wage) b.wage = f.wage;
+        if (f.price) b.price = f.price;
+        if (f.reno) b.reno = Math.min(3, b.reno + f.reno);
+        if (f.rentMult) {
+          b.rentMult = (b.rentMult || 1) * f.rentMult;
+          b.rentRaised = true;
+        }
+        if (f.broken != null) b.broken = f.broken;
+        if (f.staff) b.staff = clamp(b.staff + f.staff, 1, 16);
+      }
+      // 今天停業（颱風假）：員工回家、店裡的客人請他們改天再來
+      if (fx.closeToday) {
+        this.shutDay = this.day;
+        for (const e of this.staff) if (e.state === 'working' || e.state === 'break') this.sendHome(e);
+        for (const c of [...this.customers]) if (!c.supplier && !c.inspector && c.state !== 'leaving') this.customerLeave(c, 'closed');
+        this.notify('🌀 店門口貼上「颱風停業一天」，今天不營業，明天照常。');
+      }
       const byId = (id) => this.staff.find((x) => x.id === id);
       if (fx.promo) this.startPromo(fx.promo);
       if (fx.rivalHit && this.rival) this.rival.strength = clamp(this.rival.strength - fx.rivalHit, 0, 1);
       if (fx.raiseOf && byId(fx.raiseOf[0])) byId(fx.raiseOf[0]).wage += fx.raiseOf[1];
       if (fx.leave && byId(fx.leave)) {
         const who = byId(fx.leave);
-        this.removeEmployee(who);
+        leave(who, '跳槽');
         this.notify(`🚪 ${who.name} 跳槽到${this.rival ? this.rival.name : '別家店'}了。`, 'bad');
       }
       if (fx.leave2 && byId(fx.leave2)) {
         const who = byId(fx.leave2);
-        this.removeEmployee(who);
+        leave(who, '跟著走了');
         this.notify(`🚪 ${who.name} 也跟著走了。`, 'bad');
       }
       if (fx.promoteOf && byId(fx.promoteOf[0])) {
@@ -4022,11 +4138,17 @@
           this.notify(`🎖️ 組長名額滿了，${who.name}只能先等等。`, 'bad');
         }
       }
-      if (fx.demoteOf && byId(fx.demoteOf)) this.demote(byId(fx.demoteOf));
+      if (fx.demoteOf && byId(fx.demoteOf)) {
+        if (fx.trialDemote) byId(fx.demoteOf).rankDay = this.day; // 評估時降回原職：算在試用期內，不傷感情
+        this.demote(byId(fx.demoteOf));
+      }
+      if (fx.extendTrial && byId(fx.extendTrial)) byId(fx.extendTrial).rankDay = this.day - 7;
+      if (fx.seniorOf && byId(fx.seniorOf)) this.promoteSenior(byId(fx.seniorOf), true);
       if (fx.askLater && byId(fx.askLater)) {
         const who = byId(fx.askLater);
         who.asks = (who.asks || 0) + 1;
         who.askDay = this.day;
+        who.askSnap = { day: this.day, skill: Math.round(who.skill), lead: who.leadSeen };
       }
       if (fx.lead && byId(fx.lead[0])) byId(fx.lead[0]).lead = clamp(byId(fx.lead[0]).lead + fx.lead[1], 0, 100);
       if (fx.talkLeader && byId(fx.talkLeader)) {
@@ -4063,7 +4185,7 @@
         this.notify('📱 「老闆嗆奧客」的影片被路人上傳，網友狂刷「這老闆可以」！', 'achieve');
         this.achieve('karen');
       }
-      if (fx.karenReview) this.addReview(1, fx.karenReview);
+      if (fx.karenReview) this.addReview(1, fx.karenReview, 'image');
       if (fx.fakeReviews) for (let i = 0; i < fx.fakeReviews; i++) this.addReview(5, '老闆很帥');
       if (fx.review) this.addReview(fx.review[0], fx.review[1]);
       if (fx.grudge && this.rival) this.rival.grudge = Math.max(0, (this.rival.grudge || 0) + fx.grudge);
@@ -4074,7 +4196,10 @@
       const after = { cash: this.cash, morale: Math.round(this.morale), jerk: Math.round(this.jerk), staff: this.staff.length };
       const delta = Object.fromEntries(Object.keys(after).map((k) => [k, Math.round(after[k] - before[k])]));
       this.checkEnding();
-      return { event: ev.ev, choice, delta };
+      // 事件紀錄：什麼事、誰、選了什麼、誰處理的、結果
+      const who = ev.subject || ev.staff || null;
+      this.eventLog = [{ day: this.day, time: this.clockLabel, icon: ev.ev.icon, title: this.w(ev.ev.title.replace(/\{who\}/g, who ? who.name : '員工')), who: who ? who.name : null, choice: this.w(choice.label || ''), by: ev.by || '你', delta, left }, ...(this.eventLog || [])].slice(0, 60);
+      return { event: ev.ev, choice, delta, left, by: ev.by || '你' };
     }
 
     resolve(ev, index) {
@@ -4083,6 +4208,7 @@
 
     ignoreEvent(ev) {
       if (this.delegateEvent(ev)) return;
+      ev.by = '逾時沒處理';
       const r = this.applyChoice(ev, ev.ev.ignore || IGNORE[ev.where]);
       if (r && this.cb.ignored) this.cb.ignored(r, ev);
     }
@@ -4294,6 +4420,15 @@
 
       // 每四週是一個月：物價、油價、電價
       if ((this.week - 1) % WEEKS_PER_MONTH === 0) report.news = this.advanceEconomy();
+      // 長期目標
+      const br = this.branches;
+      if (br.length >= 5 && br.every((b) => b.rating >= 4.5)) this.achieve('chain5');
+      if (br.filter((b) => b.manager).length >= 3) this.achieve('mentor3');
+      if (profit >= 500000) this.achieve('week500');
+      if (br.length >= 3 && this.morale >= 85 && br.every((b) => b.morale >= 75)) this.achieve('allhappy');
+      if (this.week - 1 >= 96) this.achieve('year2');
+      report.home = profit - (L.branches || 0);
+      report.branchDetail = br.map((b) => ({ name: `${this.siteOf(b).city}${b.district}`, last: b.last, fee: b.fee || 0, lostN: b.lostN || 0 }));
       this.history.push(report);
       this.ledger = this.emptyLedger();
       this.candidates = this.rollCandidates();
@@ -4467,6 +4602,8 @@
         schemes: this.schemes,
         wonYear: !!this.wonYear,
         ledger: this.ledger,
+        eventLog: (this.eventLog || []).slice(0, 40),
+        savedAt: Date.now(),
       });
     }
 
@@ -4477,6 +4614,7 @@
       s.setLot(d.lotIdx);
       for (const [t, x, z, r] of d.objects) s.place(t, x, z, r, true);
       if (d.ledger) s.ledger = { ...s.emptyLedger(), ...d.ledger };
+      s.eventLog = d.eventLog || [];
       Object.assign(s, { day: d.day, cash: d.cash, loan: d.loan, jerk: d.jerk, reviews: d.reviews, prices: d.prices, menu: d.menu, policy: { ...s.policy, ...d.policy }, idx: d.idx, costMult: d.costMult, history: d.history, cleanWeeks: d.cleanWeeks || 0 });
       if (d.stock) {
         for (const g of s.ind.stock) {
@@ -4543,23 +4681,69 @@
   ];
 
   // 人際關係事件
-  function fightEvent(a, b) {
+  // 分店打電話來：要你決定怎麼處理
+  function branchIssueEvent(sim, i, type) {
+    const b = sim.branches[i];
+    const site = sim.siteOf(b);
+    const name = `${site.city}${b.district}店`;
+    const who = b.manager ? `店長${b.manager.name}` : '分店的資深員工';
+    const reno = sim.renoCost;
+    const base = { icon: '🏙️', where: 'phone', speaker: { look: 'caller', name } };
+    if (type === 'morale')
+      return { ...base, id: 'br_morale', title: `${name}的員工快撐不住了`, text: `${who}打電話來：「老闆，這裡的人一直加班、薪水又比隔壁低，群組裡已經有人在問離職流程了。」（士氣 ${Math.round(b.morale)}）`, choices: [
+        { label: '親自去分店坐鎮一天，聽大家說', effects: { cash: -6000, branch: { i, morale: 18 }, jerk: -1 }, result: `你跟${name}的員工吃了一頓便當，聽了很多以前不知道的事。回來的路上你把要改的東西記滿了一頁。` },
+        { label: '分店時薪調到高於行情', effects: { branch: { i, wage: 'high', morale: 10 } }, result: '公告一貼出去，群組裡出現一排「老闆讚」。成本會高一點，但人比較留得住。' },
+        { label: '多派一個人過去幫忙', effects: { cash: -3000, branch: { i, staff: 1, morale: 8 } }, result: '多一個人，排班終於排得開了。' },
+        { label: '「撐一下，大家都很辛苦」', quote: '年輕人要多吃苦。', effects: { branch: { i, morale: -8 }, jerk: 3 }, result: `電話那頭沉默了很久。隔週${name}有兩個人遞了辭呈。` },
+      ], ignore: { effects: { branch: { i, morale: -10, rating: -0.2 } }, result: '沒人回電話，分店的士氣又掉了一截。' } };
+    if (type === 'rating')
+      return { ...base, id: 'br_rating', title: `${name}的評價一直掉`, text: `${who}傳來截圖：最近的評論幾乎都是「等很久」「態度普通」，評價剩 ${b.rating.toFixed(1)} 顆星。`, choices: [
+        ...(b.reno < 3 ? [{ label: `改裝店面（${'$' + reno.toLocaleString()}）`, effects: { cash: -reno * 2, branch: { i, reno: 1, rating: 0.3, morale: 5 } }, result: '店面煥然一新，客人走進來的表情都不一樣了。' }] : []),
+        { label: '派本店的老手去支援一週', effects: { cash: -8000, branch: { i, rating: 0.35 } }, result: '老手把流程重新教了一遍，出錯少了很多。' },
+        { label: '推一週便宜價，先把客人拉回來', effects: { branch: { i, price: 'cheap', rating: 0.15 } }, result: '人潮回來了，只是毛利薄了一點。（之後記得調回一般價）' },
+      ], ignore: { effects: { branch: { i, rating: -0.15 } }, result: '問題沒處理，評價又往下掉了一點。' } };
+    if (type === 'rent')
+      return { ...base, id: 'br_rent', speaker: { look: 'landlord', name: `${name}的房東` }, title: `${name}的房東要漲房租`, text: '房東打電話來：「隔壁都租更貴了，下個月起房租漲百分之十五，不然我租給別人。」', choices: [
+        { label: '接受漲價', effects: { branch: { i, rentMult: 1.15 } }, result: '房東很滿意，還說「你們很好溝通」。' },
+        { label: '帶著禮盒去談，簽長約換小漲', effects: { cash: -2000, branch: { i, rentMult: sim.rng() < 0.65 ? 1.05 : 1.12 } }, result: '你帶著店裡的招牌和禮盒去坐了一個下午，房東態度軟化不少。' },
+        { label: '「那我搬走好了」', effects: { branch: { i, rentMult: sim.rng() < 0.4 ? 1 : 1.25 } }, result: '房東愣了一下……結果要看他吃不吃這套。' },
+      ], ignore: { effects: { branch: { i, rentMult: 1.15 } }, result: '你沒回應，房東直接寄了新合約。' } };
+    return { ...base, id: 'br_broken', title: `${name}的設備壞了`, text: `${who}說：「主要的那台設備今天早上壞了，現在只能用備用的，速度慢很多。」`, choices: [
+      { label: '馬上叫廠商來修', effects: { cash: -12000, branch: { i, broken: 0 } }, result: '師傅當天就來修好了，只是維修費不便宜。' },
+      { label: '先撐著，等兩週後的保固維修', effects: { branch: { i, broken: 2, morale: -4 } }, result: '接下來兩週，分店的容量少了兩成，員工也比較累。' },
+    ], ignore: { effects: { branch: { i, broken: 2 } }, result: '沒人處理，分店只好用備用設備撐兩週。' } };
+  }
+
+  // 員工吵架：原因、結果都會變；同一對吵第二次以上，私下調解的效果會變差，要用別的方法
+  function fightEvent(a, b, sim) {
     const ids = [a.id, b.id];
+    const rng = sim ? sim.rng : Math.random;
+    const pick = (arr) => arr[Math.floor(rng() * arr.length)];
+    const k = sim ? sim.relKey(a, b) : '';
+    const nth = sim ? ((sim.fightCount = sim.fightCount || {})[k] = (sim.fightCount[k] || 0) + 1) : 1;
+    const why = pick(['誰該去{w:chore}、誰又偷懶', '排班不公平，誰的假日比較多', '一個人做事很快、一個人覺得被催', '冷氣該開幾度', '誰把對方的飲料喝掉了', '對方在群組已讀不回', '交接沒交清楚，被客人罵的是自己']);
+    const mgr = sim && sim.staff.find((e) => e.rank === 'manager' && e !== a && e !== b && (e.state === 'working' || e.state === 'break'));
+    const talk = nth <= 1
+      ? pick(['你泡了兩杯茶讓他們把話說開，最後兩個人都笑了出來。', '你請兩個人去騎樓買雞排，回來的時候已經在討論下次要吃哪一家。', '你讓兩個人各說五分鐘不准插嘴，說完發現其實是同一件事的誤會。'])
+      : pick(['又是這兩個人……你調解了，但兩個人的表情都寫著「下次再說」。', '他們這次比較快和好，但你看得出來問題還在，可能要換個方法。']);
+    const choices = [
+      { label: nth <= 1 ? '把兩個人找來，私下調解' : '再私下調解一次', effects: { rel: [...ids, nth <= 1 ? 30 : 15], moodOf: [[a.id, 4], [b.id, 4]], jerk: -1 }, result: talk },
+      { label: '把他們排到不同班', note: '之後盡量不排同一班', effects: { rel: [...ids, 5], separate: ids }, result: pick(['眼不見為淨，至少店裡的氣氛恢復正常了。', '兩個人分開之後各自都做得很好，只是交接時還是不太說話。']) },
+    ];
+    if (nth >= 2) choices.push({ label: '送兩個人去上團隊溝通課', note: '$3,000・關係大幅改善', effects: { cash: -6000, rel: [...ids, 45], moodOf: [[a.id, 2], [b.id, 2]] }, result: '課程要兩人一組完成任務。回來之後他們有了共同的笑話：「講師說我們是最需要溝通的一組。」' });
+    if (mgr) choices.push({ label: `請店長${mgr.name}處理`, effects: { rel: [...ids, mgr.style === 'warm' || mgr.style === 'mentor' ? 35 : mgr.style === 'strict' ? 10 : 20], moodOf: mgr.style === 'strict' ? [[a.id, -4], [b.id, -4]] : [[a.id, 3], [b.id, 3]] }, result: mgr.style === 'strict' ? `${mgr.name}把兩個人叫去罵了一頓，問題壓下來了，但大家都有點怕。` : `${mgr.name}找了兩個人分開聊，再一起排了新的分工表，這次應該能撐比較久。` });
+    choices.push({
+      label: '「吵什麼吵，都給我閉嘴做事！」',
+      quote: '上班是來工作的，不是來交朋友的。',
+      effects: { rel: [...ids, -15], moodOf: [[a.id, -10], [b.id, -10]], jerk: 5 },
+      result: pick(['兩個人都不吭聲了，但下班後各自在群組裡抱怨了一個小時。', '店裡安靜到只剩抽風機的聲音，客人都不敢大聲說話。']),
+    });
     return {
       id: 'rel_fight',
       icon: '💢',
-      title: `${a.name}跟${b.name}吵架了`,
-      text: `${a.name}和${b.name}為了誰該去洗碗、誰又偷懶吵了起來，整間店的氣氛都很僵，客人也在看。`,
-      choices: [
-        { label: '把兩個人找來，私下調解', effects: { rel: [...ids, 30], moodOf: [[a.id, 4], [b.id, 4]], jerk: -1 }, result: '你泡了兩杯茶讓他們把話說開，最後兩個人都笑了出來。' },
-        { label: '把他們排到不同班', note: '之後盡量不排同一班', effects: { rel: [...ids, 5], separate: ids }, result: '眼不見為淨，至少店裡的氣氛恢復正常了。' },
-        {
-          label: '「吵什麼吵，都給我閉嘴做事！」',
-          quote: '上班是來工作的，不是來交朋友的。',
-          effects: { rel: [...ids, -15], moodOf: [[a.id, -10], [b.id, -10]], jerk: 5 },
-          result: '兩個人都不吭聲了，但下班後各自在群組裡抱怨了一個小時。',
-        },
-      ],
+      title: `${a.name}跟${b.name}${nth >= 2 ? `又吵架了（第 ${nth} 次）` : '吵架了'}`,
+      text: `${a.name}和${b.name}為了${why}吵了起來，整間店的氣氛都很僵，客人也在看。${nth >= 2 ? '這已經不是第一次了。' : ''}`,
+      choices,
       ignore: { effects: { rel: [...ids, -10], moodOf: [[a.id, -5], [b.id, -5]] }, result: '你假裝沒看到，兩個人冷戰了一整天。' },
     };
   }
@@ -4586,6 +4770,17 @@
 
   // 奧客上門：老闆可以親自下場嘴砲對決
   function karenEvent(sim, k, victim) {
+    const ev = karenEventRaw(sim, k, victim);
+    // 選項順序打亂，每次都要看清楚再選
+    const c = [...ev.choices];
+    for (let i = c.length - 1; i > 0; i--) {
+      const j = Math.floor(sim.rng() * (i + 1));
+      [c[i], c[j]] = [c[j], c[i]];
+    }
+    return { ...ev, choices: c };
+  }
+
+  function karenEventRaw(sim, k, victim) {
     const v = victim ? victim.name : '店員';
     return {
       id: 'karen_' + k.id,
@@ -4685,6 +4880,12 @@
     { id: 'shopcat', name: '店長是貓', desc: '收養一隻店貓', reward: 5000 },
     { id: 'karen', name: '奧客剋星', desc: '在奧客擂台嗆贏奧客，影片爆紅', reward: 15000 },
     { id: 'rival', name: '隔壁收攤了', desc: '撐過競爭，讓隔壁的對手收起來', reward: 40000 },
+    // 長期目標：拿到金獎之後還有事做
+    { id: 'chain5', name: '五星連鎖', desc: '開 5 間分店，而且每間評價都在 4.5 星以上', reward: 300000, long: true },
+    { id: 'mentor3', name: '店長養成所', desc: '同時有 3 間分店由你培養的店長管理', reward: 150000, long: true },
+    { id: 'week500', name: '一週淨賺五十萬', desc: '單週淨利超過 $500,000', reward: 100000, long: true },
+    { id: 'allhappy', name: '全公司都想待', desc: '本店員工平均心情 85 以上，所有分店士氣也在 75 以上（至少 3 間分店）', reward: 120000, long: true },
+    { id: 'year2', name: '老字號', desc: '經營滿兩年（96 週）', reward: 200000, long: true },
   ];
 
   VIOLATIONS.noRestDay = VIOLATIONS.noRestDay || { label: '未依法排休（七休一）', fine: 60000 };

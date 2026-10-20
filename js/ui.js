@@ -124,10 +124,17 @@
     try {
       const d = JSON.parse(raw);
       const si = INDUSTRIES.find((i) => i.id === d.ind);
-      return { icon: si ? si.icon : '🏪', ind: si ? si.name : '', shop: d.shopName, day: d.day, cash: d.cash, month: Math.floor((d.day - 1) / 28) + 1, branches: (d.branches || []).length };
+      return { icon: si ? si.icon : '🏪', ind: si ? si.name : '', shop: d.shopName, day: d.day, cash: d.cash, month: Math.floor((d.day - 1) / 28) + 1, week: Math.floor((d.day - 1) / 7) + 1, branches: (d.branches || []).length, savedAt: d.savedAt || null };
     } catch (e) {
       return null;
     }
+  }
+  // 存檔時間：今天顯示幾點幾分，其他天顯示日期
+  function savedLabel(t) {
+    const d = new Date(t);
+    const pad = (n) => String(n).padStart(2, '0');
+    const today = new Date().toDateString() === d.toDateString();
+    return today ? `今天 ${pad(d.getHours())}:${pad(d.getMinutes())}` : `${d.getMonth() + 1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
   }
   const firstEmptySlot = () => SLOTS.find((n) => !loadSlot(n)) || 1;
 
@@ -199,7 +206,7 @@
           ${SLOTS.map((n) => {
             const i = infos[n];
             return i
-              ? `<div class="slot card"><span class="slot-no">${n}</span><div class="slot-info"><b>${i.icon} ${esc(i.shop)}</b><small>${i.ind}・第 ${i.month} 個月（第 ${i.day} 天）・現金 ${money(i.cash)}${i.branches ? `・分店 ${i.branches} 間` : ''}</small></div>
+              ? `<div class="slot card"><span class="slot-no">${n}</span><div class="slot-info"><b>${i.icon} ${esc(i.shop)}</b><small>${i.ind}・第 ${i.week} 週（第 ${i.day} 天）・現金 ${money(i.cash)}${i.branches ? `・分店 ${i.branches} 間` : ''}${i.savedAt ? `・存於 ${savedLabel(i.savedAt)}` : ''}</small></div>
                   <div class="slot-actions"><button class="primary" data-action="continue" data-slot="${n}">繼續</button><button data-action="export-slot" data-slot="${n}" title="匯出成檔案">📤</button><button data-action="delete-slot" data-slot="${n}" class="${ui.confirmDelete === n ? 'danger' : ''}" title="刪除">${ui.confirmDelete === n ? '確定刪除' : '🗑️'}</button></div></div>`
               : `<div class="slot card empty"><span class="slot-no">${n}</span><div class="slot-info"><b>空的存檔</b><small>開新店會存在這裡</small></div></div>`;
           }).join('')}
@@ -475,7 +482,7 @@
     const sim = ui.sim;
     if (!sim) return;
     // 打開員工、庫存、經營這些面板時自動暫停（可以在選單關掉）
-    ui.panelPause = ui.autoPause && ['staff', 'stock', 'manage', 'social', 'goals', 'ledger'].includes(ui.tab);
+    ui.panelPause = ui.autoPause && ['staff', 'stock', 'manage', 'social', 'goals', 'ledger', 'reviews', 'build'].includes(ui.tab);
     const blocked = !!ui.dialog || ui.panelPause;
     if (!blocked && ui.speed > 0 && !sim.over) {
       // 打烊、沒人在店裡時自動快轉
@@ -831,7 +838,10 @@
     const cl = Math.round(s.cleanliness);
     txt('clean', `🧽 ${cl}`);
     f('clean').classList.toggle('neg', cl < 60);
-    txt('status', ui.panelPause ? '⏸ 看面板中，暫停' : ui.nightSkip ? '⏩ 打烊中，快轉' : s.isOpen ? '營業中' : s.openToday ? '休息中' : '今天公休');
+    // 時間狀態和店的狀態分開寫，不會暫停了還寫「營業中」讓人以為時間在跑
+    const clock = ui.dialog ? '⏸ 暫停' : ui.panelPause ? '⏸ 看面板暫停' : ui.speed === 0 ? '⏸ 已暫停' : ui.nightSkip ? '⏩ 打烊快轉' : { 2: '▶ 正常速度', 5: '▶▶ 快轉', 12: '▶▶▶ 超快' }[ui.speed] || '▶';
+    const shop = s.shutDay === s.day ? '🌀 今天停業' : s.isOpen ? '營業中' : s.openToday ? '休息中' : '今天公休';
+    txt('status', `${clock}・${shop}`);
     f('clockbox').classList.toggle('open', s.isOpen);
     txt('lv', `Lv.${s.level}`);
     width('lvbar', s.levelProgress * 100);
@@ -1283,7 +1293,7 @@
               const sh = s.shiftOf(e);
               const sel = ui.inspect && ui.inspect.ref === e;
               return `<div class="st-row ${sel ? 'sel' : ''} ${e.mood < 30 ? 'risk' : ''}">
-                <button class="st-who" data-action="insp-staff" data-id="${e.id}"><span class="mini-face">${portraitSVG(e.look, moodOf(e))}</span><span><b>${e.rank && Fun.RANKS[e.rank] ? `${Fun.RANKS[e.rank].icon} ` : ''}${esc(e.name)}${e.rank && Fun.RANKS[e.rank] ? `<em class="rank">${Fun.RANKS[e.rank].name}${e.revealed && Fun.STYLES[e.style] ? `・${Fun.STYLES[e.style].icon}${Fun.STYLES[e.style].name}` : '・試用中'}</em>` : ''}</b><small>${e.traits.map((t) => TRAITS[t].name).join('・')}${e.hangoverDay === s.day ? '・🤢宿醉' : ''}</small><small>${sh ? `${hhmm(sh.start)}～${hhmm(sh.end)}` : '今天休假'}</small></span></button>
+                <button class="st-who" data-action="insp-staff" data-id="${e.id}"><span class="mini-face">${portraitSVG(e.look, moodOf(e))}</span><span><b>${e.rank && Fun.RANKS[e.rank] ? `${Fun.RANKS[e.rank].icon} ` : ''}${e.senior ? '⭐' : ''}${esc(e.name)}${e.rank && Fun.RANKS[e.rank] ? `<em class="rank">${Fun.RANKS[e.rank].name}${e.revealed && Fun.STYLES[e.style] ? `・${Fun.STYLES[e.style].icon}${Fun.STYLES[e.style].name}` : '・試用中'}</em>` : ''}</b><small>${e.traits.map((t) => TRAITS[t].name).join('・')}${e.hangoverDay === s.day ? '・🤢宿醉' : ''}</small><small>${sh ? `${hhmm(sh.start)}～${hhmm(sh.end)}` : '今天休假'}</small></span></button>
                 <span class="st-now"><b>${nowDoing(e)}</b><small>${e.thought && e.thought.until > s.minute ? `💭 ${esc(e.thought.text)}` : `今天服務 ${e.served} 人`}</small></span>
                 ${cell(e.mood, 'm')}${cell(e.energy, 'e')}${cell(e.hunger, 'h')}${cell(e.skill, 's')}
                 <span class="st-wage"><button data-action="wage" data-id="${e.id}" data-d="-5" aria-label="減薪">－</button><b class="${e.wage < s.marketWage ? 'neg' : e.wage > s.marketWage * 1.05 ? 'pos' : ''}">${money(e.wage)}</b><button data-action="wage" data-id="${e.id}" data-d="5" aria-label="加薪">＋</button></span>
@@ -1369,10 +1379,12 @@
     const freeBranches = s.branches.map((b, i) => [b, i]).filter(([b]) => !b.manager);
     return `<div class="st-detail-row career-row">
         <span>升遷</span>
-        <span class="career-info">${leadText(e)}・${Fun.AMBITION_LABEL(e.ambition)}・${styleText(e)}</span>
+        <span class="career-info">${leadText(e)}・${Fun.AMBITION_LABEL(e.ambition)}・${styleText(e)}${e.senior ? '・⭐ 資深' : ''}</span>
+        <span class="career-info muted">升組長建議：到職 2 週、技能 50 以上（不到就升，資深的同事會不服）・升資深：到職 3 週、技能 60 以上，不用帶人${e.rank && e.trialBase ? `・試用期 ${s.inTrial(e) ? `還有 ${14 - (s.day - e.rankDay)} 天，期滿會看帶班成績` : '已結束'}` : ''}</span>
         ${e.rank !== 'leader' ? `<button class="act-btn" data-action="promote" data-id="${e.id}" data-rank="leader" ${blockL ? `disabled title="${esc(blockL)}"` : ''}>🎖️ 升組長 +$${R.leader.wage}${blockL ? `<small>${esc(blockL)}</small>` : ''}</button>` : ''}
         ${e.rank !== 'manager' ? `<button class="act-btn" data-action="promote" data-id="${e.id}" data-rank="manager">👑 升店長 +$${R.manager.wage}${s.staff.some((o) => o.rank === 'manager') ? '<small>現任店長會變組長</small>' : ''}</button>` : ''}
         ${e.rank ? `<button class="act-btn warn" data-action="demote" data-id="${e.id}">⬇️ 降職<small>${trial ? '試用期內，不傷感情' : '心情大跌、慣老闆 +1'}</small></button>` : ''}
+        ${!e.senior ? `<button class="act-btn" data-action="senior" data-id="${e.id}" ${s.seniorBlock(e) ? `disabled title="${esc(s.seniorBlock(e))}"` : ''}>⭐ 升資深 +$15<small>${esc(s.seniorBlock(e) || '技術職，不用帶人')}</small></button>` : ''}
         <button class="act-btn" data-action="lead-train" data-id="${e.id}" ${e.leadTrainWeek === s.week || s.cash < s.leadTrainCost || e.lead >= 100 ? 'disabled' : ''}>📚 主管培訓 ${money(s.leadTrainCost)}<small>${e.leadTrainWeek === s.week ? '這週上過了' : '領導力 +8'}</small></button>
         ${freeBranches.length ? `<label class="act-btn">🏙️ 派去當分店店長 <select data-action="assign-branch" data-id="${e.id}"><option value="">選分店</option>${freeBranches.map(([b, i]) => `<option value="${i}">${esc(s.siteOf(b).city)}${esc(b.district)}店</option>`).join('')}</select></label>` : ''}
       </div>`;
@@ -1434,6 +1446,7 @@
           <span class="lead-btns">
             <button data-action="promote" data-id="${e.id}" data-rank="leader" ${s.promoteBlock(e, 'leader') ? 'disabled' : ''} title="${esc(s.promoteBlock(e, 'leader') || '升組長')}">🎖️<small>升組長</small></button>
             <button data-action="promote" data-id="${e.id}" data-rank="manager" title="升店長">👑<small>升店長</small></button>
+            ${!e.senior ? `<button data-action="senior" data-id="${e.id}" ${s.seniorBlock(e) ? 'disabled' : ''} title="${esc(s.seniorBlock(e) || '升資深：技術職，不用帶人，時薪 +$15')}">⭐<small>升資深</small></button>` : ''}
           </span>
         </div>`
         )
@@ -1772,7 +1785,8 @@
         <div>
           <h3>這週到目前為止 <small>第 ${s.week} 週</small></h3>
           <table class="ledger">${rows.map(([k, v]) => `<tr><th>${k}</th><td class="${v < 0 ? 'neg' : 'pos'}">${signedMoney(v)}</td></tr>`).join('')}
-            <tr class="total"><th>合計</th><td class="${net < 0 ? 'neg' : 'pos'}">${signedMoney(net)}</td></tr></table>
+            <tr class="total"><th>合計</th><td class="${net < 0 ? 'neg' : 'pos'}">${signedMoney(net)}</td></tr>
+            ${s.branches.length ? `<tr><th>　其中本店</th><td class="${net - (L.branches || 0) < 0 ? 'neg' : 'pos'}">${signedMoney(net - (L.branches || 0))}</td></tr><tr><th>　其中分店（週末結算）</th><td>${L.branches ? signedMoney(L.branches) : '上週 ' + signedMoney(s.branches.reduce((t, b) => t + (b.last || 0), 0))}</td></tr>` : ''}</table>
           ${L.waste ? `<p class="calc">{w:supplies}進貨裡有 ${money(L.waste)} 是過期報廢掉的。</p>` : ''}
           <p class="calc">🧾 ${s.taxStatus ? TAX_LABEL[s.taxStatus] : '營業稅在週末結算'}；營業稅每週結算一次。</p>
           ${s.lastDay ? `<p class="calc">昨天：服務 ${s.lastDay.served} 人・營收 ${money(s.lastDay.revenue)}・生氣離開 ${s.lastDay.angry} 人・太擠沒進來 ${s.lastDay.balked} 人</p>` : ''}
@@ -1790,22 +1804,59 @@
             <div><span>👛 行情時薪</span><b>${money(s.marketWage)}</b></div>
           </div>
           <ul class="news-list">${s.news.map((n) => `<li>${n}</li>`).join('')}${(s.headlines || []).map((h) => `<li>${esc(h)}</li>`).join('')}</ul>
+          <h3>📜 事件紀錄 <small>最近 ${Math.min(15, (s.eventLog || []).length)} 件</small></h3>
+          ${(s.eventLog || []).length ? `<div class="event-log">${s.eventLog.slice(0, 15).map((l) => `<div class="${l.by === '逾時沒處理' ? 'late' : ''}"><small>第 ${l.day} 天 ${l.time}・${esc(l.by)}</small><b>${l.icon} ${esc(l.title)}</b><span>→ ${esc(l.choice)}${l.left && l.left.length ? `　👋 ${l.left.map((x) => esc(x.name)).join('、')} 離開` : ''}${l.delta ? ['cash', 'morale', 'jerk'].filter((k) => l.delta[k]).map((k) => `　${{ cash: '💰', morale: '😊', jerk: '😈' }[k]}${l.delta[k] > 0 ? '+' : ''}${k === 'cash' ? '$' + l.delta[k].toLocaleString() : l.delta[k]}`).join('') : ''}</span></div>`).join('')}</div>` : '<p class="muted">還沒有處理過事件。</p>'}
         </div>
       </div>`;
+  }
+
+  // 評論：跟評價用同一批（最近 100 則），低分的原因分類統計，知道該改善什麼
+  const WHY = {
+    wait: ['⏳', '排太久', '人手或設備不夠：多請人、多買一台設備，或在尖峰多排人'],
+    price: ['💲', '價格太貴', '價格比建議價高太多，學生和長輩最在意'],
+    service: ['😮‍💨', '服務態度', '員工心情或精力太差：讓他們休息、加薪、稱讚'],
+    hot: ['🥵', '太熱', '夏天要有冷氣或電風扇'],
+    clean: ['🧽', '衛生', '叫大家打掃，油垢太多要請清潔公司大掃除'],
+    soldout: ['📦', '賣完了', '進貨量調高，或打開自動進貨'],
+    image: ['📰', '形象', '炎上、負面新聞、對員工太刻薄'],
+    rival: ['🏪', '對手', '隔壁搞小動作'],
+    event: ['⚡', '事件', '事件的選擇造成的'],
+  };
+  // 長期目標的進度
+  function longProgress(id) {
+    const s = ui.sim;
+    const br = s.branches;
+    if (id === 'chain5') return `現在 ${br.length}/5 間，${br.filter((b) => b.rating >= 4.5).length} 間在 4.5 星以上`;
+    if (id === 'mentor3') return `現在 ${br.filter((b) => b.manager).length}/3 間有店長`;
+    if (id === 'week500') return `最高一週 ${money(Math.max(0, ...s.history.map((h) => h.profit)))}`;
+    if (id === 'allhappy') return `本店心情 ${Math.round(s.morale)}・分店最低士氣 ${br.length ? Math.round(Math.min(...br.map((b) => b.morale))) : '—'}`;
+    if (id === 'year2') return `現在第 ${s.week} 週`;
+    return '';
   }
 
   function drawerReviews() {
     const s = ui.sim;
     const r = s.rating;
+    const recent = s.reviews.slice(-100);
+    const low = recent.filter((v) => v.stars <= 3);
+    const count = {};
+    for (const v of low) count[v.why || 'event'] = (count[v.why || 'event'] || 0) + 1;
+    const top = Object.entries(count).sort((a, b) => b[1] - a[1]);
+    const dist = [5, 4, 3, 2, 1].map((n) => recent.filter((v) => Math.round(v.stars) === n).length);
+    const list = (ui.reviewLow ? low : recent).slice(-40).reverse();
     return `
-      <div class="drawer-body">
-        <div class="rating-big"><b>${r.toFixed(1)}</b><span class="stars">${stars(r)}</span><small>${s.reviews.length} 則評論・評價越高，路過的人越願意進來</small></div>
-        <div class="review-list">
-          ${s.reviews
-            .slice(-30)
-            .reverse()
-            .map((v) => `<div class="review"><span class="stars">${stars(v.stars)}</span><p>${esc(v.text)}</p><small>第 ${v.day} 天</small></div>`)
-            .join('') || '<p class="muted">還沒有人留評論。</p>'}
+      <div class="drawer-body two-col">
+        <div>
+          <div class="rating-big"><b>${r.toFixed(1)}</b><span class="stars">${stars(r)}</span><small>評價＝最近 ${recent.length} 則評論的平均・評價越高，路過的人越願意進來</small></div>
+          <div class="rating-dist">${dist.map((n, i) => `<div><span>${5 - i}★</span><i style="width:${recent.length ? (n / recent.length) * 100 : 0}%"></i><b>${n}</b></div>`).join('')}</div>
+          <h3>低分的原因 <small>最近 ${recent.length} 則裡有 ${low.length} 則三星以下</small></h3>
+          ${top.length ? `<div class="why-list">${top.map(([k, n]) => `<div><b>${WHY[k][0]} ${WHY[k][1]}</b><span>${n} 則</span><small>${WHY[k][2]}</small></div>`).join('')}</div>` : '<p class="muted">最近沒有低分評論，繼續保持！</p>'}
+        </div>
+        <div>
+          <div class="segmented tiny"><button data-action="review-filter" data-value="" class="${ui.reviewLow ? '' : 'active'}">全部</button><button data-action="review-filter" data-value="low" class="${ui.reviewLow ? 'active' : ''}">只看三星以下</button></div>
+          <div class="review-list">
+            ${list.map((v) => `<div class="review"><span class="stars">${stars(v.stars)}</span><p>${esc(v.text)}</p><small>第 ${v.day} 天${v.stars <= 3 && WHY[v.why || 'event'] ? `・${WHY[v.why || 'event'][0]} ${WHY[v.why || 'event'][1]}` : ''}</small></div>`).join('') || '<p class="muted">還沒有人留評論。</p>'}
+          </div>
         </div>
       </div>`;
   }
@@ -1832,9 +1883,13 @@
           ${s.awards.length ? `<h3>年度好店評選</h3>${s.awards.map((a) => `<p class="calc">${a.medal} 第 ${a.year} 年：${a.title}（${a.score} 分）</p>`).join('')}` : '<p class="drawer-tip">每年 12 月最後一週結束時，會舉辦年度好店評選。</p>'}
         </div>
         <div>
+          <h3>🎯 長期目標 <small>拿到金獎之後的下一步</small></h3>
+          <div class="goal-list">
+            ${ACHIEVEMENTS.filter((a) => a.long).map((a) => `<div class="goal ${s.achievements.has(a.id) ? 'done' : ''}"><span>${s.achievements.has(a.id) ? '🏆' : '🎯'}</span><div><b>${a.name}</b><small>${a.desc}${s.achievements.has(a.id) ? '' : `・${longProgress(a.id)}`}</small></div><em>${money(a.reward)}</em></div>`).join('')}
+          </div>
           <h3>成就</h3>
           <div class="goal-list">
-            ${ACHIEVEMENTS.map((a) => `<div class="goal ${s.achievements.has(a.id) ? 'done' : ''}"><span>${s.achievements.has(a.id) ? '🏆' : '🔒'}</span><div><b>${a.name}</b><small>${a.desc}</small></div>${a.reward ? `<em>${money(a.reward)}</em>` : ''}</div>`).join('')}
+            ${ACHIEVEMENTS.filter((a) => !a.long).map((a) => `<div class="goal ${s.achievements.has(a.id) ? 'done' : ''}"><span>${s.achievements.has(a.id) ? '🏆' : '🔒'}</span><div><b>${a.name}</b><small>${a.desc}</small></div>${a.reward ? `<em>${money(a.reward)}</em>` : ''}</div>`).join('')}
           </div>
           <p class="drawer-tip">沙盒遊戲沒有時間限制。慣老闆指數到 100，或現金是負的又借不到錢，店就會收起來。</p>
         </div>
@@ -1894,7 +1949,11 @@
       ${branchArt(b)}
       <div class="branch-body">
         <div class="branch-title"><b>${site.icon} ${esc(site.city)}${esc(b.district)}店</b><small>${size.name}・人潮 ${site.traffic >= 1.3 ? '超多' : site.traffic >= 1.05 ? '多' : site.traffic <= 0.9 ? '少' : '普通'}・房租 ${site.rent >= 1.5 ? '很貴' : site.rent >= 1.05 ? '貴' : site.rent <= 0.8 ? '便宜' : '普通'}${s.siteSeason(site) > 1 ? '・🔥 旺季' : s.siteSeason(site) < 1 ? '・🥶 淡季' : ''}</small></div>
-        ${b.busy ? '<p class="calc warn">客人多到做不完：加人手或擴建店面</p>' : ''}
+        ${b.wantN ? `<p class="calc">上週：想來 ${b.wantN.toLocaleString()} 人・服務 ${b.servedN.toLocaleString()} 人${b.lostN ? `・<span class="neg">流失 ${b.lostN.toLocaleString()} 人</span>` : ''}・容量用了 ${Math.round(b.util * 100)}%${b.fee ? `・總部管理費 ${money(b.fee)}` : ''}</p>` : ''}
+        ${b.busy ? `<p class="calc warn">客人多到做不完：加 1 個人大約能多服務 ${Math.round((b.servedN || 0) / Math.max(1, b.staff + (b.manager ? 1 : 0)))} 人，或擴建店面</p>` : ''}
+        ${b.morale < 55 ? `<p class="calc warn">⚠️ 士氣 ${Math.round(b.morale)}：再低下去分店會打電話來求救（加薪、加人、改裝都有幫助）</p>` : ''}
+        ${b.rating < 3.8 ? `<p class="calc warn">⚠️ 評價 ${b.rating.toFixed(1)}：人手不夠或士氣差都會拉低評價</p>` : ''}
+        ${b.broken > 0 ? `<p class="calc warn">🔧 設備故障中：容量少兩成（還要 ${b.broken} 週）</p>` : ''}
         <p class="calc">${b.manager ? `👑 店長 ${esc(b.manager.name)}（${Fun.STYLES[b.manager.style] ? Fun.STYLES[b.manager.style].icon + Fun.STYLES[b.manager.style].name : ''}・領導力 ${b.manager.lead}）<button class="link" data-action="recall-mgr" data-i="${i}">調回本店</button>` : '👑 沒有店長：到「員工 → 主管」派一位過來，會照他的風格影響士氣、評價和成本'}</p>
         <div class="branch-stats">
           <span>★ ${b.rating.toFixed(1)}</span><span>士氣 ${Math.round(b.morale)}</span><span>上週 <b class="${b.last < 0 ? 'neg' : 'pos'}">${signedMoney(b.last)}</b></span>
@@ -1982,6 +2041,8 @@
          <h2>${pron(d.ev, r.choice.label)}</h2>
          <p class="event-text">${pron(d.ev, r.choice.result)}</p>
          ${deltaChips(r.delta)}
+         ${r.left && r.left.length ? `<p class="left-note">👋 <b>離開：</b>${r.left.map((l) => `${esc(l.name)}${l.rank ? `（${l.rank}）` : ''}・到職 ${l.days < 7 ? `${Math.max(1, l.days)} 天` : `${Math.floor(l.days / 7)} 週`}・${l.why}`).join('、')}${r.delta.morale < 0 ? '<br><small>員工心情下降，是因為同事離開大家會難過（好朋友更明顯）。記得補人，排班才不會缺。</small>' : '<br><small>記得到「員工 → 應徵者」補人。</small>'}</p>` : ''}
+         ${d.result.by && d.result.by !== '你' ? `<p class="calc">處理者：${esc(d.result.by)}</p>` : ''}
          ${r.choice.tip ? `<div class="tip">📘 <strong>法律小知識：</strong>${r.choice.tip}</div>` : ''}
          <button class="primary" data-action="close-dialog">回去顧店（Enter）</button>`
       );
@@ -2122,9 +2183,9 @@
         <button class="x" data-action="close-dialog" aria-label="關閉">✕</button>
         <h2>☰ 選單</h2>
         ${helperToggle()}
-        <h3>存檔 <small>現在用第 ${ui.slot} 格；每週結算會自動存檔</small></h3>
+        <h3>存檔 <small>現在用第 ${ui.slot} 格；每天打烊後自動存檔</small></h3>
         <div class="slot-list compact">
-          ${SLOTS.map((n) => `<div class="slot ${n === ui.slot ? 'current' : ''}"><span class="slot-no">${n}</span><div class="slot-info"><b>${infos[n] ? `${infos[n].icon} ${esc(infos[n].shop)}` : '空的'}</b><small>${infos[n] ? `第 ${infos[n].day} 天・${money(infos[n].cash)}` : ''}</small></div><button data-action="save-slot" data-slot="${n}">${n === ui.slot ? '💾 存檔' : '存到這格'}</button></div>`).join('')}
+          ${SLOTS.map((n) => `<div class="slot ${n === ui.slot ? 'current' : ''}"><span class="slot-no">${n}</span><div class="slot-info"><b>${infos[n] ? `${infos[n].icon} ${esc(infos[n].shop)}` : '空的'}</b><small>${infos[n] ? `第 ${infos[n].week} 週・${money(infos[n].cash)}${infos[n].savedAt ? `・存於 ${savedLabel(infos[n].savedAt)}` : ''}` : ''}</small></div><button data-action="save-slot" data-slot="${n}">${n === ui.slot ? '💾 存檔' : '存到這格'}</button></div>`).join('')}
         </div>
         <div class="insp-actions"><button data-action="export-current">📤 匯出成檔案</button><label class="file-btn">📥 匯入到第 ${ui.slot} 格<input type="file" accept=".json,application/json" data-action="import-file-game" hidden /></label></div>
         <h3>畫質 <small>目前 ${ui.view ? Math.round(ui.view.fps) : '—'} fps</small></h3>
@@ -2132,7 +2193,7 @@
           ${[['auto', '自動'], ['high', '高'], ['medium', '中'], ['low', '低（省電）']].map(([v, l]) => `<button data-action="quality" data-value="${v}" class="${q === v ? 'active' : ''}">${l}</button>`).join('')}
         </div>
         <h3>操作</h3>
-        <button class="toggle ${ui.autoPause ? 'on' : 'off'} neutral" data-action="autopause"><span class="knob"></span><span>${ui.autoPause ? '打開員工、庫存、經營等面板時時間自動暫停；快轉中有事找你會調回正常速度' : '打開面板、有事找你時，時間照走'}</span></button>
+        <button class="toggle ${ui.autoPause ? 'on' : 'off'} neutral" data-action="autopause"><span class="knob"></span><span>${ui.autoPause ? '打開任何面板時時間都會暫停；快轉中有事找你會調回正常速度' : '打開面板、有事找你時，時間照走'}</span></button>
         <p class="calc">🎵 正在播放：${window.BossAudio.trackName ? window.BossAudio.trackName() : ''}（會跟著時段、天氣和忙碌程度換曲）</p>
         <div class="insp-actions"><button data-action="tut-restart">📘 重新看新手教學</button><button data-action="quit" class="warn">🚪 存檔並回主選單</button></div>
       </div>`;
@@ -2175,12 +2236,13 @@
       ${aw ? `<div class="award"><span>${aw.medal}</span><div><small>第 ${aw.year} 年・年度好店評選（${aw.score} 分）</small><b>${aw.title}</b><p>${aw.desc}${aw.reward ? ` 獎金 ${money(aw.reward)}！` : ''}</p></div></div>` : ''}
       <div class="event-kicker">📊 週報・第 ${r.week} 週</div>
       <h2>${r.profit >= 0 ? '這週有賺錢！' : '這週虧錢了'} <span class="${r.profit < 0 ? 'neg' : 'pos'}">${signedMoney(r.profit)}</span></h2>
+      ${r.branchDetail && r.branchDetail.length ? `<div class="split"><div><span>🏪 本店</span><b class="${r.home < 0 ? 'neg' : 'pos'}">${signedMoney(r.home)}</b><small>含事件、成就、設備等其他收支</small></div><div><span>🏙️ 分店合計</span><b class="${r.branches < 0 ? 'neg' : 'pos'}">${signedMoney(r.branches)}</b><small>${r.branchDetail.map((b) => `${esc(b.name)} ${signedMoney(b.last)}${b.lostN ? `（流失 ${b.lostN} 人）` : ''}`).join('・')}</small></div></div>` : ''}
       <table class="ledger">${rows.map(([k, v]) => `<tr><th>${k}</th><td class="${v < 0 ? 'neg' : 'pos'}">${signedMoney(v)}</td></tr>`).join('')}</table>
       <div class="week-stats">
         <div><span>評價</span><b>${r.rating.toFixed(1)} ★</b></div>
         <div><span>員工心情</span><b>${Math.round(r.morale)}</b></div>
         <div><span>慣老闆指數</span><b>${Math.round(r.jerk)}</b></div>
-        <div><span>現金</span><b class="${s.cash < 0 ? 'neg' : ''}">${money(s.cash)}</b></div>
+        <div><span>現金</span><b class="${s.cash < 0 ? 'neg' : ''}">${money(s.cash)}</b><small>明早進貨會再扣</small></div>
       </div>
       ${r.hygiene ? `<div class="alert ${r.hygiene.fine || r.hygiene.grade === '限期改善' ? 'bad' : 'good'}">🕵️ ${esc(r.hygiene.text)}</div>` : ''}
       ${r.waste ? `<p class="calc">這週過期報廢的{w:supplies}：${money(r.waste)}</p>` : ''}
@@ -2218,7 +2280,9 @@
   const SHE_EVENTS = new Set(['raise', 'leave', 'injury', 'resign', 'n_burn', 'n_broth', 't_burnout', 's_robbery', 'r_chef', 'f_concert', 'w_excuse', 'w_audition', 'w_pua', 'w_birthday']);
   function pron(ev, text) {
     if (ui.sim && typeof text === 'string') text = ui.sim.w(text);
-    if (!ev || !ev.staff || ev.staff.gender !== 'f' || !SHE_EVENTS.has(ev.ev.id)) return text;
+    const who = ev && (ev.subject || ev.staff);
+    if (typeof text === 'string' && text.includes('{who}')) text = text.replace(/\{who\}/g, who ? who.name : '員工');
+    if (!ev || !who || who.gender !== 'f' || !(SHE_EVENTS.has(ev.ev.id) || ev.subject)) return text;
     return text.replace(/(?<![其吉])他(?!們)/g, '她');
   }
 
@@ -2588,6 +2652,14 @@
         refreshStaffViews();
         break;
       }
+      case 'senior': {
+        const who = staffOf(btn);
+        const why = who && s.seniorBlock(who);
+        if (why) toast(why, 'bad');
+        else if (who) s.promoteSenior(who);
+        refreshStaffViews();
+        break;
+      }
       case 'lead-train': {
         const who = staffOf(btn);
         if (who && s.leadTrain(who)) toast(`📚 ${who.name} 去上了主管培訓課，領導力 +8`);
@@ -2644,6 +2716,10 @@
         renderDrawer();
         break;
       }
+      case 'review-filter':
+        ui.reviewLow = !!btn.dataset.value;
+        renderDrawer();
+        break;
       case 'staff-tab':
         ui.staffTab = btn.dataset.v;
         renderDrawer();
