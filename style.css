@@ -1106,6 +1106,20 @@ body.in-game::before {
   margin-top: 4px;
 }
 
+.fit-row {
+  grid-column: span 2;
+  font-size: 0.7rem;
+  line-height: 1.35;
+  margin-top: 4px;
+  padding: 3px 6px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--muted) 12%, transparent);
+}
+.fit-row.fit-4,
+.fit-row.fit-5 { color: #2f8f6b; background: color-mix(in srgb, #2f8f6b 14%, transparent); }
+.fit-row.fit-1,
+.fit-row.fit-2 { color: #c0392b; background: color-mix(in srgb, #c0392b 12%, transparent); }
+
 .lot-card p {
   margin: 0 0 10px;
 }

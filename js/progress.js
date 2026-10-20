@@ -54,7 +54,7 @@
       name: '第三章：連鎖之路',
       story: '招牌掛到了別的城市。你不可能每間店都顧，得學會把事情交給對的人。',
       quests: [
-        { id: 'br2', text: '開 2 間分店', check: (s) => s.branches.length >= 2, prog: (s) => `現在 ${s.branches.length} 間` },
+        { id: 'br2', text: '開第一間分店', check: (s) => s.branches.length >= 1, prog: (s) => `現在 ${s.branches.length} 間` },
         { id: 'brmgr', text: '派一位分店店長', check: (s) => s.branches.some((b) => b.manager) },
         { id: 'season1', text: '推出一次季節限定', check: (s) => (s.seasonalCount || 0) >= 1 },
         { id: 'lv10', text: '店家升到 Lv.10', check: (s) => s.level >= 10, prog: (s) => `現在 Lv.${s.level}` },
@@ -68,7 +68,7 @@
       name: '第四章：規模化',
       story: '店多了，問題也多了。制度要清楚、供應要穩，品牌才撐得住。',
       quests: [
-        { id: 'br5', text: '分店達到 4 間', check: (s) => s.branches.length >= 4, prog: (s) => `現在 ${s.branches.length} 間` },
+        { id: 'br5', text: '分店達到 3 間', check: (s) => s.branches.length >= 3, prog: (s) => `現在 ${s.branches.length} 間` },
         { id: 'auth1', text: '設定至少一條授權規則', check: (s) => Object.values(s.policy.auth || {}).some((v) => v && v !== 'off') },
         { id: 'area1', text: '任命一位區經理', check: (s) => !!s.areaManager },
         // 門檻跟著產業的規模走（大約是開店資金的六成）
@@ -85,7 +85,7 @@
       story: '你的店已經是一個品牌了。接下來要決定：它要長成什麼樣子？',
       quests: [
         { id: 'lv20', text: '店家升到 Lv.20', check: (s) => s.level >= 20, prog: (s) => `現在 Lv.${s.level}` },
-        { id: 'shops8', text: '分店加加盟店達到 7 間', check: (s) => s.branches.length + (s.franchises || []).length >= 7, prog: (s) => `現在 ${s.branches.length + (s.franchises || []).length} 間` },
+        { id: 'shops8', text: '分店加加盟店達到 6 間', check: (s) => s.branches.length + (s.franchises || []).length >= 6, prog: (s) => `現在 ${s.branches.length + (s.franchises || []).length} 間` },
         { id: 'kitchen1', text: '蓋好中央廚房', check: (s) => !!s.kitchen },
         { id: 'clean12', text: '連續 12 週沒有被罰款', check: (s) => lastWeeks(s, 12).length === 12 && lastWeeks(s, 12).every((h) => !h.fines), prog: (s) => `最近 ${(() => { let n = 0; for (const h of [...s.history].reverse()) { if (h.fines) break; n++; } return n; })()} 週` },
       ],

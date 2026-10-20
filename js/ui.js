@@ -1310,18 +1310,22 @@
                   if (d.selfServe) tags.unshift('不用店員');
                   if (d.theme && DECOR_THEMES[d.theme]) tags.unshift(`${DECOR_THEMES[d.theme].icon}${DECOR_THEMES[d.theme].name}風`);
                   const sb = d.side && s.ind.products.find((p) => p.id === d.side);
+                  let fit = '';
                   if (sb) {
                     const b = sb.side;
                     tags.length = 0;
                     tags.push(b.desc);
-                    tags.push(`尖峰每小時約 ${b.rate} 位客人`);
                     tags.push(b.price ? `每次收 $${b.price}${b.cost ? `（成本 $${b.cost}）` : ''}` : '不收錢（做口碑）');
                     if (b.impulse) tags.push(`${Math.round(b.impulse * 100)}% 會順便買東西`);
                     tags.push(d.selfServe ? '自助設備，不用店員' : '員工要學過才做得快');
+                    const f = s.sideFit(b);
+                    const r = b.rate * f.mult;
+                    tags.splice(1, 0, r >= 1 ? `尖峰每小時約 ${r.toFixed(1)} 位客人` : `尖峰大約每 ${Math.round(60 / r)} 分鐘一位客人`);
+                    fit = `<span class="fit-row fit-${f.stars}">適合你的店 ${'★'.repeat(f.stars)}${'☆'.repeat(5 - f.stars)}　${f.notes.join('・')}</span>`;
                   }
                   const locked = !s.unlocked(d);
                   return `<button class="cat-item ${ui.build && ui.build.type === d.id ? 'active' : ''} ${locked ? 'locked' : ''}" data-action="pick-build" data-type="${d.id}" ${s.cash < d.price || locked ? 'disabled' : ''}>
-                    <span class="cat-icon">${locked ? '🔒' : d.icon}</span><b>${d.name}</b><span class="cat-price">${locked ? `Lv.${d.lv} 解鎖` : money(d.price)}</span><small>${tags.join('・')}</small>
+                    <span class="cat-icon">${locked ? '🔒' : d.icon}</span><b>${d.name}</b><span class="cat-price">${locked ? `Lv.${d.lv} 解鎖` : money(d.price)}</span><small>${tags.join('・')}</small>${fit}
                   </button>`;
                 })
                 .join('')}</div>

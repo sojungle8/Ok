@@ -198,7 +198,8 @@ function daily(r) {
   const SB = globalThis.BossIndustries.SIDE_BIZ[s.ind.id] || [];
   const owned = s.ownedSide();
   if (!basic && owned.length < 1 + Math.floor(s.level / 4) && s.day % 7 === 3) {
-    const nb = SB.find((b) => s.level >= b.lv && !owned.includes(b) && s.cash > b.stationPrice + 200000);
+    // 聰明的老闆只開適合自己店的（三顆星以上）
+    const nb = SB.find((b) => s.level >= b.lv && !owned.includes(b) && s.sideFit(b).stars >= 3 && s.cash > b.stationPrice + 200000);
     if (nb && tryPlace(`${nb.id}_st`)) note(`第 ${s.day} 天：開始兼營${nb.name}`);
   }
   for (const e of s.staff) {

@@ -547,6 +547,45 @@
       { id: 'sb_swap', name: '電池交換站', icon: '🔋', desc: '自助設備；電動機車騎士來換電池，順便問保養', price: 40, cost: 26, time: 1, rate: 3, base: 0.5, hours: { 7: 1, 8: 1, 18: 1, 19: 1 }, impulse: 0.12, self: true, lv: 6, stationPrice: 90000, kiosk: { color: '#2f8f6b', prop: 'screen' } },
     ],
   };
+  // 適合誰：每項業務的主要客群（1 = 普通，越高越靠這群人）
+  // 同一項業務放在不同的店，客群對不對、店面夠不夠大、會不會互相干擾，生意差很多
+  const SIDE_AUD = {
+    sb_parcel: { office: 1.4, student: 1.3, elderly: 0.6 },
+    sb_atm: {},
+    sb_copy: { student: 1.6, office: 1.1, elderly: 0.7 },
+    sb_hotdog: { student: 1.4, office: 1.2, elderly: 0.6 },
+    sb_kiosk: { student: 1.7, office: 1, elderly: 0.4 },
+    sb_power: { student: 1.5, office: 1.3, elderly: 0.3 },
+    sb_lotto: { elderly: 1.7, family: 1.1, student: 0.4 },
+    sb_laundry: { student: 1.5, family: 1.1, office: 0.8 },
+    sb_parcelb: { office: 1.3, family: 1.1, student: 0.7 },
+    sb_lunchbox: { office: 1.7, student: 1, elderly: 0.7 },
+    sb_pourover: { office: 1.7, student: 1, elderly: 0.4 },
+    sb_kidsbrunch: { family: 1.8, elderly: 0.8, office: 0.5, student: 0.4 },
+    sb_luwei: { office: 1.3, student: 1.3, elderly: 0.7 },
+    sb_bentob: { office: 1.8, student: 0.9, elderly: 0.6 },
+    sb_dumpling: { family: 1.5, elderly: 1.1, student: 0.6 },
+    sb_newyear: { family: 1.4, elderly: 1.5, student: 0.2, office: 0.8 },
+    sb_chicken: { student: 1.6, office: 1, elderly: 0.5 },
+    sb_dessert: { student: 1.3, family: 1.3, elderly: 0.7 },
+    sb_fruit: { office: 1.3, family: 1.2, elderly: 0.9 },
+    sb_merch: { student: 2, family: 0.8, elderly: 0.2 },
+    sb_ear: { elderly: 2, family: 0.9, student: 0.3 },
+    sb_shampoo: { office: 1.4, student: 1.2, elderly: 0.6 },
+    sb_massage: { office: 2, elderly: 1, student: 0.3 },
+    sb_donate: { student: 1.4, family: 1.2, elderly: 0.5 },
+    sb_pet: { family: 1.6, office: 0.9, elderly: 0.8, student: 0.7 },
+    sb_gear: {},
+    sb_inspect: { elderly: 1.5, office: 1.2, student: 0.5 },
+    sb_wash: { student: 1.2, family: 1.3, elderly: 0.8 },
+    sb_used: { student: 1.6, family: 1.1, elderly: 0.6 },
+    sb_rent: { student: 1.7, family: 1, elderly: 0.4 },
+    sb_swap: { office: 1.5, student: 1.2, elderly: 0.4 },
+  };
+  // 互相干擾：狗在吠，掏耳朵、按摩的客人放鬆不了；油煙會讓甜點和手搖的客人皺眉
+  const SIDE_CLASH = { sb_pet: ['sb_ear', 'sb_massage'], sb_chicken: ['sb_dessert', 'sb_fruit'], sb_wash: ['sb_inspect'] };
+  for (const list of Object.values(SIDE_BIZ)) for (const b of list) b.aud = SIDE_AUD[b.id] || {};
+
   // 平衡：照「設備費大約 6 週回本（已經扣掉員工時間）」反推每項業務的客流量
   // 每項業務的個性（尖峰時段、順便消費、要不要店員、事件）不變，只校正客人有多少
   const PAYBACK_WEEKS = 6;
@@ -597,5 +636,5 @@
     }
   }
 
-  root.BossIndustries = { DECOR_THEMES, SIDE_BIZ, WORDS, FOOD_IND, word, fillWords, applyNames, INDUSTRIES, CATALOG, CAT_LABELS, LOTS, NAMES, TRAITS, LEVELS, DISTRICTS, DISTRICT_INFO, CUSTOMER_TYPES, DIFFICULTY, FLOORS, WALLS, SIGNS, BRANCH_SITES, BRANCH_SIZES, TOURIST_PREF };
+  root.BossIndustries = { DECOR_THEMES, SIDE_BIZ, SIDE_CLASH, WORDS, FOOD_IND, word, fillWords, applyNames, INDUSTRIES, CATALOG, CAT_LABELS, LOTS, NAMES, TRAITS, LEVELS, DISTRICTS, DISTRICT_INFO, CUSTOMER_TYPES, DIFFICULTY, FLOORS, WALLS, SIGNS, BRANCH_SITES, BRANCH_SIZES, TOURIST_PREF };
 })(typeof window !== 'undefined' ? window : globalThis);

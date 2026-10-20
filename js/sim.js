@@ -1,7 +1,7 @@
 // 開店模擬核心：店面格子、客人與員工的自主行為、營業時間與班表、財務、事件
 // 不碰 DOM，可以在 Node 裡跑
 (function (root) {
-  const { DECOR_THEMES, SIDE_BIZ, fillWords, applyNames, FOOD_IND, INDUSTRIES, CATALOG, LOTS, NAMES, TRAITS, LEVELS, DISTRICTS, DISTRICT_INFO, CUSTOMER_TYPES, DIFFICULTY, FLOORS, WALLS, SIGNS, BRANCH_SITES, BRANCH_SIZES, TOURIST_PREF } = root.BossIndustries;
+  const { DECOR_THEMES, SIDE_BIZ, SIDE_CLASH, fillWords, applyNames, FOOD_IND, INDUSTRIES, CATALOG, LOTS, NAMES, TRAITS, LEVELS, DISTRICTS, DISTRICT_INFO, CUSTOMER_TYPES, DIFFICULTY, FLOORS, WALLS, SIGNS, BRANCH_SITES, BRANCH_SIZES, TOURIST_PREF } = root.BossIndustries;
   const { EVENTS, IGNORE, VIOLATIONS } = root.BossData;
   const Looks = root.BossLooks;
   const Fun = root.BossFun || { KARENS: [], TRENDS: [], POST_HOOKS: [], POST_BODIES: [], POST_ENDINGS: [], COMMENTS: {}, HEADLINES: [], STAFF_QUIPS: [], FUNNY_REVIEWS: { good: [], bad: [] } };
@@ -3725,6 +3725,85 @@
       return this._side;
     }
 
+    // 店裡各類客人的比例（照營業時段平均，平日 5 天、假日 2 天）
+    // neutral：不看產業和裝潢，只看營業時段（用來當「普通」的基準）
+    typeMix(neutral) {
+      const out = {};
+      for (const t of Object.values(CUSTOMER_TYPES)) out[t.id] = 0;
+      const th = neutral ? null : this.themeInfo;
+      let n = 0;
+      for (const [weekend, days] of [[false, 5], [true, 2]]) {
+        for (let m = this.hours.open; m < this.hours.close; m += 60) {
+          const h = Math.floor(m / 60) % 24;
+          let tot = 0;
+          const ws = {};
+          for (const t of Object.values(CUSTOMER_TYPES)) {
+            let w = t.hours[h] ?? t.base;
+            if (weekend) w *= t.weekend;
+            if (!neutral) {
+              w *= (this.ind.mix && this.ind.mix[t.id]) || 1;
+              if (th && th.types[t.id]) w *= th.types[t.id];
+              if (this.collabs.some((c) => c.types.includes(t.id))) w *= 1.25;
+            }
+            ws[t.id] = w;
+            tot += w;
+          }
+          for (const k in ws) out[k] += (ws[k] / tot) * days;
+          n += days;
+        }
+      }
+      for (const k in out) out[k] /= n || 1;
+      return out;
+    }
+
+    // 這項兼營業務適不適合這間店：客群、店面大小、和其他業務會不會打架
+    // 回傳 { mult: 客流倍率, stars: 1~5, notes: [原因] }
+    sideFit(b) {
+      const key = `${this.day}|${this.objects.length}|${this.lotIdx}|${this.decor.theme || ''}|${this.collabs.length}|${this.policy.petFriendly ? 1 : 0}`;
+      if (this._fitKey !== key) {
+        this._fitKey = key;
+        this._fit = {};
+        this._mix = this.typeMix();
+        this._mix0 = this.typeMix(true);
+      }
+      if (this._fit[b.id]) return this._fit[b.id];
+      const notes = [];
+      const aud = b.aud || {};
+      const score = (mix) => Object.entries(mix).reduce((t, [k, v]) => t + v * (aud[k] ?? 1), 0);
+      const ratio = score(this._mix) / score(this._mix0);
+      // 客群差一點點，生意就差很多（比例放大）
+      let mult = clamp(Math.pow(ratio, 3), 0.45, 1.5);
+      const best = Object.entries(aud).sort((a, b2) => b2[1] - a[1])[0];
+      const tn = (k) => (CUSTOMER_TYPES[k] ? CUSTOMER_TYPES[k].name : k);
+      if (best && best[1] > 1.2) {
+        const share = this._mix[best[0]] / (this._mix0[best[0]] || 1);
+        if (ratio >= 1.04) notes.push(`👍 你的店${tn(best[0])}多，很對味`);
+        else if (ratio <= 0.96) notes.push(`👎 主要客群是${tn(best[0])}，你的店${share < 1 ? `${tn(best[0])}不多` : '客群不太對'}`);
+      }
+      // 要坐下來做很久的服務：店面太小會擠、客人坐不住
+      if (b.seat) {
+        const sp = [0.8, 1, 1.08, 1.12][this.lotIdx] || 1;
+        if (sp < 1) notes.push('📏 店面小，坐著做的服務會很擠');
+        mult *= sp;
+      }
+      const owned = new Set(this.ownedSide().map((x) => x.id));
+      for (const [a, list] of Object.entries(SIDE_CLASH || {})) {
+        const other = a === b.id ? list.find((x) => owned.has(x)) : list.includes(b.id) && owned.has(a) ? a : null;
+        if (other) {
+          const o = this.ind.products.find((p) => p.id === other);
+          notes.push(`⚠️ 和「${o ? o.name : other}」互相干擾`);
+          mult *= 0.75;
+        }
+      }
+      if (b.id === 'sb_pet' && this.policy.petFriendly) {
+        notes.push('🐾 寵物友善店，毛孩家長會專程來');
+        mult *= 1.3;
+      }
+      const stars = mult >= 1.35 ? 5 : mult >= 1.1 ? 4 : mult >= 0.9 ? 3 : mult >= 0.7 ? 2 : 1;
+      if (!notes.length) notes.push(stars >= 3 ? '客群普通，中規中矩' : '這間店不太需要');
+      return (this._fit[b.id] = { mult, stars, notes });
+    }
+
     // 這個時段每小時大約幾位客人
     sideRate(p) {
       const b = p.side;
@@ -3738,6 +3817,8 @@
       if (b.weekend && this.weekday >= 5) r *= b.weekend;
       // 店的名聲好，來辦事的人也多一點（但沒有本業那麼敏感）
       r *= Math.sqrt(Math.max(0.3, this.attractiveness()));
+      // 適不適合這間店
+      r *= this.sideFit(b).mult;
       if (this.sideHot && this.sideHot.id === p.id && this.sideHot.until >= this.day) r *= this.sideHot.mult;
       // 要堆貨的業務：沒有儲藏室就做不大
       if (['sb_parcel', 'sb_parcelb', 'sb_dumpling', 'sb_newyear'].includes(p.id)) r *= [0.6, 1, 1.15, 1.3][this.roomLv('storage')];
