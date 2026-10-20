@@ -1,7 +1,7 @@
 // AI 玩家：照一般玩家會做的事去經營，試著撐滿一年破關
 // 只用遊戲裡玩家按得到的操作（招人、排班、調薪、進貨、打掃、買設備、選事件、發文、開分店……）
 // 用法：node tools/playtest.js [難度] [產業] [隨機種子]
-for (const f of ['data', 'fun', 'weird', 'activities', 'city', 'plots', 'career', 'progress', 'slash', 'sidebiz', 'backroom', 'pets', 'life', 'portraits', 'industries', 'sim']) require(`../js/${f}.js`);
+for (const f of ['data', 'fun', 'weird', 'trends26', 'activities', 'city', 'plots', 'career', 'progress', 'slash', 'sidebiz', 'backroom', 'pets', 'life', 'portraits', 'industries', 'sim']) require(`../js/${f}.js`);
 const { Sim, CATALOG, catalogById } = globalThis.BossSim;
 const Fun = globalThis.BossFun;
 
@@ -70,7 +70,7 @@ function tryPlace(type) {
 }
 
 const has = (type) => s.objects.some((o) => o.type === type);
-const lanes = () => s.stations.reduce((n, o) => n + o.lanes.filter((l) => !l.self).length, 0);
+const lanes = () => s.stations.reduce((n, o) => n + (o.def.side ? 0 : o.lanes.filter((l) => !l.self).length), 0) + Math.min(2, s.ownedSide().filter((b) => !b.self).length * 0.5);
 let angryStreak = 0;
 let lastFix = 0;
 
@@ -261,6 +261,7 @@ function play() {
     dayEnd: daily,
     weekEnd: (r) => {
       weekly.push(r);
+      if (process.env.LEDGER && (r.week % 4 === 0 || r.week <= 2)) console.log(`  [帳] 第${r.week}週 營收${Math.round(r.revenue)} 材料${Math.round(r.materials)} 薪資${Math.round(r.wages)} 房租${Math.round(r.rent)} 分店${Math.round(r.branches || 0)} 集團${Math.round(r.group || 0)} 事件${Math.round(r.events)} 其他${Math.round(r.other)} 獎勵${Math.round(r.rewards || 0)} 淨${Math.round(r.profit)} | 員工${s.staff.length} 兼營${s.ownedSide().length} 美觀${Math.round(s.decor.A)} 容忍${s.priceTolerance.toFixed(2)} 價格倍率${(s.priceRatio()).toFixed(2)} 來客/日${Math.round(r.visitors / 7 || 0)}`);
       if (r.victory) note(`🎉 第 ${s.week - 1} 週破關：${r.victory.medal} ${r.victory.title}（${r.victory.score} 分）`);
     },
     notify: () => {},

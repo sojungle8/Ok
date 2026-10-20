@@ -68,10 +68,11 @@
       name: '第四章：規模化',
       story: '店多了，問題也多了。制度要清楚、供應要穩，品牌才撐得住。',
       quests: [
-        { id: 'br5', text: '分店達到 5 間', check: (s) => s.branches.length >= 5, prog: (s) => `現在 ${s.branches.length} 間` },
+        { id: 'br5', text: '分店達到 4 間', check: (s) => s.branches.length >= 4, prog: (s) => `現在 ${s.branches.length} 間` },
         { id: 'auth1', text: '設定至少一條授權規則', check: (s) => Object.values(s.policy.auth || {}).some((v) => v && v !== 'off') },
         { id: 'area1', text: '任命一位區經理', check: (s) => !!s.areaManager },
-        { id: 'week300', text: '單週淨利超過 $300,000', check: (s) => s.history.some((h) => h.profit >= 300000) },
+        // 門檻跟著產業的規模走（大約是開店資金的六成）
+        { id: 'week300', text: '單週淨利超過開店資金的六成', check: (s) => s.history.some((h) => h.profit - (h.other || 0) >= s.ind.cash * 0.6), prog: (s) => `目標 $${Math.round(s.ind.cash * 0.6).toLocaleString()}・最高 $${Math.round(Math.max(0, ...s.history.map((h) => h.profit - (h.other || 0)))).toLocaleString()}` },
         { id: 'lv15', text: '店家升到 Lv.15', check: (s) => s.level >= 15, prog: (s) => `現在 Lv.${s.level}` },
       ],
       reward: { cash: 500000, xp: 5000 },
@@ -84,7 +85,7 @@
       story: '你的店已經是一個品牌了。接下來要決定：它要長成什麼樣子？',
       quests: [
         { id: 'lv20', text: '店家升到 Lv.20', check: (s) => s.level >= 20, prog: (s) => `現在 Lv.${s.level}` },
-        { id: 'shops8', text: '分店加加盟店達到 8 間', check: (s) => s.branches.length + (s.franchises || []).length >= 8, prog: (s) => `現在 ${s.branches.length + (s.franchises || []).length} 間` },
+        { id: 'shops8', text: '分店加加盟店達到 7 間', check: (s) => s.branches.length + (s.franchises || []).length >= 7, prog: (s) => `現在 ${s.branches.length + (s.franchises || []).length} 間` },
         { id: 'kitchen1', text: '蓋好中央廚房', check: (s) => !!s.kitchen },
         { id: 'clean12', text: '連續 12 週沒有被罰款', check: (s) => lastWeeks(s, 12).length === 12 && lastWeeks(s, 12).every((h) => !h.fines), prog: (s) => `最近 ${(() => { let n = 0; for (const h of [...s.history].reverse()) { if (h.fines) break; n++; } return n; })()} 週` },
       ],
@@ -98,7 +99,7 @@
     ipo: {
       icon: '🔔',
       name: '上市上櫃',
-      desc: '找投資人、進董事會、每季交出成績單。錢會多很多，但「要不要為了成長犧牲員工」會一直來敲門。',
+      desc: '找投資人、進董事會、每季交出成績單。有投資人的錢可以衝，但要分紅給他們；而且「要不要為了成長犧牲員工」會一直來敲門。',
       quests: [
         { id: 'ipo_round', text: '完成一輪募資（引進投資人）', check: (s) => !!(s.ipo && s.ipo.investors) },
         { id: 'ipo_q3', text: '連續 3 季達成董事會的目標', check: (s) => !!(s.ipo && s.ipo.streak >= 3), prog: (s) => `連續 ${(s.ipo && s.ipo.streak) || 0} 季` },

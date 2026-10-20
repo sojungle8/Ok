@@ -1101,7 +1101,7 @@
       const h = this.history.slice(-8);
       const avg = h.length ? h.reduce((t, x) => t + x.profit, 0) / h.length : 0;
       // 投資人不會給你估值的一大塊：大概是一年半的本業獲利，而且之後每週要分走兩成獲利
-      const amt = Math.round(Math.min(this.valuation * 0.1, Math.max(0, avg) * 52 * 1.5) / 10000) * 10000;
+      const amt = Math.round(Math.min(this.valuation * 0.08, Math.max(0, avg) * 52) / 10000) * 10000;
       this.cash += amt;
       this.ledger.other += amt;
       this.ipo = { investors: true, streak: 0, listed: false, qWeek: this.week, qProfit: 0, target: Math.round(Math.max(this.ind.cash * 0.5, avg * 13 * 0.97)), quarters: 0 };
@@ -1115,7 +1115,7 @@
       I.listed = true;
       const h = this.history.slice(-8);
       const avg = h.length ? h.reduce((t, x) => t + x.profit - (x.other || 0), 0) / h.length : 0;
-      const amt = Math.round(Math.min(this.valuation * 0.15, Math.max(0, avg) * 52 * 2) / 10000) * 10000;
+      const amt = Math.round(Math.min(this.valuation * 0.1, Math.max(0, avg) * 52) / 10000) * 10000;
       this.cash += amt;
       this.ledger.other += amt;
       this.notify(`🔔 敲鐘掛牌！公開發行進帳 ${'$' + amt.toLocaleString()}。`, 'achieve');
@@ -1215,7 +1215,7 @@
         const last = this.history[this.history.length - 1];
         const core = last ? last.profit - (last.other || 0) : 0;
         if (core > 0) {
-          const share = Math.round(core * (I.listed ? 0.12 : 0.2));
+          const share = Math.round(core * (I.listed ? 0.15 : 0.25));
           total -= share;
           I.paid = (I.paid || 0) + share;
         }
@@ -3588,7 +3588,8 @@
     coverage() {
       if (this.gridDirty || !this.stations) this.rebuildGrid();
       const n = this.policy.shifts;
-      const lanes = this.stations.reduce((t, o) => t + o.lanes.filter((l) => !l.self).length, 0);
+      // 兼營業務的服務位不算進「需要幾個人」：那是同一批人兼著做，不然會一直請人
+      const lanes = this.stations.reduce((t, o) => t + (o.def.side ? 0 : o.lanes.filter((l) => !l.self).length), 0) + Math.min(2, this.ownedSide().filter((b) => !b.self).length * 0.5);
       const days = [];
       for (let i = 0; i < 7; i++) {
         if (this.policy.closedDay === i) {
@@ -3841,12 +3842,14 @@
       const o = this.owner;
       const t = this.today;
       const noMgr = this.branches.filter((b) => !b.manager).length;
-      let d = (t.bossEvents || 0) * 0.8 + (t.ignoredEvents || 0) * 1.5;
-      if (this.policy.closedDay === -1 && !this.boss.away) d += 2;
+      // 平衡：一間店、天天開、自己處理事件，壓力會慢慢累積（大約兩個月需要休息一次）
+      let d = (t.bossEvents || 0) * 0.8 + (t.ignoredEvents || 0) * 1.5 + this.branches.length * 0.5;
+      d += this.policy.closedDay === -1 && !this.boss.away ? 3 : -1;
       if (t.visitors) d += (t.angry / t.visitors) * 15;
       if ((t.revenue || 0) < (report.wages || 0)) d += 3;
       d += noMgr * 0.8 + (o.emba ? 0.6 : 0) + (o.kids && !o.familyTime ? 1 : 0);
-      d -= 6 + (o.gym ? 1 : 0) + (o.car ? 1 : 0) + (o.house ? 2 : 0) + (o.partner === 'married' ? 1 : 0) + (this.areaManager ? 1 : 0);
+      const authOn = this.feature('auth') && Object.entries(this.policy.auth || {}).some(([k, v]) => k !== 'budget' && v && v !== 'off');
+      d -= 3 + (authOn ? 1 : 0) + (o.gym ? 1 : 0) + (o.car ? 1 : 0) + (o.house ? 2 : 0) + (o.partner === 'married' ? 1 : 0) + (this.areaManager ? 1 : 0);
       if (this.boss.away) d -= 4;
       o.stress = clamp(o.stress + d, 0, 100);
       o.health = clamp(o.health + (o.stress > 80 ? -1.5 : o.stress > 60 ? -0.5 : o.stress < 40 ? 0.4 + (o.gym ? 0.3 : 0) : 0), 0, 100);
@@ -5685,6 +5688,8 @@
       if (fx.petPolicyStrict) this.policy.petStrict = true;
       if (fx.petZone) this.flags.add('petZone');
       if (fx.dirt) for (let i = 0; i < fx.dirt; i++) this.addDirt(Math.floor(this.rng() * this.W), Math.floor(this.rng() * this.H), 1, 'mud');
+      if (fx.deliveryOff) this.policy.delivery = false;
+      if (fx.petFriendlyOn) this.policy.petFriendly = true;
       if (fx.toiletFix) this.toiletDownUntil = 0;
       if (fx.toiletDown) this.toiletDownUntil = this.day + fx.toiletDown - 1;
       if (fx.sideHot) this.sideHot = { id: fx.sideHot[0], mult: fx.sideHot[1], until: this.day + fx.sideHot[2] - 1 };

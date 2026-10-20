@@ -2236,7 +2236,7 @@
     if (route === 'ipo') {
       const I = s.ipo;
       out += `<h3>🔔 上市之路</h3><div class="group-card">`;
-      if (!I) out += `<p class="calc">公司估值達到 ${money(s.raiseNeed)} 就能找投資人（現在 ${money(s.valuation)}）。募資會拿到估值 15% 的現金，之後每季要交成績單。</p><button class="primary" data-action="ipo-raise" ${s.valuation < s.raiseNeed ? 'disabled' : ''}>💼 引進投資人</button>`;
+      if (!I) out += `<p class="calc">公司估值達到 ${money(s.raiseNeed)} 就能找投資人（現在 ${money(s.valuation)}）。募資大約拿到一年本業獲利的現金；之後投資人每週分走兩成五的獲利，每季還要交成績單。</p><button class="primary" data-action="ipo-raise" ${s.valuation < s.raiseNeed ? 'disabled' : ''}>💼 引進投資人</button>`;
       else if (!I.listed) out += `<p class="calc">這一季（還有 ${Math.max(0, 13 - (s.week - I.qWeek))} 週）：淨利 ${money(Math.round(I.qProfit))} / 目標 ${money(I.target)}・連續達標 ${I.streak} 季</p><div class="bar"><div class="bar-fill skill" style="width:${Math.min(100, Math.round((I.qProfit / Math.max(1, I.target)) * 100))}%"></div></div><button class="primary" data-action="ipo-list" ${I.streak < 3 || s.jerk >= 20 ? 'disabled' : ''}>🔔 申請掛牌${I.streak < 3 ? `（要連續 3 季達標）` : s.jerk >= 20 ? '（慣老闆指數要低於 20）' : ''}</button>`;
       else out += '<p class="calc">🔔 已經掛牌上市。</p>';
       out += '</div>';
