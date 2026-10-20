@@ -4444,7 +4444,8 @@
         this.today.angry++;
         this.comboStep(false);
         this.sound('angry');
-        this.addReview(1 + (this.rng() < 0.3 ? 1 : 0), this.pickComment('angry', c), 'wait');
+        // 來辦兼營業務的人等太久：比較少特地留評論
+        if (!(c.product && c.product.side) || this.rng() < 0.4) this.addReview(1 + (this.rng() < 0.3 ? 1 : 0), this.pickComment('angry', c), 'wait');
         this.popup(c, '😡', 'bad');
       } else if (reason === 'tooLong') {
         this.today.balked++;
@@ -5145,6 +5146,8 @@
           if (lane.self || (lane.staff && lane.staff !== e)) continue;
           let score = need(o) + (lane.customer ? 2 : 0);
           if (lane === cur) score += 0.8;
+          // 本業優先：兼營業務只在本業不忙的時候做（會的人優先）
+          if (o.def.side) score -= this.knows(e, o.def.side) ? 1.2 : 2;
           const d = Math.abs(lane.staffSpot.x - e.x) + Math.abs(lane.staffSpot.z - e.z);
           score -= d * 0.03;
           if (score > bestScore) {
