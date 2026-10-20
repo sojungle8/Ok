@@ -2012,6 +2012,8 @@
     }
 
     bossGreet(c) {
+      if (c.greeted) return false;
+      c.greeted = true;
       c.patience += 4;
       c.waited = Math.max(0, c.waited - 2);
       this.popup(c, '😊', 'good');
@@ -3729,6 +3731,7 @@
       if (!this.walkTo(c, { x: exitX, z: this.H + (c.scooter ? 1 : 0) })) c.state = 'gone';
       if (reason === 'angry' && wasWaiting) {
         this.today.angry++;
+        this.comboStep(false);
         this.sound('angry');
         this.addReview(1 + (this.rng() < 0.3 ? 1 : 0), this.pickComment('angry', c), 'wait');
         this.popup(c, '😡', 'bad');
@@ -3831,6 +3834,7 @@
     }
 
     reviewFor(c) {
+      this.comboStep(c.stars >= 4);
       if (this.rng() < 0.55) this.addReview(c.stars, this.pickComment(c.stars >= 4 ? 'good' : c.stars >= 3 ? 'ok' : 'bad', c), c.stars >= 4 ? null : c.whyLow);
       this.popup(c, c.stars >= 4.5 ? '😍' : c.stars >= 3.5 ? '🙂' : c.stars >= 2.5 ? '😐' : '😠', c.stars >= 3.5 ? 'good' : 'bad');
     }
@@ -3856,6 +3860,39 @@
       if (this.rng() < 0.3 && Fun.FUNNY_REVIEWS[kind === 'good' ? 'good' : kind === 'bad' ? 'bad' : '']) arr = Fun.FUNNY_REVIEWS[kind].filter((t) => this.isFood || !/吃|喝|餐/.test(this.w(t))).map((t) => this.w(t));
       if (kind === 'good' && this.shopCat && this.rng() < 0.15) return '我是來看店貓的，結果順便變成常客';
       return arr[Math.floor(this.rng() * arr.length)];
+    }
+
+    // 🔥 連續好評：連續幾位客人都滿意（4 星以上），到里程碑有小獎勵；有人不滿意就歸零
+    comboStep(ok) {
+      if (!ok) {
+        if (this.combo >= 10) this.notify(`💨 連續好評在 ${this.combo} 位中斷了`);
+        this.combo = 0;
+        return;
+      }
+      this.combo = (this.combo || 0) + 1;
+      this.bestCombo = Math.max(this.bestCombo || 0, this.combo);
+      const M = [10, 25, 50, 100, 200, 500];
+      if (M.includes(this.combo)) {
+        const xp = this.combo * 3;
+        const fans = Math.round(this.combo / 2);
+        this.gainXp(xp);
+        this.social.followers += fans;
+        this.sound('combo');
+        this.notify(`🔥 連續 ${this.combo} 位客人都很滿意！經驗 +${xp}、粉絲 +${fans}`, 'achieve');
+        if (this.cb.combo) this.cb.combo(this.combo);
+      }
+    }
+
+    // 💪 幫員工加油：做事快一點、心情好一點（每人每兩小時一次）
+    cheer(e) {
+      if (!e || (e.state !== 'working' && e.state !== 'break') || (e.cheerAt && this.minute - e.cheerAt < 120)) return false;
+      e.cheerAt = this.minute;
+      e.hustle = Math.max(e.hustle || 0, this.minute + 45);
+      e.mood = clamp(e.mood + 2, 0, 100);
+      this.popup(e, '💪✨', 'good');
+      this.say(e, ['好！衝了！', '收到～', '老闆也辛苦了！', '我可以的！'][Math.floor(this.rng() * 4)], 30);
+      this.sound('cheer');
+      return true;
     }
 
     popup(a, text, kind) {
@@ -5133,6 +5170,7 @@
         progress: this.progress,
         owner: this.owner,
         areaManager: this.areaManager || null,
+        bestCombo: this.bestCombo || 0,
         kitchen: this.kitchen || null,
         seasonal: this.seasonal || null,
         seasonalCount: this.seasonalCount || 0,
@@ -5210,6 +5248,7 @@
       s.fightCount = d.fightCount || {};
       s.xp = d.xp || 0;
       s.areaManager = d.areaManager || null;
+      s.bestCombo = d.bestCombo || 0;
       s.kitchen = d.kitchen || null;
       s.seasonal = d.seasonal || null;
       s.seasonalCount = d.seasonalCount || 0;

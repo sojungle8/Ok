@@ -80,6 +80,16 @@
     alert: (t) => [659, 880, 1175].forEach((f, i) => tone(f, t + i * 0.09, 0.18, { type: 'triangle', vol: 0.14 })),
     level: (t) => [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, t + i * 0.08, 0.3, { type: 'triangle', vol: 0.13 })),
     click: (t) => tone(1200, t, 0.04, { type: 'square', vol: 0.03 }),
+    pop: (t) => tone(660, t, 0.06, { type: 'sine', vol: 0.12, slide: 1.8 }),
+    combo: (t) => [784, 988, 1175, 1568].forEach((f, i) => tone(f, t + i * 0.05, 0.16, { type: 'square', vol: 0.05 })),
+    cheer: (t) => {
+      tone(880, t, 0.08, { type: 'triangle', vol: 0.12 });
+      tone(1320, t + 0.08, 0.14, { type: 'triangle', vol: 0.12 });
+    },
+    // 鴿子拍翅膀
+    flap: (t) => {
+      for (let i = 0; i < 6; i++) tone(140 + Math.random() * 80, t + i * 0.045, 0.04, { type: 'sawtooth', vol: 0.03 });
+    },
     place: (t) => {
       tone(180, t, 0.12, { type: 'triangle', vol: 0.2, slide: 0.7 });
       tone(360, t + 0.02, 0.08, { type: 'square', vol: 0.04 });

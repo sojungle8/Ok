@@ -702,8 +702,14 @@
 
       this.world = new THREE.Scene();
       this.camera = new THREE.OrthographicCamera(-10, 10, 6, -6, 0.1, 300);
-      this.camRot = 0; // 0～3，每次轉 90 度
+      // 自由鏡頭：水平角度（任意）、俯仰（高度比例）、縮放；按鈕和快捷鍵會平滑轉過去
+      this.camAz = Math.PI / 4;
+      this.camAzT = this.camAz;
+      this.pitch = 0.82;
+      this.pitchT = this.pitch;
       this.zoom = 1;
+      this.zoomT = 1;
+      this.panT = null;
       this.pan = new THREE.Vector3();
 
       this.hemi = new THREE.HemisphereLight('#ffffff', '#8a7d70', 0.7);
@@ -776,14 +782,20 @@
       this.updateCamera();
     }
 
+    // 最接近的 90 度方向（0～3）：決定哪兩面牆要降低
+    get camRot() {
+      const q = Math.round((this.camAz - Math.PI / 4) / (Math.PI / 2));
+      return ((q % 4) + 4) % 4;
+    }
+
     updateCamera() {
       const s = this.sim;
       const cx = s.W / 2;
       const cz = (s.H + 1.2) / 2 + 0.4;
-      const az = Math.PI / 4 + (this.camRot * Math.PI) / 2;
+      const az = this.camAz;
       const d = 30;
       const center = new THREE.Vector3(cx, 0, cz).add(this.pan);
-      this.camera.position.set(center.x + Math.sin(az) * d, d * 0.82, center.z + Math.cos(az) * d);
+      this.camera.position.set(center.x + Math.sin(az) * d, d * this.pitch, center.z + Math.cos(az) * d);
       this.camera.lookAt(center);
       this.camera.updateMatrixWorld();
       // 讓整間店加上門口的騎樓剛好塞進畫面
@@ -820,14 +832,67 @@
       this.applyCutaway();
     }
 
+    // 按鈕、Q／E：每次轉 45 度（平滑轉過去）
     rotate(dir) {
-      this.camRot = (this.camRot + dir + 4) % 4;
+      this.camAzT = Math.round((this.camAzT - Math.PI / 4) / (Math.PI / 4)) * (Math.PI / 4) + Math.PI / 4 + (dir * Math.PI) / 4;
+    }
+
+    setZoom(z, smooth) {
+      const v = Math.max(0.7, Math.min(3.2, z));
+      this.zoomT = v;
+      if (!smooth) {
+        this.zoom = v;
+        this.updateCamera();
+      }
+    }
+
+    setPitch(p) {
+      this.pitchT = this.pitch = Math.max(0.42, Math.min(1.7, p));
       this.updateCamera();
     }
 
-    setZoom(z) {
-      this.zoom = Math.max(0.7, Math.min(3, z));
-      this.updateCamera();
+    resetView() {
+      this.camAzT = Math.round((this.camAz - Math.PI / 4) / (Math.PI * 2)) * Math.PI * 2 + Math.PI / 4;
+      this.pitchT = 0.82;
+      this.zoomT = 1;
+      this.panT = new THREE.Vector3();
+    }
+
+    // 雙擊地板：拉近到那個位置；再雙擊一次拉回來
+    focusAt(x, z) {
+      if (this.zoomT >= 1.6) return this.resetView();
+      const s = this.sim;
+      this.panT = new THREE.Vector3(x - s.W / 2, 0, z - ((s.H + 1.2) / 2 + 0.4));
+      this.zoomT = 2.1;
+    }
+
+    clampPan(p) {
+      const s = this.sim;
+      p.x = Math.max(-s.W - 4, Math.min(s.W + 4, p.x));
+      p.z = Math.max(-s.H, Math.min(s.H + 3, p.z));
+      return p;
+    }
+
+    // 每一幀：鏡頭平滑地靠近目標角度、高度、縮放和位置
+    easeCamera(dt) {
+      const k = Math.min(1, dt * 9);
+      let moved = false;
+      const ease = (cur, tgt, eps) => {
+        if (Math.abs(tgt - cur) <= eps) return tgt;
+        moved = true;
+        return cur + (tgt - cur) * k;
+      };
+      this.camAz = ease(this.camAz, this.camAzT, 0.0005);
+      this.pitch = ease(this.pitch, this.pitchT, 0.0005);
+      this.zoom = ease(this.zoom, this.zoomT, 0.001);
+      if (this.panT) {
+        const nx = ease(this.pan.x, this.panT.x, 0.002);
+        const nz = ease(this.pan.z, this.panT.z, 0.002);
+        this.pan.x = nx;
+        this.pan.z = nz;
+        if (nx === this.panT.x && nz === this.panT.z) this.panT = null;
+      }
+      if (moved) this.updateCamera();
     }
 
     bindControls() {
@@ -836,14 +901,21 @@
       const pts = new Map();
       this._down = (e) => {
         pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
-        drag = { x: e.clientX, y: e.clientY, moved: 0, pan: this.pan.clone(), id: e.pointerId };
+        // 右鍵、或按著 Shift／Alt 拖曳：旋轉和調整俯仰
+        const orbit = e.pointerType === 'mouse' && (e.button === 2 || e.shiftKey || e.altKey);
+        drag = { x: e.clientX, y: e.clientY, moved: 0, pan: this.pan.clone(), id: e.pointerId, orbit, az0: this.camAz, p0: this.pitch };
+        this.panT = null;
         if (pts.size === 2) {
           const [a, b] = [...pts.values()];
           drag.pinch = Math.hypot(a.x - b.x, a.y - b.y);
           drag.zoom0 = this.zoom;
+          drag.ang0 = Math.atan2(b.y - a.y, b.x - a.x);
+          drag.midY0 = (a.y + b.y) / 2;
         }
         el.setPointerCapture(e.pointerId);
       };
+      this._ctx = (e) => e.preventDefault();
+      el.addEventListener('contextmenu', this._ctx);
       this._move = (e) => {
         if (pts.has(e.pointerId)) pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
         if (this.opts.onHover && !drag) this.opts.onHover(this.pickTile(e.clientX, e.clientY));
@@ -859,31 +931,61 @@
           return;
         }
         if (pts.size === 2 && drag.pinch) {
+          // 兩指：捏合縮放、轉動旋轉、一起上下滑調整俯仰
           const [a, b] = [...pts.values()];
-          this.setZoom((drag.zoom0 * Math.hypot(a.x - b.x, a.y - b.y)) / drag.pinch);
+          const z = (drag.zoom0 * Math.hypot(a.x - b.x, a.y - b.y)) / drag.pinch;
+          this.zoom = this.zoomT = Math.max(0.7, Math.min(3.2, z));
+          let da = Math.atan2(b.y - a.y, b.x - a.x) - drag.ang0;
+          if (da > Math.PI) da -= Math.PI * 2;
+          if (da < -Math.PI) da += Math.PI * 2;
+          this.camAz = this.camAzT = drag.az0 - da;
+          const dyMid = (a.y + b.y) / 2 - drag.midY0;
+          this.pitch = this.pitchT = Math.max(0.42, Math.min(1.7, drag.p0 + dyMid * 0.004));
           drag.moved = 99;
+          this.updateCamera();
           return;
         }
         const dx = e.clientX - drag.x;
         const dy = e.clientY - drag.y;
         drag.moved = Math.max(drag.moved, Math.hypot(dx, dy));
         if (this.opts.onHover) this.opts.onHover(this.pickTile(e.clientX, e.clientY));
+        if (drag.orbit && drag.moved > 3) {
+          this.camAz = this.camAzT = drag.az0 - dx * 0.008;
+          this.pitch = this.pitchT = Math.max(0.42, Math.min(1.7, drag.p0 + dy * 0.004));
+          this.updateCamera();
+          return;
+        }
         if (drag.moved > 8 && !this.opts.dragLocked?.()) {
           // 拖曳平移：把螢幕位移換成地面上的位移
           const r = this.dom.getBoundingClientRect();
           const wpp = (this.camera.right - this.camera.left) / r.width;
-          const az = Math.PI / 4 + (this.camRot * Math.PI) / 2;
+          const az = this.camAz;
           const right = new THREE.Vector3(Math.cos(az), 0, -Math.sin(az));
           const fwd = new THREE.Vector3(-Math.sin(az), 0, -Math.cos(az));
-          this.pan.copy(drag.pan).addScaledVector(right, -dx * wpp).addScaledVector(fwd, (dy * wpp) / 0.6);
-          this.pan.x = Math.max(-this.sim.W, Math.min(this.sim.W, this.pan.x));
-          this.pan.z = Math.max(-this.sim.H, Math.min(this.sim.H, this.pan.z));
+          this.pan.copy(drag.pan).addScaledVector(right, -dx * wpp).addScaledVector(fwd, (dy * wpp) / Math.max(0.4, Math.min(1, this.pitch * 0.75)));
+          this.clampPan(this.pan);
           this.updateCamera();
         }
       };
       this._up = (e) => {
         pts.delete(e.pointerId);
-        if (drag && drag.id === e.pointerId && drag.moved <= 8 && this.opts.onClick) {
+        if (drag && drag.id === e.pointerId && drag.moved <= 8 && !drag.orbit && !this.opts.dragLocked?.()) {
+          // 雙擊（雙點）地板：拉近；再雙擊拉回
+          const now = performance.now();
+          const last = this._lastTap;
+          this._lastTap = { t: now, x: e.clientX, y: e.clientY };
+          if (last && now - last.t < 320 && Math.hypot(e.clientX - last.x, e.clientY - last.y) < 24) {
+            const hit = this.pick(e.clientX, e.clientY);
+            if (hit && hit.kind === 'tile') {
+              const p = new THREE.Vector3();
+              if (this.ray(e.clientX, e.clientY).ray.intersectPlane(this.floorPlane, p)) this.focusAt(p.x, p.z);
+              this._lastTap = null;
+              if (!pts.size) drag = null;
+              return;
+            }
+          }
+        }
+        if (drag && drag.id === e.pointerId && drag.moved <= 8 && !drag.orbit && this.opts.onClick) {
           // 建造模式：直接用手指下面的地板格，不要被前面的家具擋到
           if (this.opts.dragLocked?.()) {
             const t = this.pickTile(e.clientX, e.clientY);
@@ -912,6 +1014,7 @@
       el.removeEventListener('pointerup', this._up);
       el.removeEventListener('pointercancel', this._up);
       el.removeEventListener('wheel', this._wheel);
+      el.removeEventListener('contextmenu', this._ctx);
     }
 
     ray(clientX, clientY) {
@@ -1199,9 +1302,44 @@
       spill.position.set(W / 2 - 0.5, 0.025, H + 0.9);
       this.glowGroup.add(spill);
       g.add(this.glowGroup);
+      // 牆上的時鐘：指著遊戲裡的時間
+      this.clock = new THREE.Group();
+      const face = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.04, 24), mat('#fffaf0'));
+      face.rotation.x = Math.PI / 2;
+      this.clock.add(face);
+      const rim = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.025, 8, 24), mat('#3a2c25'));
+      this.clock.add(rim);
+      for (let i = 0; i < 12; i++) {
+        const a = (i / 12) * Math.PI * 2;
+        const tick = new THREE.Mesh(boxGeo(0.015, i % 3 ? 0.03 : 0.05, 0.01), basic('#3a2c25'));
+        tick.position.set(Math.sin(a) * 0.16, Math.cos(a) * 0.16, 0.025);
+        tick.rotation.z = -a;
+        this.clock.add(tick);
+      }
+      const hand = (len, w, col) => {
+        const m = new THREE.Mesh(boxGeo(w, len, 0.01), basic(col));
+        m.geometry = m.geometry.clone();
+        m.geometry.translate(0, len / 2, 0);
+        m.position.z = 0.03;
+        this.clock.add(m);
+        return m;
+      };
+      this.clockH = hand(0.1, 0.022, '#2a2420');
+      this.clockM = hand(0.15, 0.014, '#2a2420');
+      this.clock.position.set(0.7, 2.08, 0.03);
+      g.add(this.clock);
+      // 馬路上的車流、騎樓的鴿子（純裝飾，不影響經營）
+      this.trafficGroup = new THREE.Group();
+      g.add(this.trafficGroup);
+      this.cars = [];
+      this.trafficT = 1;
+      this.pigeonGroup = new THREE.Group();
+      g.add(this.pigeonGroup);
+      this.pigeons = [];
+      for (let i = 0; i < 5; i++) this.pigeons.push(this.makePigeon());
       // 合併靜態場景：牆、隔壁店家、柱子、路邊的機車
       for (const gr of [...Object.values(this.walls), ...Object.values(this.neighbors), this.frontProps, this.trees]) People.mergeGroup(gr);
-      People.mergeGroup(g, [...Object.values(this.walls), ...Object.values(this.neighbors), this.frontProps, this.trees, this.sign, this.shutter, this.frontSigns, this.glowGroup]);
+      People.mergeGroup(g, [...Object.values(this.walls), ...Object.values(this.neighbors), this.frontProps, this.trees, this.clock, this.trafficGroup, this.pigeonGroup, this.sign, this.shutter, this.frontSigns, this.glowGroup]);
       if (this.renderer) this.renderer.shadowMap.needsUpdate = true;
       this.updateCamera();
     }
@@ -1381,6 +1519,7 @@
       if (this.awning) this.awning.visible = !frontNear;
       if (this.frontProps) this.frontProps.scale.y = frontNear ? 0.15 : 1;
       if (this.trees) this.trees.visible = !frontNear;
+      if (this.clock) this.clock.visible = !near.includes('back');
       this.applyShutterCut(frontNear);
       if (this.frontSigns) this.frontSigns.visible = !frontNear;
       this.frontNear = frontNear;
@@ -1701,6 +1840,7 @@
       this.indoor.intensity = lit ? 0.3 + night * 1.3 : night * 0.1;
       this.indoor.distance = Math.max(s.W, s.H) * 1.6;
       for (const l of this.lamps) l.intensity = night > 0.5 ? 1.2 : 0;
+      this.nightK = night;
       if (this.glowMat) {
         this.glowMat.opacity = night > 0.4 ? Math.min(0.7, (night - 0.4) * 1.6) : 0;
         this.spillMat.opacity = lit ? Math.min(0.55, night * 0.65) : 0;
@@ -1764,6 +1904,7 @@
         this._styleVer = this.sim.styleVer || 0;
         this.buildStatic();
       }
+      this.easeCamera(dt);
       this.syncObjects();
       this.syncAgents(dt, now);
       this.syncDirt();
@@ -1777,6 +1918,8 @@
         this.renderer.shadowMap.needsUpdate = true;
       }
       this.updateRain(dt);
+      this.updateStreetLife(dt, now);
+      this.updateRipples(dt);
       this.animateProps(now);
       this.renderer.render(this.world, this.camera);
       this.updateOverlay();
@@ -1985,6 +2128,243 @@
         this.rivalCrowd.add(p.group);
       }
       this.rivalCrowd.visible = this.neighbors.left.visible;
+    }
+
+    // 點地板的漣漪
+    ripple(x, z) {
+      const m = new THREE.Mesh(new THREE.RingGeometry(0.18, 0.26, 28), new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.9, depthWrite: false }));
+      m.rotation.x = -Math.PI / 2;
+      m.position.set(x, 0.04, z);
+      this.world.add(m);
+      (this.ripples = this.ripples || []).push({ m, t: 0 });
+    }
+
+    updateRipples(dt) {
+      if (!this.ripples || !this.ripples.length) return;
+      for (const r of this.ripples) {
+        r.t += dt;
+        const k = r.t / 0.55;
+        r.m.scale.setScalar(1 + k * 3);
+        r.m.material.opacity = Math.max(0, 0.9 * (1 - k));
+      }
+      this.ripples = this.ripples.filter((r) => {
+        if (r.t < 0.55) return true;
+        this.world.remove(r.m);
+        r.m.geometry.dispose();
+        r.m.material.dispose();
+        return false;
+      });
+    }
+
+    // ───── 街景：車流、鴿子、時鐘 ─────
+    makeCar() {
+      const s = this.sim;
+      const r = Math.random();
+      const type = r < 0.12 ? 'bus' : r < 0.3 ? 'truck' : 'car';
+      const g = new THREE.Group();
+      const colors = ['#d9482b', '#2c6fbb', '#f2f2f2', '#2b2b30', '#f2c14e', '#5aa9a0', '#8e44ad', '#bdc3c7'];
+      const col = type === 'bus' ? '#2f8f6b' : type === 'truck' ? '#f2f2f2' : colors[Math.floor(Math.random() * colors.length)];
+      const L = type === 'bus' ? 4.2 : type === 'truck' ? 2.6 : 1.9;
+      const Hh = type === 'bus' ? 1.25 : type === 'truck' ? 0.95 : 0.45;
+      B(g, L, Hh, 0.8, col, 0, 0.18, 0, { roughness: 0.4, metalness: 0.2 });
+      if (type === 'car') {
+        B(g, L * 0.55, 0.32, 0.72, col, -0.1, 0.63, 0, { roughness: 0.4, metalness: 0.2 });
+        B(g, L * 0.5, 0.26, 0.74, basic('#a9c9de'), -0.1, 0.66, 0);
+      } else if (type === 'bus') {
+        B(g, L * 0.92, 0.32, 0.82, basic('#a9c9de'), 0, 0.85, 0);
+        B(g, L * 0.98, 0.06, 0.84, '#f2f2f2', 0, 1.43, 0);
+      } else {
+        B(g, 0.7, 0.55, 0.78, '#2c6fbb', L / 2 - 0.35, 0.18, 0);
+        B(g, 0.5, 0.25, 0.8, basic('#a9c9de'), L / 2 - 0.3, 0.45, 0);
+      }
+      for (const x of [-L / 2 + 0.4, L / 2 - 0.4]) for (const z of [-0.38, 0.38]) {
+        const w = C(g, 0.17, 0.17, 0.12, '#1d1d1d', x, 0.0, z, 10);
+        w.rotation.x = Math.PI / 2;
+        w.position.y = 0.17;
+      }
+      // 頭燈、尾燈（晚上會亮）
+      const head = basic('#fff3c4');
+      const tail = basic('#ff3b2f');
+      for (const z of [-0.28, 0.28]) {
+        B(g, 0.03, 0.08, 0.12, head, L / 2 + 0.01, 0.32, z);
+        B(g, 0.03, 0.08, 0.12, tail, -L / 2 - 0.01, 0.32, z);
+      }
+      const beam = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 1.1), this.glowMat);
+      beam.rotation.x = -Math.PI / 2;
+      beam.position.set(L / 2 + 1.2, 0.02, 0);
+      g.add(beam);
+      const dir = Math.random() < 0.5 ? 1 : -1;
+      g.rotation.y = dir > 0 ? 0 : Math.PI;
+      const H = s.H;
+      const z = dir > 0 ? H + 1.7 : H + 2.85;
+      const x = dir > 0 ? -s.W * 0.5 - 18 : s.W * 1.5 + 18;
+      g.position.set(x, 0, z);
+      g.traverse((o) => {
+        if (o.isMesh) o.castShadow = false;
+      });
+      this.trafficGroup.add(g);
+      return { g, dir, speed: (type === 'bus' ? 3 : 4) + Math.random() * 2.5, L };
+    }
+
+    makePigeon() {
+      const s = this.sim;
+      const g = new THREE.Group();
+      const body = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), mat('#8a8f9a', { roughness: 0.9 }));
+      body.scale.set(1.4, 1, 1);
+      body.position.y = 0.1;
+      g.add(body);
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), mat('#6f7a8a'));
+      head.position.set(0.12, 0.17, 0);
+      g.add(head);
+      const neck = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 6), mat('#5a8f7a', { metalness: 0.3, roughness: 0.4 }));
+      neck.position.set(0.09, 0.13, 0);
+      g.add(neck);
+      const beak = new THREE.Mesh(boxGeo(0.04, 0.015, 0.015), mat('#e2a12a'));
+      beak.position.set(0.17, 0.17, 0);
+      g.add(beak);
+      const wings = [];
+      for (const z of [-0.07, 0.07]) {
+        const w = new THREE.Mesh(boxGeo(0.14, 0.015, 0.1), mat('#7a808c'));
+        w.geometry = w.geometry.clone();
+        w.geometry.translate(0, 0, z > 0 ? 0.05 : -0.05);
+        w.position.set(-0.02, 0.13, z * 0.6);
+        g.add(w);
+        wings.push(w);
+      }
+      g.traverse((o) => {
+        if (o.isMesh) o.castShadow = false;
+      });
+      const p = { g, wings, head, fly: 0, vx: 0, vy: 0, vz: 0, peck: Math.random() * 6, rest: 0 };
+      this.landPigeon(p);
+      this.pigeonGroup.add(g);
+      return p;
+    }
+
+    landPigeon(p) {
+      const s = this.sim;
+      // 騎樓兩側、對街人行道
+      const spots = [
+        () => [-OUT_W + Math.random() * (OUT_W - 0.5), s.H + 0.35 + Math.random() * 0.5],
+        () => [s.W + 0.5 + Math.random() * (OUT_W - 0.8), s.H + 0.35 + Math.random() * 0.5],
+        () => [-OUT_W + Math.random() * (s.W + OUT_W * 2), s.H + 3.55 + Math.random() * 0.8],
+      ];
+      const [x, z] = spots[Math.floor(Math.random() * spots.length)]();
+      p.g.position.set(x, 0, z);
+      p.g.rotation.y = Math.random() * Math.PI * 2;
+      p.g.visible = true;
+      p.fly = 0;
+      p.wings.forEach((w) => (w.rotation.x = 0));
+    }
+
+    scarePigeon(p, fromX, fromZ) {
+      if (p.fly || p.rest) return;
+      const dx = p.g.position.x - fromX;
+      const dz = p.g.position.z - fromZ;
+      const d = Math.hypot(dx, dz) || 1;
+      p.fly = 1;
+      p.vx = (dx / d) * 2.2 + (Math.random() - 0.5);
+      p.vz = (dz / d) * 1.2;
+      p.vy = 2.4 + Math.random();
+      p.g.rotation.y = Math.atan2(-p.vz, p.vx);
+    }
+
+    // 點地板：附近的鴿子嚇飛
+    scareAt(x, z, r = 1.2) {
+      let n = 0;
+      for (const p of this.pigeons || []) {
+        if (!p.fly && Math.hypot(p.g.position.x - x, p.g.position.z - z) < r) {
+          this.scarePigeon(p, x, z);
+          n++;
+        }
+      }
+      return n;
+    }
+
+    updateStreetLife(dt, now) {
+      const s = this.sim;
+      const ts = this.opts.timeScale ? this.opts.timeScale() : 1;
+      const k = dt * ts;
+      // 時鐘
+      if (this.clock) {
+        const m = ((s.minute % 1440) + 1440) % 1440;
+        this.clockM.rotation.z = -((m % 60) / 60) * Math.PI * 2;
+        this.clockH.rotation.z = -(((m / 60) % 12) / 12) * Math.PI * 2;
+        this._clockT = (this._clockT || 0) - dt;
+        if (this._clockT <= 0) {
+          // 找一格後牆沒有掛東西的位置
+          this._clockT = 2;
+          const used = new Set(s.objects.filter((o) => o.def.wall && o.z === 0).flatMap((o) => Array.from({ length: o.def.w || 1 }, (_, i) => o.x + i)));
+          let x = 0;
+          while (used.has(x) && x < s.W - 1) x++;
+          this.clock.position.x = x + 0.5;
+        }
+      }
+      if (!this.trafficGroup) return;
+      // 車流：早晚尖峰比較多，深夜很少
+      const h = Math.floor((((s.minute % 1440) + 1440) % 1440) / 60);
+      const rush = (h >= 7 && h <= 9) || (h >= 17 && h <= 19) ? 1.8 : h >= 23 || h < 6 ? 0.25 : 1;
+      const cap = this.quality === 'low' ? 2 : this.quality === 'medium' ? 4 : 6;
+      this.trafficT -= k * rush;
+      if (this.trafficT <= 0 && this.cars.length < cap) {
+        this.cars.push(this.makeCar());
+        this.trafficT = 1.2 + Math.random() * 3.5;
+      }
+      const night = this.nightK || 0;
+      if (this.glowMat) this.trafficGroup.visible = true;
+      for (const c of this.cars) c.g.position.x += c.dir * c.speed * k;
+      const lim = s.W * 1.5 + 22;
+      this.cars = this.cars.filter((c) => {
+        const out = c.dir > 0 ? c.g.position.x > lim : c.g.position.x < -s.W * 0.5 - 22;
+        if (out) this.trafficGroup.remove(c.g);
+        return !out;
+      });
+      // 鴿子：有人走近就飛走，過一陣子再飛回來
+      const walkers = [...s.customers, ...s.passers];
+      if (s.boss && s.boss.state === 'working' && !s.boss.away) walkers.push(s.boss);
+      for (const p of this.pigeons) {
+        if (p.rest > 0) {
+          p.rest -= k;
+          if (p.rest <= 0) this.landPigeon(p);
+          continue;
+        }
+        if (p.fly) {
+          p.fly += k;
+          p.g.position.x += p.vx * k;
+          p.g.position.z += p.vz * k;
+          p.g.position.y += p.vy * k;
+          p.vy += 0.6 * k;
+          const flap = Math.sin(now / 45) * 0.9;
+          p.wings[0].rotation.x = flap;
+          p.wings[1].rotation.x = -flap;
+          if (p.fly > 3) {
+            p.g.visible = false;
+            p.rest = 6 + Math.random() * 14;
+            p.fly = 0;
+            p.g.position.y = 0;
+          }
+          continue;
+        }
+        // 啄地板、走兩步
+        p.peck -= k;
+        const pecking = p.peck < 0.25;
+        p.head.position.y = pecking ? 0.1 : 0.17;
+        if (p.peck <= 0) {
+          p.peck = 1 + Math.random() * 3;
+          p.g.rotation.y += (Math.random() - 0.5) * 1.5;
+        } else if (!pecking && Math.random() < 0.02) {
+          p.g.position.x += Math.cos(p.g.rotation.y) * 0.05;
+          p.g.position.z -= Math.sin(p.g.rotation.y) * 0.05;
+        }
+        for (const w of walkers) {
+          if (Math.abs(w.x + 0.5 - p.g.position.x) < 0.9 && Math.abs(w.z + 0.5 - p.g.position.z) < 0.9) {
+            this.scarePigeon(p, w.x + 0.5, w.z + 0.5);
+            break;
+          }
+        }
+        for (const c of this.cars) {
+          if (Math.abs(c.g.position.x - p.g.position.x) < c.L && Math.abs(c.g.position.z - p.g.position.z) < 0.8) this.scarePigeon(p, c.g.position.x, c.g.position.z);
+        }
+      }
     }
 
     animateProps(now) {

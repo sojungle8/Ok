@@ -409,11 +409,17 @@
     }
 
     updateCamera() {
+      const v = this.view;
+      // 旋轉按鈕在小場景裡也平滑轉過去
+      if (v.camAzT != null) {
+        v.camAz += (v.camAzT - v.camAz) * 0.18;
+        v.pitch += (v.pitchT - v.pitch) * 0.18;
+      }
       const cam = this.view.camera;
-      const az = Math.PI / 4 + (this.view.camRot * Math.PI) / 2;
+      const az = this.view.camAz;
       const d = 30;
       const c = new THREE.Vector3(this.boss.x, 0, this.boss.z);
-      cam.position.set(c.x + Math.sin(az) * d, d * 0.82, c.z + Math.cos(az) * d);
+      cam.position.set(c.x + Math.sin(az) * d, d * (this.view.pitch || 0.82), c.z + Math.cos(az) * d);
       cam.lookAt(c);
       const aspect = this.view.aspect || 1.6;
       const h = 9 / this.zoom;

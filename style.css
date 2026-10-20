@@ -800,7 +800,7 @@ body.in-game::before {
   right: max(10px, env(safe-area-inset-right, 0px));
   bottom: 10px;
   display: grid;
-  grid-template-columns: repeat(2, 36px);
+  grid-template-columns: repeat(3, 36px);
   gap: 4px;
   z-index: 2;
 }
@@ -4965,3 +4965,65 @@ kbd {
 .name-row { display: flex; gap: 6px; align-items: center; flex: 1; min-width: 0; }
 .name-row input { flex: 1; min-width: 0; }
 .name-row button { flex-shrink: 0; width: 40px; height: 36px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); font-size: 1.1rem; }
+
+/* ───── 互動回饋 ───── */
+.coin-fly {
+  position: absolute;
+  z-index: 7;
+  pointer-events: none;
+  font-size: 18px;
+  transform: translate(-50%, -50%);
+  animation: coin-fly 0.85s cubic-bezier(0.5, -0.4, 0.7, 0.6) forwards;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.25));
+}
+@keyframes coin-fly {
+  0% { transform: translate(-50%, -50%) scale(0.6); opacity: 0; }
+  15% { transform: translate(-50%, -90%) scale(1.15); opacity: 1; }
+  100% { transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) scale(0.55); opacity: 0.6; }
+}
+[data-f='cash'] { display: inline-block; transition: color 0.2s; }
+[data-f='cash'].bump { animation: cash-bump 0.35s ease-out; color: var(--good); }
+[data-f='cash'].drop { animation: cash-drop 0.45s ease-out; color: var(--bad); }
+@keyframes cash-bump { 40% { transform: scale(1.12); } }
+@keyframes cash-drop { 20%, 60% { transform: translateX(-3px); } 40%, 80% { transform: translateX(3px); } }
+
+.confetti { position: absolute; inset: 0; pointer-events: none; z-index: 8; overflow: hidden; }
+.confetti i {
+  position: absolute;
+  top: -12px;
+  width: 8px;
+  height: 12px;
+  border-radius: 2px;
+  animation: confetti-fall 2s ease-in forwards;
+}
+@keyframes confetti-fall {
+  0% { transform: translate(0, 0) rotate(0); opacity: 1; }
+  100% { transform: translate(var(--dx), 110vh) rotate(var(--rot)); opacity: 0.8; }
+}
+
+.combo-badge {
+  position: absolute;
+  left: max(10px, env(safe-area-inset-left, 0px));
+  top: 10px;
+  z-index: 4;
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: baseline;
+  column-gap: 4px;
+  padding: 6px 12px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #fff3d6, #ffe0cc);
+  color: #8a3b12;
+  font-weight: 700;
+  box-shadow: 0 4px 14px rgba(217, 72, 43, 0.25);
+  pointer-events: none;
+}
+.combo-badge b { font-size: 1.25rem; }
+.combo-badge small { grid-column: 1 / -1; font-weight: 400; font-size: 0.7rem; opacity: 0.8; }
+.combo-badge.pulse { animation: combo-pulse 0.35s ease-out; }
+.combo-badge.hot { background: linear-gradient(135deg, #ffb347, #ff5e3a); color: #fff; }
+@keyframes combo-pulse { 40% { transform: scale(1.15) rotate(-2deg); } }
+.insp-actions button small { display: block; font-size: 0.68rem; opacity: 0.7; }
+@media (prefers-reduced-motion: reduce) {
+  .coin-fly, .combo-badge.pulse, [data-f='cash'].bump, [data-f='cash'].drop { animation: none; }
+}

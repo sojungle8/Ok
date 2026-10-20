@@ -306,6 +306,7 @@
             <button data-action="cam-rot" data-dir="1" title="向右轉（E）">⟳</button>
             <button data-action="zoom" data-dir="1" title="放大">＋</button>
             <button data-action="zoom" data-dir="-1" title="縮小">－</button>
+            <button data-action="cam-reset" title="鏡頭回到預設（雙擊地板可以拉近）">⌖</button>
           </div>
         </div>
         <section class="drawer card" id="drawer" hidden></section>
@@ -361,6 +362,7 @@
         if (ui.tab === 'stock') renderDrawer();
       },
       chapter: (c) => {
+        confetti(90);
         ui.dialog = { type: 'chapter', ...c };
         renderDialog();
         renderQuestChip();
@@ -374,6 +376,12 @@
         b.innerHTML = `<b>⭐ Lv.${lv}</b><div>店家升級了！<small>${items.length ? `解鎖：${esc(items.join('、'))}` : '繼續加油'}</small></div>`;
         vp.appendChild(b);
         setTimeout(() => b.remove(), 4200);
+        confetti(60);
+        buzz([20, 40, 30]);
+      },
+      combo: (n) => {
+        confetti(n >= 50 ? 70 : 36);
+        buzz([15, 30, 15]);
       },
       weekEnd: (r) => {
         save();
@@ -389,6 +397,8 @@
         ui.hover = t;
       },
       dragLocked: () => !!ui.build || !!ui.place,
+      // 車流、鴿子跟著遊戲速度走，暫停時也停
+      timeScale: () => (ui.dialog || ui.panelPause || ui.speed === 0 ? 0 : Math.min(2.5, ui.speed / 2)),
       peek: () => ui.tab === 'build' || !!ui.build,
       follow: () => ui.bossMode && !ui.build,
       bossGender: () => ui.settings.gender,
@@ -497,6 +507,7 @@
       ui.nightSkip = empty;
       sim.tick(dt * mult);
     }
+    feedbackLoop(sim);
     if (sim.over && ui.dialog?.type !== 'ending') {
       ui.dialog = { type: 'ending' };
       renderDialog();
@@ -577,7 +588,7 @@
     if (ix || iy) {
       b.path = [];
       // 螢幕的上下左右換成地面方向（跟著鏡頭旋轉）
-      const az = Math.PI / 4 + (ui.view.camRot * Math.PI) / 2;
+      const az = ui.view.camAz;
       const right = [Math.cos(az), -Math.sin(az)];
       const fwd = [-Math.sin(az), -Math.cos(az)];
       vx = right[0] * ix - fwd[0] * iy;
@@ -618,7 +629,7 @@
     let vx = 0;
     let vz = 0;
     if (ix || iy) {
-      const az = Math.PI / 4 + (ui.view.camRot * Math.PI) / 2;
+      const az = ui.view.camAz;
       vx = Math.cos(az) * ix + Math.sin(az) * iy;
       vz = -Math.sin(az) * ix + Math.cos(az) * iy;
     }
@@ -970,10 +981,19 @@
       if (ui.tab === 'build' && !smallScreen()) renderDrawer();
       return;
     }
+    // 點到哪裡都有一圈漣漪；附近的鴿子會被嚇飛
+    if (hit.kind === 'tile' && ui.view.ripple) {
+      ui.view.ripple(hit.x + 0.5, hit.z + 0.5);
+      if (ui.view.scareAt(hit.x + 0.5, hit.z + 0.5, 1.6)) window.BossAudio.play('flap');
+    }
     if (ui.bossMode && hit.kind === 'tile' && !s.boss.away) {
       const path = s.findPath(s.boss, { x: hit.x, z: hit.z });
       if (path) s.boss.path = path;
       return;
+    }
+    if (hit.kind !== 'tile') {
+      window.BossAudio.play('pop');
+      buzz(8);
     }
     if (hit.kind === 'staff') return inspect('staff', hit.staff);
     if (hit.kind === 'customer') return inspect('customer', hit.customer);
@@ -1086,6 +1106,7 @@
         ${relationsHtml(e)}
         <div class="insp-actions">
           <button data-action="raise">💵 加薪 $10</button>
+          <button data-action="cheer" ${(e.state !== 'working' && e.state !== 'break') || (e.cheerAt && s.minute - e.cheerAt < 120) ? 'disabled' : ''} title="做事快一點、心情 +2（每人每兩小時一次）">💪 加油</button>
           <button data-action="praise" ${e.praiseDay === s.day ? 'disabled' : ''}>👍 稱讚</button>
           <button data-action="scold" class="warn">😠 罵他</button>
           <button data-action="sendhome">🏠 先下班</button>
@@ -1113,7 +1134,8 @@
           <div><h3>${t ? `${t.icon} ${t.name}` : '🛵 外送員'}</h3><small>${st}・${note}</small><p>想要：${c.product.icon} ${c.product.name} × ${c.qty}</p></div>
           <button class="x" data-action="close-insp" aria-label="關閉">✕</button>
         </div>
-        ${bar('耐心', 100 - (c.waited / c.patience) * 100, 'morale')}`;
+        ${bar('耐心', 100 - (c.waited / c.patience) * 100, 'morale')}
+        ${c.state !== 'leaving' && !s.boss.away ? `<div class="insp-actions"><button data-action="cust-greet" ${c.greeted ? 'disabled' : ''}>😊 打招呼<small>耐心 +</small></button><button data-action="cust-gift" ${c.gifted || s.cash < 30 ? 'disabled' : ''}>🎁 招待小菜<small>$30・評價 +</small></button></div>` : ''}`;
       }
     } else if (kind === 'object') {
       const o = ref;
@@ -2756,8 +2778,11 @@
       case 'cam-rot':
         ui.view.rotate(Number(btn.dataset.dir));
         break;
+      case 'cam-reset':
+        ui.view.resetView();
+        break;
       case 'zoom':
-        ui.view.setZoom(ui.view.zoom * (btn.dataset.dir === '1' ? 1.2 : 0.83));
+        ui.view.setZoom(ui.view.zoomT * (btn.dataset.dir === '1' ? 1.25 : 0.8), true);
         break;
       case 'close-insp':
         closeInspector();
@@ -2917,6 +2942,26 @@
         renderDrawer();
         break;
       }
+      case 'cheer': {
+        const who = ui.inspect && ui.inspect.ref;
+        if (who && s.cheer(who)) buzz(12);
+        renderInspector();
+        break;
+      }
+      case 'cust-greet':
+        if (ui.inspect && s.bossGreet(ui.inspect.ref) !== false) {
+          window.BossAudio.play('cheer');
+          buzz(8);
+        }
+        renderInspector();
+        break;
+      case 'cust-gift':
+        if (ui.inspect && s.bossGift(ui.inspect.ref)) {
+          window.BossAudio.play('coin');
+          buzz(8);
+        }
+        renderInspector();
+        break;
       case 'praise': {
         const who = btn.dataset.id ? s.staff.find((x) => String(x.id) === btn.dataset.id) : ui.inspect.ref;
         if (who && s.praise(who)) toast(`👍 稱讚了${who.name}`);
@@ -3236,6 +3281,96 @@
       openEvent(b.dataset.ev);
     }
   }, true);
+
+  // ───── 回饋：手機震動、彩帶、金幣飛進錢包、現金跳動、連續好評 ─────
+  function buzz(p) {
+    try {
+      if (isTouch && navigator.vibrate) navigator.vibrate(p);
+    } catch (e) {
+      /* 不支援就算了 */
+    }
+  }
+
+  function confetti(n = 50) {
+    const vp = document.querySelector('.viewport');
+    if (!vp || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const box = document.createElement('div');
+    box.className = 'confetti';
+    const cols = ['#d9482b', '#f2c14e', '#2c8a57', '#4f7cac', '#e0478a', '#8e44ad'];
+    for (let i = 0; i < n; i++) {
+      const p = document.createElement('i');
+      p.style.left = `${Math.random() * 100}%`;
+      p.style.background = cols[i % cols.length];
+      p.style.animationDelay = `${Math.random() * 0.4}s`;
+      p.style.animationDuration = `${1.6 + Math.random() * 1.4}s`;
+      p.style.setProperty('--dx', `${(Math.random() - 0.5) * 160}px`);
+      p.style.setProperty('--rot', `${Math.random() * 720 - 360}deg`);
+      box.appendChild(p);
+    }
+    vp.appendChild(box);
+    setTimeout(() => box.remove(), 3400);
+  }
+
+  function feedbackLoop(sim) {
+    const vp = document.querySelector('.viewport');
+    const cashEl = document.querySelector('[data-f="cash"]');
+    if (!vp || !ui.view) return;
+    // 每一筆收入：一枚金幣從客人頭上飛到右上角的現金
+    const last = ui.lastPopup || 0;
+    let flying = vp.querySelectorAll('.coin-fly').length;
+    for (const p of sim.popups) {
+      if (p.id <= last) continue;
+      ui.lastPopup = Math.max(ui.lastPopup || 0, p.id);
+      if (p.kind !== 'money' || flying >= 6 || !cashEl || ui.speed > 5) continue;
+      const pt = ui.view.project(p.x + 0.5, 1.4, p.z + 0.5);
+      const vr = vp.getBoundingClientRect();
+      const cr = cashEl.getBoundingClientRect();
+      if (!pt || pt.x < 0 || pt.y < 0) continue;
+      const c = document.createElement('div');
+      c.className = 'coin-fly';
+      c.textContent = '🪙';
+      c.style.left = `${pt.x}px`;
+      c.style.top = `${pt.y}px`;
+      c.style.setProperty('--tx', `${cr.left + cr.width / 2 - vr.left - pt.x}px`);
+      c.style.setProperty('--ty', `${cr.top + cr.height / 2 - vr.top - pt.y}px`);
+      vp.appendChild(c);
+      flying++;
+      setTimeout(() => c.remove(), 900);
+    }
+    // 現金變多跳一下（綠），變少（花錢）抖一下（紅）
+    if (cashEl) {
+      const prev = ui.prevCash ?? sim.cash;
+      const d = sim.cash - prev;
+      ui.prevCash = sim.cash;
+      if (d > 0 && !cashEl.classList.contains('bump')) {
+        cashEl.classList.add('bump');
+        setTimeout(() => cashEl.classList.remove('bump'), 350);
+      } else if (d < -300 && !cashEl.classList.contains('drop')) {
+        cashEl.classList.add('drop');
+        setTimeout(() => cashEl.classList.remove('drop'), 450);
+      }
+    }
+    // 連續好評徽章
+    let cb = document.getElementById('combo-badge');
+    if (!cb) {
+      cb = document.createElement('div');
+      cb.id = 'combo-badge';
+      cb.className = 'combo-badge';
+      cb.hidden = true;
+      vp.appendChild(cb);
+    }
+    const n = sim.combo || 0;
+    const show = n >= 3 && !ui.place;
+    if (cb.hidden === show) cb.hidden = !show;
+    if (show && cb.dataset.n !== String(n)) {
+      cb.dataset.n = String(n);
+      cb.innerHTML = `🔥 <b>${n}</b> 連續好評<small>${n < 10 ? '10' : n < 25 ? '25' : n < 50 ? '50' : n < 100 ? '100' : n < 200 ? '200' : '500'} 位有獎勵・最佳 ${sim.bestCombo || n}</small>`;
+      cb.classList.remove('pulse');
+      void cb.offsetWidth;
+      cb.classList.add('pulse');
+      cb.classList.toggle('hot', n >= 25);
+    }
+  }
 
   function keepName() {
     const n = document.getElementById('shop-name');
