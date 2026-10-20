@@ -213,8 +213,11 @@
     const notes = [];
     if (o.partner === 'married') (score += 2), notes.push('有人陪你走這段路');
     if (o.kids) score += 1;
-    if ((o.familyBond ?? 60) >= 60) (score += 1), notes.push('家人覺得你有在');
-    else if ((o.familyBond ?? 60) < 35) (score -= 2), notes.push('家人很少見到你');
+    // 有另一半或孩子，才看你陪家人的時間
+    if (o.partner || o.kids) {
+      if ((o.familyBond ?? 60) >= 60) (score += 1), notes.push('家人覺得你有在');
+      else if ((o.familyBond ?? 60) < 35) (score -= 2), notes.push('家人很少見到你');
+    }
     if (o.health >= 70) score += 2;
     else if (o.health < 45) (score -= 2), notes.push('身體被店拖垮了');
     if (o.stress <= 45) score += 1;

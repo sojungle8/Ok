@@ -76,6 +76,8 @@ let lastFix = 0;
 
 // 每天打烊後做的事
 function daily(r) {
+  // BASIC=1：關掉這一版新加的玩法（兼營、後場、寵物），用來比較
+  const basic = !!process.env.BASIC;
   // 政策：守法經營
   Object.assign(s.policy, { insurance: true, overtimePay: true, breaks: true, restDays: 'rotate', closingClean: true, autoStock: true });
   const span = (s.policy.close - s.policy.open + 1440) % 1440 || 1440;
@@ -192,8 +194,6 @@ function daily(r) {
     if (c != null && s.cash > c + 180000 && s.roomLv(id) < (s.level >= 10 ? 3 : s.level >= 6 ? 2 : 1) && s.buildRoom(id)) note(`第 ${s.day} 天：後場${id}升到 ${s.roomLv(id)} 級`);
   }
   if (s.roomLv('toilet') && ['store', 'drinks'].includes(s.ind.id)) s.policy.toiletOpen = true;
-  // BASIC=1：關掉這一版新加的玩法（兼營、後場、寵物），用來比較
-  const basic = !!process.env.BASIC;
   // 兼營業務：等級夠、錢夠就一項一項開（數量跟著等級慢慢增加），並送員工去學
   const SB = globalThis.BossIndustries.SIDE_BIZ[s.ind.id] || [];
   const owned = s.ownedSide();
