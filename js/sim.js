@@ -118,7 +118,7 @@
       this.usedEvents = new Set();
       this.achievements = new Set();
       this.xp = 0;
-      this.owner = { wealth: 0, taken: 0 }; // 老闆個人的錢（領分紅才會進來），跟公司的現金分開
+      this.owner = Sim.ownerDefaults(); // 老闆個人的錢（領分紅才會進來）和人生狀態，跟公司分開
       this.rooms = { storage: 0, rest: 0, office: 0, toilet: 0 }; // 後場的房間等級
       this.pets = []; // 店寵
       this.toiletClean = 100;
@@ -578,7 +578,21 @@
 
     siteCost(site, size = 'medium', type = 'standard') {
       const T = (Fun.STORE_TYPES && Fun.STORE_TYPES[type]) || {};
-      return Math.round((this.ind.cash * 2.5 * site.cost * BRANCH_SIZES[size].cost * (T.cost || 1) * (this.level >= 14 ? 0.9 : 1)) / 10000) * 10000;
+      return Math.round((this.ind.cash * 2.5 * site.cost * BRANCH_SIZES[size].cost * (T.cost || 1) * this.branchCostMult * (this.level >= 14 ? 0.9 : 1)) / 10000) * 10000;
+    }
+
+    // 平衡：各產業分店的回本速度差很多，校正到「最好的地點大約 36 週回本」（含裝潢、押金、開辦費）
+    get branchCostMult() {
+      if (this._bcm) return this._bcm;
+      this._bcm = 1;
+      let best = Infinity;
+      for (const st of BRANCH_SITES) {
+        const c = this.siteCost(st, 'medium');
+        const e = this.estimateSite(st, 'medium');
+        if (e.profit > 0) best = Math.min(best, c / e.profit);
+      }
+      this._bcm = isFinite(best) ? clamp(36 / best, 1, 3) : 1;
+      return this._bcm;
     }
 
     typeOf(b) {
@@ -695,7 +709,9 @@
       const mf = this.branchMgrFx(b);
       // 季節限定期間，分店也賣
       const seasonal = this.seasonal && this.seasonal.until >= this.day ? 1.06 : 1;
-      const demand = R0 * traffic * cannibal * size.draw * (T.draw || 1) * seasonal * clamp((b.rating - 2.4) / 1.4, 0.15, 1.5) * (pm < 1 ? 1.15 : pm > 1 ? premiumHit : 1) * (est ? 1 : 0.9 + this.rng() * 0.2);
+      // 新店期：剛開幕的前 8 週，附近的人還不認識你（從五成慢慢爬到全滿）
+      const ramp = est || b.week == null ? 1 : clamp(0.5 + (this.week - b.week) / 16, 0.5, 1);
+      const demand = R0 * ramp * traffic * cannibal * size.draw * (T.draw || 1) * seasonal * clamp((b.rating - 2.4) / 1.4, 0.15, 1.5) * (pm < 1 ? 1.15 : pm > 1 ? premiumHit : 1) * (est ? 1 : 0.9 + this.rng() * 0.2);
       const cap = ((R0 * 1.3 * size.cap * (b.staff + (b.manager ? 1 : 0)) * mf.cap) / need) * (b.broken > 0 ? 0.8 : 1);
       const sold = Math.min(demand, cap);
       const revenue = sold * pm;
@@ -1018,10 +1034,11 @@
 
     // ───── 🤝 加盟 ─────
     get franchiseFee() {
-      return Math.round((this.ind.cash * 0.6) / 10000) * 10000;
+      return Math.round((this.ind.cash * 0.35) / 10000) * 10000;
     }
+    // 直營店越多，越有能力管加盟店
     get franchiseCap() {
-      return 2 + this.branches.length * 2;
+      return 1 + this.branches.length;
     }
     rollFranchiseApps() {
       const who = ['陳先生', '林小姐', '黃老闆', '張太太', '李大哥', '王小姐', '吳先生', '劉媽媽', '蔡老闆', '楊小姐', '許先生', '鄭太太'];
@@ -1081,9 +1098,10 @@
     }
     raiseFunds() {
       if (!this.progress || this.progress.route !== 'ipo' || (this.ipo && this.ipo.investors) || this.valuation < this.raiseNeed) return false;
-      const amt = Math.round((this.valuation * 0.15) / 10000) * 10000;
       const h = this.history.slice(-8);
       const avg = h.length ? h.reduce((t, x) => t + x.profit, 0) / h.length : 0;
+      // 投資人不會給你估值的一大塊：大概是一年半的本業獲利，而且之後每週要分走兩成獲利
+      const amt = Math.round(Math.min(this.valuation * 0.1, Math.max(0, avg) * 52 * 1.5) / 10000) * 10000;
       this.cash += amt;
       this.ledger.other += amt;
       this.ipo = { investors: true, streak: 0, listed: false, qWeek: this.week, qProfit: 0, target: Math.round(Math.max(this.ind.cash * 0.5, avg * 13 * 0.97)), quarters: 0 };
@@ -1095,7 +1113,9 @@
       const I = this.ipo;
       if (!I || I.listed || I.streak < 3 || this.jerk >= 20) return false;
       I.listed = true;
-      const amt = Math.round((this.valuation * 0.2) / 10000) * 10000;
+      const h = this.history.slice(-8);
+      const avg = h.length ? h.reduce((t, x) => t + x.profit - (x.other || 0), 0) / h.length : 0;
+      const amt = Math.round(Math.min(this.valuation * 0.15, Math.max(0, avg) * 52 * 2) / 10000) * 10000;
       this.cash += amt;
       this.ledger.other += amt;
       this.notify(`🔔 敲鐘掛牌！公開發行進帳 ${'$' + amt.toLocaleString()}。`, 'achieve');
@@ -1164,7 +1184,8 @@
         (this.franchises || []).forEach((f, i) => {
           const target = 3.2 + f.decency / 55 + (this.rating - 4) * 0.3;
           f.rating = clamp(f.rating + (target - f.rating) * 0.35 + (this.rng() - 0.5) * 0.1, 1, 5);
-          const roy = Math.round(R0 * 0.06 * clamp((f.rating - 2.5) / 1.5, 0.3, 1.3));
+          // 權利金 4%，扣掉總部督導、教育訓練的成本（大約 1%）
+          const roy = Math.round(R0 * (0.04 * clamp((f.rating - 2.5) / 1.5, 0.3, 1.3) - 0.01));
           f.last = roy;
           f.total += roy;
           total += roy;
@@ -1187,6 +1208,16 @@
           I.target = Math.round(I.target * (hit ? 1.03 : 0.98));
           I.qProfit = 0;
           I.qWeek = this.week;
+        }
+      }
+      // 投資人分潤：上市前每週分走兩成獲利，上市後一成二發給股東
+      if (I && I.investors) {
+        const last = this.history[this.history.length - 1];
+        const core = last ? last.profit - (last.other || 0) : 0;
+        if (core > 0) {
+          const share = Math.round(core * (I.listed ? 0.12 : 0.2));
+          total -= share;
+          I.paid = (I.paid || 0) + share;
         }
       }
       if (this.coop && this.coop.shares) for (const e of this.staff) e.mood = clamp(e.mood + 1.5, 0, 100);
@@ -2169,7 +2200,7 @@
       this.bossLeaveLane();
       this.cash -= pl.cost;
       this.ledger.other -= pl.cost;
-      b.away = { id: pl.id, until: this.minute + pl.minutes };
+      b.away = { id: pl.id, until: this.minute + pl.minutes * (this.owner.car ? 0.7 : 1) };
       b.ride = false;
       this.notify(`${pl.icon} 老闆出門去${pl.name}了（約 ${pl.minutes} 分鐘）`);
       return true;
@@ -2177,6 +2208,7 @@
 
     finishTrip() {
       const b = this.boss;
+      if (b.away.kind === 'life') return this.resolveLifeAway();
       if (b.away.kind === 'scheme') return this.resolveScheme();
       if (b.away.kind === 'collab') return this.resolveCollab();
       const pl = (Fun.PLACES || []).find((p) => p.id === b.away.id);
@@ -3713,6 +3745,158 @@
       return this.ownedSide().length;
     }
 
+    // ───── 🧑 人生篇章：老闆自己的人生 ─────
+    static ownerDefaults() {
+      return { wealth: 0, taken: 0, stress: 20, health: 85, age: 32, partner: null, kids: 0, parents: 'ok', familyBond: 60, house: false, car: false, gym: false, filial: false, emba: false, nanny: false, trips: 0, parentTrips: 0, donated: 0, loan: 0, milestones: [], healthyWeeks: 0 };
+    }
+
+    // 老闆個人的錢不夠付：只好動用公司的錢（員工會察覺）
+    payPersonal(amount, what) {
+      const o = this.owner;
+      if (o.wealth >= amount) {
+        o.wealth -= amount;
+        return true;
+      }
+      const lack = amount - o.wealth;
+      o.wealth = 0;
+      this.cash -= lack;
+      this.ledger.other -= lack;
+      this.jerk = clamp(this.jerk + 0.3, 0, JERK_LIMIT);
+      if (this.rng() < 0.3) this.notify(`💸 老闆個人的錢不夠付${what}，從公司帳上挪了 $${Math.round(lack).toLocaleString()}。會計小聲說：「這樣公司和私人的帳會混在一起……」`, 'bad');
+      return false;
+    }
+
+    // 花老闆自己的錢（只能用個人財富）
+    lifeSpend(id) {
+      const L = Fun.LIFE_SPEND && Fun.LIFE_SPEND[id];
+      const o = this.owner;
+      if (!L || !L.ok(this) || o.wealth < L.cost) return false;
+      o.wealth -= L.cost;
+      if (L.once) o[L.once] = true;
+      if (id === 'trip') {
+        o.trips += 1;
+        this.lifeAway(5, 'trip');
+      } else if (id === 'parents') {
+        o.parentTrips += 1;
+        o.familyBond = clamp(o.familyBond + 15, 0, 100);
+        this.lifeAway(5, 'parents');
+      } else if (id === 'donate') {
+        o.donated += L.cost;
+        this.social.followers += 300;
+        this.jerk = clamp(this.jerk - 3, 0, JERK_LIMIT);
+        this.addReview(5, '老闆有在做公益，支持！');
+      } else if (id === 'emba') {
+        this.costMult.materials = Math.max(0.6, (this.costMult.materials || 1) - 0.04);
+        for (const b of this.branches) if (b.manager) b.manager.lead = Math.min(100, b.manager.lead + 5);
+      }
+      this.notify(`${L.icon} ${L.name}：${L.desc}`, 'good');
+      this.checkLifeMilestones();
+      return true;
+    }
+
+    // 老闆離開幾天（度假、陪家人、住院）：店交給員工
+    lifeAway(days, what) {
+      const b = this.boss;
+      if (b.away) return false;
+      this.bossLeaveLane && this.bossLeaveLane();
+      b.away = { kind: 'life', what, until: Infinity, untilDay: this.day + days, days, cash0: this.cash, log0: this.eventSeq || 0 };
+      return true;
+    }
+
+    resolveLifeAway() {
+      const b = this.boss;
+      const a = b.away;
+      b.away = null;
+      const o = this.owner;
+      const r = { place: { icon: { trip: '✈️', parents: '👴', hospital: '🏥', rest: '🏔️', family: '👪' }[a.what] || '🧳', name: { trip: '度假回來了', parents: '帶爸媽出國回來了', hospital: '出院了', rest: '休息回來了', family: '陪家人回來了' }[a.what] || '回來了' }, lines: [], chips: [] };
+      const evs = (this.eventLog || []).slice(0, Math.max(0, (this.eventSeq || 0) - a.log0));
+      const byStaff = evs.filter((x) => x.by && x.by !== '你' && x.by !== '逾時沒處理').length;
+      const missed = evs.filter((x) => x.by === '逾時沒處理').length;
+      if (a.what === 'trip' || a.what === 'rest') {
+        o.stress = a.what === 'trip' ? 0 : Math.max(0, o.stress - 40);
+        o.health = clamp(o.health + 10, 0, 100);
+        r.chips.push('🧘 壓力歸零', '❤️ 健康 +10');
+        const souvenir = this.staff.length * 150;
+        if (this.cash > souvenir) {
+          this.cash -= souvenir;
+          this.ledger.welfare += souvenir;
+          for (const e of this.staff) e.mood = clamp(e.mood + 4, 0, 100);
+          r.chips.push('🎁 帶伴手禮給大家（心情 +4）');
+        }
+      } else if (a.what === 'parents') {
+        o.stress = Math.max(0, o.stress - 50);
+        r.chips.push('🧘 壓力 -50', '👴 家人很開心');
+      } else if (a.what === 'hospital') {
+        o.health = clamp(o.health + 25, 0, 100);
+        o.stress = Math.max(0, o.stress - 20);
+        r.chips.push('❤️ 健康 +25');
+      }
+      r.lines.push(`你不在的 ${a.days} 天：店裡現金 ${this.cash - a.cash0 >= 0 ? '+' : ''}$${Math.round(this.cash - a.cash0).toLocaleString()}。`);
+      r.lines.push(byStaff || missed ? `店長和授權制度幫你處理了 ${byStaff} 件事${missed ? `，有 ${missed} 件沒人處理（下次記得設好授權、派店長在班）` : '，一切平安'}。` : '這幾天店裡很平靜。');
+      if (this.cb.tripDone) this.cb.tripDone(r);
+    }
+
+    // 每天：壓力和健康
+    lifeDaily(report) {
+      const o = this.owner;
+      const t = this.today;
+      const noMgr = this.branches.filter((b) => !b.manager).length;
+      let d = (t.bossEvents || 0) * 0.8 + (t.ignoredEvents || 0) * 1.5;
+      if (this.policy.closedDay === -1 && !this.boss.away) d += 2;
+      if (t.visitors) d += (t.angry / t.visitors) * 15;
+      if ((t.revenue || 0) < (report.wages || 0)) d += 3;
+      d += noMgr * 0.8 + (o.emba ? 0.6 : 0) + (o.kids && !o.familyTime ? 1 : 0);
+      d -= 6 + (o.gym ? 1 : 0) + (o.car ? 1 : 0) + (o.house ? 2 : 0) + (o.partner === 'married' ? 1 : 0) + (this.areaManager ? 1 : 0);
+      if (this.boss.away) d -= 4;
+      o.stress = clamp(o.stress + d, 0, 100);
+      o.health = clamp(o.health + (o.stress > 80 ? -1.5 : o.stress > 60 ? -0.5 : o.stress < 40 ? 0.4 + (o.gym ? 0.3 : 0) : 0), 0, 100);
+      if (o.kids) o.familyBond = clamp(o.familyBond + (o.familyTime ? 0.5 : -0.4), 0, 100);
+      if (o.stress >= 70 && !o.stressWarned) {
+        o.stressWarned = true;
+        this.notify('🌋 老闆的壓力已經很大了：多授權、找店長、排公休，或去度個假（到「成長 → 老闆的人生」）', 'bad');
+      } else if (o.stress < 55) o.stressWarned = false;
+      // 身體撐不住：直接送醫
+      if ((o.health < 25 || o.stress >= 98) && !this.boss.away) {
+        o.health = Math.max(o.health, 25);
+        this.payPersonal(50000, '醫藥費');
+        this.lifeAway(4, 'hospital');
+        this.notify('🚑 老闆累倒送醫了，要住院 4 天。店交給大家了……', 'bad');
+      }
+    }
+
+    // 每週：房貸、油錢、保母、孝親費；人生事件；里程碑
+    lifeWeekly() {
+      const o = this.owner;
+      if (o.house) this.payPersonal(9000, '房貸');
+      if (o.car) this.payPersonal(2000, '車子的油錢和保養');
+      if (o.nanny) this.payPersonal(8000, '保母費');
+      if (o.filial && this.week % 4 === 0) this.payPersonal(10000, '孝親費');
+      if (o.partnerRisk && o.partner === 'dating' && this.rng() < 0.15) {
+        o.partner = null;
+        o.partnerRisk = false;
+        o.stress = clamp(o.stress + 20, 0, 100);
+        this.notify('💔 另一半說：「我等不到你把店放下的那一天。」你們分手了。', 'bad');
+      }
+      o.healthyWeeks = o.health >= 80 ? (o.healthyWeeks || 0) + 1 : 0;
+      if (this.week % 48 === 0) o.age += 1;
+      if (Fun.LIFE_EVENTS && !this.boss.away && this.rng() < 0.32) {
+        const ok = Fun.LIFE_EVENTS.filter((x) => x.ok(this));
+        if (ok.length) this.lifeEventNext = ok[Math.floor(this.rng() * ok.length)];
+      }
+      this.checkLifeMilestones();
+    }
+
+    checkLifeMilestones() {
+      const o = this.owner;
+      for (const m of Fun.LIFE_MILESTONES || []) {
+        if (!o.milestones.includes(m.id) && m.check(this)) {
+          o.milestones.push(m.id);
+          o.stress = clamp(o.stress - 5, 0, 100);
+          this.notify(`🧑 人生篇章：${m.icon} ${m.name}（${m.desc}）`, 'achieve');
+        }
+      }
+    }
+
     // ───── 🐾 寵物 ─────
     get shopCat() {
       return (this.pets || []).some((p) => p.kind === 'cat');
@@ -4561,7 +4745,7 @@
 
       // 老闆：出門回來、顧店會累
       const B = this.boss;
-      if (B.away && this.minute >= B.away.until) this.finishTrip();
+      if (B.away && (B.away.untilDay ? this.day >= B.away.untilDay && this.minute >= this.hours.open : this.minute >= B.away.until)) this.finishTrip();
       if (B.state === 'working' && !B.away) {
         if (B.lane && B.lane.customer && B.lane.customer.state === 'atLane') B.energy = clamp(B.energy - 0.12 * (1 - B.fit * 0.1) * dt, 0, 100);
         else B.energy = clamp(B.energy + 0.04 * dt, 0, 100);
@@ -5197,6 +5381,11 @@
       this.planSideBizEvents();
       this.planRoomEvents();
       this.planPetEvents();
+      if (this.lifeEventNext) {
+        const f = this.lifeEventNext;
+        this.lifeEventNext = null;
+        this.pendingEvents.push({ ev: f.make(this), at: this.hours.open + 30, where: 'phone' });
+      }
       if (this.toiletDuty) {
         const { e, n } = this.toiletDuty;
         this.toiletDuty = null;
@@ -5449,6 +5638,44 @@
         }
       }
       if (fx.followers) this.social.followers = Math.max(0, this.social.followers + fx.followers);
+      // 人生事件的效果
+      const O = this.owner;
+      if (fx.lifeWealth) {
+        if (fx.lifeWealth < 0) this.payPersonal(-fx.lifeWealth, '這筆開銷');
+        else O.wealth += fx.lifeWealth;
+      }
+      if (fx.lifeStress) O.stress = clamp(O.stress + fx.lifeStress, 0, 100);
+      if (fx.lifeHealth) O.health = clamp(O.health + fx.lifeHealth, 0, 100);
+      if (fx.lifePartner) {
+        O.partner = fx.lifePartner;
+        O.partnerDay = this.day;
+        O.partnerRisk = false;
+      }
+      if (fx.lifePartnerRisk) O.partnerRisk = true;
+      if (fx.lifeKid) O.kids += 1;
+      if (fx.lifeFamilyTime) O.familyTime = true;
+      if (fx.lifeNanny) O.nanny = true;
+      if (fx.lifeFamily) O.familyBond = clamp(O.familyBond + fx.lifeFamily, 0, 100);
+      if (fx.lifeParents) O.parents = fx.lifeParents;
+      if (fx.lifeAway) this.lifeAway(fx.lifeAway, fx.lifeAway >= 5 ? 'rest' : 'family');
+      if (fx.lifeLoan) O.loan = (O.loan || 0) + fx.lifeLoan;
+      if (fx.lifeRepay && O.loan) {
+        if (this.rng() < 0.6) {
+          O.wealth += Math.round(O.loan * 1.05);
+          O.loan = 0;
+        }
+      }
+      if (fx.lifeBuy) {
+        if (!this.lifeSpend(fx.lifeBuy)) {
+          O.stress = clamp(O.stress + 8, 0, 100);
+          this.notify('💸 老闆個人的錢不夠付頭期款，只好先租遠一點的地方。', 'bad');
+        }
+      }
+      if (fx.lifeRestDay && this.policy.closedDay === -1) {
+        this.policy.closedDay = 0;
+        this.notify('📅 店改成每週一公休。');
+      }
+      this.checkLifeMilestones && this.checkLifeMilestones();
       const pet = (pid) => this.pets.find((x) => x.id === pid);
       if (fx.petJoy && pet(fx.petJoy[0])) pet(fx.petJoy[0]).joy = clamp(pet(fx.petJoy[0]).joy + fx.petJoy[1], 0, 100);
       if (fx.petHeal && pet(fx.petHeal)) pet(fx.petHeal).health = 100;
@@ -5514,16 +5741,19 @@
       this.checkEnding();
       // 事件紀錄：什麼事、誰、選了什麼、誰處理的、結果
       const who = ev.subject || ev.staff || null;
+      this.eventSeq = (this.eventSeq || 0) + 1;
       this.eventLog = [{ day: this.day, time: this.clockLabel, icon: ev.ev.icon, title: this.w(ev.ev.title.replace(/\{who\}/g, who ? who.name : '員工')), who: who ? who.name : null, choice: this.w(choice.label || ''), by: ev.by || '你', delta, left }, ...(this.eventLog || [])].slice(0, 60);
       return { event: ev.ev, choice, delta, left, by: ev.by || '你' };
     }
 
     resolve(ev, index) {
+      this.today.bossEvents = (this.today.bossEvents || 0) + 1;
       return this.applyChoice(ev, ev.ev.choices[index]);
     }
 
     ignoreEvent(ev) {
       if (this.delegateEvent(ev)) return;
+      this.today.ignoredEvents = (this.today.ignoredEvents || 0) + 1;
       ev.by = '逾時沒處理';
       const r = this.applyChoice(ev, ev.ev.ignore || IGNORE[ev.where]);
       if (r && this.cb.ignored) this.cb.ignored(r, ev);
@@ -5547,6 +5777,7 @@
       const report = { day: this.day, ...this.today, wages: 0, ot: 0, insurance: 0, waste: 0 };
       const lastShift = this.hours.shifts - 1;
       this.petDaily(report);
+      this.lifeDaily(report);
       // 薪水：上班時數 × 時薪，超過八小時算加班
       let unpaidOT = 0;
       const worked = new Set(this.staff.filter((e) => e.minutesToday > 0));
@@ -5741,6 +5972,7 @@
         this.flags.delete('floodBike');
         this.floodBikeIssue = true;
       }
+      this.lifeWeekly();
       const grp = this.groupWeekly();
       this.cash += grp;
       if (grp > 0) this.gainXp(grp / 60);
@@ -6059,7 +6291,7 @@
       s.ipo = d.ipo || null;
       s.coop = d.coop || null;
       s.authCount = d.authCount || 0;
-      if (d.owner) s.owner = { wealth: 0, taken: 0, ...d.owner };
+      s.owner = { ...Sim.ownerDefaults(), ...(d.owner || {}) };
       if (d.progress) s.progress = { chapter: 0, done: [], chapters: [], features: [], route: null, ended: false, ...d.progress };
       else {
         s.progressLegacy = true; // 舊存檔：第一次檢查時，已經達成的章節直接完成（不跳一堆對話框）

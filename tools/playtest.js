@@ -1,7 +1,7 @@
 // AI 玩家：照一般玩家會做的事去經營，試著撐滿一年破關
 // 只用遊戲裡玩家按得到的操作（招人、排班、調薪、進貨、打掃、買設備、選事件、發文、開分店……）
 // 用法：node tools/playtest.js [難度] [產業] [隨機種子]
-for (const f of ['data', 'fun', 'weird', 'activities', 'city', 'plots', 'career', 'progress', 'slash', 'sidebiz', 'backroom', 'pets', 'portraits', 'industries', 'sim']) require(`../js/${f}.js`);
+for (const f of ['data', 'fun', 'weird', 'activities', 'city', 'plots', 'career', 'progress', 'slash', 'sidebiz', 'backroom', 'pets', 'life', 'portraits', 'industries', 'sim']) require(`../js/${f}.js`);
 const { Sim, CATALOG, catalogById } = globalThis.BossSim;
 const Fun = globalThis.BossFun;
 
@@ -172,6 +172,14 @@ function daily(r) {
     const pt = Fun.PARTNERS.find((p) => !s.collabReady(p) && s.cash > p.cost + 200000);
     if (pt) s.startCollab(pt.id);
   }
+  // 老闆的人生：公司錢很多就領一點分紅；用自己的錢健身、買房、累了就去度假
+  if (s.day % 7 === 6 && s.cash > 1500000 && s.staff.every((e) => e.wage >= s.marketWage)) s.takeDividend(s.cash * 0.1);
+  const o = s.owner;
+  if (!o.gym && o.wealth > 60000) s.lifeSpend('gym');
+  if (o.stress > 60 && o.wealth > 150000) s.lifeSpend('trip');
+  if (!o.house && o.wealth > 3500000) s.lifeSpend('house');
+  if (o.wealth > 2000000 && o.parentTrips < 1) s.lifeSpend('parents');
+  if (!o.filial && o.wealth > 500000) s.lifeSpend('filial');
   // 寵物：生意穩了養一隻；每天陪玩，生病就看醫生
   if (!s.pets.length && s.level >= 4 && s.cash > 250000) s.adoptPet(s.isFood ? 'turtle' : 'cat');
   for (const p of s.pets) {
@@ -278,6 +286,7 @@ for (const w of [0, 3, 7, 11, 15, 23, 31, 39, 47]) {
 console.log(`  結果：${s.over ? `❌ ${s.ending.title}（第 ${s.day} 天）` : s.wonYear ? `✅ 破關 ${s.victoryInfo.medal} ${s.victoryInfo.title}（${s.victoryInfo.score} 分）` : '⏳ 還沒結束'}`);
 console.log(`  現金 $${Math.round(s.cash).toLocaleString()}・借款 $${s.loan.toLocaleString()}・員工 ${s.staff.length} 人・Lv.${s.level}・分店 ${s.branches.length}・成就 ${s.achievements.size}`);
 if (s.victoryInfo) console.log(`  評分：${s.victoryInfo.parts.map(([k, p, t]) => `${k} ${p}（${t}）`).join('、')}`);
+console.log(`  老闆：壓力 ${Math.round(s.owner.stress)}・健康 ${Math.round(s.owner.health)}・個人財富 $${Math.round(s.owner.wealth).toLocaleString()}・度假 ${s.owner.trips} 次・里程碑 ${s.owner.milestones.join(',')}・${Fun.lifeVerdict(s).title}`);
 console.log(`  大事記：${(long ? log.filter((l) => /📜|🏁|路線|募資|上市|持股|接班|區經理|廚房|物流/.test(l)) : log.slice(0, 14)).join('；')}`);
 if (long) console.log(`  已完成任務 ${s.progress.done.join(',')}・季節限定 ${s.seasonalCount || 0}・分店店長 ${s.branches.filter((b) => b.manager).length}・主管 ${s.staff.filter((e) => e.rank).map((e) => e.rank + e.lead).join(',')}`);
 if (long) console.log(`  章節 ${s.progress.chapter}・路線 ${s.progress.route || '-'}・結束 ${!!s.progress.ended}・分店 ${s.branches.length}・加盟 ${(s.franchises || []).length}・估值 $${s.valuation.toLocaleString()}・慣老闆 ${Math.round(s.jerk)}・代處理 ${s.authCount || 0} 件${s.ipo ? `・連續達標 ${s.ipo.streak} 季` : ''}`);

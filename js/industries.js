@@ -567,7 +567,8 @@
       const want = b.stationPrice / PAYBACK_WEEKS;
       b.rate0 = b.rate;
       // 不賺錢的（像剪髮捐贈）保留原本的客流：它的回報是口碑和粉絲
-      if (net > 0 && hrs > 0) b.rate = Math.max(0.15, Math.min(12, want / (wk * hrs * net)));
+      // 客流上限：低毛利的業務（像 ATM）不會為了回本塞爆店面，回本慢一點也沒關係
+      if (net > 0 && hrs > 0) b.rate = Math.max(0.15, Math.min(b.self ? 5 : 4, want / (wk * hrs * net)));
     }
   }
   for (const ind of INDUSTRIES) {

@@ -2106,9 +2106,36 @@
         <div class="feat-row">${p.features.length ? feat(p.features) : '<small class="muted">完成第一章就會開始解鎖新玩法。</small>'}</div>
         ${past.length ? `<h3>完成的章節</h3>${past.map((c) => `<p class="calc">${c.icon} ${esc(c.name)} ✅</p>`).join('')}` : ''}
         ${future.length ? `<h3>接下來</h3>${future.map((c) => `<p class="calc muted">🔒 ${esc(c.name)}</p>`).join('')}` : ''}
-        <p class="drawer-tip">玩法會一章一章開放，不用一次學全部。任務每天打烊後檢查一次。</p>
+        <h3>🧑 人生篇章</h3>
+        <div class="goal-list">${(Fun.LIFE_MILESTONES || []).map((m) => `<div class="goal ${s.owner.milestones.includes(m.id) ? 'done' : ''}"><span>${s.owner.milestones.includes(m.id) ? m.icon : '🔒'}</span><div><b>${m.name}</b><small>${m.desc}</small></div></div>`).join('')}</div>
+        <p class="drawer-tip">玩法會一章一章開放，不用一次學全部。任務每天打烊後檢查一次。人生篇章在「成長 → 老闆的人生」。</p>
       </div>
     </div>`;
+  }
+
+  // 🧑 老闆的人生：壓力、健康、家庭；用自己的錢（分紅）過生活
+  function lifePanel() {
+    const s = ui.sim;
+    const o = s.owner;
+    const L = Fun.LIFE_SPEND || {};
+    const fam = o.partner === 'married' ? `💍 已婚${o.kids ? `・👶 ${o.kids} 個孩子` : ''}` : o.partner === 'dating' ? '💕 交往中' : '單身';
+    const has = [o.house && '🏠 有房', o.car && '🚗 有車', o.gym && '🏋️ 健身中', o.filial && '🧧 每月孝親', o.emba && '🎓 EMBA'].filter(Boolean).join('・');
+    const v = Fun.lifeVerdict ? Fun.lifeVerdict(s) : null;
+    return `<h3>🧑 老闆的人生 <small>${o.age} 歲・${fam}</small></h3>
+      <div class="life-card">
+        <div class="ibar"><span>壓力</span><div class="bar"><div class="bar-fill ${o.stress >= 70 ? 'jerk' : o.stress >= 45 ? 'energy' : 'morale'}" style="width:${Math.round(o.stress)}%"></div></div><b>${Math.round(o.stress)}</b></div>
+        <div class="ibar"><span>健康</span><div class="bar"><div class="bar-fill ${o.health < 50 ? 'jerk' : 'skill'}" style="width:${Math.round(o.health)}%"></div></div><b>${Math.round(o.health)}</b></div>
+        ${o.kids ? `<div class="ibar"><span>親子</span><div class="bar"><div class="bar-fill hunger" style="width:${Math.round(o.familyBond)}%"></div></div><b>${Math.round(o.familyBond)}</b></div>` : ''}
+        <p class="calc">${has || '還沒有什麼個人資產'}${o.loan ? `・借給朋友 ${money(o.loan)}` : ''}<br>壓力來源：自己處理的事件、沒人處理的事件、全年無休、客人等到生氣、沒有店長的分店。多授權、派店長、排公休、度假都會讓壓力下降；壓力太大會生病住院。</p>
+        ${v ? `<p class="calc">現在的人生評語：<b>${v.title}</b>${v.notes.length ? `（${v.notes.join('、')}）` : ''}</p>` : ''}
+      </div>
+      <div class="catalog">${Object.entries(L)
+        .map(([id, x]) => {
+          const done = x.once && o[x.once];
+          return `<button class="cat-item" data-action="life-spend" data-id="${id}" ${done || !x.ok(s) || o.wealth < x.cost ? 'disabled' : ''}><span class="cat-icon">${x.icon}</span><b>${x.name}</b><span class="cat-price">${done ? '已經有了' : money(x.cost)}</span><small>${x.desc}</small></button>`;
+        })
+        .join('')}</div>
+      <p class="drawer-tip">這些都要用「老闆個人財富」付（先領分紅）。個人的錢不夠付房貸、保母費時，會挪用公司的錢，員工會察覺。</p>`;
   }
 
   function drawerReviews() {
@@ -2159,6 +2186,7 @@
           </div>
           <div class="branch-ctl"><button data-action="dividend" data-p="0.1" ${s.cash * 0.9 < 100000 ? 'disabled' : ''}>💰 領分紅 10%（${money(Math.round(s.cash * 0.1))}）</button><button data-action="dividend" data-p="0.3" ${s.cash * 0.7 < 100000 ? 'disabled' : ''}>💰 領 30%</button></div>
           <p class="drawer-tip">員工時薪還低於行情就領分紅，大家會不爽、慣老闆指數上升。</p>
+          ${lifePanel()}
           <h3>附近的競爭 <small>評價、價格、乾淨程度決定客人選誰</small></h3>
           ${rivalCard()}
           <h3>分店 <small>${lv >= 5 ? '每間分店可以調時薪、定價、人手和改裝' : '店家 Lv.5 才能開分店'}</small></h3>
@@ -2501,7 +2529,7 @@
       </div>`;
     } else if (d.type === 'chapter') {
       inner = d.ending
-        ? `<div class="card menu-card chapter-done"><div class="big-medal">${d.ending.medal}</div><h2>${d.ending.title}</h2><p>${d.ending.text}</p><button class="primary" data-action="close-dialog">繼續經營</button></div>`
+        ? `<div class="card menu-card chapter-done"><div class="big-medal">${d.ending.medal}</div><h2>${d.ending.title}</h2><p>${d.ending.text}</p>${Fun.lifeVerdict ? (() => { const L = Fun.lifeVerdict(s); return `<p class="life-verdict">而你自己的人生：<b>${L.title}</b>${L.notes.length ? `<small>${L.notes.join('、')}</small>` : ''}</p>`; })() : ''}<button class="primary" data-action="close-dialog">繼續經營</button></div>`
         : `<div class="card menu-card chapter-done">
         <div class="event-kicker">📜 章節完成</div>
         <h2>${d.done.icon} ${esc(d.done.name)}</h2>
@@ -2549,6 +2577,7 @@
         <h2>${v.title}</h2>
         <table class="ledger">${v.parts.map(([k, pts, txt]) => `<tr><th>${k}<small>（${txt}）</small></th><td class="${pts < 0 ? 'neg' : 'pos'}">${pts > 0 ? '+' : ''}${pts}</td></tr>`).join('')}
           <tr class="total"><th>總分</th><td>${v.score}</td></tr></table>
+        ${Fun.lifeVerdict ? (() => { const L = Fun.lifeVerdict(s); return `<p class="life-verdict">老闆的人生：<b>${L.title}</b>${L.notes.length ? `<small>${L.notes.join('、')}</small>` : ''}</p>`; })() : ''}
         <p class="calc">🥇 120 分以上・🥈 85 分以上・🥉 50 分以上。遊戲可以繼續玩，看看第二年能不能拿更好的評價。</p>
         <div class="ending-actions"><button class="primary" data-action="close-dialog">繼續經營</button><button data-action="quit">回主選單</button></div>
       </div>`;
@@ -2996,6 +3025,13 @@
         refreshStaffViews();
         break;
       }
+      case 'life-spend':
+        if (s.lifeSpend(btn.dataset.id)) {
+          window.BossAudio.play('level');
+          confetti(30);
+        }
+        renderDrawer();
+        break;
       case 'refresh-decor':
         if (s.refreshDecor()) window.BossAudio.play('place');
         renderDrawer();

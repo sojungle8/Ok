@@ -12,6 +12,7 @@ require('../js/slash.js');
 require('../js/sidebiz.js');
 require('../js/backroom.js');
 require('../js/pets.js');
+require('../js/life.js');
 require('../js/portraits.js');
 require('../js/industries.js');
 require('../js/sim.js');

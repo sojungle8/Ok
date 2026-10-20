@@ -5054,3 +5054,8 @@ kbd {
 .decor-sum b { font-size: 1.15rem; }
 .decor-sum small { font-size: 0.75rem; color: var(--muted); }
 .decor-sum button { justify-self: start; margin-top: 4px; font-size: 0.8rem; }
+
+/* 🧑 老闆的人生 */
+.life-card { background: rgba(127, 127, 127, 0.08); border-radius: 12px; padding: 10px 12px; display: grid; gap: 6px; margin-bottom: 10px; }
+.life-verdict { background: var(--tip-bg); border-radius: 12px; padding: 8px 12px; }
+.life-verdict small { display: block; color: var(--muted); }
