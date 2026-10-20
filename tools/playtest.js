@@ -181,21 +181,23 @@ function daily(r) {
   if (o.wealth > 2000000 && o.parentTrips < 1) s.lifeSpend('parents');
   if (!o.filial && o.wealth > 500000) s.lifeSpend('filial');
   // 寵物：生意穩了養一隻；每天陪玩，生病就看醫生
-  if (!s.pets.length && s.level >= 4 && s.cash > 250000) s.adoptPet(s.isFood ? 'turtle' : 'cat');
+  if (!basic && !s.pets.length && s.level >= 4 && s.cash > 250000) s.adoptPet(s.isFood ? 'turtle' : 'cat');
   for (const p of s.pets) {
     s.playPet(p.id);
     if (p.health < 60) s.vetPet(p.id);
   }
   // 後場：照順序蓋（儲藏室、廁所、休息室、辦公室），錢夠再升級
-  for (const id of ['storage', 'toilet', 'rest', 'office']) {
+  for (const id of basic ? [] : ['storage', 'toilet', 'rest', 'office']) {
     const c = s.roomCost(id);
     if (c != null && s.cash > c + 180000 && s.roomLv(id) < (s.level >= 10 ? 3 : s.level >= 6 ? 2 : 1) && s.buildRoom(id)) note(`第 ${s.day} 天：後場${id}升到 ${s.roomLv(id)} 級`);
   }
   if (s.roomLv('toilet') && ['store', 'drinks'].includes(s.ind.id)) s.policy.toiletOpen = true;
+  // BASIC=1：關掉這一版新加的玩法（兼營、後場、寵物），用來比較
+  const basic = !!process.env.BASIC;
   // 兼營業務：等級夠、錢夠就一項一項開（數量跟著等級慢慢增加），並送員工去學
   const SB = globalThis.BossIndustries.SIDE_BIZ[s.ind.id] || [];
   const owned = s.ownedSide();
-  if (owned.length < 1 + Math.floor(s.level / 4) && s.day % 7 === 3) {
+  if (!basic && owned.length < 1 + Math.floor(s.level / 4) && s.day % 7 === 3) {
     const nb = SB.find((b) => s.level >= b.lv && !owned.includes(b) && s.cash > b.stationPrice + 200000);
     if (nb && tryPlace(`${nb.id}_st`)) note(`第 ${s.day} 天：開始兼營${nb.name}`);
   }
@@ -261,7 +263,7 @@ function play() {
     dayEnd: daily,
     weekEnd: (r) => {
       weekly.push(r);
-      if (process.env.LEDGER && (r.week % 4 === 0 || r.week <= 2)) console.log(`  [帳] 第${r.week}週 營收${Math.round(r.revenue)} 材料${Math.round(r.materials)} 薪資${Math.round(r.wages)} 房租${Math.round(r.rent)} 分店${Math.round(r.branches || 0)} 集團${Math.round(r.group || 0)} 事件${Math.round(r.events)} 其他${Math.round(r.other)} 獎勵${Math.round(r.rewards || 0)} 淨${Math.round(r.profit)} | 員工${s.staff.length} 兼營${s.ownedSide().length} 美觀${Math.round(s.decor.A)} 容忍${s.priceTolerance.toFixed(2)} 價格倍率${(s.priceRatio()).toFixed(2)} 來客/日${Math.round(r.visitors / 7 || 0)}`);
+      if (process.env.LEDGER && (r.week % 4 === 0 || r.week <= 2)) console.log(`  [帳] 第${r.week}週 營收${Math.round(r.revenue)} 材料${Math.round(r.materials)} 薪資${Math.round(r.wages)} 房租${Math.round(r.rent)} 分店${Math.round(r.branches || 0)} 集團${Math.round(r.group || 0)} 事件${Math.round(r.events)} 其他${Math.round(r.other)} 獎勵${Math.round(r.rewards || 0)} 淨${Math.round(r.profit)} | 員工${s.staff.length} 兼營${s.ownedSide().length} 美觀${Math.round(s.decor.A)} 容忍${s.priceTolerance.toFixed(2)} 吸引${s.attractiveness().toFixed(2)} 價格倍率${(s.priceRatio()).toFixed(2)} 來客/日${Math.round(r.visitors / 7 || 0)}`);
       if (r.victory) note(`🎉 第 ${s.week - 1} 週破關：${r.victory.medal} ${r.victory.title}（${r.victory.score} 分）`);
     },
     notify: () => {},

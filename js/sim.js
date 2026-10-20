@@ -3704,7 +3704,10 @@
       const loyal = this.loyalty ? 1.04 : 1;
       // 菜單越豐富，越多人想進來看看
       const variety = 1 + Math.max(0, this.availableProducts().filter((p) => !p.side).length - this.ind.products.filter((p) => !p.rd && !p.side).length) * 0.035;
-      return ratingF * priceF * beautyF * lotF * summer * heat * mods * this.festivalMult() * cleanF * loyal * variety * this.socialBoost * this.petMult * (this.copiedDish ? 1.04 : 1) * this.collabMult * this.rivalPull();
+      const raw = ratingF * priceF * beautyF * lotF * summer * heat * mods * this.festivalMult() * cleanF * loyal * variety * this.socialBoost * this.petMult * (this.copiedDish ? 1.04 : 1) * this.collabMult * this.rivalPull();
+      // 平衡：一間店能吸引的人有上限感：各種加成疊上去，超過的部分效果打三折（不會無限暴衝）
+      const soft = 1.5 + this.lotIdx * 0.3;
+      return raw <= soft ? raw : soft + (raw - soft) * 0.3;
     }
 
     availableProducts() {
