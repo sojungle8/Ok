@@ -2398,7 +2398,11 @@ kbd {
 
 .level-banner {
   position: absolute;
-  top: 14px;
+  top: 22%;
+  border: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
   left: 50%;
   transform: translateX(-50%);
   z-index: 8;
@@ -2410,10 +2414,17 @@ kbd {
   background: linear-gradient(135deg, #4f7cac, #6c5ce7);
   color: #fff;
   box-shadow: 0 8px 24px rgba(40, 30, 80, 0.4);
-  animation: banner-in 0.4s ease-out, banner-out 0.5s ease-in 3.6s forwards;
-  pointer-events: none;
-  max-width: calc(100% - 24px);
+  animation: banner-in 0.4s ease-out, banner-out 0.5s ease-in 4s forwards;
+  max-width: min(420px, calc(100% - 24px));
 }
+.level-banner.titled {
+  background: linear-gradient(135deg, #f2a93b, #d9482b);
+  animation: banner-in 0.5s cubic-bezier(0.3, 1.6, 0.5, 1), banner-out 0.5s ease-in 5.6s forwards;
+}
+.level-banner strong { display: block; font-size: 1rem; }
+.level-banner ul { margin: 4px 0 0; padding: 0; list-style: none; font-size: 0.8rem; line-height: 1.45; }
+.level-banner li.muted { color: rgba(255, 255, 255, 0.8); }
+.level-banner small { margin-top: 4px; padding-top: 4px; border-top: 1px solid rgba(255, 255, 255, 0.3); }
 
 .level-banner b {
   font-family: var(--font-display);
@@ -5102,3 +5113,12 @@ kbd {
 .life-card { background: rgba(127, 127, 127, 0.08); border-radius: 12px; padding: 10px 12px; display: grid; gap: 6px; margin-bottom: 10px; }
 .life-verdict { background: var(--tip-bg); border-radius: 12px; padding: 8px 12px; }
 .life-verdict small { display: block; color: var(--muted); }
+
+/* ⭐ 等級路線圖 */
+.lv-title { display: inline-block; margin-left: 8px; font-size: 0.82rem; font-weight: 700; color: #b5651d; }
+.lv-road { list-style: none; margin: 6px 0 8px; padding: 0; display: grid; gap: 4px; }
+.lv-road li { display: grid; grid-template-columns: 48px 1fr; gap: 6px; align-items: baseline; padding: 5px 8px; border-radius: 8px; background: color-mix(in srgb, var(--muted) 8%, transparent); font-size: 0.8rem; }
+.lv-road li b { font-variant-numeric: tabular-nums; }
+.lv-road li.next { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.lv-road li.done { opacity: 0.6; }
+.lv-done summary { cursor: pointer; font-size: 0.8rem; color: var(--muted); margin-bottom: 4px; }

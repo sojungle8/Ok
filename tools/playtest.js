@@ -75,7 +75,11 @@ let angryStreak = 0;
 let lastFix = 0;
 
 // 每天打烊後做的事
+const lvDay = {};
+const xpTrace = [];
 function daily(r) {
+  if (!lvDay[s.level]) lvDay[s.level] = s.day;
+  if (s.day % 100 === 0) xpTrace.push(`${s.day}:${Math.round(s.xp)}`);
   // BASIC=1：關掉這一版新加的玩法（兼營、後場、寵物），用來比較
   const basic = !!process.env.BASIC;
   // 政策：守法經營
@@ -204,7 +208,7 @@ function daily(r) {
   }
   for (const e of s.staff) {
     const b = owned.find((x) => !x.self && !s.knows(e, x.id));
-    if (b && s.cash > s.trainCost + 100000) s.trainSkill(e, b.id);
+    if (b && s.cash > s.skillCost + 100000) s.trainSkill(e, b.id);
   }
   // 章節解鎖的玩法
   if (s.feature('seasonal') && !(s.seasonal && s.seasonal.until >= s.day) && s.cash > s.seasonalCost + 150000 && s.launchSeasonal()) note(`第 ${s.day} 天：季節限定 ${s.seasonal.name}`);
@@ -291,6 +295,8 @@ console.log(`  結果：${s.over ? `❌ ${s.ending.title}（第 ${s.day} 天）`
 console.log(`  現金 $${Math.round(s.cash).toLocaleString()}・借款 $${s.loan.toLocaleString()}・員工 ${s.staff.length} 人・Lv.${s.level}・分店 ${s.branches.length}・成就 ${s.achievements.size}`);
 if (s.victoryInfo) console.log(`  評分：${s.victoryInfo.parts.map(([k, p, t]) => `${k} ${p}（${t}）`).join('、')}`);
 console.log(`  老闆：壓力 ${Math.round(s.owner.stress)}・健康 ${Math.round(s.owner.health)}・個人財富 $${Math.round(s.owner.wealth).toLocaleString()}・度假 ${s.owner.trips} 次・里程碑 ${s.owner.milestones.join(',')}・${Fun.lifeVerdict(s).title}`);
+console.log(`  升級（等級@天）：${Object.entries(lvDay).filter(([l]) => l % 5 === 0 || l == 2 || l == 3).map(([l, d]) => `${l}@${d}`).join(' ')}`);
+if (long) console.log(`  經驗值（天:XP）：${xpTrace.join(' ')}`);
 console.log(`  大事記：${(long ? log.filter((l) => /📜|🏁|路線|募資|上市|持股|接班|區經理|廚房|物流/.test(l)) : log.slice(0, 14)).join('；')}`);
 if (long) console.log(`  已完成任務 ${s.progress.done.join(',')}・季節限定 ${s.seasonalCount || 0}・分店店長 ${s.branches.filter((b) => b.manager).length}・主管 ${s.staff.filter((e) => e.rank).map((e) => e.rank + e.lead).join(',')}`);
 if (long) console.log(`  章節 ${s.progress.chapter}・路線 ${s.progress.route || '-'}・結束 ${!!s.progress.ended}・分店 ${s.branches.length}・加盟 ${(s.franchises || []).length}・估值 $${s.valuation.toLocaleString()}・慣老闆 ${Math.round(s.jerk)}・代處理 ${s.authCount || 0} 件${s.ipo ? `・連續達標 ${s.ipo.streak} 季` : ''}`);

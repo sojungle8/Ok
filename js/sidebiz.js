@@ -372,7 +372,7 @@
       title: `${e.name}：「我到底是做什麼的？」`,
       text: `${e.name}一邊處理${b.icon}${b.name}，一邊嘆氣：「我當初應徵的是店員，現在要${s.sideNames(3)}……老闆，我們到底是什麼店？」`,
       choices: [
-        { label: `花錢送${ta(e)}去學${b.name}`, note: `$${s.trainCost.toLocaleString()}`, effects: { trainOf: [e.id, b.id], moodOf: [[e.id, 6]] }, result: `${e.name}上完課，回來做得又快又順：「早說嘛！」` },
+        { label: `花錢送${ta(e)}去學${b.name}`, note: `$${s.skillCost.toLocaleString()}`, effects: { trainOf: [e.id, b.id], moodOf: [[e.id, 6]] }, result: `${e.name}上完課，回來做得又快又順：「早說嘛！」` },
         { label: '幫會做最多事的人加薪 $20', effects: { raiseOf: [e.id, 20], moodOf: [[e.id, 8]] }, result: `${e.name}笑了：「好吧，十項全能的薪水我收下了。」` },
         { label: '「在台灣，每間店都是這樣」', quote: '能者多勞嘛。', effects: { moodOf: [[e.id, -12]], jerk: 2 }, result: `${e.name}沒說話。下班後在 Dcard 發了一篇〈我在一間什麼都要做的店打工〉。`, tip: '要求員工做明顯超出原本約定的工作，卻不調整薪資或訓練，是常見的離職原因；勞動契約的工作內容最好寫清楚。' },
       ],

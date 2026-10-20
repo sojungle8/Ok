@@ -367,16 +367,22 @@
         renderDialog();
         renderQuestChip();
       },
-      levelUp: (lv, items) => {
+      levelUp: (lv, items, title) => {
         if (ui.tab === 'build' || ui.tab === 'goals') renderDrawer();
         const vp = document.querySelector('.viewport');
         if (!vp) return;
-        const b = document.createElement('div');
-        b.className = 'level-banner';
-        b.innerHTML = `<b>⭐ Lv.${lv}</b><div>店家升級了！<small>${items.length ? `解鎖：${esc(items.join('、'))}` : '繼續加油'}</small></div>`;
+        // 連續升級時只留最新的一張卡
+        vp.querySelectorAll('.level-banner').forEach((x) => x.remove());
+        const b = document.createElement('button');
+        b.className = `level-banner${title ? ' titled' : ''}`;
+        b.dataset.action = 'tab';
+        b.dataset.tab = 'goals';
+        const nx = nextLevelReward(lv);
+        b.innerHTML = `<b>Lv.${lv}</b><div><strong>${title ? `🏅 ${esc(title)}` : '⭐ 店家升級了！'}</strong>${items.length ? `<ul>${items.slice(0, 4).map((t) => `<li>${esc(t)}</li>`).join('')}${items.length > 4 ? `<li class="muted">還有 ${items.length - 4} 項…</li>` : ''}</ul>` : ''}${nx ? `<small>下一個：Lv.${nx.lv} ${esc(nx.text)}</small>` : ''}</div>`;
         vp.appendChild(b);
-        setTimeout(() => b.remove(), 4200);
-        confetti(60);
+        setTimeout(() => b.remove(), title ? 6200 : 4600);
+        if (ui.view && ui.view.flashSign) ui.view.flashSign();
+        confetti(title ? 60 : 24);
         buzz([20, 40, 30]);
       },
       // 連續好評的里程碑：徽章自己發光；只有 50 位以上才撒彩帶
@@ -1632,7 +1638,7 @@
     if (!owned.length) return '';
     const known = owned.filter((b) => s.knows(e, b.id)).length;
     return `<div class="skill-row"><small>🧰 兼營技能 ${known}/${owned.length}${owned.length - known >= 2 ? '・<span class="neg">業務太雜，心情會變差</span>' : ''}</small><div>${owned
-      .map((b) => (s.knows(e, b.id) ? `<span class="chip ok">${b.icon} ${b.name} ✓</span>` : `<button class="chip-btn" data-action="train" data-id="${b.id}" ${s.cash < s.trainCost || e.trainDay === s.day ? 'disabled' : ''} title="送去上課學會（$${s.trainCost.toLocaleString()}，每人每天一門）">${b.icon} ${b.name}・📚 $${s.trainCost.toLocaleString()}</button>`))
+      .map((b) => (s.knows(e, b.id) ? `<span class="chip ok">${b.icon} ${b.name} ✓</span>` : `<button class="chip-btn" data-action="train" data-id="${b.id}" ${s.cash < s.skillCost || e.trainDay === s.day ? 'disabled' : ''} title="送去上課學會（$${s.skillCost.toLocaleString()}，每人每天一門）">${b.icon} ${b.name}・📚 $${s.skillCost.toLocaleString()}</button>`))
       .join('')}</div></div>`;
   }
 
@@ -2032,7 +2038,7 @@
             <div><span>👛 行情時薪</span><b>${money(s.marketWage)}</b></div>
           </div>
           <ul class="news-list">${s.news.map((n) => `<li>${n}</li>`).join('')}${(s.headlines || []).map((h) => `<li>${esc(h)}</li>`).join('')}</ul>
-          <h3>📜 事件紀錄 <small>最近 ${Math.min(15, (s.eventLog || []).length)} 件</small></h3>
+          <h3>📜 事件紀錄 <small>只保留最近三個月・顯示 ${Math.min(15, (s.eventLog || []).length)} 件</small></h3>
           ${(s.eventLog || []).length ? `<div class="event-log">${s.eventLog.slice(0, 15).map((l) => `<div class="${l.by === '逾時沒處理' ? 'late' : ''}"><small>第 ${l.day} 天 ${l.time}・${esc(l.by)}</small><b>${l.icon} ${esc(l.title)}</b><span>→ ${esc(l.choice)}${l.left && l.left.length ? `　👋 ${l.left.map((x) => esc(x.name)).join('、')} 離開` : ''}${l.delta ? ['cash', 'morale', 'jerk'].filter((k) => l.delta[k]).map((k) => `　${{ cash: '💰', morale: '😊', jerk: '😈' }[k]}${l.delta[k] > 0 ? '+' : ''}${k === 'cash' ? '$' + l.delta[k].toLocaleString() : l.delta[k]}`).join('') : ''}</span></div>`).join('')}</div>` : '<p class="muted">還沒有處理過事件。</p>'}
         </div>
       </div>`;
@@ -2058,7 +2064,7 @@
     const br = s.branches;
     if (id === 'chain5') return `現在 ${br.length}/5 間，${br.filter((b) => b.rating >= 4.5).length} 間在 4.5 星以上`;
     if (id === 'mentor3') return `現在 ${br.filter((b) => b.manager).length}/3 間有店長`;
-    if (id === 'week500') return `最高一週 ${money(Math.max(0, ...s.history.map((h) => h.profit)))}`;
+    if (id === 'week500') return `最高一週 ${money(s.bestWeek || 0)}`;
     if (id === 'allhappy') return `本店心情 ${Math.round(s.morale)}・分店最低士氣 ${br.length ? Math.round(Math.min(...br.map((b) => b.morale))) : '—'}`;
     if (id === 'year2') return `現在第 ${s.week} 週`;
     return '';
@@ -2184,19 +2190,31 @@
       </div>`;
   }
 
+  // 等級路線圖：接下來幾級會拿到什麼（拿過的收在「已解鎖」裡）
+  function levelRoadmap(lv) {
+    const rows = [];
+    for (let l = 2; l <= LEVELS.length; l++) {
+      const r = levelRewards(l);
+      if (r.length) rows.push([l, r]);
+    }
+    const row = ([l, r]) => `<li class="${l <= lv ? 'done' : l === lv + 1 ? 'next' : ''}"><b>Lv.${l}</b><span>${r.map(esc).join('・')}</span></li>`;
+    const ahead = rows.filter(([l]) => l > lv).slice(0, 4);
+    const done = rows.filter(([l]) => l <= lv);
+    return `<ul class="lv-road">${ahead.map(row).join('') || '<li class="done"><b>MAX</b><span>全部解鎖了！</span></li>'}</ul>
+      ${done.length ? `<details class="lv-done"><summary>已解鎖的等級獎勵（${done.length}）</summary><ul class="lv-road">${done.reverse().map(row).join('')}</ul></details>` : ''}`;
+  }
+
   function drawerGoals() {
     const s = ui.sim;
     const lv = s.level;
     const next = LEVELS[lv];
-    const upcoming = CATALOG.filter((d) => d.lv && d.lv > lv && (!d.industries || d.industries.includes(s.ind.id))).sort((a, b) => a.lv - b.lv).slice(0, 6);
     const canBranch = lv >= 5 && s.branches.length < BRANCH_SITES.length;
     return `
       <div class="drawer-body two-col">
         <div>
           <h3>店家等級 <small>賺的毛利越多，經驗越高</small></h3>
-          <div class="level-card"><b>Lv.${lv}</b><div class="bar"><div class="bar-fill skill" style="width:${Math.round(s.levelProgress * 100)}%"></div></div><small>${next ? `${Math.round(s.xp).toLocaleString()} / ${next.toLocaleString()}` : '已經是最高等級'}</small></div>
-          ${upcoming.length ? `<p class="calc">即將解鎖：${upcoming.map((d) => `${d.icon}${d.name}（Lv.${d.lv}）`).join('、')}</p>` : ''}
-          ${(() => { const perks = Object.entries(Fun.LEVEL_PERKS || {}).filter(([l]) => Number(l) > lv).slice(0, 3); return perks.length ? `<p class="calc">等級獎勵：${perks.map(([l, t]) => `Lv.${l} ${t}`).join('・')}</p>` : ''; })()}
+          <div class="level-card"><b>Lv.${lv}</b><span class="lv-title">🏅 ${esc(s.levelTitle)}</span><div class="bar"><div class="bar-fill skill" style="width:${Math.round(s.levelProgress * 100)}%"></div></div><small>${next ? `${Math.round(s.xp).toLocaleString()} / ${next.toLocaleString()}` : '已經是最高等級'}</small></div>
+          ${levelRoadmap(lv)}
           <h3>🏢 公司與老闆 <small>公司的錢不等於老闆的錢</small></h3>
           <div class="company-card">
             <div><span>公司現金</span><b>${money(s.cash)}</b></div>
@@ -3521,6 +3539,26 @@
     } catch (e) {
       /* 不支援就算了 */
     }
+  }
+
+  // 下一個有東西拿的等級（設備、店面、效果、稱號）
+  function levelRewards(lv) {
+    const s = ui.sim;
+    const out = [];
+    if (Fun.LEVEL_TITLES && Fun.LEVEL_TITLES[lv]) out.push(`🏅 稱號「${Fun.LEVEL_TITLES[lv]}」`);
+    for (const d of CATALOG) if (d.lv === lv && (!d.industries || d.industries.includes(s.ind.id))) out.push(`${d.icon} ${d.name}`);
+    const lot = LOTS.find((l) => l.lv === lv);
+    if (lot) out.push(`🏗️ 擴建${lot.name}`);
+    if (lv === 5) out.push('🏙️ 開分店');
+    if (Fun.LEVEL_PERKS && Fun.LEVEL_PERKS[lv]) out.push(`✨ ${Fun.LEVEL_PERKS[lv]}`);
+    return out;
+  }
+  function nextLevelReward(lv) {
+    for (let l = lv + 1; l <= LEVELS.length; l++) {
+      const r = levelRewards(l);
+      if (r.length) return { lv: l, text: r[0] };
+    }
+    return null;
   }
 
   function confetti(n = 50) {

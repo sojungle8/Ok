@@ -72,7 +72,7 @@
         { id: 'auth1', text: '設定至少一條授權規則', check: (s) => Object.values(s.policy.auth || {}).some((v) => v && v !== 'off') },
         { id: 'area1', text: '任命一位區經理', check: (s) => !!s.areaManager },
         // 門檻跟著產業的規模走（大約是開店資金的六成）
-        { id: 'week300', text: '單週淨利超過開店資金的六成', check: (s) => s.history.some((h) => h.profit - (h.other || 0) >= s.ind.cash * 0.6), prog: (s) => `目標 $${Math.round(s.ind.cash * 0.6).toLocaleString()}・最高 $${Math.round(Math.max(0, ...s.history.map((h) => h.profit - (h.other || 0)))).toLocaleString()}` },
+        { id: 'week300', text: '單週淨利超過開店資金的六成', check: (s) => (s.bestCoreWeek || 0) >= s.ind.cash * 0.6, prog: (s) => `目標 $${Math.round(s.ind.cash * 0.6).toLocaleString()}・最高 $${Math.round(s.bestCoreWeek || 0).toLocaleString()}` },
         { id: 'lv15', text: '店家升到 Lv.15', check: (s) => s.level >= 15, prog: (s) => `現在 Lv.${s.level}` },
       ],
       reward: { cash: 500000, xp: 5000 },
@@ -123,18 +123,45 @@
   };
 
   // Lv.11～25 的獎勵（裝潢、店面之外的好處）
+  // 每一級都有東西拿：前 10 級主要解鎖設備，之後是看得到的經營效果
   Fun.LEVEL_PERKS = {
     11: '應徵者裡出現更多老手',
     12: '員工活動花費打八折',
     13: '研發費用打八折',
     14: '分店開店費打九折',
+    15: '小編貼文漲粉 +15%',
     16: '每週多一個應徵者',
     17: '主管培訓課打八折',
+    18: '叫急件的加價從三成降到一成五',
     19: '客人的耐心 +10%',
+    20: '新分店開幕期縮短（從六成五的客人開始）',
     21: '評價計算時，最低的 5 則一星不算（老客人會幫你說話）',
     22: '總部管理費 -20%',
     23: '員工心情恢復變快',
-    25: '傳說中的老闆：所有店的評價 +0.1',
+    24: '稽查罰款 -20%',
+    25: '所有店的評價 +0.1',
+    26: '來申請加盟的人素質更好',
+    27: '兼營業務上課費打八折',
+    28: '分店改裝費 -30%',
+    29: '中央廚房再省 5% 物料',
+    30: '所有店來客 +3%',
+    31: '分店士氣 +3',
+    32: '季節限定多賣一週',
+    33: '老闆每天壓力少一點',
+    34: '加盟權利金 +10%',
+    35: '應徵者的技能更高',
+    36: '公司估值 +5%',
+    37: '總部管理費再 -10%',
+    38: '客人的耐心再 +5%',
+    39: '員工心情恢復再快一點',
+    40: '所有店的評價再 +0.1',
+  };
+  // 店家稱號：每 5 級換一個，招牌旁邊、升級卡片上看得到
+  Fun.LEVEL_TITLES = { 1: '路邊小店', 5: '巷口名店', 10: '在地人氣店', 15: '排隊名店', 20: '連鎖品牌', 25: '傳說中的老闆', 30: '國民品牌', 35: '業界傳奇', 40: '台灣之光' };
+  Fun.levelTitle = (lv) => {
+    let t = Fun.LEVEL_TITLES[1];
+    for (const [l, n] of Object.entries(Fun.LEVEL_TITLES)) if (lv >= Number(l)) t = n;
+    return t;
   };
 })(typeof window !== 'undefined' ? window : globalThis);
 

@@ -2169,14 +2169,16 @@
       // 6 點日出、18 點半日落
       const day = h >= 6 && h <= 18.5 ? Math.sin(((h - 6) / 12.5) * Math.PI) : 0;
       const dusk = h > 16.5 && h < 19.5 ? 1 - Math.abs(h - 18) / 1.5 : h > 5 && h < 7 ? 1 - Math.abs(h - 6) : 0;
-      const sky = new THREE.Color('#1c2333').lerp(new THREE.Color('#cfdde8'), day);
-      if (dusk > 0) sky.lerp(new THREE.Color('#e9a06b'), dusk * 0.55);
+      // 顏色重複使用，不要每一幀都 new（手機上會一直觸發垃圾回收）
+      const C = (this._skyC = this._skyC || { night: new THREE.Color('#1c2333'), noon: new THREE.Color('#cfdde8'), dusk: new THREE.Color('#e9a06b'), gloom: new THREE.Color('#6f7a86'), sun: new THREE.Color('#ff9d5c'), sky: new THREE.Color() });
+      const sky = C.sky.copy(C.night).lerp(C.noon, day);
+      if (dusk > 0) sky.lerp(C.dusk, dusk * 0.55);
       const wx = s.weather ? s.weather.id : 'sunny';
       const gloom = wx === 'typhoon' ? 0.7 : wx === 'rain' ? 0.5 : wx === 'cloudy' || wx === 'cold' ? 0.25 : 0;
-      if (gloom) sky.lerp(new THREE.Color('#6f7a86'), gloom * day);
+      if (gloom) sky.lerp(C.gloom, gloom * day);
       this.world.background = sky;
       this.sun.intensity = (0.15 + day * 0.85) * (1 - gloom * 0.6);
-      this.sun.color.set('#fff3e0').lerp(new THREE.Color('#ff9d5c'), dusk);
+      this.sun.color.set('#fff3e0').lerp(C.sun, dusk);
       const az = ((h - 6) / 12.5) * Math.PI;
       this.sun.position.set(s.W / 2 + Math.cos(az) * 14, 6 + day * 14, s.H / 2 - 8);
       this.sun.target.position.set(s.W / 2, 0, s.H / 2);
@@ -2201,7 +2203,17 @@
           this.grade.style.background = `radial-gradient(ellipse at 50% 45%, rgba(0,0,0,0) 55%, rgba(10,10,25,${vig}) 100%), linear-gradient(${tint}, ${tint})`;
         }
       }
-      if (this.signMat) this.signMat.emissiveIntensity = lit && night > 0.3 ? 0.9 : 0.12;
+      if (this.signMat) {
+        // 升級時招牌閃三下
+        const f = this.signFlash ? (performance.now() - this.signFlash) / 1000 : 9;
+        const flash = f < 1.8 ? Math.max(0, Math.sin(f * Math.PI * 3.3)) * 1.4 : 0;
+        if (f >= 1.8) this.signFlash = 0;
+        this.signMat.emissiveIntensity = (lit && night > 0.3 ? 0.9 : 0.12) + flash;
+      }
+    }
+
+    flashSign() {
+      this.signFlash = performance.now();
     }
 
     // ───── 建造預覽 ─────

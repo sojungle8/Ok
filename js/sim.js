@@ -6,6 +6,10 @@
   const Looks = root.BossLooks;
   const Fun = root.BossFun || { KARENS: [], TRENDS: [], POST_HOOKS: [], POST_BODIES: [], POST_ENDINGS: [], COMMENTS: {}, HEADLINES: [], STAFF_QUIPS: [], FUNNY_REVIEWS: { good: [], bad: [] } };
 
+  // 週報只保留最近半年（遊戲時間）
+  const HISTORY_WEEKS = 26;
+  // 評論、事件紀錄只保留最近三個月
+  const RECORD_DAYS = 90;
   const DAY = 1440;
   const DAYS_PER_WEEK = 7;
   const WEEKS_PER_MONTH = 4;
@@ -283,7 +287,7 @@
         recent = recent.filter((r) => !(r.stars <= 1 && drop-- > 0));
       }
       const avg = recent.reduce((s, r) => s + r.stars, 0) / recent.length;
-      return Math.min(5, avg + (this.level >= 25 ? 0.1 : 0));
+      return Math.min(5, avg + (this.level >= 25 ? 0.1 : 0) + (this.level >= 40 ? 0.1 : 0));
     }
     get beauty() {
       return this.objects.reduce((s, o) => s + (o.def.beauty || 0), 0);
@@ -370,6 +374,9 @@
       for (let i = 0; i < LEVELS.length; i++) if (this.xp >= LEVELS[i]) lv = i + 1;
       return lv;
     }
+    get levelTitle() {
+      return Fun.levelTitle ? Fun.levelTitle(this.level) : '';
+    }
     get levelProgress() {
       const lv = this.level;
       const a = LEVELS[lv - 1];
@@ -384,13 +391,27 @@
       this.xp += n;
       const after = this.level;
       if (after > before) {
-        const items = CATALOG.filter((d) => d.lv === after && (!d.industries || d.industries.includes(this.ind.id))).map((d) => d.name);
-        const lot = LOTS.find((l) => l.lv === after);
-        if (lot) items.push(`擴建${lot.name}`);
-        if (after === 5) items.push(this.feature('branch') ? '開分店' : '開分店（完成第二章後）');
-        if (Fun.LEVEL_PERKS && Fun.LEVEL_PERKS[after]) items.push(Fun.LEVEL_PERKS[after]);
+        // 一次跳好幾級（章節獎勵）也要把每一級的東西都列出來
+        const items = [];
+        let title = null;
+        for (let lv = before + 1; lv <= after; lv++) {
+          items.push(...CATALOG.filter((d) => d.lv === lv && (!d.industries || d.industries.includes(this.ind.id))).map((d) => `${d.icon} ${d.name}`));
+          const lot = LOTS.find((l) => l.lv === lv);
+          if (lot) items.push(`🏗️ 擴建${lot.name}`);
+          if (lv === 5) items.push(this.feature('branch') ? '🏙️ 開分店' : '🏙️ 開分店（完成第二章後）');
+          if (Fun.LEVEL_PERKS && Fun.LEVEL_PERKS[lv]) items.push(`✨ ${Fun.LEVEL_PERKS[lv]}`);
+          if (Fun.LEVEL_TITLES && Fun.LEVEL_TITLES[lv]) title = Fun.LEVEL_TITLES[lv];
+        }
+        // 換稱號：店裡辦個小慶功，大家心情好一點
+        if (title) {
+          for (const e of this.staff) {
+            e.mood = clamp(e.mood + 5, 0, 100);
+            if (e.state === 'working') this.say(e, ['升級了！🎉', `我們是「${title}」了！`, '老闆請喝飲料嗎？', '感覺被認可了！'][Math.floor(this.rng() * 4)], 60);
+          }
+          items.unshift(`🏅 新稱號「${title}」・員工心情 +5`);
+        } else for (const e of this.staff) if (e.state === 'working' && this.rng() < 0.4) this.say(e, ['升級了！', '讚啦！', '又升一級！'][Math.floor(this.rng() * 3)], 40);
         this.notify(`⭐ 店家升到 Lv.${after}！${items.length ? `解鎖：${items.join('、')}` : ''}`, 'achieve');
-        if (this.cb.levelUp) this.cb.levelUp(after, items);
+        if (this.cb.levelUp) this.cb.levelUp(after, items, title);
         this.sound('level');
       }
     }
@@ -517,7 +538,7 @@
       const pe = this.ipo && this.ipo.listed ? 14 : this.ipo && this.ipo.investors ? 10 : 6;
       const brand = 1 + Math.max(0, this.rating - 4) * 0.25;
       const assets = LOTS.slice(0, this.lotIdx + 1).reduce((t, l) => t + (l.cost || 0), 0) * 0.5 + this.branches.reduce((t, b) => t + (b.paid || 0), 0) * 0.6 + (this.kitchen ? this.kitchen.cost * 0.6 : 0);
-      return Math.max(0, Math.round(Math.max(0, avg) * 52 * pe * brand + assets + this.cash - this.loan));
+      return Math.max(0, Math.round((Math.max(0, avg) * 52 * pe * brand + assets) * (this.level >= 36 ? 1.05 : 1) + this.cash - this.loan));
     }
 
     // 領分紅：公司的錢變成老闆的錢（扣 20% 稅）；薪水還低於行情就領分紅，員工會看在眼裡
@@ -688,7 +709,7 @@
     }
 
     get renoCost() {
-      return Math.round((this.branchCost * 0.15) / 1000) * 1000;
+      return Math.round((this.branchCost * 0.15 * (this.level >= 28 ? 0.7 : 1)) / 1000) * 1000;
     }
 
     // 算一間分店一週的帳；est 為 true 時不加隨機（給選址畫面估算用）
@@ -710,18 +731,19 @@
       // 季節限定期間，分店也賣
       const seasonal = this.seasonal && this.seasonal.until >= this.day ? 1.06 : 1;
       // 新店期：剛開幕的前 8 週，附近的人還不認識你（從五成慢慢爬到全滿）
-      const ramp = est || b.week == null ? 1 : clamp(0.5 + (this.week - b.week) / 16, 0.5, 1);
-      const demand = R0 * ramp * traffic * cannibal * size.draw * (T.draw || 1) * seasonal * clamp((b.rating - 2.4) / 1.4, 0.15, 1.5) * (pm < 1 ? 1.15 : pm > 1 ? premiumHit : 1) * (est ? 1 : 0.9 + this.rng() * 0.2);
+      const r0 = this.level >= 20 ? 0.65 : 0.5;
+      const ramp = est || b.week == null ? 1 : clamp(r0 + (this.week - b.week) / 16, r0, 1);
+      const demand = R0 * (this.level >= 30 ? 1.03 : 1) * ramp * traffic * cannibal * size.draw * (T.draw || 1) * seasonal * clamp((b.rating - 2.4) / 1.4, 0.15, 1.5) * (pm < 1 ? 1.15 : pm > 1 ? premiumHit : 1) * (est ? 1 : 0.9 + this.rng() * 0.2);
       const cap = ((R0 * 1.3 * size.cap * (b.staff + (b.manager ? 1 : 0)) * mf.cap) / need) * (b.broken > 0 ? 0.8 : 1);
       const sold = Math.min(demand, cap);
       const revenue = sold * pm;
-      const materials = sold * costShare * this.costMult.materials * (0.85 + 0.15 * this.idx.oil) * mf.mat * (this.kitchen ? 0.85 : 1);
+      const materials = sold * costShare * this.costMult.materials * (0.85 + 0.15 * this.idx.oil) * mf.mat * (this.kitchen ? (this.level >= 29 ? 0.8 : 0.85) : 1);
       const wages = (b.staff * 38 * this.marketWage * wm + mf.wage) * (1 + (this.policy.insurance ? INS_TOTAL : 0));
       const rent = ((this.ind.rent * site.rent * size.rent) / 4) * (b.rentMult || 1) * (T.rent || 1);
       // 總部管理費：分店兩間以上要有人跑帳、巡店、培訓；有分店店長的分店省一半
       // 總部管理費：分店越多越貴（3% 起、每多一間 +0.6%，最多 9%）；分店店長、區經理、Lv.22 都能省
       const n = this.branches.length;
-      const feeRate = n >= 2 ? Math.min(0.09, 0.03 + 0.006 * Math.max(0, n - 2)) * (b.manager ? 0.5 : 1) * (this.areaManager ? 0.7 : 1) * (this.level >= 22 ? 0.8 : 1) : 0;
+      const feeRate = n >= 2 ? Math.min(0.09, 0.03 + 0.006 * Math.max(0, n - 2)) * (b.manager ? 0.5 : 1) * (this.areaManager ? 0.7 : 1) * (this.level >= 22 ? 0.8 : 1) * (this.level >= 37 ? 0.9 : 1) : 0;
       const fee = !est ? revenue * feeRate : 0;
       return { revenue, profit: revenue - materials - wages - rent - revenue * 0.01 - fee, load, wm, pm, demand, cap, fee, sold, ticket };
     }
@@ -742,7 +764,7 @@
         const wm = { low: 0.92, market: 1, high: 1.12 }[b.wage];
         const pm = { cheap: 0.9, normal: 1, premium: 1.15 }[b.price];
         const load = need / Math.max(1, b.staff + (b.manager ? 1 : 0));
-        const mt = 62 + (wm - 1) * 160 + b.reno * 4 - Math.max(0, load - 1) * 35 - (this.jerk > 60 ? 8 : 0) - (this.policy.insurance ? 0 : 10);
+        const mt = 62 + (this.level >= 31 ? 3 : 0) + (wm - 1) * 160 + b.reno * 4 - Math.max(0, load - 1) * 35 - (this.jerk > 60 ? 8 : 0) - (this.policy.insurance ? 0 : 10);
         const mf = this.branchMgrFx(b);
         const area = this.areaManager ? 3 + (this.areaManager.lead - 50) / 10 : 0; // 區經理巡店
         const T = this.typeOf(b);
@@ -750,7 +772,7 @@
         b.morale = clamp(b.morale + (mt + mf.morale + area + coop + (T.morale || 0) - b.morale) * 0.45, 0, 100);
         // 本店的門面就是品牌形象：裝潢好，分店的評價也沾光
         const rt = 3.5 + mf.rating + (T.rating || 0) + 0.12 * (1 - Math.exp(-this.decor.A / 40)) + (b.morale - 55) / 45 + b.reno * 0.18 + (pm < 1 ? 0.2 : pm > 1 ? -0.25 : 0) + (this.rating - 3.8) * 0.3 - Math.max(0, load - 1.2) * 0.8;
-        b.rating = clamp(b.rating + (rt + (this.level >= 25 ? 0.1 : 0) - b.rating) * 0.4, 1, 5);
+        b.rating = clamp(b.rating + (rt + (this.level >= 25 ? 0.1 : 0) + (this.level >= 40 ? 0.1 : 0) - b.rating) * 0.4, 1, 5);
         const r = this.branchWeek(b);
         const p = Math.round(r.profit);
         b.revenue = Math.round(r.revenue);
@@ -1059,7 +1081,7 @@
       this.franchiseApps = Array.from({ length: Math.min(3, sites.length) }, (_, k) => {
         const n = notes[Math.floor(this.rng() * notes.length)];
         const site = sites[k];
-        return { id: uid++, name: names[k], site: site.id, city: site.city, district: site.name, decency: clamp(n[0] + (this.rng() - 0.5) * 30, 10, 98), note: n[1] };
+        return { id: uid++, name: names[k], site: site.id, city: site.city, district: site.name, decency: clamp(n[0] + (this.rng() - 0.5) * 30 + (this.level >= 26 ? 10 : 0), 10, 98), note: n[1] };
       });
       return this.franchiseApps;
     }
@@ -1185,7 +1207,7 @@
           const target = 3.2 + f.decency / 55 + (this.rating - 4) * 0.3;
           f.rating = clamp(f.rating + (target - f.rating) * 0.35 + (this.rng() - 0.5) * 0.1, 1, 5);
           // 權利金 4%，扣掉總部督導、教育訓練的成本（大約 1%）
-          const roy = Math.round(R0 * (0.04 * clamp((f.rating - 2.5) / 1.5, 0.3, 1.3) - 0.01));
+          const roy = Math.round(R0 * (0.04 * clamp((f.rating - 2.5) / 1.5, 0.3, 1.3) - 0.01) * (this.level >= 34 ? 1.1 : 1));
           f.last = roy;
           f.total += roy;
           total += roy;
@@ -1244,7 +1266,7 @@
       const again = this.seasonal && this.seasonal.name === it.name && this.day - this.seasonal.until < 60;
       this.cash -= this.seasonalCost;
       this.ledger.other -= this.seasonalCost;
-      this.seasonal = { name: it.name, until: this.day + 27, again };
+      this.seasonal = { name: it.name, until: this.day + (this.level >= 32 ? 34 : 27), again };
       this.seasonalCount = (this.seasonalCount || 0) + 1;
       this.demandMods.push({ mult: again ? 1.05 : 1.12, days: 28 });
       this.social.followers += again ? 30 : 150;
@@ -1264,7 +1286,11 @@
       return Math.round((this.ind.cash * 0.06) / 100) * 100;
     }
     get kitchenMult() {
-      return this.kitchen && !(this.kitchen.downUntil >= this.day) ? 0.9 : 1;
+      return this.kitchen && !(this.kitchen.downUntil >= this.day) ? (this.level >= 29 ? 0.85 : 0.9) : 1;
+    }
+    // 罰款倍率：難度 × Lv.24（制度上軌道，稽查比較少被抓到小問題）
+    get fineMult() {
+      return this.diff.fines * (this.level >= 24 ? 0.8 : 1);
     }
     buildKitchen() {
       if (!this.feature('kitchen') || this.kitchen || this.cash < this.kitchenCost) return false;
@@ -1317,7 +1343,7 @@
         const g = this.stockGroup(gid);
         if (!g || n <= 0) continue;
         list[gid] = Math.round(n);
-        cost += n * this.unitCost(g) * (rush ? 1.3 : 1);
+        cost += n * this.unitCost(g) * (rush ? (this.level >= 18 ? 1.15 : 1.3) : 1);
       }
       if (!Object.keys(list).length) return null;
       cost = Math.round(cost + (rush ? 300 : 0));
@@ -1546,7 +1572,7 @@
         r = { grade: '限期改善', fine: 0, text: `${org}開了限期改善通知，一週內會再來複查，沒改善就要罰錢。` };
         this.hygiene.warned = true;
       } else {
-        const fine = Math.round(((cl < 25 ? 60000 : 30000) * this.diff.fines) / 1000) * 1000;
+        const fine = Math.round(((cl < 25 ? 60000 : 30000) * this.fineMult) / 1000) * 1000;
         r = { grade: '不合格', fine, text: `${org}稽查不合格，罰鍰 $${fine.toLocaleString()}，還上了地方新聞。` };
         this.cash -= fine;
         this.ledger.fines += fine;
@@ -1712,7 +1738,7 @@
         tier = 'fire';
         likes = Math.round(likes * 0.6);
       }
-      const gain = fire ? -Math.round(this.social.followers * 0.05) : Math.round(likes * (tier === 'viral' ? 0.5 : tier === 'good' ? 0.25 : 0.08));
+      const gain = fire ? -Math.round(this.social.followers * 0.05) : Math.round(likes * (tier === 'viral' ? 0.5 : tier === 'good' ? 0.25 : 0.08) * (this.level >= 15 ? 1.15 : 1));
       this.social.followers = Math.max(0, this.social.followers + gain);
       const pool = Fun.COMMENTS[tier] || [];
       const comments = [...pool].sort(() => this.rng() - 0.5).slice(0, 3).map((c) => this.w(c));
@@ -1876,7 +1902,7 @@
         const t2 = traitIds[Math.floor(this.rng() * traitIds.length)];
         if (!traits.includes(t2) && !(traits.includes('rookie') && t2 === 'veteran') && !(traits.includes('veteran') && t2 === 'rookie')) traits.push(t2);
       }
-      let skill = 30 + this.rng() * 30;
+      let skill = 30 + this.rng() * 30 + (this.level >= 35 ? 6 : 0);
       if (traits.includes('rookie')) skill = 8 + this.rng() * 20;
       if (traits.includes('veteran')) skill = 62 + this.rng() * 25;
       const u = Looks.UNIFORM[this.ind.id] || {};
@@ -3704,7 +3730,7 @@
       const loyal = this.loyalty ? 1.04 : 1;
       // 菜單越豐富，越多人想進來看看
       const variety = 1 + Math.max(0, this.availableProducts().filter((p) => !p.side).length - this.ind.products.filter((p) => !p.rd && !p.side).length) * 0.035;
-      const raw = ratingF * priceF * beautyF * lotF * summer * heat * mods * this.festivalMult() * cleanF * loyal * variety * this.socialBoost * this.petMult * (this.copiedDish ? 1.04 : 1) * this.collabMult * this.rivalPull();
+      const raw = (this.level >= 30 ? 1.03 : 1) * ratingF * priceF * beautyF * lotF * summer * heat * mods * this.festivalMult() * cleanF * loyal * variety * this.socialBoost * this.petMult * (this.copiedDish ? 1.04 : 1) * this.collabMult * this.rivalPull();
       // 平衡：一間店能吸引的人有上限感：各種加成疊上去，超過的部分效果打三折（不會無限暴衝）
       const soft = 1.5 + this.lotIdx * 0.3;
       return raw <= soft ? raw : soft + (raw - soft) * 0.3;
@@ -3935,6 +3961,7 @@
       const authOn = this.feature('auth') && Object.entries(this.policy.auth || {}).some(([k, v]) => k !== 'budget' && v && v !== 'off');
       d -= 3 + (authOn ? 1 : 0) + (o.gym ? 1 : 0) + (o.car ? 1 : 0) + (o.house ? 2 : 0) + (o.partner === 'married' ? 1 : 0) + (this.areaManager ? 1 : 0);
       if (this.boss.away) d -= 4;
+      if (this.level >= 33) d -= 1;
       o.stress = clamp(o.stress + d, 0, 100);
       o.health = clamp(o.health + (o.stress > 80 ? -1.5 : o.stress > 60 ? -0.5 : o.stress < 40 ? 0.4 + (o.gym ? 0.3 : 0) : 0), 0, 100);
       if (o.kids) o.familyBond = clamp(o.familyBond + (o.familyTime ? 0.5 : -0.4), 0, 100);
@@ -4227,7 +4254,7 @@
     // 教員工一項新業務：花錢上課，馬上學會
     trainSkill(e, id) {
       const b = (SIDE_BIZ[this.ind.id] || []).find((x) => x.id === id);
-      const cost = this.trainCost;
+      const cost = this.skillCost;
       if (!b || this.knows(e, id) || this.cash < cost || e.trainDay === this.day) return false;
       this.cash -= cost;
       this.ledger.welfare = (this.ledger.welfare || 0) + cost;
@@ -4238,8 +4265,9 @@
       return true;
     }
 
-    get trainCost() {
-      return Math.round(this.marketWage * 16 / 100) * 100;
+    // 兼營業務的上課費（Lv.27 打八折）
+    get skillCost() {
+      return Math.round((this.marketWage * 16 * (this.level >= 27 ? 0.8 : 1)) / 100) * 100;
     }
 
     hasRecipe(p) {
@@ -4342,7 +4370,7 @@
         path: [],
         state: 'arriving',
         waited: 0,
-        patience: 16 * (this.ind.patience || 1) * this.diff.patience * (opt.rider ? 1.4 : 1) * (type ? type.patience : 1) * (this.level >= 19 ? 1.1 : 1) * (this.pets.some((p) => p.kind === 'dog' && p.joy > 40) ? 1.1 : 1) * (this.decor.theme === 'cozy' ? 1.05 : 1),
+        patience: 16 * (this.ind.patience || 1) * this.diff.patience * (opt.rider ? 1.4 : 1) * (type ? type.patience : 1) * (this.level >= 19 ? 1.1 : 1) * (this.level >= 38 ? 1.05 : 1) * (this.pets.some((p) => p.kind === 'dog' && p.joy > 40) ? 1.1 : 1) * (this.decor.theme === 'cozy' ? 1.05 : 1),
         // 寵物友善：有些客人帶毛孩來
         pet: !opt.rider && !opt.product && this.policy.petFriendly && type && type.id !== 'office' && this.rng() < (this.policy.petStrict ? 0.08 : 0.14) ? (this.rng() < 0.75 ? 'dog' : 'cat') : null,
         speed: type ? type.speed : 1.1,
@@ -4661,7 +4689,8 @@
       if (stars <= 3 && !why) why = 'event';
       this.reviews.push({ stars, text: this.w(text), day: this.day, why: why || undefined });
       if (stars >= 5) this.gainXp(3);
-      if (this.reviews.length > 200) this.reviews.shift();
+      // 評論只留最近三個月（遊戲時間），但至少留 60 則讓評價算得穩；最多 200 則
+      while (this.reviews.length > 200 || (this.reviews.length > 60 && this.reviews[0].day < this.day - RECORD_DAYS)) this.reviews.shift();
       if (this.reviews.length >= 30 && this.rating >= 4.5) this.achieve('rating');
     }
 
@@ -5369,7 +5398,7 @@
       }
       if (e.state === 'working' || e.state === 'break') target += this.teamMoodFor(e);
       if (!this.policy.insurance) target -= 6;
-      const regen = (e.traits.includes('cheerful') ? TRAITS.cheerful.moodRegen : 1) * (this.level >= 23 ? 1.2 : 1);
+      const regen = (e.traits.includes('cheerful') ? TRAITS.cheerful.moodRegen : 1) * (this.level >= 39 ? 1.35 : this.level >= 23 ? 1.2 : 1);
       e.mood = clamp(e.mood + (target - e.mood) * 0.004 * regen * dt, 0, 100);
     }
 
@@ -5788,8 +5817,8 @@
         const t = byId(fx.trainOf[0]);
         if (!this.knows(t, fx.trainOf[1])) {
           t.skills = [...(t.skills || []), fx.trainOf[1]];
-          this.cash -= this.trainCost;
-          this.ledger.welfare = (this.ledger.welfare || 0) + this.trainCost;
+          this.cash -= this.skillCost;
+          this.ledger.welfare = (this.ledger.welfare || 0) + this.skillCost;
         }
       }
       if (fx.franchiseFix && this.franchises && this.franchises[fx.franchiseFix[0]]) this.franchises[fx.franchiseFix[0]].decency = clamp(this.franchises[fx.franchiseFix[0]].decency + fx.franchiseFix[1], 0, 100);
@@ -5834,7 +5863,7 @@
       // 事件紀錄：什麼事、誰、選了什麼、誰處理的、結果
       const who = ev.subject || ev.staff || null;
       this.eventSeq = (this.eventSeq || 0) + 1;
-      this.eventLog = [{ day: this.day, time: this.clockLabel, icon: ev.ev.icon, title: this.w(ev.ev.title.replace(/\{who\}/g, who ? who.name : '員工')), who: who ? who.name : null, choice: this.w(choice.label || ''), by: ev.by || '你', delta, left }, ...(this.eventLog || [])].slice(0, 60);
+      this.eventLog = [{ day: this.day, time: this.clockLabel, icon: ev.ev.icon, title: this.w(ev.ev.title.replace(/\{who\}/g, who ? who.name : '員工')), who: who ? who.name : null, choice: this.w(choice.label || ''), by: ev.by || '你', delta, left }, ...(this.eventLog || []).filter((x) => x.day >= this.day - RECORD_DAYS)].slice(0, 60);
       return { event: ev.ev, choice, delta, left, by: ev.by || '你' };
     }
 
@@ -6077,7 +6106,7 @@
       let inspection = null;
       if (this.rng() < (0.05 + this.jerk / 250) * this.diff.inspect) {
         const v = [...this.flags].filter((f) => VIOLATIONS[f]);
-        const fine = Math.round(v.reduce((s, f) => s + VIOLATIONS[f].fine, 0) * 0.6 * this.diff.fines);
+        const fine = Math.round(v.reduce((s, f) => s + VIOLATIONS[f].fine, 0) * 0.6 * this.fineMult);
         inspection = { violations: v.map((f) => VIOLATIONS[f].label), fine };
         if (v.length) {
           this.cash -= fine;
@@ -6125,6 +6154,11 @@
       report.home = profit - (L.branches || 0);
       report.branchDetail = br.map((b) => ({ name: `${this.siteOf(b).city}${b.district}`, last: b.last, fee: b.fee || 0, lostN: b.lostN || 0 }));
       this.history.push(report);
+      // 只留最近半年（26 週）的完整週報；整年要用的數字另外記成精簡的一串
+      if (this.history.length > HISTORY_WEEKS) this.history.splice(0, this.history.length - HISTORY_WEEKS);
+      this.profitLog = [...(this.profitLog || []), Math.round(profit)].slice(-52);
+      this.bestWeek = Math.max(this.bestWeek || 0, Math.round(profit));
+      this.bestCoreWeek = Math.max(this.bestCoreWeek || 0, Math.round(profit - (L.other || 0)));
       this.ledger = this.emptyLedger();
       this.candidates = this.rollCandidates();
       this.lastWeek = report;
@@ -6197,8 +6231,7 @@
 
     // 一年的總評：評價、慣老闆指數、員工心情、現金、分店、獎項
     victory() {
-      const hist = this.history.slice(-48);
-      const profit = hist.reduce((a, h) => a + h.profit, 0);
+      const profit = (this.profitLog || this.history.map((h) => h.profit)).slice(-48).reduce((a, p) => a + p, 0);
       const parts = [
         ['評價', Math.round(clamp((this.rating - 3) * 25, 0, 50)), `${this.rating.toFixed(1)} ★`],
         ['不當慣老闆', Math.round(clamp((60 - this.jerk) / 2, 0, 30)), `慣老闆指數 ${Math.round(this.jerk)}`],
@@ -6267,7 +6300,10 @@
         policy: this.policy,
         idx: this.idx,
         costMult: this.costMult,
-        history: this.history.slice(-20),
+        history: this.history.slice(-HISTORY_WEEKS),
+        profitLog: this.profitLog || [],
+        bestWeek: this.bestWeek || 0,
+        bestCoreWeek: this.bestCoreWeek || 0,
         achievements: [...this.achievements],
         cleanWeeks: this.cleanWeeks,
         rel: this.rel,
@@ -6335,6 +6371,10 @@
       if (d.ledger) s.ledger = { ...s.emptyLedger(), ...d.ledger };
       s.eventLog = d.eventLog || [];
       Object.assign(s, { day: d.day, cash: d.cash, loan: d.loan, jerk: d.jerk, reviews: d.reviews, prices: d.prices, menu: d.menu, policy: { ...s.policy, ...d.policy }, idx: d.idx, costMult: d.costMult, history: d.history, cleanWeeks: d.cleanWeeks || 0 });
+      // 舊存檔沒有精簡紀錄：從留下來的週報補
+      s.profitLog = d.profitLog || (d.history || []).map((h) => Math.round(h.profit));
+      s.bestWeek = d.bestWeek ?? Math.max(0, ...(d.history || []).map((h) => Math.round(h.profit)));
+      s.bestCoreWeek = d.bestCoreWeek ?? Math.max(0, ...(d.history || []).map((h) => Math.round(h.profit - (h.other || 0))));
       if (d.stock) {
         for (const g of s.ind.stock) {
           s.stock[g.id] = (d.stock[g.id] ?? s.stock[g.id]) + ((d.incoming && d.incoming[g.id]) || 0);
