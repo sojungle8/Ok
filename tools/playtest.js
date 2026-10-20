@@ -1,7 +1,7 @@
 // AI 玩家：照一般玩家會做的事去經營，試著撐滿一年破關
 // 只用遊戲裡玩家按得到的操作（招人、排班、調薪、進貨、打掃、買設備、選事件、發文、開分店……）
 // 用法：node tools/playtest.js [難度] [產業] [隨機種子]
-for (const f of ['data', 'fun', 'weird', 'activities', 'city', 'plots', 'career', 'progress', 'slash', 'sidebiz', 'portraits', 'industries', 'sim']) require(`../js/${f}.js`);
+for (const f of ['data', 'fun', 'weird', 'activities', 'city', 'plots', 'career', 'progress', 'slash', 'sidebiz', 'backroom', 'portraits', 'industries', 'sim']) require(`../js/${f}.js`);
 const { Sim, CATALOG, catalogById } = globalThis.BossSim;
 const Fun = globalThis.BossFun;
 
@@ -164,6 +164,12 @@ function daily(r) {
     const pt = Fun.PARTNERS.find((p) => !s.collabReady(p) && s.cash > p.cost + 200000);
     if (pt) s.startCollab(pt.id);
   }
+  // 後場：照順序蓋（儲藏室、廁所、休息室、辦公室），錢夠再升級
+  for (const id of ['storage', 'toilet', 'rest', 'office']) {
+    const c = s.roomCost(id);
+    if (c != null && s.cash > c + 180000 && s.roomLv(id) < (s.level >= 10 ? 3 : s.level >= 6 ? 2 : 1) && s.buildRoom(id)) note(`第 ${s.day} 天：後場${id}升到 ${s.roomLv(id)} 級`);
+  }
+  if (s.roomLv('toilet') && ['store', 'drinks'].includes(s.ind.id)) s.policy.toiletOpen = true;
   // 兼營業務：等級夠、錢夠就一項一項開（數量跟著等級慢慢增加），並送員工去學
   const SB = globalThis.BossIndustries.SIDE_BIZ[s.ind.id] || [];
   const owned = s.ownedSide();

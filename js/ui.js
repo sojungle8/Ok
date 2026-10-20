@@ -743,6 +743,16 @@
       case 'boss-greet':
         s.bossGreet(t.ref);
         break;
+      case 'boss-toilet':
+        if (s.bossCleanToilet()) {
+          toast('🧽 廁所亮晶晶', 'good');
+          window.BossAudio.play('cheer');
+        }
+        break;
+      case 'boss-office':
+        if (s.bossOfficeRest()) toast('💼 在辦公室休息了一下，體力恢復', 'good');
+        else toast('剛剛才休息過', 'bad');
+        break;
       case 'boss-gift':
         if (!s.bossGift(t.ref)) toast('已經招待過了，或錢不夠', 'bad');
         break;
@@ -1241,11 +1251,14 @@
     return `
       <div class="drawer-tabs">
         ${cats.map((c) => `<button data-action="build-cat" data-cat="${c}" class="${ui.buildCat === c ? 'active' : ''}">${c === 'side' ? '🧰 兼營業務' : CAT_LABELS[c]}</button>`).join('')}
+        <button data-action="build-cat" data-cat="back" class="${ui.buildCat === 'back' ? 'active' : ''}">🚪 後場</button>
         <button data-action="build-cat" data-cat="lot" class="${ui.buildCat === 'lot' ? 'active' : ''}">店面與裝潢</button>
       </div>
       <div class="drawer-body">
         ${
-          ui.buildCat === 'lot'
+          ui.buildCat === 'back'
+            ? backroomPanel()
+            : ui.buildCat === 'lot'
             ? `<div class="lot-card card">
                 <p>目前：<b>${s.lot.name}</b>（${s.W} × ${s.H} 格），月租約 ${money(s.ind.rent * s.lot.rentMult)}</p>
                 ${
@@ -1509,6 +1522,31 @@
       ${authPanel()}
       <p class="drawer-tip">每個人都有看不到的「領導力」和「企圖心」：技能好不一定會帶人（彼得原理），企圖心太低的人被升上去會壓力很大，企圖心高的人等太久會主動來要求升遷。升職後有 14 天試用期。</p>
     </div>`;
+  }
+
+  // 🚪 後場：四個房間，各三級
+  function backroomPanel() {
+    const s = ui.sim;
+    const R = Fun.ROOMS || {};
+    const door = s.backDoorCell();
+    return `<p class="calc">後場在店面後方，客人看不到（廁所除外）。門開在後牆最右邊那一格，不要擺東西擋住。轉到店的背面就看得到裡面${ui.view ? '：<button class="link" data-action="cam-back">👀 看後場</button>' : ''}。</p>
+      ${door ? '' : '<p class="calc warn">⚠️ 後牆那一排都被擋住了，要空出一格當後場的門。</p>'}
+      <div class="room-list">${Object.entries(R)
+        .map(([id, r]) => {
+          const lv = s.roomLv(id);
+          const next = r.levels[lv];
+          const cost = s.roomCost(id);
+          const locked = s.level < r.lv;
+          return `<div class="room-card ${lv ? 'built' : ''}">
+            <div class="room-head"><span class="room-icon">${r.icon}</span><div><b>${r.name}</b><small>${lv ? `第 ${lv} 級：${r.levels[lv - 1].name}` : '還沒蓋'}</small></div></div>
+            <p class="room-now">${lv ? r.levels[lv - 1].desc : r.intro}</p>
+            ${id === 'toilet' && lv ? `<div class="ibar"><span>乾淨度</span><div class="bar"><div class="bar-fill ${s.toiletClean < 50 ? 'jerk' : 'morale'}" style="width:${Math.round(s.toiletClean)}%"></div></div><b>${Math.round(s.toiletClean)}</b></div>
+              <label class="toggle-row small"><input type="checkbox" data-action="toilet-open" ${s.policy.toiletOpen ? 'checked' : ''} /> <span><b>開放路人借廁所</b><small>會帶來一些順便消費的人，但廁所髒得比較快、事件也比較多</small></span></label>
+              ${s.toiletDownUntil >= s.day ? '<p class="calc warn">🔧 廁所維修中，暫停使用</p>' : ''}` : ''}
+            ${next ? `<button class="primary" data-action="build-room" data-id="${id}" ${locked || s.cash < cost || !door ? 'disabled' : ''}>${locked ? `🔒 Lv.${r.lv} 解鎖` : `${lv ? '升級成' : '蓋'}「${next.name}」${money(cost)}`}</button><small class="muted">${next.desc}</small>` : '<small class="muted">已經是最高級</small>'}
+          </div>`;
+        })
+        .join('')}</div>`;
   }
 
   // 🧰 會做哪些兼營業務；沒學過的可以花錢送去上課
@@ -1935,6 +1973,7 @@
     image: ['📰', '形象', '炎上、負面新聞、對員工太刻薄'],
     rival: ['🏪', '對手', '隔壁搞小動作'],
     event: ['⚡', '事件', '事件的選擇造成的'],
+    toilet: ['🚽', '廁所', '沒有廁所、廁所太髒或要排很久：到「建造 → 後場」蓋廁所，記得有人打掃'],
   };
   // 長期目標的進度
   function longProgress(id) {
@@ -2899,6 +2938,19 @@
         refreshStaffViews();
         break;
       }
+      case 'build-room':
+        if (s.buildRoom(btn.dataset.id)) {
+          window.BossAudio.play('place');
+          confetti(30);
+        }
+        renderDrawer();
+        break;
+      case 'cam-back':
+        if (ui.view) {
+          ui.view.camAzT = ui.view.camAz + Math.PI;
+          ui.view.zoomT = Math.max(ui.view.zoomT, 1.3);
+        }
+        break;
       case 'train': {
         const who = staffOf(btn);
         if (who && s.train(who)) toast(`🎓 ${who.name} 去上了一堂課，技能提升到 ${Math.round(who.skill)}`);
@@ -3260,6 +3312,9 @@
     } else if (t.dataset.action === 'auth-set') {
       s.policy.auth[t.dataset.key] = t.dataset.key === 'budget' ? Number(t.value) : t.value;
       s.checkProgress();
+      renderDrawer();
+    } else if (t.dataset.action === 'toilet-open') {
+      s.policy.toiletOpen = t.checked;
       renderDrawer();
     } else if (t.dataset.action === 'delegate') {
       s.policy.delegate = t.checked;

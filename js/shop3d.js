@@ -1431,11 +1431,144 @@
       g.add(this.pigeonGroup);
       this.pigeons = [];
       for (let i = 0; i < 5; i++) this.pigeons.push(this.makePigeon());
+      this.buildAnnex(g);
       // 合併靜態場景：牆、隔壁店家、柱子、路邊的機車
-      for (const gr of [...Object.values(this.walls), ...Object.values(this.neighbors), this.frontProps, this.trees]) People.mergeGroup(gr);
-      People.mergeGroup(g, [...Object.values(this.walls), ...Object.values(this.neighbors), this.frontProps, this.trees, this.clock, this.trafficGroup, this.pigeonGroup, this.sign, this.shutter, this.frontSigns, this.glowGroup]);
+      for (const gr of [...Object.values(this.walls), ...Object.values(this.neighbors), this.frontProps, this.trees, this.annexWalls].filter(Boolean)) People.mergeGroup(gr);
+      People.mergeGroup(g, [...Object.values(this.walls), ...Object.values(this.neighbors), this.frontProps, this.trees, this.annexWalls, this.annexSigns, this.clock, this.trafficGroup, this.pigeonGroup, this.sign, this.shutter, this.frontSigns, this.glowGroup]);
       if (this.renderer) this.renderer.shadowMap.needsUpdate = true;
       this.updateCamera();
+    }
+
+    // ───── 後場：店面後面的四個房間 ─────
+    buildAnnex(g) {
+      const s = this.sim;
+      this.annexWalls = null;
+      this.annexSigns = null;
+      if (!s.hasBackroom || !root.BossFun.ROOMS) return;
+      const W = s.W;
+      const D = 2.8;
+      const z0 = -0.15;
+      const z1 = z0 - D;
+      const order = ['storage', 'rest', 'office', 'toilet'];
+      const floorCol = { storage: '#9a958c', rest: '#d9c7a7', office: '#b98a5b', toilet: '#dfe8ec' };
+      this.annexWalls = new THREE.Group();
+      this.annexSigns = new THREE.Group();
+      g.add(this.annexWalls, this.annexSigns);
+      const wallMat = mat('#e9e2d6');
+      // 外牆（鏡頭在後面時會降低）
+      B(this.annexWalls, W + 0.3, WALL_H, 0.15, wallMat, W / 2, 0, z1 - 0.07);
+      B(this.annexWalls, 0.15, WALL_H, D + 0.3, wallMat, -0.07, 0, (z0 + z1) / 2);
+      B(this.annexWalls, 0.15, WALL_H, D + 0.3, wallMat, W + 0.07, 0, (z0 + z1) / 2);
+      order.forEach((id, i) => {
+        const x0 = (i * W) / 4;
+        const x1 = ((i + 1) * W) / 4;
+        const cx = (x0 + x1) / 2;
+        const w = x1 - x0;
+        const lv = s.roomLv(id);
+        // 地板
+        const fl = new THREE.Mesh(new THREE.PlaneGeometry(w - 0.04, D), mat(lv ? floorCol[id] : '#6f6a63', { roughness: 0.9 }));
+        fl.rotation.x = -Math.PI / 2;
+        fl.position.set(cx, 0.01, (z0 + z1) / 2);
+        fl.receiveShadow = true;
+        g.add(fl);
+        // 隔間牆（矮一點，才看得到裡面）
+        if (i > 0) B(g, 0.1, 1.3, D, '#d8cfc2', x0, 0, (z0 + z1) / 2);
+        // 房間名牌（貼在外牆內側）
+        const R = root.BossFun.ROOMS[id];
+        const tex = canvasTex(256, 72, (c, tw, th) => {
+          c.fillStyle = lv ? '#ffffff' : '#bdb6ab';
+          c.fillRect(0, 0, tw, th);
+          c.fillStyle = '#2a2420';
+          c.font = 'bold 34px sans-serif';
+          c.textAlign = 'center';
+          c.textBaseline = 'middle';
+          c.fillText(lv ? `${R.icon}${R.name}` : `${R.icon}（空地）`, tw / 2, th / 2 + 2);
+        });
+        const sign = new THREE.Mesh(new THREE.PlaneGeometry(Math.min(1.2, w - 0.2), 0.34), new THREE.MeshBasicMaterial({ map: tex }));
+        sign.position.set(cx, 1.9, z1 + 0.02);
+        this.annexSigns.add(sign);
+        if (lv) this.buildRoomProps(g, id, lv, x0, x1, z0, z1);
+      });
+      // 門：店裡後牆上一扇門，後場那一側也有
+      const d = s.backDoorCell();
+      if (d) {
+        const doorTex = canvasTex(64, 128, (c, tw, th) => {
+          c.fillStyle = '#8a5a3b';
+          c.fillRect(0, 0, tw, th);
+          c.fillStyle = '#6b4430';
+          c.fillRect(6, 6, tw - 12, th / 2 - 10);
+          c.fillRect(6, th / 2 + 4, tw - 12, th / 2 - 10);
+          c.fillStyle = '#e2a12a';
+          c.beginPath();
+          c.arc(tw - 14, th / 2, 4, 0, Math.PI * 2);
+          c.fill();
+          c.fillStyle = '#ffffff';
+          c.font = 'bold 13px sans-serif';
+          c.textAlign = 'center';
+          c.fillText('員工', tw / 2, 22);
+        });
+        for (const [z, rot] of [[0.005, 0], [-0.165, Math.PI]]) {
+          const door = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 1.9), new THREE.MeshStandardMaterial({ map: doorTex }));
+          door.position.set(d.x + 0.5, 0.95, z);
+          door.rotation.y = rot;
+          this.annexSigns.add(door);
+        }
+      }
+    }
+
+    // 房間裡的家具：等級越高越多
+    buildRoomProps(g, id, lv, x0, x1, z0, z1) {
+      const cx = (x0 + x1) / 2;
+      const zb = z1 + 0.35; // 靠外牆
+      if (id === 'storage') {
+        for (let i = 0; i < 2; i++) {
+          const x = x0 + 0.45 + i * 0.75;
+          B(g, 0.6, 1.6, 0.4, '#8a8f99', x, 0, zb, { metalness: 0.4 });
+          for (let r = 0; r < 3; r++) B(g, 0.22, 0.25, 0.3, ['#c99a5b', '#d8b07a', '#b98a4f'][(r + i) % 3], x - 0.13 + (r % 2) * 0.25, 0.08 + r * 0.5, zb);
+        }
+        if (lv >= 2) B(g, 0.7, 1.7, 0.6, '#dfe6ea', x1 - 0.5, 0, zb + 0.1, { metalness: 0.3 });
+        if (lv >= 3) {
+          B(g, 0.3, 0.25, 0.3, '#2b2b30', cx, 0, z0 - 0.4);
+          B(g, 0.32, 0.22, 0.05, basic('#5ef0ff'), cx, 2.0, z1 + 0.05);
+        }
+      } else if (id === 'rest') {
+        B(g, 0.6, 0.7, 0.6, '#b07a4f', x0 + 0.6, 0, (z0 + z1) / 2);
+        C(g, 0.15, 0.15, 0.45, '#d9482b', x0 + 0.6, 0, (z0 + z1) / 2 + 0.5, 10);
+        if (lv >= 2) {
+          B(g, 1.0, 0.4, 0.45, '#5aa9a0', x1 - 0.7, 0, zb);
+          B(g, 1.0, 0.45, 0.12, '#4a948c', x1 - 0.7, 0.4, zb - 0.18);
+          B(g, 0.45, 0.9, 0.45, '#f3f3f3', x0 + 0.3, 0, zb);
+        }
+        if (lv >= 3) {
+          B(g, 0.5, 0.5, 0.7, '#3a3a40', cx, 0, z0 - 0.5);
+          B(g, 0.5, 0.6, 0.15, '#3a3a40', cx, 0.5, z0 - 0.82);
+        }
+      } else if (id === 'office') {
+        B(g, 1.0, 0.75, 0.55, '#6b4a32', cx, 0, zb + 0.3);
+        B(g, 0.35, 0.25, 0.04, basic('#9fd3ff'), cx, 0.75, zb + 0.15);
+        C(g, 0.2, 0.2, 0.45, '#2b2b30', cx, 0, zb + 0.85, 10);
+        if (lv >= 2) for (const dx of [-0.35, 0.35]) C(g, 0.17, 0.17, 0.42, '#c97b2c', cx + dx, 0, z0 - 0.45, 10);
+        if (lv >= 3) {
+          B(g, 0.45, 0.55, 0.45, '#4a4f57', x1 - 0.35, 0, zb, { metalness: 0.6 });
+          C(g, 0.06, 0.06, 0.03, '#d4a017', x1 - 0.35, 0.3, zb + 0.24, 10).rotation.x = Math.PI / 2;
+        }
+      } else if (id === 'toilet') {
+        if (lv === 1) {
+          B(g, 0.45, 0.06, 0.6, '#f3f3f3', cx, 0, zb + 0.4);
+        } else {
+          C(g, 0.18, 0.15, 0.4, '#ffffff', cx, 0, zb + 0.15, 14);
+          B(g, 0.42, 0.42, 0.14, '#ffffff', cx, 0.3, zb - 0.1);
+          B(g, 0.45, 0.12, 0.35, '#f3f3f3', x0 + 0.35, 0.75, z0 - 0.4);
+        }
+        if (lv >= 3) {
+          B(g, 0.6, 0.8, 0.03, basic('#cfe8ff'), x0 + 0.35, 1.1, z0 - 0.25);
+          const pl = new THREE.Mesh(new THREE.SphereGeometry(0.22, 10, 8), mat('#4f9a5a'));
+          pl.position.set(x1 - 0.3, 0.5, zb);
+          g.add(pl);
+          C(g, 0.14, 0.12, 0.35, '#c97b2c', x1 - 0.3, 0, zb, 10);
+          B(g, 0.7, 0.18, 0.03, basic('#ff7eb6'), cx, 1.85, z1 + 0.04);
+        }
+      }
     }
 
     // 鐵捲門：打烊、大家都走了才拉下來
@@ -1614,6 +1747,7 @@
       if (this.frontProps) this.frontProps.scale.y = frontNear ? 0.15 : 1;
       if (this.trees) this.trees.visible = !frontNear;
       if (this.clock) this.clock.visible = !near.includes('back');
+      if (this.annexWalls) this.annexWalls.scale.y = near.includes('back') ? 0.12 : 1;
       this.applyShutterCut(frontNear);
       if (this.frontSigns) this.frontSigns.visible = !frontNear;
       this.frontNear = frontNear;

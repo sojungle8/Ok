@@ -119,6 +119,8 @@
       this.achievements = new Set();
       this.xp = 0;
       this.owner = { wealth: 0, taken: 0 }; // 老闆個人的錢（領分紅才會進來），跟公司的現金分開
+      this.rooms = { storage: 0, rest: 0, office: 0, toilet: 0 }; // 後場的房間等級
+      this.toiletClean = 100;
       this.progress = { chapter: 0, done: [], chapters: [], features: [], route: null, ended: false };
       this.branches = [];
       this.awards = [];
@@ -929,6 +931,13 @@
       return out;
     }
 
+    // 貨量上限：沒有儲藏室大約一天半的量
+    stockCap(gid) {
+      const par = this.par && this.par[gid];
+      if (!par) return 0;
+      return Math.round(par * [1.6, 2.5, 3.5, 5][this.roomLv('storage')]);
+    }
+
     stockGroup(gid) {
       return (this.ind.stock || []).find((g) => g.id === gid);
     }
@@ -1260,7 +1269,22 @@
 
     receiveDelivery(c) {
       const d = c.delivery;
-      for (const [gid, n] of Object.entries(d.items)) this.stock[gid] = (this.stock[gid] || 0) + n;
+      let over = 0;
+      for (const [gid, n] of Object.entries(d.items)) {
+        this.stock[gid] = (this.stock[gid] || 0) + n;
+        // 倉庫放不下的只好退貨（運費和損耗算你的）
+        const cap = this.stockCap(gid);
+        if (cap && this.stock[gid] > cap) {
+          const g = this.stockGroup(gid);
+          const extra = this.stock[gid] - cap;
+          this.stock[gid] = cap;
+          const v = Math.round(extra * this.unitCost(g) * 0.3);
+          this.cash -= v;
+          this.ledger.waste += v;
+          over += extra;
+        }
+      }
+      if (over) this.notify(`📦 貨太多放不下，${over} 份只好退回（損失運費）。${this.roomLv('storage') < 3 ? '蓋或升級後場的儲藏室，可以放更多。' : ''}`, 'bad');
       this.deliveries = this.deliveries.filter((x) => x !== d);
       this.popup(c, d.rush ? '📦 急件到了' : '📦 進貨', 'good');
       this.customerLeave(c, 'done');
@@ -1576,6 +1600,7 @@
       score *= 1 - repeat * 0.3;
       score *= 0.75 + this.rng() * 0.5;
       if (this.flags.has('trendDare')) score *= 1.1;
+      if (this.roomLv('toilet') >= 3) score *= 1.06; // 網美廁所：客人打卡的照片也幫你宣傳
       let fire = null;
       if (b.risky && this.rng() < b.risky) fire = b.riskText || '踩到雷了';
       const base = 40 + this.social.followers * 0.25;
@@ -1765,6 +1790,9 @@
       // 面試時就決定好領導力、企圖心和風格（看得到的只有印象）
       const tmp = this.ensureCareer({ traits, gender });
       for (const k of ['lead', 'ambition', 'style', 'leadSeen', 'hint']) c[k] = tmp[k];
+      // 有面試間：比較看得出這個人會不會帶人；員工休息室做得好，來應徵的人素質比較好
+      if (this.roomLv('office') >= 2) c.leadSeen = Math.round(c.lead * 0.75 + c.leadSeen * 0.25);
+      if (this.roomLv('rest') >= 3) c.skill = Math.min(95, c.skill + 5);
       return c;
     }
 
@@ -1936,6 +1964,14 @@
       const near = (a, r) => Math.hypot(a.x - b.x, a.z - b.z) <= r;
       const d = (a) => Math.hypot(a.x - b.x, a.z - b.z);
       if (b.lane) out.push({ kind: 'leaveLane', d: -1, label: '離開櫃台', actions: [['boss-leave-lane', '🚶 離開櫃台']] });
+      // 後場的門：老闆可以自己洗廁所、進辦公室休息
+      const door = this.hasBackroom && this.backDoorCell();
+      if (door && near(door, 1.4)) {
+        const acts = [];
+        if (this.toiletOk) acts.push(['boss-toilet', `🧽 老闆親自洗廁所（乾淨度 ${Math.round(this.toiletClean)}）`]);
+        if (this.roomLv('office')) acts.push(['boss-office', '💼 進辦公室休息一下']);
+        if (acts.length) out.push({ kind: 'backdoor', ref: door, d: d(door), label: '後場', actions: acts });
+      }
       for (const c of this.customers) {
         // 奧客嗓門大：隔著櫃台或排隊的人也能過去處理
         if (c.state === 'leaving' || !near(c, c.karen ? 2.4 : 1.3)) continue;
@@ -2009,6 +2045,29 @@
         p.gone = true;
       }
       return yes;
+    }
+
+    // 老闆自己洗廁所：員工看在眼裡
+    bossCleanToilet() {
+      if (!this.toiletOk) return false;
+      const was = this.toiletClean;
+      this.toiletClean = 100;
+      this.boss.energy = clamp(this.boss.energy - 8, 0, 100);
+      if (was < 80 && this.bossToiletDay !== this.day) {
+        this.bossToiletDay = this.day;
+        for (const e of this.staff) e.mood = clamp(e.mood + 2, 0, 100);
+        this.jerk = clamp(this.jerk - 0.5, 0, JERK_LIMIT);
+        this.say(this.boss, '廁所乾淨，客人才會再來！', 40);
+      }
+      return true;
+    }
+
+    bossOfficeRest() {
+      if (!this.roomLv('office') || this.minute - (this.officeRestAt || -999) < 120) return false;
+      this.officeRestAt = this.minute;
+      this.boss.energy = clamp(this.boss.energy + (this.roomLv('office') >= 3 ? 35 : 22), 0, 100);
+      this.say(this.boss, '關上門，喘口氣……', 40);
+      return true;
     }
 
     bossGreet(c) {
@@ -2738,6 +2797,45 @@
       }
     }
 
+    // 後場的事件：每個房間各自的麻煩
+    planRoomEvents() {
+      if (!Fun.ROOM_EVENTS || !this.roster || !this.hasBackroom) return;
+      const built = Object.keys(Fun.ROOM_EVENTS).filter((id) => this.roomLv(id) > 0);
+      if (!built.length) return;
+      this.roomEvDay = this.roomEvDay || {};
+      const id = built[Math.floor(this.rng() * built.length)];
+      const chance = (id === 'toilet' ? 0.07 + (this.toiletClean < 50 ? 0.06 : 0) + (this.policy.toiletOpen ? 0.04 : 0) : 0.04) * this.diff.events;
+      if (this.day - (this.roomEvDay[id] ?? -99) < 8 || this.rng() >= chance) return;
+      let list = Fun.ROOM_EVENTS[id];
+      // 智慧倉儲有監視器：不會再有盤點對不上；辦公室有保險箱：收銀短少比較少見
+      if (id === 'storage' && this.roomLv('storage') >= 3) list = list.filter((f) => f !== list[1]);
+      if (id === 'office' && this.roomLv('office') >= 3 && this.rng() < 0.6) list = list.slice(0, 1);
+      const mk = list[Math.floor(this.rng() * list.length)];
+      const working = this.staff.filter((e) => this.roster.has(e.id));
+      const e = working[Math.floor(this.rng() * working.length)] || null;
+      this.roomEvDay[id] = this.day;
+      const at = this.hours.open + 60 + this.rng() * Math.max(60, Math.min(this.hours.span, 600) - 120);
+      this.pendingEvents.push({ ev: mk(this, e), at, where: e ? 'staff' : 'phone', staffPref: e, subject: e || undefined });
+    }
+
+    // 洗廁所都是同一個人：會來抗議
+    toiletDutyEvent(e, n) {
+      const others = this.staff.filter((o) => o !== e);
+      return {
+        id: 'rm_duty',
+        icon: '🧽',
+        title: `${e.name}：「為什麼每次都是我洗廁所？」`,
+        text: `${e.name}拿著馬桶刷站在你面前：「這週廁所我洗了 ${n} 次，其他人一次都沒有。我是來上班的，不是專門來洗廁所的。」`,
+        choices: [
+          { label: '排輪值表，大家輪流', effects: { moodOf: [[e.id, 8], ...others.map((o) => [o.id, -2])] }, result: '輪值表貼在休息室，大家雖然有點哀怨，但都覺得公平。' },
+          { label: '請清潔阿姨每週來兩次', note: '每週 $1,500', effects: { cash: -3000, moodOf: [[e.id, 10]], flag: 'cleaner' }, result: '清潔阿姨來了之後，廁所亮到可以照鏡子。' },
+          { label: '老闆以身作則，這週你洗', effects: { moodOf: [[e.id, 6]], morale: 4, jerk: -2 }, result: '大家看到老闆蹲在馬桶旁邊刷，突然覺得洗廁所也沒那麼丟臉。' },
+          { label: '「新人本來就要做這些」', effects: { moodOf: [[e.id, -14]], jerk: 2 }, result: `${e.name}沒再說話，那天下班走得特別快。` },
+        ],
+        ignore: { effects: { moodOf: [[e.id, -8]] }, result: `${e.name}繼續一個人洗廁所。` },
+      };
+    }
+
     get trainCost() {
       return 3000;
     }
@@ -3303,7 +3401,8 @@
     praise(e) {
       if (e.praiseDay === this.day) return false;
       e.praiseDay = this.day;
-      e.mood = clamp(e.mood + 8, 0, 100);
+      // 有辦公室：叫進來當面稱讚，效果更好
+      e.mood = clamp(e.mood + (this.roomLv('office') ? 11 : 8), 0, 100);
       this.jerk = clamp(this.jerk - 0.5, 0, JERK_LIMIT);
       this.say(e, ['被老闆稱讚了！', '今天做得很有成就感', '嘿嘿 ✨'][Math.floor(this.rng() * 3)], 90);
       return true;
@@ -3314,7 +3413,8 @@
       e.mood = clamp(e.mood - 15 * k, 0, 100);
       e.hustle = this.minute + 60;
       this.jerk = clamp(this.jerk + 3, 0, JERK_LIMIT);
-      for (const o of this.staff) if (o !== e) o.mood = clamp(o.mood - 2, 0, 100);
+      // 沒有辦公室：當著大家的面罵，其他人心情也會變差
+      if (!this.roomLv('office')) for (const o of this.staff) if (o !== e) o.mood = clamp(o.mood - 2, 0, 100);
       this.say(e, k > 1 ? '……（快哭了）' : '……是，我會注意。', 120);
     }
 
@@ -3526,12 +3626,124 @@
       // 店的名聲好，來辦事的人也多一點（但沒有本業那麼敏感）
       r *= Math.sqrt(Math.max(0.3, this.attractiveness()));
       if (this.sideHot && this.sideHot.id === p.id && this.sideHot.until >= this.day) r *= this.sideHot.mult;
+      // 要堆貨的業務：沒有儲藏室就做不大
+      if (['sb_parcel', 'sb_parcelb', 'sb_dumpling', 'sb_newyear'].includes(p.id)) r *= [0.6, 1, 1.15, 1.3][this.roomLv('storage')];
       return r;
     }
 
     // 店裡開了幾項兼營業務
     get sideCount() {
       return this.ownedSide().length;
+    }
+
+    // ───── 🚪 後場：儲藏室、休息室、辦公室、廁所 ─────
+    roomLv(id) {
+      return (this.rooms && this.rooms[id]) || 0;
+    }
+
+    roomLevel(id) {
+      const lv = this.roomLv(id);
+      return lv && Fun.ROOMS ? Fun.ROOMS[id].levels[lv - 1] : null;
+    }
+
+    roomCost(id) {
+      const R = Fun.ROOMS && Fun.ROOMS[id];
+      const L = R && R.levels[this.roomLv(id)];
+      return L ? Math.round((L.cost * (this.ind.cash / 320000)) / 1000) * 1000 : null;
+    }
+
+    buildRoom(id) {
+      const R = Fun.ROOMS && Fun.ROOMS[id];
+      const cost = this.roomCost(id);
+      if (!R || cost == null || this.level < R.lv || this.cash < cost || !this.backDoorCell()) return false;
+      this.cash -= cost;
+      this.ledger.other -= cost;
+      this.rooms[id] += 1;
+      if (id === 'toilet') this.toiletClean = 100;
+      this.styleVer = (this.styleVer || 0) + 1;
+      this.notify(`🚪 後場的${R.name}${this.rooms[id] > 1 ? '升級成' : '蓋好了：'}「${R.levels[this.rooms[id] - 1].name}」`, 'achieve');
+      return true;
+    }
+
+    get hasBackroom() {
+      return !!this.rooms && Object.values(this.rooms).some((v) => v > 0);
+    }
+
+    // 通往後場的門：後牆最右邊一格可以走的地方
+    backDoorCell() {
+      for (let x = this.W - 1; x >= 0; x--) if (this.passable(x, 0)) return { x, z: 0 };
+      return null;
+    }
+
+    // 後場的四個房間由左到右：儲藏室、休息室、辦公室、廁所（世界座標）
+    roomSlot(id) {
+      const i = ['storage', 'rest', 'office', 'toilet'].indexOf(id);
+      const w = this.W / 4;
+      return { x0: i * w, x1: (i + 1) * w };
+    }
+
+    roomOccupants(id) {
+      return [...this.staff, ...this.customers].filter((a) => a.inRoom && a.inRoom.id === id);
+    }
+
+    enterRoom(a, id, mins) {
+      const k = this.roomOccupants(id).length;
+      const sl = this.roomSlot(id);
+      const wx = Math.min(sl.x1 - 0.45, sl.x0 + 0.45 + (k % 3) * 0.6);
+      const wz = -0.85 - (Math.floor(k / 3) % 2) * 0.9;
+      a.inRoom = { id, until: this.minute + mins, from: { x: Math.round(a.x), z: Math.round(a.z) } };
+      a.path = [];
+      a.x = wx - 0.5;
+      a.z = wz - 0.5;
+      a.moving = false;
+    }
+
+    exitRoom(a) {
+      const d = this.backDoorCell() || (a.inRoom && a.inRoom.from) || { x: 0, z: 0 };
+      a.x = d.x;
+      a.z = d.z;
+      a.inRoom = null;
+    }
+
+    get toiletOk() {
+      return this.roomLv('toilet') > 0 && !(this.toiletDownUntil >= this.day) && !!this.backDoorCell();
+    }
+
+    // 有人上完廁所：廁所變髒
+    useToilet(a) {
+      const L = this.roomLevel('toilet');
+      if (!L) return;
+      this.toiletClean = clamp(this.toiletClean - L.dirt * (a.borrow ? 1.3 : 1), 0, 100);
+      this.today.toilet = (this.today.toilet || 0) + 1;
+    }
+
+    // 上完廁所：借廁所的人可能順便買東西；內用客人這時候才給評價
+    afterToilet(c) {
+      if (c.borrow) {
+        this.today.borrow = (this.today.borrow || 0) + 1;
+        if (this.rng() < 0.3) {
+          const core = this.availableProducts().filter((p) => !p.side);
+          const q = core[Math.floor(this.rng() * core.length)];
+          if (q) {
+            const v = Math.round(this.effPrice(q.id) * 0.9);
+            const k = Math.round(q.cost * this.idx.cpi);
+            this.cash += v - k;
+            this.ledger.revenue += v;
+            this.ledger.materials += k;
+            this.today.revenue += v;
+            this.popup(c, `借完順便買${q.icon}`, 'good');
+          }
+        } else if (this.rng() < 0.15) this.popup(c, '謝啦～', 'muted');
+        this.customerLeave(c, 'done');
+        return;
+      }
+      const L = this.roomLevel('toilet');
+      if (c.stars != null) {
+        c.stars = clamp(c.stars + (L ? L.stars : 0) - (this.toiletClean < 40 ? 0.8 : 0), 1, 5);
+        if (this.toiletClean < 40) c.whyLow = 'toilet';
+      }
+      this.reviewFor(c);
+      this.customerLeave(c, 'done');
     }
 
     // 店裡有開的兼營業務
@@ -3622,6 +3834,15 @@
     spawnCustomer(opt = {}) {
       // 兼營業務的客人：指定要辦的事；一般客人只點本業的品項
       const prods = opt.product ? [opt.product] : this.availableProducts().filter((p) => !p.side);
+      if (opt.borrow) {
+        // 借廁所的人：隨便給一個品項當預設（不會真的點）
+        const t = this.pickType();
+        const c = { id: uid++, kind: 'customer', borrow: true, type: t ? t.id : 'family', look: this.rng() < 0.3 ? { ...this.typeLook(t), hat: 'cap', hatColor: '#e0478a', shirt: '#e0478a', extra: null } : this.typeLook(t), product: prods[0], qty: 1, x: this.rng() < 0.5 ? -OUT_W : this.W + OUT_W - 1, z: this.H, path: [], state: 'arriving', waited: 0, patience: 8, speed: 1.2, progress: 0 };
+        this.customers.push(c);
+        this.today.visitors++;
+        this.walkTo(c, { x: this.doorX + (this.rng() < 0.5 ? 0 : 1), z: this.H - 1 });
+        return;
+      }
       if (!prods.length) return;
       const type = opt.rider ? null : this.pickType();
       if (type && !this.typeAccepts(type)) return;
@@ -3729,6 +3950,14 @@
       }
       if (!this.isOpen) {
         this.customerLeave(c, 'closed');
+        return;
+      }
+      if (c.borrow) {
+        const d = this.backDoorCell();
+        if (!this.toiletOk || !d) return this.customerLeave(c, 'done');
+        c.state = 'toToilet';
+        c.waited = 0;
+        this.walkTo(c, d);
         return;
       }
       // 下雨天：鞋底的泥巴
@@ -4087,7 +4316,12 @@
         const base = (this.ind.baseArrivals * this.ind.demand[this.hour] * this.attractiveness()) / 60;
         if (this.rng() < base * this.weatherMult('walk') * dt) this.spawnCustomer();
         // 外送平台的訂單：外送員騎車來取餐
-        if (this.policy.delivery && this.ind.delivery && this.rng() < base * 0.22 * this.weatherMult('delivery') * dt) this.spawnCustomer({ rider: true });
+        if (this.policy.delivery && this.ind.delivery && this.rng() < base * 0.22 * (this.flags.has('riderFriendly') ? 1.1 : 1) * this.weatherMult('delivery') * dt) this.spawnCustomer({ rider: true });
+        // 開放借廁所：路人進來借，有些人會順便買東西
+        if (this.policy.toiletOpen && this.toiletOk && Fun.TOILET_BORROW) {
+          const br = (Fun.TOILET_BORROW[this.ind.id] || 0.5) * this.ind.demand[this.hour] * this.weatherMult('walk');
+          if (this.rng() < (br / 60) * dt) this.spawnCustomer({ borrow: true });
+        }
         // 兼營業務：專門為這件事來的客人（不搶原本的生意）
         for (const p of this.sideProducts()) {
           const r = this.sideRate(p);
@@ -4193,8 +4427,36 @@
 
     updateCustomers(dt) {
       for (const c of this.customers) {
+        if (c.inRoom) {
+          if (this.minute >= c.inRoom.until) {
+            this.exitRoom(c);
+            this.afterToilet(c);
+          }
+          continue;
+        }
         const arrived = this.moveAgent(c, 2.4 * (c.speed || 1), dt);
         switch (c.state) {
+          case 'toToilet':
+            if (arrived) {
+              const L = this.roomLv('toilet');
+              if (this.toiletOk && this.roomOccupants('toilet').length < (L >= 3 ? 2 : 1)) {
+                this.enterRoom(c, 'toilet', 3 + this.rng() * 3);
+                this.useToilet(c);
+              } else {
+                c.waited += dt;
+                if (c.waited > (c.borrow ? 5 : 8)) {
+                  // 等不到廁所
+                  if (!c.borrow && c.stars != null) {
+                    c.stars = clamp(c.stars - 0.5, 1, 5);
+                    c.whyLow = 'toilet';
+                    this.reviewFor(c);
+                  }
+                  this.popup(c, '😖', 'bad');
+                  this.customerLeave(c, 'done');
+                }
+              }
+            }
+            break;
           case 'arriving':
             if (arrived) this.customerArrived(c);
             break;
@@ -4243,6 +4505,24 @@
             c.eatFor -= dt;
             if (c.eatFor <= 0) {
               if (this.rng() < 0.5) this.addDirt(c.x, c.z);
+              // 吃完想上廁所：有廁所就去；沒有的話有人會扣分
+              if (this.rng() < 0.2) {
+                const d = this.toiletOk && this.backDoorCell();
+                if (d) {
+                  if (c.seatObj) {
+                    c.seatObj.seatTaken[c.seatIdx] = null;
+                    c.seatObj = null;
+                  }
+                  c.state = 'toToilet';
+                  c.waited = 0;
+                  this.walkTo(c, d);
+                  break;
+                }
+                if (c.stars != null) {
+                  c.stars = clamp(c.stars - 0.5, 1, 5);
+                  c.whyLow = 'toilet';
+                }
+              }
               this.reviewFor(c);
               this.customerLeave(c, 'done');
             }
@@ -4302,6 +4582,7 @@
     }
 
     goHome(e) {
+      if (e.inRoom) this.exitRoom(e);
       this.dropTask(e);
       e.state = 'leaving';
       this.walkTo(e, { x: this.rng() < 0.5 ? -OUT_W : this.W + OUT_W - 1, z: this.H });
@@ -4309,6 +4590,15 @@
 
     updateStaff(dt) {
       for (const e of this.staff) {
+        // 在後場：時間到了才出來（休息的人在下面照常恢復體力）
+        if (e.inRoom && e.inRoom.id === 'toilet' && this.minute >= e.inRoom.until) {
+          this.exitRoom(e);
+          this.toiletClean = 100;
+          e.toiletWeek = (e.toiletWeek || 0) + 1;
+          e.mood = clamp(e.mood - 0.8, 0, 100);
+          e.task = null;
+        }
+        if (e.inRoom && e.inRoom.id === 'toilet') continue;
         const duty = this.onDuty(e);
         const arrived = this.moveAgent(e, 2.8, dt);
 
@@ -4355,13 +4645,16 @@
 
         if (e.state === 'break') {
           const t = e.task;
+          if (t && t.room === 'rest' && arrived && !e.inRoom) this.enterRoom(e, 'rest', 9999);
           if (arrived && t) {
-            const bonus = t.obj ? t.obj.def.restBonus || 1 : 0.5;
+            const R = t.room === 'rest' && this.roomLevel('rest');
+            const bonus = R ? R.rest : t.obj ? t.obj.def.restBonus || 1 : 0.5;
             e.energy = clamp(e.energy + 1.6 * bonus * dt, 0, 100);
             e.hunger = clamp(e.hunger + 2.5 * dt, 0, 100);
           }
           if (e.energy > 88 && e.hunger > 75) {
             if (t && t.obj) t.obj.seatTaken[t.seat] = null;
+            if (e.inRoom) this.exitRoom(e);
             e.task = null;
             e.state = 'working';
             this.say(e, '休息完，回去工作！', 30);
@@ -4380,6 +4673,23 @@
         }
         if (tired && !this.policy.breaks && this.rng() < 0.01 * dt) this.say(e, ['老闆說不准休息……', '腳好痠', '一口飯都還沒吃'][Math.floor(this.rng() * 3)], 40);
 
+        // 廁所髒了：沒在服務客人的人去打掃（同一時間只派一個）
+        if (e.task && e.task.type === 'toilet') {
+          if (arrived) {
+            if (this.toiletOk && this.roomOccupants('toilet').length < (this.roomLv('toilet') >= 3 ? 2 : 1)) this.enterRoom(e, 'toilet', 6);
+            else e.task = null;
+          }
+          continue;
+        }
+        if (!serving && working && this.toiletOk && this.toiletClean < 55 && !this.staff.some((o) => o.task && o.task.type === 'toilet') && !(e.task && e.task.lane && e.task.lane.customer)) {
+          const d = this.backDoorCell();
+          this.dropTask(e);
+          if (d && this.walkTo(e, d)) {
+            e.task = { type: 'toilet' };
+            if (this.rng() < 0.3) this.say(e, ['又要洗廁所……', '誰把廁所弄成這樣', '戴好手套，出發'][Math.floor(this.rng() * 3)], 30);
+            continue;
+          }
+        }
         // 找事做：哪個服務位最需要人
         if (!serving) this.assignWork(e, dt);
         this.thinkMaybe(e, dt);
@@ -4388,6 +4698,14 @@
 
     startBreak(e) {
       this.dropTask(e);
+      // 有員工休息室：到後場休息，客人看不到，恢復得比較快
+      const door = this.roomLv('rest') && this.backDoorCell();
+      if (door && this.walkTo(e, door)) {
+        e.task = { type: 'rest', room: 'rest' };
+        e.state = 'break';
+        this.say(e, ['去休息室喘口氣', '終於可以躺一下', '先去吃個飯'][Math.floor(this.rng() * 3)], 30);
+        return;
+      }
       const spots = this.restSpots();
       for (const o of spots) {
         const i = o.seatTaken.findIndex((t) => !t);
@@ -4549,6 +4867,7 @@
       if (this.jerk > 60) target -= 5;
       if (this.cleanliness < 55) target -= (55 - this.cleanliness) / 6;
       if (this.shopCat) target += 2;
+      if (this.roomLevel('rest')) target += this.roomLevel('rest').mood;
       // 十項全能的代價：店裡的業務比他會的多太多，會覺得被當萬用工具人
       const n = this.sideCount;
       if (n) {
@@ -4659,6 +4978,12 @@
       this.planCareerEvents();
       this.planSideEvents();
       this.planSideBizEvents();
+      this.planRoomEvents();
+      if (this.toiletDuty) {
+        const { e, n } = this.toiletDuty;
+        this.toiletDuty = null;
+        if (this.staff.includes(e)) this.pendingEvents.push({ ev: this.toiletDutyEvent(e, n), at: this.hours.open + 45, where: 'staff', staffPref: e, subject: e });
+      }
       // 一般客訴：有時候是店裡真的做錯，有時候是客人誤會
       if (Fun.complaintEvent && this.rng() < 0.22 * this.diff.events) {
         const at = this.hours.open + 60 + this.rng() * Math.max(60, Math.min(this.hours.span, 600) - 120);
@@ -4906,6 +5231,8 @@
         }
       }
       if (fx.followers) this.social.followers = Math.max(0, this.social.followers + fx.followers);
+      if (fx.toiletFix) this.toiletDownUntil = 0;
+      if (fx.toiletDown) this.toiletDownUntil = this.day + fx.toiletDown - 1;
       if (fx.sideHot) this.sideHot = { id: fx.sideHot[0], mult: fx.sideHot[1], until: this.day + fx.sideHot[2] - 1 };
       if (fx.sideDown) {
         this.sideDownUntil = this.sideDownUntil || {};
@@ -5036,7 +5363,7 @@
       }
       // 食材：隔夜報廢一部分，記下今天的用量
       for (const g of this.ind.stock || []) {
-        const lost = Math.floor(this.stock[g.id] * g.spoil * this.wasteMult);
+        const lost = Math.floor(this.stock[g.id] * g.spoil * this.wasteMult * (this.roomLevel('storage') ? this.roomLevel('storage').spoil : 1));
         if (lost > 0) {
           this.stock[g.id] -= lost;
           const v = Math.round(lost * this.unitCost(g));
@@ -5138,6 +5465,32 @@
         this.cash += L.branches;
         // Lv.11 以後的經驗主要靠連鎖賺的錢
         if (L.branches > 0) this.gainXp(L.branches / 60);
+      }
+      // 後場：洗廁所的分配、老鼠、過期品、請了清潔阿姨
+      if (this.flags.has('cleaner')) {
+        const v = 1500;
+        this.cash -= v;
+        L.cleaning = (L.cleaning || 0) + v;
+        this.toiletClean = 100;
+      } else {
+        const duty = this.staff.map((e) => [e, e.toiletWeek || 0]).sort((a, b) => b[1] - a[1]);
+        const total = duty.reduce((t, [, n]) => t + n, 0);
+        if (duty.length >= 2 && duty[0][1] >= 4 && duty[0][1] / Math.max(1, total) > 0.6) this.toiletDuty = { e: duty[0][0], n: duty[0][1] };
+      }
+      for (const e of this.staff) e.toiletWeek = 0;
+      if (this.flags.has('ratRisk') && this.rng() < 0.15) {
+        this.flags.delete('ratRisk');
+        this.cash -= 10000;
+        L.fines += 10000;
+        this.addReview(1, '在店裡看到老鼠跑過去！！', 'clean');
+        this.notify('🐀 有客人拍到老鼠的影片，衛生局來稽查，罰款 $10,000。', 'bad');
+      }
+      if (this.flags.has('expiredRisk') && this.rng() < 0.2) {
+        this.flags.delete('expiredRisk');
+        this.cash -= 30000;
+        L.fines += 30000;
+        this.jerk = clamp(this.jerk + 3, 0, JERK_LIMIT);
+        this.notify('📅 稽查員在倉庫找到過期品，罰款 $30,000。', 'bad');
       }
       // 兼營業務留下的伏筆
       if (this.flags.has('oldBrine') && this.rng() < 0.12) {
@@ -5365,6 +5718,9 @@
         owner: this.owner,
         areaManager: this.areaManager || null,
         bestCombo: this.bestCombo || 0,
+        rooms: this.rooms,
+        toiletClean: this.toiletClean,
+        toiletDownUntil: this.toiletDownUntil || 0,
         sideDownUntil: this.sideDownUntil || {},
         sideHot: this.sideHot || null,
         kitchen: this.kitchen || null,
@@ -5446,6 +5802,10 @@
       s.xp = d.xp || 0;
       s.areaManager = d.areaManager || null;
       s.bestCombo = d.bestCombo || 0;
+      s.rooms = { storage: 0, rest: 0, office: 0, toilet: 0, ...(d.rooms || {}) };
+      for (const e of s.staff) e.inRoom = null;
+      s.toiletClean = d.toiletClean ?? 100;
+      s.toiletDownUntil = d.toiletDownUntil || 0;
       s.sideDownUntil = d.sideDownUntil || {};
       s.sideHot = d.sideHot || null;
       s.kitchen = d.kitchen || null;
