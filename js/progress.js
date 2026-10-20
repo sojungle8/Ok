@@ -1,0 +1,163 @@
+// 章節任務：新玩法一章一章解鎖，不會一開始就塞給玩家一大堆系統
+// 每章有幾個任務（自動檢查），全部完成就拿到獎勵、解鎖下一批玩法
+(function (root) {
+  const Fun = root.BossFun;
+  if (!Fun) return;
+
+  // 每個玩法的名字和一句話說明（解鎖時會跳出來）
+  Fun.FEATURES = {
+    career: { icon: '👑', name: '主管系統', desc: '可以升組長、店長，每個人都有看不到的領導力和管理風格。到「員工 → 主管」看看。' },
+    branch: { icon: '🏙️', name: '開分店', desc: '到「成長」挑地點和店面大小，開第一間分店。' },
+    slash: { icon: '🔀', name: '斜槓員工', desc: '應徵者裡開始出現有副業的人：外送員、直播主、研究生……各有特長，也各有麻煩。' },
+    seasonal: { icon: '🍂', name: '季節限定', desc: '到「經營」推出四週的季節限定新品，客人會變多。' },
+    auth: { icon: '📋', name: '授權制度', desc: '到「員工 → 主管」設定規則：哪些事情店長可以直接處理、可以花多少錢。老闆不用每件事都親自點。' },
+    area: { icon: '🗺️', name: '區經理', desc: '從分店店長裡挑一位升區經理，所有分店的士氣更穩、總部管理費更低。' },
+    storetype: { icon: '🏬', name: '分店店型', desc: '開分店時可以選店型：車站快取店、社區店、觀光旗艦店，各有不同的客人和打法。' },
+    kitchen: { icon: '🏭', name: '中央廚房', desc: '到「成長」蓋中央廚房：所有店的進貨成本下降，但出包時會一起受影響。' },
+    franchise: { icon: '🤝', name: '加盟', desc: '開放加盟：不用自己出錢就能展店，收加盟金和權利金，但加盟主怎麼對員工，會算在你的品牌上。' },
+    route: { icon: '🛤️', name: '第二幕：選擇路線', desc: '要上市上櫃、讓公司變得更大？還是走員工持股、百年老店的路？到「📜 任務」做選擇。' },
+  };
+
+  const lastWeeks = (s, n) => s.history.slice(-n);
+  Fun.CHAPTERS = [
+    {
+      id: 'ch1',
+      icon: '🌅',
+      name: '第一章：開張大吉',
+      story: '鐵捲門拉起來的那一刻，你成了老闆。先把店顧好、讓客人喜歡你。',
+      quests: [
+        { id: 'week1', text: '撐過第一週', check: (s) => s.week >= 2 },
+        { id: 'rating40', text: '評價達到 4.0 星（至少 30 則評論）', check: (s) => s.reviews.length >= 30 && s.rating >= 4, prog: (s) => `現在 ${s.rating.toFixed(1)} 星・${s.reviews.length} 則` },
+        { id: 'post1', text: '小編發第一篇貼文', check: (s) => s.social.posts.length >= 1 },
+        { id: 'staff5', text: '員工達到 5 人', check: (s) => s.staff.length >= 5, prog: (s) => `現在 ${s.staff.length} 人` },
+      ],
+      reward: { cash: 30000, xp: 300 },
+      unlock: ['career'],
+    },
+    {
+      id: 'ch2',
+      icon: '🌱',
+      name: '第二章：站穩腳步',
+      story: '熟客開始叫得出店員的名字了。是時候培養幫手，也想想下一間店。',
+      quests: [
+        { id: 'lv5', text: '店家升到 Lv.5', check: (s) => s.level >= 5, prog: (s) => `現在 Lv.${s.level}` },
+        { id: 'promote', text: '升一位組長或店長', check: (s) => s.staff.some((e) => e.rank) || s.branches.some((b) => b.manager) },
+        { id: 'profit2', text: '連續 2 週淨利為正', check: (s) => lastWeeks(s, 2).length === 2 && lastWeeks(s, 2).every((h) => h.profit > 0) },
+        { id: 'quality', text: '衛生稽查拿到「優」，或評價 4.3 星以上', check: (s) => s.hygiene.badge || (s.reviews.length >= 30 && s.rating >= 4.3) },
+      ],
+      reward: { cash: 80000, xp: 800 },
+      unlock: ['branch', 'slash', 'seasonal'],
+    },
+    {
+      id: 'ch3',
+      icon: '🏙️',
+      name: '第三章：連鎖之路',
+      story: '招牌掛到了別的城市。你不可能每間店都顧，得學會把事情交給對的人。',
+      quests: [
+        { id: 'br2', text: '開 2 間分店', check: (s) => s.branches.length >= 2, prog: (s) => `現在 ${s.branches.length} 間` },
+        { id: 'brmgr', text: '派一位分店店長', check: (s) => s.branches.some((b) => b.manager) },
+        { id: 'season1', text: '推出一次季節限定', check: (s) => (s.seasonalCount || 0) >= 1 },
+        { id: 'lv10', text: '店家升到 Lv.10', check: (s) => s.level >= 10, prog: (s) => `現在 Lv.${s.level}` },
+      ],
+      reward: { cash: 200000, xp: 2000 },
+      unlock: ['auth', 'area', 'storetype'],
+    },
+    {
+      id: 'ch4',
+      icon: '🏭',
+      name: '第四章：規模化',
+      story: '店多了，問題也多了。制度要清楚、供應要穩，品牌才撐得住。',
+      quests: [
+        { id: 'br5', text: '分店達到 5 間', check: (s) => s.branches.length >= 5, prog: (s) => `現在 ${s.branches.length} 間` },
+        { id: 'auth1', text: '設定至少一條授權規則', check: (s) => Object.values(s.policy.auth || {}).some((v) => v && v !== 'off') },
+        { id: 'area1', text: '任命一位區經理', check: (s) => !!s.areaManager },
+        { id: 'week300', text: '單週淨利超過 $300,000', check: (s) => s.history.some((h) => h.profit >= 300000) },
+        { id: 'lv15', text: '店家升到 Lv.15', check: (s) => s.level >= 15, prog: (s) => `現在 Lv.${s.level}` },
+      ],
+      reward: { cash: 500000, xp: 5000 },
+      unlock: ['kitchen', 'franchise'],
+    },
+    {
+      id: 'ch5',
+      icon: '🌏',
+      name: '第五章：品牌',
+      story: '你的店已經是一個品牌了。接下來要決定：它要長成什麼樣子？',
+      quests: [
+        { id: 'lv20', text: '店家升到 Lv.20', check: (s) => s.level >= 20, prog: (s) => `現在 Lv.${s.level}` },
+        { id: 'shops8', text: '分店加加盟店達到 8 間', check: (s) => s.branches.length + (s.franchises || []).length >= 8, prog: (s) => `現在 ${s.branches.length + (s.franchises || []).length} 間` },
+        { id: 'kitchen1', text: '蓋好中央廚房', check: (s) => !!s.kitchen },
+        { id: 'clean12', text: '連續 12 週沒有被罰款', check: (s) => lastWeeks(s, 12).length === 12 && lastWeeks(s, 12).every((h) => !h.fines), prog: (s) => `最近 ${(() => { let n = 0; for (const h of [...s.history].reverse()) { if (h.fines) break; n++; } return n; })()} 週` },
+      ],
+      reward: { cash: 1000000, xp: 10000 },
+      unlock: ['route'],
+    },
+  ];
+
+  // 第二幕：兩條路，各自有任務和結局
+  Fun.ROUTES = {
+    ipo: {
+      icon: '🔔',
+      name: '上市上櫃',
+      desc: '找投資人、進董事會、每季交出成績單。錢會多很多，但「要不要為了成長犧牲員工」會一直來敲門。',
+      quests: [
+        { id: 'ipo_round', text: '完成一輪募資（引進投資人）', check: (s) => !!(s.ipo && s.ipo.investors) },
+        { id: 'ipo_q3', text: '連續 3 季達成董事會的目標', check: (s) => !!(s.ipo && s.ipo.streak >= 3), prog: (s) => `連續 ${(s.ipo && s.ipo.streak) || 0} 季` },
+        { id: 'ipo_jerk', text: '慣老闆指數維持在 20 以下', check: (s) => s.jerk < 20 },
+        { id: 'ipo_list', text: '敲鐘掛牌', check: (s) => !!(s.ipo && s.ipo.listed) },
+      ],
+      ending: { title: '敲鐘了！', medal: '🔔', text: '你站在交易所的鐘前面，身後站著一路走來的員工。公司變大了，但你沒有變成慣老闆。' },
+    },
+    coop: {
+      icon: '🤲',
+      name: '員工持股・百年老店',
+      desc: '不追求最大，追求最久。把股份分給員工、把手藝傳下去，讓這間店變成大家的店。',
+      quests: [
+        { id: 'coop_share', text: '推出員工持股計畫', check: (s) => !!(s.coop && s.coop.shares) },
+        { id: 'coop_happy', text: '本店和所有分店的士氣都在 80 以上', check: (s) => s.morale >= 80 && s.branches.every((b) => b.morale >= 80), prog: (s) => `本店 ${Math.round(s.morale)}・分店最低 ${s.branches.length ? Math.round(Math.min(...s.branches.map((b) => b.morale))) : '—'}` },
+        { id: 'coop_mentor', text: '培養出 5 位店長（含分店店長）', check: (s) => s.staff.filter((e) => e.rank === 'manager').length + s.branches.filter((b) => b.manager).length >= 5 },
+        { id: 'coop_heir', text: '指定接班人', check: (s) => !!(s.coop && s.coop.heir) },
+      ],
+      ending: { title: '百年老店', medal: '🏮', text: '招牌換過三次油漆，店裡的人換了好幾輪，但每個在這裡工作過的人，都說這是他做過最好的工作。' },
+    },
+  };
+
+  // Lv.11～25 的獎勵（裝潢、店面之外的好處）
+  Fun.LEVEL_PERKS = {
+    11: '應徵者裡出現更多老手',
+    12: '員工活動花費打八折',
+    13: '研發費用打八折',
+    14: '分店開店費打九折',
+    16: '每週多一個應徵者',
+    17: '主管培訓課打八折',
+    19: '客人的耐心 +10%',
+    21: '評價計算時，最低的 5 則一星不算（老客人會幫你說話）',
+    22: '總部管理費 -20%',
+    23: '員工心情恢復變快',
+    25: '傳說中的老闆：所有店的評價 +0.1',
+  };
+})(typeof window !== 'undefined' ? window : globalThis);
+
+// 店型、季節限定（章節解鎖的玩法資料）
+(function (root) {
+  const Fun = root.BossFun;
+  if (!Fun) return;
+
+  // 分店店型：draw 來客、rent 房租、morale 士氣、rating 評價、cost 開店費、premium 高價不掉客
+  Fun.STORE_TYPES = {
+    standard: { icon: '🏪', name: '標準店', desc: '什麼都剛剛好' },
+    station: { icon: '🚉', name: '車站快取店', desc: '人潮多、客人趕時間：來客 +22%，但員工比較累（士氣 -5）', draw: 1.22, morale: -5, cost: 1.1 },
+    community: { icon: '🏘️', name: '社區店', desc: '熟客多、房租便宜：房租 -30%、士氣 +5、評價 +0.15，來客 -10%', draw: 0.9, rent: 0.7, morale: 5, rating: 0.15, cost: 0.9 },
+    tourist: { icon: '📸', name: '觀光旗艦店', desc: '觀光客不在意價格：來客 +12%、高價位不掉客，但房租 ×1.4、開店費 ×1.3', draw: 1.12, rent: 1.4, premium: true, rating: 0.05, cost: 1.3 },
+  };
+
+  // 季節限定：春夏秋冬各一個（依產業）
+  Fun.SEASONAL = {
+    breakfast: ['🌸 櫻花奶茶', '🥭 芒果厚片', '🎃 南瓜蛋餅', '🫚 薑汁豆漿'],
+    noodle: ['🎋 鮮筍湯麵', '🧊 夏日涼麵', '🍄 麻油麵線', '🍲 羊肉爐麵'],
+    drinks: ['🍓 草莓鮮奶', '🥭 芒果冰沙', '🌼 桂花烏龍', '🫚 黑糖薑茶'],
+    barber: ['🎓 畢業季造型', '🌊 夏日清爽短髮', '🍂 秋季暖色染', '🧧 過年燙髮'],
+    scooter: ['🌧️ 梅雨前輪胎健檢', '❄️ 夏季冷卻保養', '🗺️ 環島前大保養', '🔋 寒流電瓶健檢'],
+    store: ['🌸 春遊野餐組', '🍧 冰品節', '🥮 中秋烤肉組', '🧧 年貨大街'],
+  };
+  Fun.SEASON_NAMES = ['春季', '夏季', '秋季', '冬季'];
+})(typeof window !== 'undefined' ? window : globalThis);

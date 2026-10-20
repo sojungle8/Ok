@@ -4659,3 +4659,309 @@ kbd {
 .event-text {
   white-space: pre-line;
 }
+
+/* ───── 📜 章節任務 ───── */
+.quest-chip {
+  position: absolute;
+  left: 10px;
+  bottom: 140px;
+  z-index: 4;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  text-align: left;
+  gap: 8px;
+  max-width: 230px;
+  padding: 7px 12px;
+  border: 0;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #fff7e3, #ffe9c4);
+  color: #4a3420;
+  box-shadow: 0 4px 14px rgba(120, 80, 20, 0.22);
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.quest-chip .qi {
+  font-size: 1.4rem;
+}
+
+.quest-chip > span:last-child {
+  display: grid;
+  min-width: 0;
+}
+
+.quest-chip small {
+  font-size: 0.72rem;
+  color: #8a6a4e;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.quest-chip[hidden] {
+  display: none;
+}
+
+.chapter-card {
+  border-radius: 16px;
+  padding: 14px 16px;
+  background: linear-gradient(160deg, #fffaf0, #fff3dc);
+  border: 1px solid #f0d9a8;
+}
+
+.chapter-head {
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  gap: 10px;
+  align-items: center;
+}
+
+.chapter-head > span {
+  font-size: 2.2rem;
+  text-align: center;
+}
+
+.chapter-head small {
+  display: block;
+  color: #8a6a4e;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.quest-list {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0;
+  display: grid;
+  gap: 6px;
+}
+
+.quest-list li {
+  display: grid;
+  grid-template-columns: 26px 1fr;
+  align-items: start;
+  padding: 7px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.75);
+}
+
+.quest-list li.done b {
+  color: #2f8f6b;
+  text-decoration: line-through;
+  text-decoration-color: rgba(47, 143, 107, 0.4);
+}
+
+.quest-list small {
+  display: block;
+  color: #8a6a4e;
+  font-size: 0.74rem;
+}
+
+.feat-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.feat {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid #f0d9a8;
+  font-size: 0.8rem;
+}
+
+.route-pick {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.route {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.route p,
+.route ul {
+  font-size: 0.8rem;
+  margin: 0;
+}
+
+.chapter-done {
+  text-align: center;
+}
+
+.unlock-list {
+  display: grid;
+  gap: 8px;
+  text-align: left;
+  margin: 8px 0 12px;
+}
+
+.unlock-list > div {
+  display: grid;
+  grid-template-columns: 40px 1fr;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #fff7e3, #fff);
+  border: 1px solid #f0d9a8;
+}
+
+.unlock-list span {
+  font-size: 1.8rem;
+  text-align: center;
+}
+
+.unlock-list small {
+  display: block;
+  font-size: 0.78rem;
+  color: #6b5a4c;
+}
+
+.big-medal {
+  font-size: 4rem;
+}
+
+@media (max-width: 640px) {
+  .quest-chip {
+    bottom: 120px;
+    max-width: 180px;
+  }
+
+  .route-pick {
+    grid-template-columns: 1fr;
+  }
+}
+
+.company-card {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.company-card > div {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: linear-gradient(160deg, #f4f8ff, #e9f1ff);
+  border: 1px solid #d5e3f7;
+}
+
+.company-card span {
+  font-size: 0.74rem;
+  color: #5b6b80;
+}
+
+.company-card small {
+  font-size: 0.7rem;
+  color: #7a8796;
+}
+
+@media (max-width: 640px) {
+  .company-card {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 📋 授權制度 */
+.auth-grid { display: grid; gap: 8px; margin: 6px 0 12px; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
+.auth-grid label { display: grid; grid-template-columns: 7.5em 1fr; align-items: center; gap: 8px; font-size: 0.9em; background: rgba(127,127,127,.08); border-radius: 10px; padding: 6px 8px; }
+.auth-grid select { min-width: 0; width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 4px 6px; background: var(--card); color: var(--text); font: inherit; }
+.chip.side { background: rgba(140, 90, 220, 0.15); color: #7c4dcc; }
+
+/* 🏭 集團玩法、🍂 季節限定、🏬 店型 */
+.group-card { background: rgba(127,127,127,.08); border-radius: 12px; padding: 10px 12px; margin: 6px 0 12px; display: grid; gap: 6px; }
+.group-card button { justify-self: start; }
+.seasonal-card { margin: 10px 0; padding: 10px 12px; border-radius: 12px; background: linear-gradient(135deg, #fff1dc, #ffe1e6); color: #5a3a2a; }
+.seasonal-card p { margin: 4px 0 8px; font-size: .9em; }
+.store-types { margin-top: 6px; flex-wrap: wrap; }
+.store-types button small { white-space: normal; }
+
+/* 時段調色層（在 3D 畫面上、標籤下面） */
+.shop-grade {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  transition: background 1.2s linear;
+}
+
+/* ───── 視覺升級：質感層 ───── */
+/* 浮在 3D 畫面上的面板：毛玻璃 */
+.toast, .chip-row, .cam-buttons button, .boss-toggle, #quest-chip, .drawer, .inspector {
+  -webkit-backdrop-filter: blur(10px) saturate(1.25);
+  backdrop-filter: blur(10px) saturate(1.25);
+}
+.drawer {
+  background: color-mix(in srgb, var(--card) 94%, transparent);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: 0 -2px 0 rgba(255, 255, 255, 0.5) inset, 0 18px 50px rgba(40, 25, 10, 0.22);
+}
+/* 主要按鈕：有一點立體感 */
+.primary {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 88%, #fff) 0%, var(--accent) 55%, color-mix(in srgb, var(--accent) 85%, #000) 100%);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.35) inset, 0 3px 8px color-mix(in srgb, var(--accent) 35%, transparent);
+  transition: transform 0.12s ease, filter 0.12s ease;
+}
+.primary:active:not(:disabled) {
+  transform: translateY(1px) scale(0.98);
+}
+.primary:disabled {
+  background: color-mix(in srgb, var(--accent) 40%, var(--card));
+  box-shadow: none;
+}
+/* 上方資訊列、底部工具列：柔和的漸層和陰影，跟 3D 畫面分層 */
+.topbar {
+  background: linear-gradient(180deg, var(--card), color-mix(in srgb, var(--card) 92%, var(--bg)));
+  box-shadow: 0 4px 14px rgba(40, 25, 10, 0.07);
+  position: relative;
+  z-index: 5;
+}
+.toolbar {
+  background: linear-gradient(0deg, var(--card), color-mix(in srgb, var(--card) 92%, var(--bg)));
+  box-shadow: 0 -4px 14px rgba(40, 25, 10, 0.07);
+  position: relative;
+  z-index: 5;
+}
+.toolbar button {
+  transition: background 0.15s ease, transform 0.12s ease;
+}
+.toolbar button:active {
+  transform: scale(0.94);
+}
+.toolbar button.active span {
+  filter: drop-shadow(0 2px 3px color-mix(in srgb, var(--accent) 45%, transparent));
+}
+/* 進度條：亮面 */
+.bar-fill {
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0) 60%);
+  transition: width 0.4s ease;
+}
+/* 卡片 hover 時微微浮起（桌機） */
+@media (hover: hover) {
+  .pot-row, .lead-card, .goal, .plot.site, .branch-card {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .pot-row:hover, .lead-card:hover, .plot.site:hover, .branch-card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(40, 25, 10, 0.1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .primary, .toolbar button, .bar-fill, .pot-row, .lead-card, .plot.site, .branch-card { transition: none; }
+}
+.name-row { display: flex; gap: 6px; align-items: center; flex: 1; min-width: 0; }
+.name-row input { flex: 1; min-width: 0; }
+.name-row button { flex-shrink: 0; width: 40px; height: 36px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); font-size: 1.1rem; }

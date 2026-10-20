@@ -15,7 +15,8 @@
       icon: '🍳',
       desc: '天還沒亮就要開煎台，七點到八點半是戰場。',
       categories: ['restaurant', 'food'],
-      shopName: '美而美早餐',
+      shopName: '美而肥早餐',
+      nameIdeas: ['美而肥早餐', '早安不想上班', '蛋餅不內卷', '起床困難早餐店', '躺平吐司', '晨型人早午餐'],
       signColor: '#d9482b',
       xpMult: 1.3, // 經驗值補正（營業時數不同）
       cash: 320000,
@@ -62,6 +63,7 @@
       desc: '一碗乾麵配燙青菜，中午和晚餐時段座無虛席。',
       categories: ['restaurant', 'food'],
       shopName: '老張麵館',
+      nameIdeas: ['老張麵館', '麵對現實', '一麵之詞', '加麵不加價', '麵試失敗', '社畜拉麵'],
       signColor: '#b8342a',
       xpMult: 1, // 經驗值補正（營業時數不同）
       cash: 360000,
@@ -106,7 +108,8 @@
       icon: '🧋',
       desc: '下午三點和晚上八點最多人，夏天排隊排到騎樓外。',
       categories: ['drinks', 'food'],
-      shopName: '茶湯會館',
+      shopName: '茶湯會不會',
+      nameIdeas: ['茶湯會不會', '五十步茶', '半糖人生', '去冰不去愛', '茶顏觀色', '珍奶不減肥'],
       signColor: '#2f8f6b',
       xpMult: 1, // 經驗值補正（營業時數不同）
       cash: 300000,
@@ -150,6 +153,7 @@
       desc: '剪一顆頭兩百五，熟客會邊剪邊聊整個下午。',
       categories: ['service'],
       shopName: '阿芬家庭理髮',
+      nameIdeas: ['阿芬家庭理髮', '剪不斷理還亂', '髮財了', '頭頭是道', '不禿髮廊', '剪單生活'],
       signColor: '#3b6fb6',
       branchMult: 0.55, // 分店營收修正（服務時間長，實際接得到的客人比較少）
       xpMult: 0.8, // 經驗值補正（營業時數不同）
@@ -192,7 +196,8 @@
       icon: '🛵',
       desc: '換機油、補胎、保養，上下班時間機車排成一排。',
       categories: ['service'],
-      shopName: '順發機車行',
+      shopName: '順風催油門機車行',
+      nameIdeas: ['順風催油門機車行', '輪到你機車行', '不熄火車業', '油價又漲機車行', '待轉區車業', '紅燈右轉車行'],
       signColor: '#e2a12a',
       branchMult: 0.8, // 分店營收修正（服務時間長，實際接得到的客人比較少）
       xpMult: 1.1, // 經驗值補正（營業時數不同）
@@ -238,7 +243,8 @@
       icon: '🏪',
       desc: '可以開 24 小時，但大夜班要有人顧。',
       categories: ['store'],
-      shopName: '好鄰居便利店',
+      shopName: '好像鄰居便利店',
+      nameIdeas: ['好像鄰居便利店', '全家人都在便利店', '七上八下超商', '萊爾不富', '集點到天亮', '加班也開超商'],
       signColor: '#1f8a4c',
       xpMult: 0.7, // 經驗值補正（營業時數不同）
       cash: 380000,
@@ -336,6 +342,14 @@
     { id: 'magazine', name: '雜誌架', icon: '📰', cat: 'decor', price: 2400, w: 1, beauty: 2, draw: 0.03, industries: ['barber', 'scooter'], model: 'magazine' },
     { id: 'tirewall', name: '輪胎牆', icon: '🛞', cat: 'decor', price: 5200, w: 1, beauty: 3, draw: 0.05, wall: true, industries: ['scooter'], model: 'tirewall' },
     { id: 'helmetrack', name: '安全帽架', icon: '⛑️', cat: 'decor', price: 3800, w: 1, beauty: 2, draw: 0.04, industries: ['scooter'], model: 'helmetrack' },
+    // 高等級裝潢
+    { id: 'mural', name: '牆面彩繪', icon: '🎨', cat: 'decor', price: 38000, w: 1, beauty: 5, draw: 0.06, wall: true, model: 'mural', lv: 11 },
+    { id: 'ledsign', name: 'LED 跑馬燈', icon: '📟', cat: 'decor', price: 52000, w: 1, beauty: 3, draw: 0.12, kw: 0.3, wall: true, model: 'ledsign', lv: 12 },
+    { id: 'chandelier', name: '設計師吊燈', icon: '🪔', cat: 'decor', price: 68000, w: 1, beauty: 6, kw: 0.2, model: 'chandelier', lv: 14 },
+    { id: 'greenwall', name: '植生牆', icon: '🌿', cat: 'decor', price: 85000, w: 1, beauty: 7, staffMood: true, wall: true, model: 'greenwall', lv: 16 },
+    { id: 'artpiece', name: '藝術裝置', icon: '🗿', cat: 'decor', price: 120000, w: 1, beauty: 8, draw: 0.08, model: 'artpiece', lv: 18 },
+    { id: 'robot', name: '招待機器人', icon: '🤖', cat: 'decor', price: 180000, w: 1, beauty: 4, draw: 0.15, kw: 0.4, model: 'robot', lv: 20 },
+    { id: 'statue', name: '創辦人銅像', icon: '🗽', cat: 'decor', price: 300000, w: 1, beauty: 10, draw: 0.1, model: 'statue', lv: 24 },
     { id: 'umbrella', name: '愛心傘架', icon: '☂️', cat: 'decor', price: 1600, w: 1, beauty: 2, draw: 0.04, industries: ['store'], model: 'umbrella' },
   ];
 
@@ -375,6 +389,7 @@
     { id: 'small', name: '小店面', w: 8, h: 6, rentMult: 1, cost: 0 },
     { id: 'medium', name: '中店面', w: 11, h: 7, rentMult: 1.7, cost: 180000, lv: 3 },
     { id: 'large', name: '大店面', w: 14, h: 8, rentMult: 2.6, cost: 380000, lv: 6 },
+    { id: 'flagship', name: '旗艦店面', w: 17, h: 9, rentMult: 3.8, cost: 900000, lv: 15 },
   ];
 
   // 員工候選人
@@ -398,7 +413,8 @@
 
   // 店家等級：累積毛利換算的經驗值
   // 早餐店的節奏大約是：第 1 天 Lv.2、第 3 天 Lv.3、第 2 週 Lv.5、三個月左右 Lv.10
-  const LEVELS = [0, 250, 900, 2000, 3800, 6500, 10000, 15000, 22000, 31000];
+  // Lv.11 以後主要靠分店和加盟賺的錢升級
+  const LEVELS = [0, 250, 900, 2000, 3800, 6500, 10000, 15000, 22000, 31000, 40000, 52000, 66000, 82000, 100000, 122000, 148000, 178000, 212000, 250000, 295000, 345000, 400000, 460000, 530000];
 
   // 客人類型：不同時段來的人不一樣，對價格和等待的容忍度也不同
   // hours：特定時段的出現倍率（沒寫的時段用 base）；priceSens：對價格的敏感度

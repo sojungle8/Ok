@@ -1,13 +1,16 @@
 // AI 玩家：照一般玩家會做的事去經營，試著撐滿一年破關
 // 只用遊戲裡玩家按得到的操作（招人、排班、調薪、進貨、打掃、買設備、選事件、發文、開分店……）
 // 用法：node tools/playtest.js [難度] [產業] [隨機種子]
-for (const f of ['data', 'fun', 'weird', 'activities', 'city', 'plots', 'career', 'portraits', 'industries', 'sim']) require(`../js/${f}.js`);
+for (const f of ['data', 'fun', 'weird', 'activities', 'city', 'plots', 'career', 'progress', 'slash', 'portraits', 'industries', 'sim']) require(`../js/${f}.js`);
 const { Sim, CATALOG, catalogById } = globalThis.BossSim;
 const Fun = globalThis.BossFun;
 
 const mode = process.argv[2] || 'normal';
 const indId = process.argv[3] || 'breakfast';
 const seed = Number(process.argv[4]) || 1;
+// long：照章節解鎖一路玩到第二幕結局（不直接全開）；第五個參數選路線 ipo / coop
+const long = process.argv.includes('long');
+const routePick = process.argv.includes('coop') ? 'coop' : 'ipo';
 
 // 固定種子的亂數，結果可以重現
 function mulberry(a) {
@@ -161,11 +164,45 @@ function daily(r) {
     const pt = Fun.PARTNERS.find((p) => !s.collabReady(p) && s.cash > p.cost + 200000);
     if (pt) s.startCollab(pt.id);
   }
+  // 章節解鎖的玩法
+  if (s.feature('seasonal') && !(s.seasonal && s.seasonal.until >= s.day) && s.cash > s.seasonalCost + 150000 && s.launchSeasonal()) note(`第 ${s.day} 天：季節限定 ${s.seasonal.name}`);
+  if (s.feature('auth') && s.policy.auth.complaint === 'off') Object.assign(s.policy.auth, { complaint: 'fix', karen: 'staff', fight: 'course', branch: 'fix', misc: 'kind' });
+  if (s.feature('area') && !s.areaManager) {
+    const i = s.branches.findIndex((b) => b.manager && b.manager.lead >= 55);
+    if (i >= 0 && s.appointArea(i)) note(`第 ${s.day} 天：任命區經理 ${s.areaManager.name}`);
+  }
+  // 分店沒店長：派一位會帶人的組長過去（本店至少留 5 個人）
+  if (s.feature('branch') && s.staff.length >= 6) {
+    const i = s.branches.findIndex((b) => !b.manager);
+    const e = s.staff.filter((x) => x.rank !== 'manager' && x.skill >= 45 && x.style !== 'slacker' && !(x.rank && s.inTrial(x))).sort((a, b) => (b.rank ? b.lead : b.leadSeen) - (a.rank ? a.lead : a.leadSeen))[0];
+    if (i >= 0 && e && s.assignBranchManager(e, i)) note(`第 ${s.day} 天：${e.name}去當分店店長`);
+  }
+  if (s.feature('kitchen') && !s.kitchen && s.cash > s.kitchenCost + 300000 && s.buildKitchen()) note(`第 ${s.day} 天：蓋了${s.kitchenName}`);
+  if (s.kitchen && !s.kitchen.backup && s.cash > s.backupCost + 400000) s.buyBackup();
+  if (s.feature('franchise') && s.franchiseApps && (s.franchises || []).length < s.franchiseCap) {
+    const a = s.franchiseApps.find((x) => !/勞保|操|招牌掛上去|回本/.test(x.note));
+    if (a && s.acceptFranchise(a.id)) note(`第 ${s.day} 天：${a.city}${a.district}加盟店`);
+  }
+  if (s.feature('route') && !s.progress.route && s.chooseRoute(routePick)) note(`第 ${s.day} 天：選擇路線 ${routePick}`);
+  if (s.progress.route === 'ipo') {
+    if (s.raiseFunds()) note(`第 ${s.day} 天：募資完成`);
+    if (s.listCompany()) note(`第 ${s.day} 天：掛牌上市`);
+  }
+  if (s.progress.route === 'coop') {
+    if (s.launchShares()) note(`第 ${s.day} 天：員工持股`);
+    // 想讓分店士氣都到 80：時薪調高、改裝
+    for (const [i, b] of s.branches.entries()) {
+      b.wage = 'high';
+      if (b.morale < 80 && b.reno < 3 && s.cash > s.renoCost + 500000) s.setBranch(i, 'reno');
+    }
+    const h = s.coop && s.coop.shares && s.heirCandidates()[0];
+    if (h && s.setHeir(h.name)) note(`第 ${s.day} 天：指定接班人 ${h.name}`);
+  }
   // 分店
-  if (s.level >= 5 && s.branches.length < 3) {
+  if (s.level >= 5 && s.branches.length < (long ? 7 : 3) && s.feature('branch')) {
     // 挑估算淨利最高的地點
     const I = globalThis.BossIndustries;
-    const cand = I.BRANCH_SITES.filter((st) => !s.branches.some((b) => b.site === st.id) && s.cash > s.siteCost(st) + 300000).sort((a, c) => s.estimateSite(c, 'medium').profit - s.estimateSite(a, 'medium').profit)[0];
+    const cand = I.BRANCH_SITES.filter((st) => !s.branches.some((b) => b.site === st.id) && s.cash > s.siteCost(st) + (long ? 150000 : 300000)).sort((a, c) => s.estimateSite(c, 'medium').profit - s.estimateSite(a, 'medium').profit)[0];
     const b = cand && s.openBranch(cand.id, 'medium');
     if (b) note(`第 ${s.day} 天：在${s.siteOf(b).city}${b.district}開分店`);
   }
@@ -177,6 +214,7 @@ function daily(r) {
 function play() {
   const rng = mulberry(seed * 7919 + mode.length * 131 + indId.length);
   s = new Sim(indId, { mode, rng, shopName: '測試小店' });
+  if (!long) s.allFeatures = true; // AI 試玩：玩法全開
   const weekly = [];
   s.cb = {
     event: (ev) => s.resolve(ev, pickChoice(ev)),
@@ -188,8 +226,10 @@ function play() {
     },
     notify: () => {},
     tripDone: () => {},
+    chapter: (c) => note(c.ending ? `第 ${s.day} 天：🏁 結局「${c.ending.title}」` : `第 ${s.day} 天：📜 ${c.done.name} 完成`),
   };
-  while (!s.over && !s.wonYear && s.day < 400) s.tick(30);
+  if (long) while (!s.over && !s.progress.ended && s.day < (Number(process.env.MAXDAY) || 1400)) s.tick(30);
+  else while (!s.over && !s.wonYear && s.day < 400) s.tick(30);
   return weekly;
 }
 
@@ -207,4 +247,6 @@ for (const w of [0, 3, 7, 11, 15, 23, 31, 39, 47]) {
 console.log(`  結果：${s.over ? `❌ ${s.ending.title}（第 ${s.day} 天）` : s.wonYear ? `✅ 破關 ${s.victoryInfo.medal} ${s.victoryInfo.title}（${s.victoryInfo.score} 分）` : '⏳ 還沒結束'}`);
 console.log(`  現金 $${Math.round(s.cash).toLocaleString()}・借款 $${s.loan.toLocaleString()}・員工 ${s.staff.length} 人・Lv.${s.level}・分店 ${s.branches.length}・成就 ${s.achievements.size}`);
 if (s.victoryInfo) console.log(`  評分：${s.victoryInfo.parts.map(([k, p, t]) => `${k} ${p}（${t}）`).join('、')}`);
-console.log(`  大事記：${log.slice(0, 14).join('；')}`);
+console.log(`  大事記：${(long ? log.filter((l) => /📜|🏁|路線|募資|上市|持股|接班|區經理|廚房|物流/.test(l)) : log.slice(0, 14)).join('；')}`);
+if (long) console.log(`  已完成任務 ${s.progress.done.join(',')}・季節限定 ${s.seasonalCount || 0}・分店店長 ${s.branches.filter((b) => b.manager).length}・主管 ${s.staff.filter((e) => e.rank).map((e) => e.rank + e.lead).join(',')}`);
+if (long) console.log(`  章節 ${s.progress.chapter}・路線 ${s.progress.route || '-'}・結束 ${!!s.progress.ended}・分店 ${s.branches.length}・加盟 ${(s.franchises || []).length}・估值 $${s.valuation.toLocaleString()}・慣老闆 ${Math.round(s.jerk)}・代處理 ${s.authCount || 0} 件${s.ipo ? `・連續達標 ${s.ipo.streak} 季` : ''}`);

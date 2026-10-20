@@ -101,6 +101,7 @@
         cleaner: false, // 外包清潔阿姨
         delegate: true, // 老闆來不及處理的事件，讓在班上的店長代為處理
         helper: !!this.diff.helper, // 🤖 經營小幫手
+        auth: { complaint: 'off', karen: 'off', fight: 'off', branch: 'off', misc: 'off', budget: 5000 }, // 📋 授權制度
         autoStock: this.mode !== 'hell', // 依昨天的用量自動調整進貨量
       };
       this.idx = { cpi: 1, wage: 1, oil: 1, power: 1 };
@@ -117,6 +118,8 @@
       this.usedEvents = new Set();
       this.achievements = new Set();
       this.xp = 0;
+      this.owner = { wealth: 0, taken: 0 }; // 老闆個人的錢（領分紅才會進來），跟公司的現金分開
+      this.progress = { chapter: 0, done: [], chapters: [], features: [], route: null, ended: false };
       this.branches = [];
       this.awards = [];
       this.yearProfit = 0;
@@ -270,8 +273,14 @@
     }
     get rating() {
       if (!this.reviews.length) return 3.5;
-      const recent = this.reviews.slice(-100);
-      return recent.reduce((s, r) => s + r.stars, 0) / recent.length;
+      let recent = this.reviews.slice(-100);
+      // Lv.21：老客人會幫你說話，最低的 5 則一星不算
+      if (this.level >= 21 && recent.length > 40) {
+        let drop = 5;
+        recent = recent.filter((r) => !(r.stars <= 1 && drop-- > 0));
+      }
+      const avg = recent.reduce((s, r) => s + r.stars, 0) / recent.length;
+      return Math.min(5, avg + (this.level >= 25 ? 0.1 : 0));
     }
     get beauty() {
       return this.objects.reduce((s, o) => s + (o.def.beauty || 0), 0);
@@ -311,12 +320,164 @@
         const items = CATALOG.filter((d) => d.lv === after && (!d.industries || d.industries.includes(this.ind.id))).map((d) => d.name);
         const lot = LOTS.find((l) => l.lv === after);
         if (lot) items.push(`擴建${lot.name}`);
-        if (after === 5) items.push('開分店');
+        if (after === 5) items.push(this.feature('branch') ? '開分店' : '開分店（完成第二章後）');
+        if (Fun.LEVEL_PERKS && Fun.LEVEL_PERKS[after]) items.push(Fun.LEVEL_PERKS[after]);
         this.notify(`⭐ 店家升到 Lv.${after}！${items.length ? `解鎖：${items.join('、')}` : ''}`, 'achieve');
         if (this.cb.levelUp) this.cb.levelUp(after, items);
         this.sound('level');
       }
     }
+    // ───── 章節任務與玩法解鎖 ─────
+    // 玩法一章一章開放；allFeatures 給 AI 試玩用（直接全開）
+    feature(id) {
+      if (this.allFeatures) return true;
+      const p = this.progress;
+      return !!(p && p.features && p.features.includes(id));
+    }
+
+    get chapter() {
+      const C = Fun.CHAPTERS || [];
+      const p = this.progress;
+      if (p.chapter < C.length) return C[p.chapter];
+      if (p.route && Fun.ROUTES && Fun.ROUTES[p.route]) return { id: 'route', icon: Fun.ROUTES[p.route].icon, name: `第二幕：${Fun.ROUTES[p.route].name}`, story: Fun.ROUTES[p.route].desc, quests: Fun.ROUTES[p.route].quests, route: true };
+      return null;
+    }
+
+    // 每天檢查一次任務；整章完成就發獎勵、解鎖玩法
+    checkProgress(silent) {
+      const C = Fun.CHAPTERS || [];
+      const p = this.progress;
+      for (let guard = 0; guard < 8; guard++) {
+        const ch = this.chapter;
+        if (!ch || p.ended) return;
+        let changed = false;
+        for (const q of ch.quests) {
+          if (!p.done.includes(q.id) && q.check(this)) {
+            p.done.push(q.id);
+            changed = true;
+            if (!silent) this.notify(`✅ 任務完成：${q.text}`, 'good');
+          }
+        }
+        if (!ch.quests.every((q) => p.done.includes(q.id))) return;
+        // 整章完成
+        if (ch.route) {
+          p.ended = true;
+          const R = Fun.ROUTES[p.route];
+          this.achieve(p.route === 'ipo' ? 'ipoEnd' : 'coopEnd');
+          if (this.cb.chapter) this.cb.chapter({ ending: R.ending, route: p.route });
+          return;
+        }
+        p.chapter += 1;
+        p.chapters.push(ch.id);
+        if (ch.reward.cash) {
+          this.cash += ch.reward.cash;
+          this.ledger.rewards = (this.ledger.rewards || 0) + ch.reward.cash;
+        }
+        for (const f of ch.unlock) if (!p.features.includes(f)) p.features.push(f);
+        if (ch.reward.xp) this.gainXp(ch.reward.xp);
+        const next = C[p.chapter] || null;
+        if (silent) this.notify(`📜 ${ch.name} 完成，解鎖：${ch.unlock.map((f) => Fun.FEATURES[f].name).join('、')}`, 'achieve');
+        else if (this.cb.chapter) this.cb.chapter({ done: ch, next, unlocked: ch.unlock.map((f) => Fun.FEATURES[f]) });
+        else this.notify(`📜 ${ch.name} 完成！`, 'achieve');
+        if (!changed && !next) return;
+      }
+    }
+
+    // ───── 📋 授權制度與區經理 ─────
+    // 誰可以代你處理：區經理＞在班的店長
+    get authAgent() {
+      if (this.areaManager) return { name: this.areaManager.name, title: '區經理', lead: this.areaManager.lead };
+      const m = this.staff.find((e) => e.rank === 'manager' && (e.state === 'working' || e.state === 'break'));
+      return m ? { name: m.name, title: '店長', lead: m.lead } : null;
+    }
+
+    authKind(p) {
+      const id = String(p.ev.id);
+      if (id.startsWith('cmp_')) return 'complaint';
+      if (id.startsWith('karen_')) return 'karen';
+      if (id === 'rel_fight') return 'fight';
+      if (id.startsWith('br_')) return 'branch';
+      if (id.startsWith('career_') || p.ev.speaker || p.where === 'door') return null; // 升遷、外人上門的事老闆自己來
+      return 'misc';
+    }
+
+    authHandle(p) {
+      const A = this.policy.auth;
+      if (!A || !this.feature('auth') || !p.ev) return false;
+      const kind = this.authKind(p);
+      const rule = kind && A[kind];
+      if (!rule || rule === 'off') return false;
+      const agent = this.authAgent;
+      if (!agent) return false;
+      const budget = A.budget || 0;
+      const ok = p.ev.choices
+        .map((c, i) => ({ c, i, fx: this.resolveEffects(c) }))
+        .filter(({ c, fx }) => !c.minigame && !fx.brawl && !fx.leave && !fx.leave2 && !fx.demoteOf && !fx.promoteOf && !fx.transfer && !(fx.staff < 0) && !(fx.jerk > 0) && -(fx.cash || 0) <= budget);
+      if (!ok.length) return false; // 沒有預算內的好選項：還是要通報老闆
+      let pick;
+      if (kind === 'karen') pick = ok.find(({ c }) => /站在|請他離開/.test(this.w(c.label))) || null;
+      else if (kind === 'fight' && rule === 'course') pick = ok.find(({ c }) => /溝通課/.test(c.label)) || ok.find(({ c }) => /調解/.test(c.label));
+      else if (kind === 'fight') pick = ok.find(({ c }) => /調解/.test(c.label) && !/沒什麼用/.test(c.label)) || null;
+      if (!pick) {
+        const score = ({ fx }) => (fx.review ? (fx.review[0] - 3) * 4 : 0) + (fx.morale || 0) * 2 + (fx.moodOf ? fx.moodOf.reduce((t, [, d]) => t + d, 0) / 3 : 0) + (fx.cash || 0) / 4000 - (fx.jerk || 0) * 6;
+        pick = [...ok].sort((a, b) => score(b) - score(a))[0];
+      }
+      if (!pick) return false;
+      this.activeEvents.push(p);
+      p.by = `📋 ${agent.title}${agent.name}`;
+      const r = this.applyChoice(p, pick.c);
+      if (!r) return false;
+      this.authCount = (this.authCount || 0) + 1;
+      this.notify(this.w(`📋 ${agent.title}${agent.name}依授權處理了「${p.ev.title}」：${pick.c.label}`));
+      return true;
+    }
+
+    // 從分店店長裡挑一位升區經理：他會離開那間分店，負責巡所有分店
+    appointArea(i) {
+      const b = this.branches[i];
+      if (!b || !b.manager || this.areaManager || !this.feature('area')) return false;
+      this.areaManager = { ...b.manager, since: this.week };
+      b.manager = null;
+      this.notify(`🗺️ ${this.areaManager.name} 升為區經理！所有分店的士氣會更穩，總部管理費也會下降。記得幫${b.district}店補一位店長。`, 'achieve');
+      return true;
+    }
+
+    // ───── 公司與老闆個人的錢 ─────
+    // 公司估值：最近 8 週本業的平均淨利 × 52 週 × 本益比，加上店面、分店、中央廚房這些資產，再加現金扣借款
+    get valuation() {
+      const h = this.history.slice(-8);
+      const avg = h.length ? h.reduce((t, x) => t + (x.profit - (x.other || 0) - (x.rewards || 0)), 0) / h.length : 0;
+      const pe = this.ipo && this.ipo.listed ? 14 : this.ipo && this.ipo.investors ? 10 : 6;
+      const brand = 1 + Math.max(0, this.rating - 4) * 0.25;
+      const assets = LOTS.slice(0, this.lotIdx + 1).reduce((t, l) => t + (l.cost || 0), 0) * 0.5 + this.branches.reduce((t, b) => t + (b.paid || 0), 0) * 0.6 + (this.kitchen ? this.kitchen.cost * 0.6 : 0);
+      return Math.max(0, Math.round(Math.max(0, avg) * 52 * pe * brand + assets + this.cash - this.loan));
+    }
+
+    // 領分紅：公司的錢變成老闆的錢（扣 20% 稅）；薪水還低於行情就領分紅，員工會看在眼裡
+    takeDividend(amount) {
+      amount = Math.round(amount);
+      if (amount <= 0 || this.cash - amount < 100000) return false;
+      this.cash -= amount;
+      this.owner.wealth += Math.round(amount * 0.8);
+      this.owner.taken += amount;
+      this.ledger.dividend = (this.ledger.dividend || 0) + amount;
+      const low = this.staff.filter((e) => e.wage < this.marketWage).length;
+      if (low) {
+        this.jerk = clamp(this.jerk + 3, 0, JERK_LIMIT);
+        for (const e of this.staff) e.mood = clamp(e.mood - 4, 0, 100);
+        this.notify(`😒 員工看到老闆領了 $${amount.toLocaleString()} 分紅，但還有 ${low} 個人的時薪低於行情……`, 'bad');
+      } else this.notify(`💰 領了 $${amount.toLocaleString()} 分紅（扣稅後 $${Math.round(amount * 0.8).toLocaleString()} 進你的口袋）`, 'good');
+      return true;
+    }
+
+    chooseRoute(id) {
+      const p = this.progress;
+      if (!this.feature('route') || p.route || !Fun.ROUTES[id]) return false;
+      p.route = id;
+      this.notify(`🛤️ 你選擇了「${Fun.ROUTES[id].name}」的路。`, 'achieve');
+      return true;
+    }
+
     // ───── 分店：自己挑地點和店面大小 ─────
     // 舊存檔只有地區名稱：用以前的人潮和房租資料湊一個地點
     siteOf(b) {
@@ -348,20 +509,27 @@
       return Math.round((this.ind.cash * 2.5) / 10000) * 10000;
     }
 
-    siteCost(site, size = 'medium') {
-      return Math.round((this.ind.cash * 2.5 * site.cost * BRANCH_SIZES[size].cost) / 10000) * 10000;
+    siteCost(site, size = 'medium', type = 'standard') {
+      const T = (Fun.STORE_TYPES && Fun.STORE_TYPES[type]) || {};
+      return Math.round((this.ind.cash * 2.5 * site.cost * BRANCH_SIZES[size].cost * (T.cost || 1) * (this.level >= 14 ? 0.9 : 1)) / 10000) * 10000;
     }
 
-    openBranch(siteId, size = 'medium') {
+    typeOf(b) {
+      return (Fun.STORE_TYPES && Fun.STORE_TYPES[(b && b.type) || 'standard']) || {};
+    }
+
+    openBranch(siteId, size = 'medium', type = 'standard') {
+      if (!this.feature('storetype') || !(Fun.STORE_TYPES && Fun.STORE_TYPES[type])) type = 'standard';
       const site = BRANCH_SITES.find((x) => x.id === siteId) || BRANCH_SITES.find((x) => !this.branches.some((b) => b.site === x.id));
-      if (!site || !BRANCH_SIZES[size] || this.level < 5 || this.branches.some((b) => b.site === site.id)) return null;
-      const cost = this.siteCost(site, size);
+      if (!site || !BRANCH_SIZES[size] || this.level < 5 || !this.feature('branch') || this.branches.some((b) => b.site === site.id) || (this.franchises || []).some((f) => f.site === site.id)) return null;
+      const cost = this.siteCost(site, size, type);
       if (this.cash < cost) return null;
       this.cash -= cost;
       this.ledger.other -= cost;
-      const b = { site: site.id, district: site.name, size, paid: cost, week: this.week, last: 0, total: 0, revenue: 0, wage: 'market', price: 'normal', staff: this.branchNeedOf(size), morale: 65, rating: 3.8, reno: 0, hist: [] };
+      const b = { site: site.id, district: site.name, size, type, paid: cost, week: this.week, last: 0, total: 0, revenue: 0, wage: 'market', price: 'normal', staff: this.branchNeedOf(size), morale: 65, rating: 3.8, reno: 0, hist: [] };
       this.branches.push(b);
       this.notify(`🏙️ ${this.shopName}${site.city}${site.name}店開幕了！`, 'achieve');
+      this.checkProgress();
       if (this.branches.length >= 3) this.achieve('chain');
       return b;
     }
@@ -452,23 +620,32 @@
       const pm = { cheap: 0.9, normal: 1, premium: 1.15 }[b.price];
       const load = need / Math.max(1, b.staff + (b.manager ? 1 : 0));
       const traffic = site.traffic * this.siteFit(site) * this.siteSeason(site) * (site.weekdayOnly ? 0.85 : 1);
-      const premiumHit = site.rich ? 0.94 : 0.82;
+      // 同一個城市開太多間會互相搶客人：每多一間同城分店，客人少 12%
+      const sameCity = this.branches.filter((x) => x !== b && this.siteOf(x).city === site.city).length;
+      const cannibal = Math.pow(0.88, sameCity);
+      const T = this.typeOf(b);
+      const premiumHit = site.rich || T.premium ? 0.94 : 0.82;
       const mf = this.branchMgrFx(b);
-      const demand = R0 * traffic * size.draw * clamp((b.rating - 2.4) / 1.4, 0.15, 1.5) * (pm < 1 ? 1.15 : pm > 1 ? premiumHit : 1) * (est ? 1 : 0.9 + this.rng() * 0.2);
+      // 季節限定期間，分店也賣
+      const seasonal = this.seasonal && this.seasonal.until >= this.day ? 1.06 : 1;
+      const demand = R0 * traffic * cannibal * size.draw * (T.draw || 1) * seasonal * clamp((b.rating - 2.4) / 1.4, 0.15, 1.5) * (pm < 1 ? 1.15 : pm > 1 ? premiumHit : 1) * (est ? 1 : 0.9 + this.rng() * 0.2);
       const cap = ((R0 * 1.3 * size.cap * (b.staff + (b.manager ? 1 : 0)) * mf.cap) / need) * (b.broken > 0 ? 0.8 : 1);
       const sold = Math.min(demand, cap);
       const revenue = sold * pm;
-      const materials = sold * costShare * this.costMult.materials * (0.85 + 0.15 * this.idx.oil) * mf.mat;
+      const materials = sold * costShare * this.costMult.materials * (0.85 + 0.15 * this.idx.oil) * mf.mat * (this.kitchen ? 0.85 : 1);
       const wages = (b.staff * 38 * this.marketWage * wm + mf.wage) * (1 + (this.policy.insurance ? INS_TOTAL : 0));
-      const rent = ((this.ind.rent * site.rent * size.rent) / 4) * (b.rentMult || 1);
+      const rent = ((this.ind.rent * site.rent * size.rent) / 4) * (b.rentMult || 1) * (T.rent || 1);
       // 總部管理費：分店兩間以上要有人跑帳、巡店、培訓；有分店店長的分店省一半
-      const fee = this.branches.length >= 2 && !est ? revenue * 0.04 * (b.manager ? 0.5 : 1) : 0;
+      // 總部管理費：分店越多越貴（3% 起、每多一間 +0.6%，最多 9%）；分店店長、區經理、Lv.22 都能省
+      const n = this.branches.length;
+      const feeRate = n >= 2 ? Math.min(0.09, 0.03 + 0.006 * Math.max(0, n - 2)) * (b.manager ? 0.5 : 1) * (this.areaManager ? 0.7 : 1) * (this.level >= 22 ? 0.8 : 1) : 0;
+      const fee = !est ? revenue * feeRate : 0;
       return { revenue, profit: revenue - materials - wages - rent - revenue * 0.01 - fee, load, wm, pm, demand, cap, fee, sold, ticket };
     }
 
     // 選址畫面用：照預設設定估算每週營收和淨利
-    estimateSite(site, size) {
-      const b = { site: site.id, size, wage: 'market', price: 'normal', staff: this.branchNeedOf(size), rating: 3.7 };
+    estimateSite(site, size, type = 'standard') {
+      const b = { site: site.id, size, type, wage: 'market', price: 'normal', staff: this.branchNeedOf(size), rating: 3.7 };
       const r = this.branchWeek(b, true);
       return { revenue: Math.round(r.revenue), profit: Math.round(r.profit), full: r.demand > r.cap * 1.05 };
     }
@@ -484,9 +661,12 @@
         const load = need / Math.max(1, b.staff + (b.manager ? 1 : 0));
         const mt = 62 + (wm - 1) * 160 + b.reno * 4 - Math.max(0, load - 1) * 35 - (this.jerk > 60 ? 8 : 0) - (this.policy.insurance ? 0 : 10);
         const mf = this.branchMgrFx(b);
-        b.morale = clamp(b.morale + (mt + mf.morale - b.morale) * 0.45, 0, 100);
-        const rt = 3.5 + mf.rating + (b.morale - 55) / 45 + b.reno * 0.18 + (pm < 1 ? 0.2 : pm > 1 ? -0.25 : 0) + (this.rating - 3.8) * 0.3 - Math.max(0, load - 1.2) * 0.8;
-        b.rating = clamp(b.rating + (rt - b.rating) * 0.4, 1, 5);
+        const area = this.areaManager ? 3 + (this.areaManager.lead - 50) / 10 : 0; // 區經理巡店
+        const T = this.typeOf(b);
+        const coop = this.coop && this.coop.shares ? 8 : 0; // 員工持股：大家是在幫自己的店做事
+        b.morale = clamp(b.morale + (mt + mf.morale + area + coop + (T.morale || 0) - b.morale) * 0.45, 0, 100);
+        const rt = 3.5 + mf.rating + (T.rating || 0) + (b.morale - 55) / 45 + b.reno * 0.18 + (pm < 1 ? 0.2 : pm > 1 ? -0.25 : 0) + (this.rating - 3.8) * 0.3 - Math.max(0, load - 1.2) * 0.8;
+        b.rating = clamp(b.rating + (rt + (this.level >= 25 ? 0.1 : 0) - b.rating) * 0.4, 1, 5);
         const r = this.branchWeek(b);
         const p = Math.round(r.profit);
         b.revenue = Math.round(r.revenue);
@@ -508,6 +688,8 @@
           this.notify(`📰 ${b.district}店的員工在 Dcard 發文抱怨：「人手不夠、薪水又低」`, 'bad');
         }
       }
+      // 區經理的薪水（月薪制，換成週）
+      if (this.areaManager) total -= Math.round(this.areaManager.wage * 48 * (1 + (this.policy.insurance ? INS_TOTAL : 0)));
       if (this.branches.length && this.jerk > 65 && this.rng() < 0.4) {
         this.jerk = clamp(this.jerk + 3, 0, JERK_LIMIT);
         this.notify('📰 分店員工在網路上爆料總店的管理方式……', 'bad');
@@ -756,8 +938,266 @@
       const ps = this.ind.products.filter((p) => g.products.includes(p.id));
       const w = ps.reduce((s, p) => s + p.weight, 0);
       const avg = ps.reduce((s, p) => s + p.cost * p.weight, 0) / w;
-      return avg * this.idx.cpi * this.costMult.materials * (0.85 + 0.15 * this.idx.oil);
+      return avg * this.idx.cpi * this.costMult.materials * (0.85 + 0.15 * this.idx.oil) * this.kitchenMult;
     }
+
+    // ───── 🤝 加盟 ─────
+    get franchiseFee() {
+      return Math.round((this.ind.cash * 0.6) / 10000) * 10000;
+    }
+    get franchiseCap() {
+      return 2 + this.branches.length * 2;
+    }
+    rollFranchiseApps() {
+      const who = ['陳先生', '林小姐', '黃老闆', '張太太', '李大哥', '王小姐', '吳先生', '劉媽媽', '蔡老闆', '楊小姐', '許先生', '鄭太太'];
+      // 加盟店不開在自己的分店、其他加盟店旁邊，同一批也不重複
+      const used = new Set([...(this.franchises || []).map((f) => f.site), ...this.branches.map((b) => b.site)]);
+      const sites = [...BRANCH_SITES.filter((x) => !used.has(x.id))].sort(() => this.rng() - 0.5);
+      const names = [...who].sort(() => this.rng() - 0.5);
+      const notes = [
+        [80, '以前在大公司當過店長，說話很有條理'],
+        [70, '一直問員工福利要怎麼做才好'],
+        [55, '很在意要多久回本'],
+        [40, '問了三次「可以不幫工讀生保勞保嗎」'],
+        [30, '說「年輕人就是要操」'],
+        [85, '帶著自己的員工一起來面談'],
+        [60, '準備了一份很厚的展店計畫'],
+        [45, '覺得「招牌掛上去客人就會來」'],
+      ];
+      this.franchiseApps = Array.from({ length: Math.min(3, sites.length) }, (_, k) => {
+        const n = notes[Math.floor(this.rng() * notes.length)];
+        const site = sites[k];
+        return { id: uid++, name: names[k], site: site.id, city: site.city, district: site.name, decency: clamp(n[0] + (this.rng() - 0.5) * 30, 10, 98), note: n[1] };
+      });
+      return this.franchiseApps;
+    }
+    acceptFranchise(id) {
+      const a = (this.franchiseApps || []).find((x) => x.id === id);
+      this.franchises = this.franchises || [];
+      if (!a || !this.feature('franchise') || this.franchises.length >= this.franchiseCap) return false;
+      this.franchiseApps = this.franchiseApps.filter((x) => x !== a);
+      this.franchises.push({ name: a.name, site: a.site, city: a.city, district: a.district, decency: a.decency, rating: 3.9, week: this.week, last: 0, total: 0 });
+      this.cash += this.franchiseFee;
+      this.ledger.other += this.franchiseFee;
+      this.notify(`🤝 ${a.name}的${a.city}${a.district}加盟店開幕！收到加盟金 ${'$' + this.franchiseFee.toLocaleString()}。`, 'achieve');
+      this.checkProgress();
+      return true;
+    }
+    franchiseIssueEvent(i) {
+      const f = this.franchises[i];
+      const c = Math.round(this.ind.cash * 0.1);
+      return {
+        id: 'franchise_issue',
+        icon: '🤝',
+        title: `${f.city}${f.district}加盟店被爆料`,
+        text: `網路上有人爆料：「${this.shopName}${f.district}加盟店的老闆不給加班費，還叫工讀生自己吸收收銀短少。」留言區有人說：「原來${this.shopName}是這種公司？」`,
+        choices: [
+          { label: '派人去輔導，出錢幫他改善制度', note: `$${c.toLocaleString()}`, effects: { cash: -c * 2, franchiseFix: [i, 25] }, result: `${f.name}一開始很不爽，但看到總部真的出錢出人，態度軟化了。` },
+          { label: '解約，收回招牌', note: '違約處理費', effects: { cash: -c * 4, franchiseEnd: i, jerk: -1 }, result: `你在粉專上公告：「我們不會讓掛著這塊招牌的店苛待員工。」很多人按讚。` },
+          { label: '「那是他自己的店，我管不著」', quote: '加盟主是獨立經營的。', effects: { jerk: 3, review: [1, '加盟店壓榨員工，總部還說管不著'], franchiseFix: [i, -5] }, result: '爆料越傳越廣，大家把帳算在品牌上。', tip: '加盟主雖然是獨立雇主，但消費者和求職者看的是品牌；很多連鎖品牌會在加盟合約裡寫入勞動條件稽核。' },
+        ],
+        ignore: { effects: { jerk: 2, review: [2, '加盟店的員工好像很可憐'] }, result: '總部沒有回應，爆料文被分享了好幾百次。' },
+      };
+    }
+
+    // ───── 🔔 上市路線 ─────
+    get raiseNeed() {
+      return Math.round((this.ind.cash * 40) / 100000) * 100000;
+    }
+    raiseFunds() {
+      if (!this.progress || this.progress.route !== 'ipo' || (this.ipo && this.ipo.investors) || this.valuation < this.raiseNeed) return false;
+      const amt = Math.round((this.valuation * 0.15) / 10000) * 10000;
+      const h = this.history.slice(-8);
+      const avg = h.length ? h.reduce((t, x) => t + x.profit, 0) / h.length : 0;
+      this.cash += amt;
+      this.ledger.other += amt;
+      this.ipo = { investors: true, streak: 0, listed: false, qWeek: this.week, qProfit: 0, target: Math.round(Math.max(this.ind.cash * 0.5, avg * 13 * 0.97)), quarters: 0 };
+      this.notify(`🔔 募資完成，進帳 ${'$' + amt.toLocaleString()}！董事會給了第一季的目標：淨利 ${'$' + this.ipo.target.toLocaleString()}。`, 'achieve');
+      this.checkProgress();
+      return true;
+    }
+    listCompany() {
+      const I = this.ipo;
+      if (!I || I.listed || I.streak < 3 || this.jerk >= 20) return false;
+      I.listed = true;
+      const amt = Math.round((this.valuation * 0.2) / 10000) * 10000;
+      this.cash += amt;
+      this.ledger.other += amt;
+      this.notify(`🔔 敲鐘掛牌！公開發行進帳 ${'$' + amt.toLocaleString()}。`, 'achieve');
+      this.checkProgress();
+      return true;
+    }
+    boardEvent() {
+      const cut = Math.round(this.ind.cash * 0.15);
+      return {
+        id: 'board_push',
+        icon: '👔',
+        title: '董事會要你砍成本',
+        text: `董事會上，投資人代表翻著報表：「人事成本太高了。同業都在用更多工讀生、少排正職，你為什麼不跟進？這季的數字很重要。」`,
+        choices: [
+          { label: '照辦：正職減少、改用工讀生', effects: { wageMult: -0.04, morale: -6, jerk: 4, cash: cut * 2 }, result: '報表好看了，但休息室裡大家講話變小聲了。' },
+          { label: '拿數據說服：留住人反而省招募成本', effects: { ipoTarget: 0.02 }, result: '董事們半信半疑，把這季的目標再調高一點：「那就用業績證明給我們看。」' },
+          { label: '「員工不是成本，是我們的店」', effects: { ipoTarget: 0.04, morale: 3 }, result: '會議室安靜了幾秒。有位董事點點頭，但目標還是被調高了。' },
+        ],
+        ignore: { effects: { ipoTarget: 0.03 }, result: '你沒有回應，董事會自己把目標調高了。' },
+      };
+    }
+
+    // ───── 🤲 員工持股路線 ─────
+    get sharesCost() {
+      return Math.max(this.ind.cash, Math.round((this.valuation * 0.05) / 10000) * 10000);
+    }
+    launchShares() {
+      if (!this.progress || this.progress.route !== 'coop' || (this.coop && this.coop.shares) || this.cash < this.sharesCost) return false;
+      this.cash -= this.sharesCost;
+      this.ledger.other -= this.sharesCost;
+      this.coop = { shares: true, heir: null, week: this.week };
+      for (const e of this.staff) e.mood = clamp(e.mood + 15, 0, 100);
+      for (const b of this.branches) b.morale = clamp(b.morale + 10, 0, 100);
+      this.jerk = clamp(this.jerk - 5, 0, JERK_LIMIT);
+      this.notify('🤲 員工持股計畫上路！每個人的名片上多了一行「股東」。', 'achieve');
+      this.checkProgress();
+      return true;
+    }
+    heirCandidates() {
+      const out = this.staff.filter((e) => e.rank === 'manager' && e.lead >= 70).map((e) => ({ name: e.name, lead: e.lead, where: '本店店長' }));
+      for (const b of this.branches) if (b.manager && b.manager.lead >= 70) out.push({ name: b.manager.name, lead: b.manager.lead, where: `${b.district}店店長` });
+      if (this.areaManager && this.areaManager.lead >= 70) out.push({ name: this.areaManager.name, lead: this.areaManager.lead, where: '區經理' });
+      return out;
+    }
+    setHeir(name) {
+      if (!this.coop || !this.coop.shares || this.coop.heir) return false;
+      const c = this.heirCandidates().find((x) => x.name === name);
+      if (!c) return false;
+      this.coop.heir = c.name;
+      this.notify(`🏮 你指定 ${c.name}（${c.where}）為接班人。`, 'achieve');
+      this.checkProgress();
+      return true;
+    }
+
+    // 每週：中央廚房、加盟、董事會、員工持股
+    groupWeekly() {
+      const L = this.ledger;
+      let total = 0;
+      if (this.kitchen) {
+        total -= this.kitchenUpkeep;
+        if (this.rng() < (this.kitchen.backup ? 0.04 : 0.06)) this.kitchenIssue = true;
+      }
+      if (this.feature('franchise')) {
+        if (!this.franchiseApps || this.week % 2 === 0) this.rollFranchiseApps();
+        const R0 = this.branchBase().revenue;
+        (this.franchises || []).forEach((f, i) => {
+          const target = 3.2 + f.decency / 55 + (this.rating - 4) * 0.3;
+          f.rating = clamp(f.rating + (target - f.rating) * 0.35 + (this.rng() - 0.5) * 0.1, 1, 5);
+          const roy = Math.round(R0 * 0.06 * clamp((f.rating - 2.5) / 1.5, 0.3, 1.3));
+          f.last = roy;
+          f.total += roy;
+          total += roy;
+          if (f.decency < 50 && !this.franchiseIssue && this.rng() < 0.12) this.franchiseIssue = { i };
+          if (f.rating < 3.4 && this.rng() < 0.3) this.addReview(2, `${f.district}的加盟店跟本店差好多`, 'quality');
+        });
+      }
+      const I = this.ipo;
+      if (I && I.investors && !I.listed) {
+        const last = this.history[this.history.length - 1];
+        if (last) I.qProfit += last.profit - (last.other || 0) - (last.rewards || 0);
+        const wk = this.week - I.qWeek;
+        if (wk === 6 && this.rng() < 0.6) this.boardPush = true;
+        if (wk >= 13) {
+          I.quarters += 1;
+          const hit = I.qProfit >= I.target;
+          I.streak = hit ? I.streak + 1 : 0;
+          this.notify(hit ? `📈 第 ${I.quarters} 季達標！淨利 $${Math.round(I.qProfit).toLocaleString()}（目標 $${I.target.toLocaleString()}），連續 ${I.streak} 季` : `📉 第 ${I.quarters} 季沒達標：淨利 $${Math.round(I.qProfit).toLocaleString()}（目標 $${I.target.toLocaleString()}），連續達標歸零`, hit ? 'achieve' : 'bad');
+          // 達標：下一季目標成長 3%；沒達標：董事會稍微下修期待
+          I.target = Math.round(I.target * (hit ? 1.03 : 0.98));
+          I.qProfit = 0;
+          I.qWeek = this.week;
+        }
+      }
+      if (this.coop && this.coop.shares) for (const e of this.staff) e.mood = clamp(e.mood + 1.5, 0, 100);
+      L.group = (L.group || 0) + total;
+      return total;
+    }
+
+    // ───── 🍂 季節限定 ─────
+    get seasonIdx() {
+      return Math.floor((this.monthOfYear % 12) / 3); // 12～2 冬、3～5 春……
+    }
+    get seasonalItem() {
+      const list = (Fun.SEASONAL && Fun.SEASONAL[this.ind.id]) || ['🌸 春季限定', '☀️ 夏季限定', '🍂 秋季限定', '❄️ 冬季限定'];
+      const i = (this.seasonIdx + 3) % 4; // 0 = 春
+      return { name: list[i], season: Fun.SEASON_NAMES ? Fun.SEASON_NAMES[i] : '' };
+    }
+    get seasonalCost() {
+      return Math.round((this.ind.cash * 0.12 * (this.level >= 13 ? 0.8 : 1)) / 1000) * 1000;
+    }
+    launchSeasonal() {
+      if (!this.feature('seasonal') || (this.seasonal && this.seasonal.until >= this.day) || this.cash < this.seasonalCost) return false;
+      const it = this.seasonalItem;
+      // 同一季重複推一樣的，新鮮感就差了
+      const again = this.seasonal && this.seasonal.name === it.name && this.day - this.seasonal.until < 60;
+      this.cash -= this.seasonalCost;
+      this.ledger.other -= this.seasonalCost;
+      this.seasonal = { name: it.name, until: this.day + 27, again };
+      this.seasonalCount = (this.seasonalCount || 0) + 1;
+      this.demandMods.push({ mult: again ? 1.05 : 1.12, days: 28 });
+      this.social.followers += again ? 30 : 150;
+      this.notify(`🍂 季節限定「${it.name}」上市！接下來四週客人變多${this.branches.length ? '（分店也一起賣）' : ''}${again ? '。不過同一個品項又推一次，客人沒那麼新鮮了' : ''}`, 'achieve');
+      this.checkProgress();
+      return true;
+    }
+
+    // ───── 🏭 中央廚房（非餐飲是物流中心） ─────
+    get kitchenName() {
+      return this.isFood ? '中央廚房' : '物流中心';
+    }
+    get kitchenCost() {
+      return Math.round((this.ind.cash * 6) / 10000) * 10000;
+    }
+    get kitchenUpkeep() {
+      return Math.round((this.ind.cash * 0.06) / 100) * 100;
+    }
+    get kitchenMult() {
+      return this.kitchen && !(this.kitchen.downUntil >= this.day) ? 0.9 : 1;
+    }
+    buildKitchen() {
+      if (!this.feature('kitchen') || this.kitchen || this.cash < this.kitchenCost) return false;
+      this.cash -= this.kitchenCost;
+      this.ledger.other -= this.kitchenCost;
+      this.kitchen = { cost: this.kitchenCost, week: this.week, backup: false, issues: 0 };
+      this.notify(`🏭 ${this.kitchenName}啟用！本店進貨成本 -10%、分店 -15%。但它出包的時候，所有店都會受影響。`, 'achieve');
+      this.checkProgress();
+      return true;
+    }
+    get backupCost() {
+      return Math.round((this.ind.cash * 0.6) / 10000) * 10000;
+    }
+    buyBackup() {
+      if (!this.kitchen || this.kitchen.backup || this.cash < this.backupCost) return false;
+      this.cash -= this.backupCost;
+      this.ledger.other -= this.backupCost;
+      this.kitchen.backup = true;
+      this.notify(`🤝 簽好了備援{w:supplier}：${this.kitchenName}出狀況時，可以馬上切換。`);
+      return true;
+    }
+    kitchenEvent() {
+      const K = this.kitchenName;
+      const n = this.branches.length + 1;
+      const ch = [
+        { label: `全面回收，${K}停工三天徹查`, note: '安全第一', effects: { cash: -Math.round(this.ind.cash * 0.08), kitchenDown: 3, morale: 1 }, result: `${n} 間店一起貼出公告：「為了安全，部分品項暫停供應。」有客人留言說：「這樣負責的店，我會再來。」` },
+      ];
+      if (this.kitchen && this.kitchen.backup) ch.push({ label: '切換備援{w:supplier}，有問題的批次銷毀', effects: { cash: -Math.round(this.ind.cash * 0.03) }, result: '備援{w:supplier}當天就送到了，客人幾乎沒感覺。還好有先簽約。' });
+      ch.push({ label: '「應該沒那麼嚴重」，照常出貨', quote: '這批丟掉太可惜了。', effects: { kitchenGamble: true, jerk: 1 }, result: '你決定賭一把。', tip: '依食品安全衛生管理法，業者發現產品有危害衛生安全之虞時，應立即主動停止製造、販賣並辦理回收；隱匿不報罰得更重。' });
+      return {
+        id: 'kitchen_issue',
+        icon: '🏭',
+        title: `${K}出狀況了`,
+        text: this.isFood ? `${K}的品管回報：昨天出貨的一批{w:supplies}，冷藏溫度紀錄有一段異常。這批已經送到 ${n} 間店。` : `${K}回報：一批{w:supplies}檢驗發現瑕疵，已經送到 ${n} 間店。`,
+        choices: ch,
+        ignore: { effects: { kitchenGamble: true }, result: '沒有人做決定，那批貨就照常用了。' },
+      };
+    }
+
 
     incoming(gid) {
       return this.deliveries.reduce((s, d) => s + (d.items[gid] || 0), 0);
@@ -1140,6 +1580,8 @@
       if (b.risky && this.rng() < b.risky) fire = b.riskText || '踩到雷了';
       const base = 40 + this.social.followers * 0.25;
       let likes = Math.round(base * Math.pow(Math.max(0.3, score) / 6, 2.2) * (1 + this.rating / 10));
+      // 斜槓員工裡有直播主、設計師：貼文比較多人按讚
+      likes = Math.round(likes * this.staff.reduce((m, x) => Math.max(m, (this.sideOf(x) || {}).post || 1), 1));
       let tier = score >= 12 ? 'viral' : score >= 8 ? 'good' : score >= 5 ? 'meh' : 'flop';
       if (fire) {
         tier = 'fire';
@@ -1246,7 +1688,7 @@
       if (this.priceRatio() < 0.88) out.push({ icon: '💲', text: '價格比行情便宜很多，賣越多可能虧越多，可以調回建議價。', tab: 'manage' });
       if (this.cash < 60000) out.push({ icon: '🏦', text: '現金快不夠了：可以先跟銀行借錢，或減少不必要的支出。', tab: 'manage' });
       if (this.canPost && this.social.trend && this.trendHeat > 1.1) out.push({ icon: '📱', text: `最近大家都在聊「${this.social.trend.name}」，趁熱發一篇蹭時事的貼文吧！`, tab: 'social' });
-      const lockedRecipe = this.ind.products.find((p) => p.rd && !this.recipes.has(p.id) && this.level >= (p.lv || 1) && this.cash > p.rd * 3);
+      const lockedRecipe = this.ind.products.find((p) => p.rd && !this.recipes.has(p.id) && this.level >= (p.lv || 1) && this.cash > this.rdCost(p) * 3);
       if (lockedRecipe) out.push({ icon: '🧪', text: `可以研發新品「${lockedRecipe.name}」了，{w:menu}變豐富會吸引更多客人。`, tab: 'manage' });
       if (this.rival && !this.rival.closed && this.rival.strength > 0.6) out.push({ icon: '🏪', text: `隔壁的「${this.rival.name}」很強：衝評價、保持乾淨、發傳單或辦優惠。`, tab: 'goals' });
       return out;
@@ -1301,7 +1743,8 @@
       const pool = NAMES.filter(([n]) => !used.has(n));
       const [name, gender] = pool[Math.floor(this.rng() * pool.length)] || ['阿明', 'm'];
       const traitIds = Object.keys(TRAITS);
-      const traits = [forceTrait || traitIds[Math.floor(this.rng() * traitIds.length)]];
+      // Lv.11 以後，老手比較常來應徵
+      const traits = [forceTrait || (this.level >= 11 && this.rng() < 0.25 ? 'veteran' : traitIds[Math.floor(this.rng() * traitIds.length)])];
       if (this.rng() < 0.45) {
         const t2 = traitIds[Math.floor(this.rng() * traitIds.length)];
         if (!traits.includes(t2) && !(traits.includes('rookie') && t2 === 'veteran') && !(traits.includes('veteran') && t2 === 'rookie')) traits.push(t2);
@@ -1314,6 +1757,11 @@
       const plus = traits.includes('veteran') ? TRAITS.veteran.wagePlus : 0;
       const wage = Math.max(MIN_WAGE, Math.round((this.marketWage * (0.92 + skill / 500 + plus) * this.diff.wage) / 5) * 5);
       const c = { name, gender, look, traits, skill: Math.round(skill), wage };
+      // 🔀 斜槓：解鎖後，大約三分之一的應徵者有副業
+      if (this.feature('slash') && Fun.SIDE_JOBS && this.rng() < 0.33) {
+        const ids = Object.keys(Fun.SIDE_JOBS);
+        c.side = ids[Math.floor(this.rng() * ids.length)];
+      }
       // 面試時就決定好領導力、企圖心和風格（看得到的只有印象）
       const tmp = this.ensureCareer({ traits, gender });
       for (const k of ['lead', 'ambition', 'style', 'leadSeen', 'hint']) c[k] = tmp[k];
@@ -1323,7 +1771,7 @@
     rollCandidates() {
       this.candidates = [];
       const out = [];
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < (this.level >= 16 ? 4 : 3); i++) {
         const c = this.makeCandidate();
         out.push(c);
         this.candidates = out;
@@ -1361,7 +1809,7 @@
         restDays: null, // null：照輪休規則；陣列：每週固定休哪幾天（0 = 週一）
         post: null, // 固定崗位：設備的 id
       };
-      for (const k of ['lead', 'ambition', 'style', 'leadSeen', 'hint']) if (c[k] != null) e[k] = c[k];
+      for (const k of ['lead', 'ambition', 'style', 'leadSeen', 'hint', 'side']) if (c[k] != null) e[k] = c[k];
       this.ensureCareer(e);
       this.staff.push(e);
       if (!silent) this.notify(`👋 ${e.name} 加入了團隊！`, 'good');
@@ -2150,7 +2598,7 @@
 
     // ───── 員工活動 ─────
     activityCost(a, n) {
-      return Math.round((a.cost * (n + 1) * this.idx.cpi) / 10) * 10;
+      return Math.round((a.cost * (n + 1) * this.idx.cpi * (this.level >= 12 ? 0.8 : 1)) / 10) * 10;
     }
 
     activityAvailable(a) {
@@ -2546,7 +2994,7 @@
     }
 
     get leadTrainCost() {
-      return Math.round((4000 * this.idx.cpi) / 100) * 100;
+      return Math.round((4000 * this.idx.cpi * (this.level >= 17 ? 0.8 : 1)) / 100) * 100;
     }
 
     // 主管培訓課：領導力 +8
@@ -2650,9 +3098,33 @@
     }
 
     // 主管相關的事件：要求升遷、被投訴、摸魚、店長被挖角
+    // 🔀 斜槓員工：副業的麻煩、兩幕的人生故事（第一幕選什麼，決定第二幕）
+    planSideEvents() {
+      const J = Fun.SIDE_JOBS;
+      if (!J || !this.roster || !this.feature('slash')) return;
+      const at = () => this.hours.open + 90 + this.rng() * Math.max(60, Math.min(this.hours.span, 600) - 150);
+      const pool = this.staff.filter((e) => e.side && J[e.side] && this.roster.has(e.id));
+      if (!pool.length || this.pendingEvents.length >= 5) return;
+      const e = pool[Math.floor(this.rng() * pool.length)];
+      const job = J[e.side];
+      const weeks = (this.day - e.hiredDay) / 7;
+      let ev = null;
+      if (!e.story && weeks >= 2 && this.rng() < 0.2 * this.diff.events + 0.08) {
+        ev = job.story.start(this, e);
+        e.storyDay = this.day;
+      } else if ((e.story === 'a' || e.story === 'b') && this.day - (e.storyDay || 0) >= 21 && this.rng() < 0.2 * this.diff.events + 0.08) {
+        ev = job.story[e.story](this, e);
+        e.story = 'done';
+      } else if (this.day - (e.sideDay || -99) >= 10 && this.rng() < 0.12 * this.diff.events + 0.03) {
+        ev = job.conflict(this, e);
+        e.sideDay = this.day;
+      }
+      if (ev) this.pendingEvents.push({ ev, at: at(), where: 'staff', staffPref: e, subject: e });
+    }
+
     planCareerEvents() {
       const C = Fun.CAREER;
-      if (!C || !this.roster) return;
+      if (!C || !this.roster || !this.feature('career')) return;
       const at = () => this.hours.open + 90 + this.rng() * Math.max(60, Math.min(this.hours.span, 600) - 150);
       const onRoster = (e) => this.roster.has(e.id);
       // 試用期評估優先
@@ -3012,11 +3484,16 @@
     }
 
     // 研發新品：花錢、要等級
+    rdCost(p) {
+      return Math.round((p.rd * (this.level >= 13 ? 0.8 : 1)) / 100) * 100;
+    }
+
     research(id) {
       const p = this.ind.products.find((x) => x.id === id);
-      if (!p || !p.rd || this.recipes.has(id) || this.level < (p.lv || 1) || this.cash < p.rd) return false;
-      this.cash -= p.rd;
-      this.ledger.other -= p.rd;
+      const rd = this.rdCost(p);
+      if (!p || !p.rd || this.recipes.has(id) || this.level < (p.lv || 1) || this.cash < rd) return false;
+      this.cash -= rd;
+      this.ledger.other -= rd;
       this.recipes.add(id);
       this.menu[id] = true;
       this.notify(`🧪 新品「${p.name}」研發成功，已經上架！`, 'achieve');
@@ -3081,7 +3558,7 @@
         path: [],
         state: 'arriving',
         waited: 0,
-        patience: 16 * (this.ind.patience || 1) * this.diff.patience * (opt.rider ? 1.4 : 1) * (type ? type.patience : 1),
+        patience: 16 * (this.ind.patience || 1) * this.diff.patience * (opt.rider ? 1.4 : 1) * (type ? type.patience : 1) * (this.level >= 19 ? 1.1 : 1),
         speed: type ? type.speed : 1.1,
         progress: 0,
         scooter: !!this.ind.arriveByScooter || !!opt.rider,
@@ -3278,7 +3755,7 @@
       c.reserved = null;
       // 外送平台抽成 30%
       const price = Math.round(unit * c.qty * (c.rider ? 0.7 : 1));
-      const cost = p.cost * c.qty * this.idx.cpi * this.costMult.materials * (0.85 + 0.15 * this.idx.oil);
+      const cost = p.cost * c.qty * this.idx.cpi * this.costMult.materials * (0.85 + 0.15 * this.idx.oil) * this.kitchenMult;
       this.cash += price;
       this.ledger.revenue += price;
       this.today.revenue += price;
@@ -3289,7 +3766,7 @@
       if (e) {
         e.served++;
         // 熟能生巧，但越厲害進步越慢（早餐店一天幾百個客人，不然一週就滿級了）
-        e.skill = clamp(e.skill + 0.035 * (1 - e.skill / 105) * (e.traits.includes('rookie') ? TRAITS.rookie.learn : 1) * (e.rank ? 1 : this.teamFx().learn), 0, 100);
+        e.skill = clamp(e.skill + 0.035 * (1 - e.skill / 105) * (e.traits.includes('rookie') ? TRAITS.rookie.learn : 1) * (e.rank ? 1 : this.teamFx().learn) * ((this.sideOf(e) || {}).learn || 1), 0, 100);
       }
       this.gainXp(((price - cost) / 25) * (this.ind.xpMult || 1));
       this.popup(c, `+$${price}`, 'money');
@@ -3310,6 +3787,7 @@
       if (e && e.skill > 70) stars += 0.2;
       // 長輩喜歡愛聊天的店員；店裡髒會被扣分
       if (c.type === 'elderly' && e && e.traits.includes('chatty')) stars += 0.3;
+      if (c.type === 'student' && this.sideOf(e) && this.sideOf(e).charm) stars += this.sideOf(e).charm;
       if (c.gifted) stars += 0.6;
       if (e && e.isBoss) stars += 0.2;
       const clean = this.cleanliness;
@@ -3488,6 +3966,12 @@
       // 事件
       while (this.pendingEvents.length && this.pendingEvents[0].at <= this.minute) this.spawnEvent(this.pendingEvents.shift());
       if (this.policy.helper) this.helperEvents();
+      // 任務每小時檢查一次（達成就馬上打勾）
+      const hr = Math.floor(this.minute / 60);
+      if (hr !== this._questHr) {
+        this._questHr = hr;
+        if (!this.progressLegacy) this.checkProgress();
+      }
       for (const ev of [...this.activeEvents]) if (this.minute >= ev.deadline) this.ignoreEvent(ev);
 
       this.updateStaff(dt);
@@ -3615,8 +4099,13 @@
       this.passers = this.passers.filter((p) => !p.gone);
     }
 
+    sideOf(e) {
+      return (e && e.side && Fun.SIDE_JOBS && Fun.SIDE_JOBS[e.side]) || null;
+    }
+
     speedOf(e) {
       let s = 0.55 + e.skill / 110;
+      if (this.sideOf(e) && this.sideOf(e).speed) s *= this.sideOf(e).speed;
       if (e.energy < 30) s *= 0.55 + e.energy / 70;
       if (e.hunger < 20) s *= 0.85;
       s *= 0.85 + e.mood / 400;
@@ -3676,7 +4165,7 @@
         const night = this.hour >= 22 || this.hour < 6;
         let drain = 0.17 * (serving ? 1 : 0.45);
         if (e.traits.includes('hardworking')) drain *= TRAITS.hardworking.energy;
-        if (night) drain *= e.traits.includes('nightowl') ? TRAITS.nightowl.night : 1.25;
+        if (night) drain *= e.traits.includes('nightowl') ? TRAITS.nightowl.night : (this.sideOf(e) || {}).night || 1.25;
         drain *= this.diff.drain;
         if (working) {
           e.energy = clamp(e.energy - drain * dt, 0, 100);
@@ -3845,6 +4334,8 @@
           if (a.energy < 25 && b.energy < 25) d -= 0.4;
           if (cur < -20) d -= 0.3;
           if (cur > 20) d += 0.2;
+          // 真正解開心結的兩個人（上過課、好好談過）：以後不會再越來越差
+          d += (this.relFix || {})[this.relKey(a, b)] || 0;
           // 剛調解過的兩個人，這兩週比較會互相忍讓
           if (d < 0 && (this.relCalm || {})[this.relKey(a, b)] >= this.day) d *= 0.3;
           this.addRel(a, b, d);
@@ -3881,7 +4372,7 @@
       if (this.shopCat) target += 2;
       if (e.state === 'working' || e.state === 'break') target += this.teamMoodFor(e);
       if (!this.policy.insurance) target -= 6;
-      const regen = e.traits.includes('cheerful') ? TRAITS.cheerful.moodRegen : 1;
+      const regen = (e.traits.includes('cheerful') ? TRAITS.cheerful.moodRegen : 1) * (this.level >= 23 ? 1.2 : 1);
       e.mood = clamp(e.mood + (target - e.mood) * 0.004 * regen * dt, 0, 100);
     }
 
@@ -3925,6 +4416,10 @@
         if (e.hangoverDay === this.day) {
           e.energy = Math.min(e.energy, 55);
           e.mood = clamp(e.mood - 3, 0, 100);
+        }
+        if (e.offDay === this.day && this.roster.has(e.id)) {
+          e.sentHomeDay = this.day;
+          this.notify(`🗓️ ${e.name} 今天請假（${(this.sideOf(e) || { name: '私事' }).name}）`);
         }
         if (e.sickDay === this.day && this.roster.has(e.id)) {
           e.sentHomeDay = this.day;
@@ -3975,6 +4470,7 @@
       }
       this.planSocialEvents();
       this.planCareerEvents();
+      this.planSideEvents();
       // 一般客訴：有時候是店裡真的做錯，有時候是客人誤會
       if (Fun.complaintEvent && this.rng() < 0.22 * this.diff.events) {
         const at = this.hours.open + 60 + this.rng() * Math.max(60, Math.min(this.hours.span, 600) - 120);
@@ -3990,6 +4486,19 @@
         const item = Fun.REVENGE[Math.floor(this.rng() * Fun.REVENGE.length)];
         this.applyRevenge(item);
         this.pendingEvents.push({ ev: this.revengeEvent(item), at: this.hours.open + 60, where: 'phone' });
+      }
+      if (this.kitchenIssue && this.kitchen) {
+        this.kitchenIssue = false;
+        this.kitchen.issues += 1;
+        this.pendingEvents.push({ ev: this.kitchenEvent(), at: this.hours.open + 40, where: 'phone' });
+      }
+      if (this.franchiseIssue && this.franchises && this.franchises[this.franchiseIssue.i]) {
+        this.pendingEvents.push({ ev: this.franchiseIssueEvent(this.franchiseIssue.i), at: this.hours.open + 70, where: 'phone' });
+        this.franchiseIssue = null;
+      }
+      if (this.boardPush && this.ipo) {
+        this.boardPush = false;
+        this.pendingEvents.push({ ev: this.boardEvent(), at: this.hours.open + 80, where: 'phone' });
       }
       if (this.branchIssue && this.branches[this.branchIssue.i]) {
         const iss = this.branchIssue;
@@ -4039,8 +4548,10 @@
       }
       if (p.complaint) p.ev = Fun.complaintEvent(this, p.complaint, p.staff);
       p.spawnedAt = this.minute;
+      p.id = p.id || uid++;
+      // 📋 授權制度：符合規則的事情，交給店長／區經理直接處理
+      if (this.authHandle(p)) return;
       p.deadline = this.minute + (p.karen ? 60 : { staff: 150, phone: 50, door: 70 }[p.where]);
-      p.id = uid++;
       this.activeEvents.push(p);
       this.sound('alert');
       const who = { staff: `${p.staff ? p.staff.name : '員工'}好像有事找你`, phone: '☎️ 電話響了！', door: '🚪 門口有人找你' }[p.where];
@@ -4161,6 +4672,15 @@
           choice = { ...choice, result: `${choice.result}${who.name}說會注意，但個性一時改不了。至少領導力 +5。` };
         }
       }
+      if (fx.relFix && byId(fx.relFix[0]) && byId(fx.relFix[1])) (this.relFix = this.relFix || {})[this.relKey(byId(fx.relFix[0]), byId(fx.relFix[1]))] = 0.8;
+      // 調一個人去分店：吵架的兩個人從此不同店
+      if (fx.transfer && byId(fx.transfer) && this.branches.length) {
+        const who = byId(fx.transfer);
+        const b = [...this.branches].sort((x, y) => x.staff / this.branchNeedOf(x.size || 'medium') - y.staff / this.branchNeedOf(y.size || 'medium'))[0];
+        b.staff = Math.min(16, b.staff + 1);
+        this.removeEmployee(who, true);
+        this.notify(`🏙️ ${who.name} 調去${this.siteOf(b).city}${b.district}店了。`);
+      }
       if (fx.rel) {
         this.addRel(byId(fx.rel[0]), byId(fx.rel[1]), fx.rel[2]);
         if (fx.rel[2] >= 20 && byId(fx.rel[0]) && byId(fx.rel[1])) (this.relCalm = this.relCalm || {})[this.relKey(byId(fx.rel[0]), byId(fx.rel[1]))] = this.day + 14;
@@ -4180,6 +4700,29 @@
         }
       }
       if (fx.followers) this.social.followers = Math.max(0, this.social.followers + fx.followers);
+      if (fx.franchiseFix && this.franchises && this.franchises[fx.franchiseFix[0]]) this.franchises[fx.franchiseFix[0]].decency = clamp(this.franchises[fx.franchiseFix[0]].decency + fx.franchiseFix[1], 0, 100);
+      if (fx.franchiseEnd != null && this.franchises && this.franchises[fx.franchiseEnd]) this.franchises.splice(fx.franchiseEnd, 1);
+      if (fx.ipoTarget && this.ipo) this.ipo.target = Math.round(this.ipo.target * (1 + fx.ipoTarget));
+      if (fx.kitchenDown && this.kitchen) this.kitchen.downUntil = this.day + fx.kitchenDown;
+      if (fx.kitchenGamble) {
+        if (this.rng() < 0.45) {
+          for (const b of this.branches) b.rating = clamp(b.rating - 0.4, 1, 5);
+          for (let i = 0; i < 3; i++) this.addReview(1, this.isFood ? '吃完拉肚子，聽說好幾間分店都有人中' : '買到瑕疵品，客服還說沒問題', 'quality');
+          this.jerk = clamp(this.jerk + 3, 0, JERK_LIMIT);
+          this.demandMods.push({ mult: 0.85, days: 10 });
+          this.notify(`📰 新聞：〈${this.shopName}${this.kitchenName}出包，多家分店客訴〉`, 'bad');
+        } else this.notify('😮‍💨 這次運氣好，沒有人出事。');
+      }
+      // 🔀 斜槓員工的故事與請假
+      if (fx.storyOf && byId(fx.storyOf[0])) {
+        byId(fx.storyOf[0]).story = fx.storyOf[1];
+        byId(fx.storyOf[0]).storyDay = this.day;
+      }
+      if (fx.skillOf) for (const [id, d] of fx.skillOf) if (byId(id)) byId(id).skill = clamp(byId(id).skill + d, 0, 100);
+      if (fx.skillAll) for (const x of this.staff) if (x.skill < fx.skillAll[1]) x.skill = clamp(x.skill + fx.skillAll[0], 0, 100);
+      if (fx.ambitionOf && byId(fx.ambitionOf[0])) byId(fx.ambitionOf[0]).ambition = clamp(byId(fx.ambitionOf[0]).ambition + fx.ambitionOf[1], 0, 100);
+      if (fx.offDay && byId(fx.offDay)) byId(fx.offDay).offDay = this.day + 1;
+      if (fx.sendHomeOf && byId(fx.sendHomeOf) && (byId(fx.sendHomeOf).state === 'working' || byId(fx.sendHomeOf).state === 'break')) this.sendHome(byId(fx.sendHomeOf));
       if (fx.viral) {
         this.demandMods.push({ mult: 1 + fx.viral, days: 4 });
         this.notify('📱 「老闆嗆奧客」的影片被路人上傳，網友狂刷「這老闆可以」！', 'achieve');
@@ -4215,12 +4758,12 @@
 
     // ───── 每日、每週、每月 ─────
     emptyLedger() {
-      return { revenue: 0, materials: 0, wages: 0, labor: 0, health: 0, pension: 0, rent: 0, utilities: 0, interest: 0, tax: 0, fines: 0, cleaning: 0, welfare: 0, events: 0, branches: 0, other: 0, rewards: 0, waste: 0 };
+      return { revenue: 0, materials: 0, wages: 0, labor: 0, health: 0, pension: 0, rent: 0, utilities: 0, interest: 0, tax: 0, fines: 0, cleaning: 0, welfare: 0, events: 0, branches: 0, group: 0, other: 0, rewards: 0, waste: 0 };
     }
 
     // 報廢（waste）只是記錄：那些食材進貨時已經付過錢了
     profitOf(L) {
-      return L.revenue - L.materials - L.wages - L.labor - L.health - L.pension - L.rent - L.utilities - L.interest - L.tax - L.fines - L.cleaning - (L.welfare || 0) + L.events + L.branches + L.other + (L.rewards || 0);
+      return L.revenue - L.materials - L.wages - L.labor - L.health - L.pension - L.rent - L.utilities - L.interest - L.tax - L.fines - L.cleaning - (L.welfare || 0) + L.events + L.branches + (L.group || 0) + L.other + (L.rewards || 0);
     }
 
     emptyDay() {
@@ -4355,6 +4898,8 @@
       this.demandMods = this.demandMods.filter((d) => d.days > 0);
       this.lastDay = report;
       if (this.policy.helper && this.staff.length) this.helperDaily(report);
+      this.checkProgress(this.progressLegacy);
+      this.progressLegacy = false;
       if (this.cb.dayEnd) this.cb.dayEnd(report);
 
       const weekEnd = this.day % DAYS_PER_WEEK === 0;
@@ -4372,7 +4917,12 @@
       if (this.branches.length) {
         L.branches = this.branchWeekly();
         this.cash += L.branches;
+        // Lv.11 以後的經驗主要靠連鎖賺的錢
+        if (L.branches > 0) this.gainXp(L.branches / 60);
       }
+      const grp = this.groupWeekly();
+      this.cash += grp;
+      if (grp > 0) this.gainXp(grp / 60);
       // 營業稅
       const tax = this.businessTax(L);
       L.tax += tax;
@@ -4576,8 +5126,21 @@
         achievements: [...this.achievements],
         cleanWeeks: this.cleanWeeks,
         rel: this.rel,
+        relFix: this.relFix || {},
+        fightCount: this.fightCount || {},
         separate: [...this.separate],
         xp: this.xp,
+        progress: this.progress,
+        owner: this.owner,
+        areaManager: this.areaManager || null,
+        kitchen: this.kitchen || null,
+        seasonal: this.seasonal || null,
+        seasonalCount: this.seasonalCount || 0,
+        franchises: this.franchises || [],
+        franchiseApps: this.franchiseApps || null,
+        ipo: this.ipo || null,
+        coop: this.coop || null,
+        authCount: this.authCount || 0,
         branches: this.branches,
         awards: this.awards,
         yearProfit: this.yearProfit,
@@ -4643,7 +5206,26 @@
       s.wonYear = !!d.wonYear;
       s.achievements = new Set(d.achievements);
       s.rel = d.rel || {};
+      s.relFix = d.relFix || {};
+      s.fightCount = d.fightCount || {};
       s.xp = d.xp || 0;
+      s.areaManager = d.areaManager || null;
+      s.kitchen = d.kitchen || null;
+      s.seasonal = d.seasonal || null;
+      s.seasonalCount = d.seasonalCount || 0;
+      s.franchises = d.franchises || [];
+      s.franchiseApps = d.franchiseApps || null;
+      s.ipo = d.ipo || null;
+      s.coop = d.coop || null;
+      s.authCount = d.authCount || 0;
+      if (d.owner) s.owner = { wealth: 0, taken: 0, ...d.owner };
+      if (d.progress) s.progress = { chapter: 0, done: [], chapters: [], features: [], route: null, ended: false, ...d.progress };
+      else {
+        s.progressLegacy = true; // 舊存檔：第一次檢查時，已經達成的章節直接完成（不跳一堆對話框）
+        // 舊版本本來就有主管和分店：已經玩到的東西不能因為更新被收回去
+        s.progress.features = ['career'];
+        if (s.level >= 5 || s.branches.length) s.progress.features.push('branch', 'slash', 'seasonal');
+      }
       s.branches = (d.branches || []).map((b) => ({ revenue: 0, wage: 'market', price: 'normal', staff: s.branchNeed, morale: 65, rating: 3.8, reno: 0, hist: [], size: 'medium', ...b }));
       s.awards = d.awards || [];
       s.yearProfit = d.yearProfit || 0;
@@ -4727,11 +5309,12 @@
       ? pick(['你泡了兩杯茶讓他們把話說開，最後兩個人都笑了出來。', '你請兩個人去騎樓買雞排，回來的時候已經在討論下次要吃哪一家。', '你讓兩個人各說五分鐘不准插嘴，說完發現其實是同一件事的誤會。'])
       : pick(['又是這兩個人……你調解了，但兩個人的表情都寫著「下次再說」。', '他們這次比較快和好，但你看得出來問題還在，可能要換個方法。']);
     const choices = [
-      { label: nth <= 1 ? '把兩個人找來，私下調解' : '再私下調解一次', effects: { rel: [...ids, nth <= 1 ? 30 : 15], moodOf: [[a.id, 4], [b.id, 4]], jerk: -1 }, result: talk },
+      { label: nth <= 1 ? '把兩個人找來，私下調解' : nth === 2 ? '再私下調解一次' : '再私下調解一次（大概沒什麼用了）', effects: { rel: [...ids, nth <= 1 ? 30 : nth === 2 ? 15 : 5], moodOf: [[a.id, 4], [b.id, 4]], jerk: -1 }, result: talk },
       { label: '把他們排到不同班', note: '之後盡量不排同一班', effects: { rel: [...ids, 5], separate: ids }, result: pick(['眼不見為淨，至少店裡的氣氛恢復正常了。', '兩個人分開之後各自都做得很好，只是交接時還是不太說話。']) },
     ];
-    if (nth >= 2) choices.push({ label: '送兩個人去上團隊溝通課', note: '$3,000・關係大幅改善', effects: { cash: -6000, rel: [...ids, 45], moodOf: [[a.id, 2], [b.id, 2]] }, result: '課程要兩人一組完成任務。回來之後他們有了共同的笑話：「講師說我們是最需要溝通的一組。」' });
-    if (mgr) choices.push({ label: `請店長${mgr.name}處理`, effects: { rel: [...ids, mgr.style === 'warm' || mgr.style === 'mentor' ? 35 : mgr.style === 'strict' ? 10 : 20], moodOf: mgr.style === 'strict' ? [[a.id, -4], [b.id, -4]] : [[a.id, 3], [b.id, 3]] }, result: mgr.style === 'strict' ? `${mgr.name}把兩個人叫去罵了一頓，問題壓下來了，但大家都有點怕。` : `${mgr.name}找了兩個人分開聊，再一起排了新的分工表，這次應該能撐比較久。` });
+    if (nth >= 2) choices.push({ label: '送兩個人去上團隊溝通課', note: '$3,000・真正解開心結', effects: { cash: -6000, rel: [...ids, 45], relFix: ids, moodOf: [[a.id, 2], [b.id, 2]] }, result: '課程要兩人一組完成任務。回來之後他們有了共同的笑話：「講師說我們是最需要溝通的一組。」' });
+    if (nth >= 2 && sim && sim.branches.length && sim.feature('branch')) choices.push({ label: `把${b.name}調去分店`, note: '從此不同店', effects: { transfer: b.id, moodOf: [[a.id, 3]] }, result: `${b.name}去了分店，新環境好像讓他輕鬆不少；${a.name}這邊也終於安靜了。` });
+    if (mgr) choices.push({ label: `請店長${mgr.name}處理`, effects: { ...(mgr.style === 'warm' || mgr.style === 'mentor' ? { relFix: ids } : {}), rel: [...ids, mgr.style === 'warm' || mgr.style === 'mentor' ? 35 : mgr.style === 'strict' ? 10 : 20], moodOf: mgr.style === 'strict' ? [[a.id, -4], [b.id, -4]] : [[a.id, 3], [b.id, 3]] }, result: mgr.style === 'strict' ? `${mgr.name}把兩個人叫去罵了一頓，問題壓下來了，但大家都有點怕。` : `${mgr.name}找了兩個人分開聊，再一起排了新的分工表，這次應該能撐比較久。` });
     choices.push({
       label: '「吵什麼吵，都給我閉嘴做事！」',
       quote: '上班是來工作的，不是來交朋友的。',
@@ -4886,6 +5469,8 @@
     { id: 'week500', name: '一週淨賺五十萬', desc: '單週淨利超過 $500,000', reward: 100000, long: true },
     { id: 'allhappy', name: '全公司都想待', desc: '本店員工平均心情 85 以上，所有分店士氣也在 75 以上（至少 3 間分店）', reward: 120000, long: true },
     { id: 'year2', name: '老字號', desc: '經營滿兩年（96 週）', reward: 200000, long: true },
+    { id: 'ipoEnd', name: '敲鐘', desc: '走完上市路線，而且沒有變成慣老闆', reward: 0, long: true },
+    { id: 'coopEnd', name: '百年老店', desc: '走完員工持股路線，指定接班人', reward: 0, long: true },
   ];
 
   VIOLATIONS.noRestDay = VIOLATIONS.noRestDay || { label: '未依法排休（七休一）', fine: 60000 };

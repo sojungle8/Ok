@@ -232,7 +232,7 @@
         <section class="card setup">
           <div class="setup-row">
             <label class="setup-label" for="shop-name">店名</label>
-            <input id="shop-name" maxlength="8" placeholder="${esc(ind.shopName)}" value="${esc(st.shopName)}" />
+            <span class="name-row"><input id="shop-name" maxlength="10" placeholder="${esc(ind.shopName)}" value="${esc(st.shopName)}" /><button data-action="name-dice" title="隨機取個惡搞店名">🎲</button></span>
           </div>
           <div class="setup-row">
             <span class="setup-label">老闆</span>
@@ -292,6 +292,7 @@
         <div class="viewport">
           <div id="view" class="view"></div>
           <div class="inbox" id="inbox"></div>
+          <button class="quest-chip" id="quest-chip" data-action="tab" data-tab="quests"></button>
           <div class="toasts" id="toasts"></div>
           <div class="build-hint" id="build-hint" hidden></div>
           <div class="tut-card card" id="tut" hidden></div>
@@ -358,6 +359,11 @@
       },
       hygiene: () => {
         if (ui.tab === 'stock') renderDrawer();
+      },
+      chapter: (c) => {
+        ui.dialog = { type: 'chapter', ...c };
+        renderDialog();
+        renderQuestChip();
       },
       levelUp: (lv, items) => {
         if (ui.tab === 'build' || ui.tab === 'goals') renderDrawer();
@@ -482,7 +488,7 @@
     const sim = ui.sim;
     if (!sim) return;
     // 打開員工、庫存、經營這些面板時自動暫停（可以在選單關掉）
-    ui.panelPause = ui.autoPause && ['staff', 'stock', 'manage', 'social', 'goals', 'ledger', 'reviews', 'build'].includes(ui.tab);
+    ui.panelPause = ui.autoPause && ['staff', 'stock', 'manage', 'social', 'goals', 'ledger', 'reviews', 'build', 'quests'].includes(ui.tab);
     const blocked = !!ui.dialog || ui.panelPause;
     if (!blocked && ui.speed > 0 && !sim.over) {
       // 打烊、沒人在店裡時自動快轉
@@ -519,6 +525,7 @@
       if (ui.inspect) renderInspector();
       renderInbox();
       if (ui.tut) renderTutorial();
+      renderQuestChip();
       updateMusic();
     }
     ui.drawerT = (ui.drawerT || 0) + dt;
@@ -1068,7 +1075,7 @@
           <div class="insp-face">${portraitSVG(e.look, moodOf(e))}</div>
           <div>
             <h3>${esc(e.name)}</h3>
-            <div class="chips">${e.traits.map((t) => `<span class="chip" title="${TRAITS[t].desc}">${TRAITS[t].name}</span>`).join('')}</div>
+            <div class="chips">${e.traits.map((t) => `<span class="chip" title="${TRAITS[t].desc}">${TRAITS[t].name}</span>`).join('')}${sideChip(e)}</div>
             <small>${stateLabel}・${sh ? `今天 ${hhmm(sh.start)}～${hhmm(sh.end)}` : '今天休假'}</small>
           </div>
           <button class="x" data-action="close-insp" aria-label="關閉">✕</button>
@@ -1162,6 +1169,7 @@
     ui.tab = ui.tab === tab ? null : tab;
     if (ui.tab !== 'build') endBuild();
     renderDrawer();
+    renderQuestChip();
     document.querySelectorAll('.toolbar button').forEach((b) => b.classList.toggle('active', b.dataset.tab === ui.tab));
   }
 
@@ -1175,7 +1183,7 @@
       return;
     }
     el.hidden = false;
-    const fn = { build: drawerBuild, staff: drawerStaff, stock: drawerStock, manage: drawerManage, ledger: drawerLedger, reviews: drawerReviews, goals: drawerGoals, social: drawerSocial }[ui.tab];
+    const fn = { build: drawerBuild, staff: drawerStaff, stock: drawerStock, manage: drawerManage, ledger: drawerLedger, reviews: drawerReviews, goals: drawerGoals, social: drawerSocial, quests: drawerQuests }[ui.tab];
     ui.drawerHtml = ui.sim.w(fn());
     const html = `<button class="x drawer-x" data-action="tab" data-tab="${ui.tab}" aria-label="關閉">✕</button>${ui.drawerHtml}`;
     const key = `${ui.tab}-${ui.tab === 'build' ? ui.buildCat : ui.tab === 'staff' ? ui.staffTab : ''}`;
@@ -1266,8 +1274,8 @@
   // 員工：總覽（一眼看完所有人的狀態）、排班表、應徵者
   function drawerStaff() {
     const s = ui.sim;
-    const tab = ui.staffTab || 'overview';
-    const tabs = [['overview', `👥 總覽（${s.staff.length}）`], ['lead', '👑 主管'], ['activity', '🎉 活動'], ['schedule', '📅 排班與崗位'], ['hire', `🙋 應徵者（${s.candidates.length}）`]];
+    const tab = ui.staffTab === 'lead' && !s.feature('career') ? 'overview' : ui.staffTab || 'overview';
+    const tabs = [['overview', `👥 總覽（${s.staff.length}）`], ...(s.feature('career') ? [['lead', '👑 主管']] : []), ['activity', '🎉 活動'], ['schedule', '📅 排班與崗位'], ['hire', `🙋 應徵者（${s.candidates.length}）`]];
     const head = `<div class="drawer-tabs">${tabs.map(([id, l]) => `<button data-action="staff-tab" data-v="${id}" class="${tab === id ? 'active' : ''}">${l}</button>`).join('')}</div>`;
     if (tab === 'schedule') return head + staffSchedule();
     if (tab === 'activity') return head + staffActivity();
@@ -1293,7 +1301,7 @@
               const sh = s.shiftOf(e);
               const sel = ui.inspect && ui.inspect.ref === e;
               return `<div class="st-row ${sel ? 'sel' : ''} ${e.mood < 30 ? 'risk' : ''}">
-                <button class="st-who" data-action="insp-staff" data-id="${e.id}"><span class="mini-face">${portraitSVG(e.look, moodOf(e))}</span><span><b>${e.rank && Fun.RANKS[e.rank] ? `${Fun.RANKS[e.rank].icon} ` : ''}${e.senior ? '⭐' : ''}${esc(e.name)}${e.rank && Fun.RANKS[e.rank] ? `<em class="rank">${Fun.RANKS[e.rank].name}${e.revealed && Fun.STYLES[e.style] ? `・${Fun.STYLES[e.style].icon}${Fun.STYLES[e.style].name}` : '・試用中'}</em>` : ''}</b><small>${e.traits.map((t) => TRAITS[t].name).join('・')}${e.hangoverDay === s.day ? '・🤢宿醉' : ''}</small><small>${sh ? `${hhmm(sh.start)}～${hhmm(sh.end)}` : '今天休假'}</small></span></button>
+                <button class="st-who" data-action="insp-staff" data-id="${e.id}"><span class="mini-face">${portraitSVG(e.look, moodOf(e))}</span><span><b>${e.rank && Fun.RANKS[e.rank] ? `${Fun.RANKS[e.rank].icon} ` : ''}${e.senior ? '⭐' : ''}${esc(e.name)}${e.rank && Fun.RANKS[e.rank] ? `<em class="rank">${Fun.RANKS[e.rank].name}${e.revealed && Fun.STYLES[e.style] ? `・${Fun.STYLES[e.style].icon}${Fun.STYLES[e.style].name}` : '・試用中'}</em>` : ''}</b><small>${e.side && Fun.SIDE_JOBS && Fun.SIDE_JOBS[e.side] ? `${Fun.SIDE_JOBS[e.side].icon}` : ''}${e.traits.map((t) => TRAITS[t].name).join('・')}${e.hangoverDay === s.day ? '・🤢宿醉' : ''}</small><small>${sh ? `${hhmm(sh.start)}～${hhmm(sh.end)}` : '今天休假'}</small></span></button>
                 <span class="st-now"><b>${nowDoing(e)}</b><small>${e.thought && e.thought.until > s.minute ? `💭 ${esc(e.thought.text)}` : `今天服務 ${e.served} 人`}</small></span>
                 ${cell(e.mood, 'm')}${cell(e.energy, 'e')}${cell(e.hunger, 'h')}${cell(e.skill, 's')}
                 <span class="st-wage"><button data-action="wage" data-id="${e.id}" data-d="-5" aria-label="減薪">－</button><b class="${e.wage < s.marketWage ? 'neg' : e.wage > s.marketWage * 1.05 ? 'pos' : ''}">${money(e.wage)}</b><button data-action="wage" data-id="${e.id}" data-d="5" aria-label="加薪">＋</button></span>
@@ -1345,9 +1353,9 @@
         <button class="act-btn" data-action="treat" data-id="${e.id}" ${e.treatDay === s.day ? 'disabled' : ''}>🧋 請喝飲料 $65</button>
         <button class="act-btn" data-action="train" data-id="${e.id}" ${e.trainWeek === s.week || s.cash < s.trainCost || e.skill >= 100 ? 'disabled' : ''}>🎓 送去上課 $3,000<small>${e.trainWeek === s.week ? '這週上過了' : '技能 +10'}</small></button>
       </div>
-      ${careerRow(e)}
+      ${s.feature('career') ? careerRow(e) : ''}
       <div class="st-detail-row muted">
-        <span>${e.traits.map((t) => `${TRAITS[t].name}：${TRAITS[t].desc}`).join('；')}</span>
+        <span>${e.traits.map((t) => `${TRAITS[t].name}：${TRAITS[t].desc}`).join('；')}${e.side && Fun.SIDE_JOBS && Fun.SIDE_JOBS[e.side] ? `；${Fun.SIDE_JOBS[e.side].icon} 斜槓${Fun.SIDE_JOBS[e.side].name}：${Fun.SIDE_JOBS[e.side].perk}，但偶爾會因為副業請假或早退` : ''}</span>
         <span>到職 ${weeks} 週・資遣費約 ${money(s.severanceOf(e))}</span>
       </div>
       ${relationsHtml(e)}
@@ -1462,8 +1470,54 @@
               .join('')}</div>`
           : ''
       }
+      ${authPanel()}
       <p class="drawer-tip">每個人都有看不到的「領導力」和「企圖心」：技能好不一定會帶人（彼得原理），企圖心太低的人被升上去會壓力很大，企圖心高的人等太久會主動來要求升遷。升職後有 14 天試用期。</p>
     </div>`;
+  }
+
+  // 🔀 斜槓員工的副業標籤
+  function sideChip(x) {
+    const j = x && x.side && Fun.SIDE_JOBS && Fun.SIDE_JOBS[x.side];
+    return j ? `<span class="chip side" title="${esc(j.perk)}">${j.icon} 斜槓・${j.name}</span>` : '';
+  }
+
+  // 📋 授權制度＋🗺️ 區經理（章節解鎖後才出現）
+  function authPanel() {
+    const s = ui.sim;
+    let out = '';
+    if (s.feature('auth')) {
+      const A = s.policy.auth;
+      const agent = s.authAgent;
+      const RULES = [
+        ['complaint', '😤 客訴', [['off', '要問我'], ['fix', '照合理的方式處理（退費、補償）']]],
+        ['karen', '🤬 奧客', [['off', '要問我'], ['staff', '站在員工這邊，必要時請他離開']]],
+        ['fight', '💢 員工吵架', [['off', '要問我'], ['mediate', '主管出面調解'], ['course', '送去上溝通課']]],
+        ['branch', '🏙️ 分店狀況', [['off', '要問我'], ['fix', '照建議處理']]],
+        ['misc', '📦 其他小事', [['off', '要問我'], ['kind', '選對員工和客人好的']]],
+      ];
+      const sel = (key, opts, v) => `<select data-action="auth-set" data-key="${key}">${opts.map(([id, l]) => `<option value="${id}" ${v === id ? 'selected' : ''}>${l}</option>`).join('')}</select>`;
+      out += `<h3>📋 授權制度</h3>
+      <p class="muted">${agent ? `現在由 <b>${esc(agent.title)}${esc(agent.name)}</b> 依規則處理。` : '⚠️ 現在沒有人可以代你處理：要有店長在班，或任命區經理。'}升遷、外人上門的事情，一定會交給你。已代處理 ${s.authCount || 0} 件。</p>
+      <div class="auth-grid">${RULES.map(([k, l, o]) => `<label><span>${l}</span>${sel(k, o, A[k] || 'off')}</label>`).join('')}
+        <label><span>💰 單件預算上限</span>${sel('budget', [1000, 5000, 20000, 50000].map((v) => [String(v), money(v)]), String(A.budget || 0))}</label>
+      </div>`;
+    }
+    if (s.feature('area')) {
+      const am = s.areaManager;
+      out += `<h3>🗺️ 區經理</h3>`;
+      if (am) {
+        const st = Fun.STYLES[am.style];
+        out += `<div class="lead-card manager"><span class="mini-face">${portraitSVG(am.look, 'happy')}</span><div><b>🗺️ ${esc(am.name)}</b> <small>區經理・第 ${am.since} 週上任</small><div><small>${st ? `${st.icon}${st.name}・` : ''}領導力 ${am.lead}・時薪 ${money(am.wage)}</small></div><small>所有分店士氣 +${Math.round(3 + (am.lead - 50) / 10)}／週、總部管理費 -30%，也會代你處理授權事件。</small></div></div>`;
+      } else {
+        const cands = s.branches.map((b, i) => [b, i]).filter(([b]) => b.manager);
+        out += cands.length
+          ? `<p class="muted">從分店店長裡挑一位升區經理：他會離開原本的分店，改成巡所有分店。</p><div class="pot-list">${cands
+              .map(([b, i]) => `<div class="pot-row"><span class="mini-face">${portraitSVG(b.manager.look, 'happy')}</span><span><b>${esc(b.manager.name)}</b><small>${esc(s.siteOf(b).city)}${esc(b.district)}店店長・領導力 ${b.manager.lead}</small></span><span class="lead-btns"><button data-action="appoint-area" data-i="${i}">🗺️<small>升區經理</small></button></span></div>`)
+              .join('')}</div>`
+          : '<p class="muted">要先有分店店長，才能從裡面挑一位升區經理。</p>';
+      }
+    }
+    return out;
   }
 
   // 員工活動：挑活動、挑誰參加
@@ -1557,8 +1611,8 @@
           .map(
             (c, i) => `<div class="cand card">
               <span class="mini-face">${portraitSVG(c.look, 'neutral')}</span>
-              <div><b>${esc(c.name)}</b><div class="chips">${c.traits.map((t) => `<span class="chip" title="${TRAITS[t].desc}">${TRAITS[t].name}</span>`).join('')}</div>
-              <small>技能 ${c.skill}・希望時薪 ${money(c.wage)}</small><small>面試印象：領導力 ${leadStars(c.leadSeen || 50)}？・${Fun.AMBITION_LABEL(c.ambition ?? 50)}</small><small class="muted">${c.traits.map((t) => TRAITS[t].desc).join('；')}</small></div>
+              <div><b>${esc(c.name)}</b><div class="chips">${c.traits.map((t) => `<span class="chip" title="${TRAITS[t].desc}">${TRAITS[t].name}</span>`).join('')}${sideChip(c)}</div>
+              ${c.side && Fun.SIDE_JOBS[c.side] ? `<small class="pos">${Fun.SIDE_JOBS[c.side].icon} ${Fun.SIDE_JOBS[c.side].perk}；會因為副業請假或早退</small>` : ''}<small>技能 ${c.skill}・希望時薪 ${money(c.wage)}</small><small>面試印象：領導力 ${leadStars(c.leadSeen || 50)}？・${Fun.AMBITION_LABEL(c.ambition ?? 50)}</small><small class="muted">${c.traits.map((t) => TRAITS[t].desc).join('；')}</small></div>
               <button class="primary" data-action="hire" data-i="${i}">錄取</button>
             </div>`
           )
@@ -1683,6 +1737,16 @@
       </div>`;
   }
 
+  function seasonalCard() {
+    const s = ui.sim;
+    const it = s.seasonalItem;
+    const on = s.seasonal && s.seasonal.until >= s.day;
+    return `<div class="seasonal-card">
+      <b>🍂 季節限定</b>
+      ${on ? `<p>「${esc(s.seasonal.name)}」販售中，到第 ${s.seasonal.until} 天${s.branches.length ? '（分店也一起賣，來客 +6%）' : ''}。</p>` : `<p>現在是${it.season}：推出「${esc(it.name)}」四週，客人 +12%${s.branches.length ? '、分店 +6%' : ''}。同一個品項連續推，效果會變差。</p><button class="primary" data-action="seasonal" ${s.cash < s.seasonalCost ? 'disabled' : ''}>推出（研發＋行銷 ${money(s.seasonalCost)}）</button>`}
+    </div>`;
+  }
+
   function drawerManage() {
     const s = ui.sim;
     const p = s.policy;
@@ -1727,7 +1791,7 @@
               .map((pr) => {
                 if (pr.rd && !s.recipes.has(pr.id)) {
                   const can = s.level >= (pr.lv || 1);
-                  return `<div class="price-row locked"><span class="price-name">🧪 ${pr.icon} ${pr.name}</span><button data-action="research" data-id="${pr.id}" ${!can || s.cash < pr.rd ? 'disabled' : ''}>${can ? `研發 ${money(pr.rd)}` : `Lv.${pr.lv} 才能研發`}</button><small>新品・建議價 $${Math.round((pr.price * s.idx.cpi) / 5) * 5}・菜單越豐富，客人越多</small></div>`;
+                  return `<div class="price-row locked"><span class="price-name">🧪 ${pr.icon} ${pr.name}</span><button data-action="research" data-id="${pr.id}" ${!can || s.cash < s.rdCost(pr) ? 'disabled' : ''}>${can ? `研發 ${money(s.rdCost(pr))}` : `Lv.${pr.lv} 才能研發`}</button><small>新品・建議價 $${Math.round((pr.price * s.idx.cpi) / 5) * 5}・菜單越豐富，客人越多</small></div>`;
                 }
                 const sug = Math.round((pr.price * s.idx.cpi) / 5) * 5;
                 const cur = s.prices[pr.id];
@@ -1742,6 +1806,7 @@
               })
               .join('')}
           </div>
+          ${s.feature('seasonal') ? seasonalCard() : ''}
           <p class="drawer-tip">比建議價貴 10% 以上，客人會明顯變少，評價也會變差；學生和長輩對價格特別敏感，上班族比較不在意。${s.promoOn ? `<br>🎉 九折優惠到第 ${s.promo.until} 天。` : ''}</p>
         </div>
       </div>`;
@@ -1768,6 +1833,7 @@
       ['利息', -L.interest],
       ['事件', L.events],
       ['分店', L.branches || 0],
+      ['加盟權利金、中央廚房', L.group || 0],
       ['成就獎金', L.rewards || 0],
       ['設備、研發與其他', L.other],
     ].filter(([, v]) => Math.round(v) !== 0);
@@ -1834,6 +1900,72 @@
     return '';
   }
 
+  // ───── 📜 章節任務 ─────
+  function renderQuestChip() {
+    const el = document.getElementById('quest-chip');
+    if (!el || !ui.sim) return;
+    const s = ui.sim;
+    const ch = s.chapter;
+    const p = s.progress;
+    let html;
+    if (p.ended) html = '<span class="qi">📜</span><span><b>全部完成</b></span>';
+    else if (!ch && s.feature('route')) html = '<span class="qi">🛤️</span><span><b>選擇第二幕的路線</b><small>點這裡做決定</small></span>';
+    else if (!ch) html = '';
+    else {
+      const n = ch.quests.filter((q) => p.done.includes(q.id)).length;
+      const next = ch.quests.find((q) => !p.done.includes(q.id));
+      html = `<span class="qi">${ch.icon}</span><span><b>${esc(ch.name.split('：')[0])} ${n}/${ch.quests.length}</b><small>${next ? esc(next.text) : ''}</small></span>`;
+    }
+    el.hidden = !html || !!ui.tab;
+    if (el.dataset.html !== html) {
+      el.innerHTML = html;
+      el.dataset.html = html;
+    }
+  }
+
+  function questList(ch) {
+    const s = ui.sim;
+    const p = s.progress;
+    return `<ul class="quest-list">${ch.quests.map((q) => {
+      const done = p.done.includes(q.id);
+      return `<li class="${done ? 'done' : ''}"><span>${done ? '✅' : '⬜'}</span><div><b>${esc(q.text)}</b>${!done && q.prog ? `<small>${esc(q.prog(s))}</small>` : ''}</div></li>`;
+    }).join('')}</ul>`;
+  }
+
+  function drawerQuests() {
+    const s = ui.sim;
+    const C = Fun.CHAPTERS || [];
+    const p = s.progress;
+    const ch = s.chapter;
+    const feat = (ids) => ids.map((f) => `<span class="feat">${Fun.FEATURES[f].icon} ${Fun.FEATURES[f].name}</span>`).join('');
+    let main = '';
+    if (ch) {
+      main = `<div class="chapter-card">
+        <div class="chapter-head"><span>${ch.icon}</span><div><b>${esc(ch.name)}</b><small>${esc(ch.story)}</small></div></div>
+        ${questList(ch)}
+        ${ch.route ? '' : `<p class="calc">完成獎勵：${money(ch.reward.cash)}＋經驗 ${ch.reward.xp.toLocaleString()}</p><div class="feat-row"><small>解鎖：</small>${feat(ch.unlock)}</div>`}
+      </div>`;
+    } else if (s.feature('route') && !p.route) {
+      main = `<div class="chapter-card"><div class="chapter-head"><span>🛤️</span><div><b>第二幕：你想讓這間店變成什麼樣子？</b><small>兩條路都能走到最後，選了就不能換。</small></div></div>
+        <div class="route-pick">${Object.entries(Fun.ROUTES).map(([id, r]) => `<div class="route"><b>${r.icon} ${r.name}</b><p>${r.desc}</p><ul>${r.quests.map((q) => `<li>${esc(q.text)}</li>`).join('')}</ul><button class="primary" data-action="route" data-id="${id}">走這條路</button></div>`).join('')}</div></div>`;
+    } else if (p.ended) {
+      const R = Fun.ROUTES[p.route];
+      main = `<div class="chapter-card"><div class="chapter-head"><span>${R.ending.medal}</span><div><b>${R.ending.title}</b><small>${R.ending.text}</small></div></div><p class="calc">故事結束了，但店會一直開下去。你可以繼續經營、挑戰長期目標。</p></div>`;
+    }
+    const past = C.filter((c) => p.chapters.includes(c.id));
+    const future = C.slice(p.chapter + 1);
+    return `<div class="drawer-body two-col">
+      <div>${main}</div>
+      <div>
+        <h3>已解鎖的玩法</h3>
+        <div class="feat-row">${p.features.length ? feat(p.features) : '<small class="muted">完成第一章就會開始解鎖新玩法。</small>'}</div>
+        ${past.length ? `<h3>完成的章節</h3>${past.map((c) => `<p class="calc">${c.icon} ${esc(c.name)} ✅</p>`).join('')}` : ''}
+        ${future.length ? `<h3>接下來</h3>${future.map((c) => `<p class="calc muted">🔒 ${esc(c.name)}</p>`).join('')}` : ''}
+        <p class="drawer-tip">玩法會一章一章開放，不用一次學全部。任務每天打烊後檢查一次。</p>
+      </div>
+    </div>`;
+  }
+
   function drawerReviews() {
     const s = ui.sim;
     const r = s.rating;
@@ -1873,13 +2005,23 @@
           <h3>店家等級 <small>賺的毛利越多，經驗越高</small></h3>
           <div class="level-card"><b>Lv.${lv}</b><div class="bar"><div class="bar-fill skill" style="width:${Math.round(s.levelProgress * 100)}%"></div></div><small>${next ? `${Math.round(s.xp).toLocaleString()} / ${next.toLocaleString()}` : '已經是最高等級'}</small></div>
           ${upcoming.length ? `<p class="calc">即將解鎖：${upcoming.map((d) => `${d.icon}${d.name}（Lv.${d.lv}）`).join('、')}</p>` : ''}
+          ${(() => { const perks = Object.entries(Fun.LEVEL_PERKS || {}).filter(([l]) => Number(l) > lv).slice(0, 3); return perks.length ? `<p class="calc">等級獎勵：${perks.map(([l, t]) => `Lv.${l} ${t}`).join('・')}</p>` : ''; })()}
+          <h3>🏢 公司與老闆 <small>公司的錢不等於老闆的錢</small></h3>
+          <div class="company-card">
+            <div><span>公司現金</span><b>${money(s.cash)}</b></div>
+            <div><span>公司估值</span><b>${money(s.valuation)}</b><small>最近 8 週本業淨利 × 本益比＋資產</small></div>
+            <div><span>老闆個人財富</span><b>${money(s.owner.wealth)}</b><small>領分紅才會進來（扣 20% 稅）</small></div>
+          </div>
+          <div class="branch-ctl"><button data-action="dividend" data-p="0.1" ${s.cash * 0.9 < 100000 ? 'disabled' : ''}>💰 領分紅 10%（${money(Math.round(s.cash * 0.1))}）</button><button data-action="dividend" data-p="0.3" ${s.cash * 0.7 < 100000 ? 'disabled' : ''}>💰 領 30%</button></div>
+          <p class="drawer-tip">員工時薪還低於行情就領分紅，大家會不爽、慣老闆指數上升。</p>
           <h3>附近的競爭 <small>評價、價格、乾淨程度決定客人選誰</small></h3>
           ${rivalCard()}
           <h3>分店 <small>${lv >= 5 ? '每間分店可以調時薪、定價、人手和改裝' : '店家 Lv.5 才能開分店'}</small></h3>
           <div class="branch-list">
             ${s.branches.map((b, i) => branchCard(b, i)).join('') || '<p class="muted">還沒有分店。</p>'}
           </div>
-          ${canBranch ? `<button class="primary" data-action="branch-sites">🗺️ 挑地點開分店</button>` : ''}
+          ${canBranch && s.feature('branch') ? `<button class="primary" data-action="branch-sites">🗺️ 挑地點開分店</button>` : canBranch ? '<p class="calc">🔒 完成「📜 第二章：站穩腳步」就能開分店。</p>' : ''}
+          ${groupPanel()}
           ${s.awards.length ? `<h3>年度好店評選</h3>${s.awards.map((a) => `<p class="calc">${a.medal} 第 ${a.year} 年：${a.title}（${a.score} 分）</p>`).join('')}` : '<p class="drawer-tip">每年 12 月最後一週結束時，會舉辦年度好店評選。</p>'}
         </div>
         <div>
@@ -1894,6 +2036,48 @@
           <p class="drawer-tip">沙盒遊戲沒有時間限制。慣老闆指數到 100，或現金是負的又借不到錢，店就會收起來。</p>
         </div>
       </div>`;
+  }
+
+  // 章節解鎖的集團玩法：中央廚房、加盟、第二幕路線
+  function groupPanel() {
+    const s = ui.sim;
+    let out = '';
+    if (s.feature('kitchen')) {
+      const K = s.kitchenName;
+      out += `<h3>🏭 ${K} <small>所有店一起降成本，也一起承擔風險</small></h3>`;
+      out += s.kitchen
+        ? `<div class="group-card"><p class="calc">✅ 運作中${s.kitchen.downUntil >= s.day ? `（<span class="neg">停工檢查到第 ${s.kitchen.downUntil} 天</span>）` : ''}：本店進貨 -10%、分店 -15%・每週維護 ${money(s.kitchenUpkeep)}・出過 ${s.kitchen.issues} 次狀況</p>
+          ${s.kitchen.backup ? '<p class="calc">🤝 已簽備援{w:supplier}：出狀況時可以馬上切換</p>' : `<button data-action="kitchen-backup" ${s.cash < s.backupCost ? 'disabled' : ''}>🤝 簽備援{w:supplier}（${money(s.backupCost)}）</button><small class="muted">出包的機率變低，出事時多一個安全的選項</small>`}</div>`
+        : `<div class="group-card"><p class="calc">蓋一座${K}：本店進貨成本 -10%、分店 -15%，每週維護 ${money(s.kitchenUpkeep)}。偶爾會出包，一出包就是所有店一起。</p><button class="primary" data-action="build-kitchen" ${s.cash < s.kitchenCost ? 'disabled' : ''}>🏗️ 蓋${K}（${money(s.kitchenCost)}）</button></div>`;
+    }
+    if (s.feature('franchise')) {
+      const F = s.franchises || [];
+      if (!s.franchiseApps) s.rollFranchiseApps();
+      out += `<h3>🤝 加盟 <small>${F.length}/${s.franchiseCap} 間・每間收加盟金 ${money(s.franchiseFee)}＋營收 6% 權利金</small></h3>`;
+      out += F.length ? `<div class="pot-list">${F.map((f) => `<div class="pot-row"><span class="mini-face">🏪</span><span><b>${esc(f.city)}${esc(f.district)}加盟店</b><small>加盟主 ${esc(f.name)}・★ ${f.rating.toFixed(1)}・上週權利金 ${money(f.last || 0)}</small></span></div>`).join('')}</div>` : '';
+      out += F.length < s.franchiseCap
+        ? `<p class="calc">想加盟的人（每兩週換一批）：面談印象不一定準，加盟主怎麼對員工，會算在你的品牌上。</p><div class="pot-list">${(s.franchiseApps || []).map((a) => `<div class="pot-row"><span class="mini-face">🙋</span><span><b>${esc(a.name)}・想開在${esc(a.city)}${esc(a.district)}</b><small class="muted">面談印象：「${esc(a.note)}」</small></span><span class="lead-btns"><button data-action="franchise-accept" data-id="${a.id}">🤝<small>簽約</small></button></span></div>`).join('')}</div>`
+        : '<p class="calc">加盟店數量到上限了：多開直營分店，才有能力管更多加盟店。</p>';
+    }
+    const route = s.progress && s.progress.route;
+    if (route === 'ipo') {
+      const I = s.ipo;
+      out += `<h3>🔔 上市之路</h3><div class="group-card">`;
+      if (!I) out += `<p class="calc">公司估值達到 ${money(s.raiseNeed)} 就能找投資人（現在 ${money(s.valuation)}）。募資會拿到估值 15% 的現金，之後每季要交成績單。</p><button class="primary" data-action="ipo-raise" ${s.valuation < s.raiseNeed ? 'disabled' : ''}>💼 引進投資人</button>`;
+      else if (!I.listed) out += `<p class="calc">這一季（還有 ${Math.max(0, 13 - (s.week - I.qWeek))} 週）：淨利 ${money(Math.round(I.qProfit))} / 目標 ${money(I.target)}・連續達標 ${I.streak} 季</p><div class="bar"><div class="bar-fill skill" style="width:${Math.min(100, Math.round((I.qProfit / Math.max(1, I.target)) * 100))}%"></div></div><button class="primary" data-action="ipo-list" ${I.streak < 3 || s.jerk >= 20 ? 'disabled' : ''}>🔔 申請掛牌${I.streak < 3 ? `（要連續 3 季達標）` : s.jerk >= 20 ? '（慣老闆指數要低於 20）' : ''}</button>`;
+      else out += '<p class="calc">🔔 已經掛牌上市。</p>';
+      out += '</div>';
+    } else if (route === 'coop') {
+      const C = s.coop;
+      out += `<h3>🤲 員工持股・百年老店</h3><div class="group-card">`;
+      if (!C) out += `<p class="calc">拿出 ${money(s.sharesCost)} 的股份分給員工：所有人心情 +15、之後每週慢慢變好，分店士氣也會更穩。</p><button class="primary" data-action="coop-shares" ${s.cash < s.sharesCost ? 'disabled' : ''}>🤲 推出員工持股計畫</button>`;
+      else if (!C.heir) {
+        const H = s.heirCandidates();
+        out += `<p class="calc">✅ 員工持股上路中。接下來要指定接班人：領導力 70 以上的店長、分店店長或區經理。</p>${H.length ? `<div class="pot-list">${H.map((h) => `<div class="pot-row"><span class="mini-face">🏮</span><span><b>${esc(h.name)}</b><small>${esc(h.where)}・領導力 ${h.lead}</small></span><span class="lead-btns"><button data-action="coop-heir" data-name="${esc(h.name)}">🏮<small>指定</small></button></span></div>`).join('')}</div>` : '<p class="muted">目前還沒有領導力 70 以上的店長：送去上主管課，或多帶幾個人。</p>'}`;
+      } else out += `<p class="calc">🏮 接班人：${esc(C.heir)}</p>`;
+      out += '</div>';
+    }
+    return out;
   }
 
   function rivalCard() {
@@ -1948,7 +2132,7 @@
     return `<div class="branch-card">
       ${branchArt(b)}
       <div class="branch-body">
-        <div class="branch-title"><b>${site.icon} ${esc(site.city)}${esc(b.district)}店</b><small>${size.name}・人潮 ${site.traffic >= 1.3 ? '超多' : site.traffic >= 1.05 ? '多' : site.traffic <= 0.9 ? '少' : '普通'}・房租 ${site.rent >= 1.5 ? '很貴' : site.rent >= 1.05 ? '貴' : site.rent <= 0.8 ? '便宜' : '普通'}${s.siteSeason(site) > 1 ? '・🔥 旺季' : s.siteSeason(site) < 1 ? '・🥶 淡季' : ''}</small></div>
+        <div class="branch-title"><b>${site.icon} ${esc(site.city)}${esc(b.district)}店</b><small>${b.type && b.type !== 'standard' && Fun.STORE_TYPES[b.type] ? `${Fun.STORE_TYPES[b.type].icon}${Fun.STORE_TYPES[b.type].name}・` : ''}${size.name}・人潮 ${site.traffic >= 1.3 ? '超多' : site.traffic >= 1.05 ? '多' : site.traffic <= 0.9 ? '少' : '普通'}・房租 ${site.rent >= 1.5 ? '很貴' : site.rent >= 1.05 ? '貴' : site.rent <= 0.8 ? '便宜' : '普通'}${s.siteSeason(site) > 1 ? '・🔥 旺季' : s.siteSeason(site) < 1 ? '・🥶 淡季' : ''}</small></div>
         ${b.wantN ? `<p class="calc">上週：想來 ${b.wantN.toLocaleString()} 人・服務 ${b.servedN.toLocaleString()} 人${b.lostN ? `・<span class="neg">流失 ${b.lostN.toLocaleString()} 人</span>` : ''}・容量用了 ${Math.round(b.util * 100)}%${b.fee ? `・總部管理費 ${money(b.fee)}` : ''}</p>` : ''}
         ${b.busy ? `<p class="calc warn">客人多到做不完：加 1 個人大約能多服務 ${Math.round((b.servedN || 0) / Math.max(1, b.staff + (b.manager ? 1 : 0)))} 人，或擴建店面</p>` : ''}
         ${b.morale < 55 ? `<p class="calc warn">⚠️ 士氣 ${Math.round(b.morale)}：再低下去分店會打電話來求救（加薪、加人、改裝都有幫助）</p>` : ''}
@@ -2072,6 +2256,7 @@
       </div>`;
     } else if (d.type === 'sites') {
       const sz = ui.siteSize || 'medium';
+      const ty = s.feature('storetype') ? ui.siteType || 'standard' : 'standard';
       const T = window.BossSim.CUSTOMER_TYPES;
       const mixLabel = { student: '🎒學生', office: '💼上班族', elderly: '🧓長輩', family: '🙂家庭', tourist: '📸觀光客' };
       const fitN = (f) => Math.max(1, Math.min(5, Math.round((f - 0.6) / 0.15)));
@@ -2081,10 +2266,11 @@
         <h2>🗺️ 分店要開在哪裡？</h2>
         <p class="calc">每個地點的人潮、房租和客群都不一樣：客群跟你的產業（${s.ind.name}）合不合，看「適合度」。估算是照行情時薪、一般定價、建議人手算的。</p>
         <div class="segmented small">${Object.entries(BRANCH_SIZES).map(([id, z]) => `<button data-action="site-size" data-value="${id}" class="${sz === id ? 'active' : ''}">${z.name}<small>容量 ×${z.cap}・房租 ×${z.rent}</small></button>`).join('')}</div>
+        ${s.feature('storetype') ? `<div class="segmented small store-types">${Object.entries(Fun.STORE_TYPES).map(([id, t]) => `<button data-action="site-type" data-value="${id}" class="${ty === id ? 'active' : ''}">${t.icon} ${t.name}<small>${t.desc}</small></button>`).join('')}</div>` : ''}
         <div class="plot-list">${BRANCH_SITES.map((st) => {
-          const opened = s.branches.some((b) => b.site === st.id);
-          const cost = s.siteCost(st, sz);
-          const est = s.estimateSite(st, sz);
+          const opened = s.branches.some((b) => b.site === st.id) || (s.franchises || []).some((f) => f.site === st.id);
+          const cost = s.siteCost(st, sz, ty);
+          const est = s.estimateSite(st, sz, ty);
           const fit = s.siteFit(st);
           const top = Object.entries(st.mix).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, v]) => `${mixLabel[k]} ${Math.round(v * 100)}%`).join('・');
           return `<div class="plot site ${opened ? 'opened' : ''}">
@@ -2168,6 +2354,18 @@
         ${r.activity.tip ? `<div class="tip">📘 <strong>法律小知識：</strong>${r.activity.tip}</div>` : ''}
         <button class="primary" data-action="close-dialog">回去顧店</button>
       </div>`;
+    } else if (d.type === 'chapter') {
+      inner = d.ending
+        ? `<div class="card menu-card chapter-done"><div class="big-medal">${d.ending.medal}</div><h2>${d.ending.title}</h2><p>${d.ending.text}</p><button class="primary" data-action="close-dialog">繼續經營</button></div>`
+        : `<div class="card menu-card chapter-done">
+        <div class="event-kicker">📜 章節完成</div>
+        <h2>${d.done.icon} ${esc(d.done.name)}</h2>
+        <p class="calc">獎勵：${money(d.done.reward.cash)}＋經驗 ${d.done.reward.xp.toLocaleString()}</p>
+        <h3>🔓 解鎖新玩法</h3>
+        <div class="unlock-list">${d.unlocked.map((f) => `<div><span>${f.icon}</span><div><b>${f.name}</b><small>${f.desc}</small></div></div>`).join('')}</div>
+        ${d.next ? `<p class="calc">下一章：${d.next.icon} ${esc(d.next.name)}・${esc(d.next.story)}</p>` : ''}
+        <button class="primary" data-action="close-dialog">好！</button>
+      </div>`;
     } else if (d.type === 'advice') {
       const list = s.advice();
       inner = `<div class="card menu-card">
@@ -2224,7 +2422,7 @@
       </div>`;
     }
     if (ui.sim) inner = ui.sim.w(inner);
-    box.innerHTML = d.type === 'minigame' ? '' : `<div class="dialog-backdrop ${['week', 'ending', 'victory', 'menu', 'advice', 'activity', 'boss-menu', 'city', 'trip', 'rival-visit', 'schemes', 'collabs', 'sites'].includes(d.type) ? 'center' : ''}">${inner}</div>`;
+    box.innerHTML = d.type === 'minigame' ? '' : `<div class="dialog-backdrop ${['week', 'ending', 'victory', 'menu', 'advice', 'activity', 'boss-menu', 'city', 'trip', 'rival-visit', 'schemes', 'collabs', 'sites', 'chapter'].includes(d.type) ? 'center' : ''}">${inner}</div>`;
     ui.dialogShownAt = performance.now();
   }
 
@@ -2378,6 +2576,18 @@
         ui.settings[btn.dataset.key] = btn.dataset.key === 'slot' ? Number(btn.dataset.value) : btn.dataset.value;
         renderStart();
         break;
+      case 'name-dice': {
+        const ind = INDUSTRIES.find((i) => i.id === ui.settings.industry);
+        const ideas = (ind && ind.nameIdeas) || [];
+        const n = document.getElementById('shop-name');
+        if (n && ideas.length) {
+          const cur = n.value || ind.shopName;
+          const pool = ideas.filter((x) => x !== cur);
+          n.value = pool[Math.floor(Math.random() * pool.length)];
+          ui.settings.shopName = n.value;
+        }
+        break;
+      }
       case 'start': {
         keepName();
         const ind = INDUSTRIES.find((i) => i.id === ui.settings.industry);
@@ -2667,6 +2877,10 @@
         refreshStaffViews();
         break;
       }
+      case 'appoint-area':
+        if (s.appointArea(Number(btn.dataset.i))) s.checkProgress();
+        renderDrawer();
+        break;
       case 'recall-mgr':
         s.recallBranchManager(Number(btn.dataset.i));
         renderDrawer();
@@ -2716,6 +2930,14 @@
         renderDrawer();
         break;
       }
+      case 'dividend':
+        s.takeDividend(s.cash * Number(btn.dataset.p));
+        renderDrawer();
+        break;
+      case 'route':
+        if (s.chooseRoute(btn.dataset.id)) renderDrawer();
+        renderQuestChip();
+        break;
       case 'review-filter':
         ui.reviewLow = !!btn.dataset.value;
         renderDrawer();
@@ -2851,8 +3073,44 @@
         ui.siteSize = btn.dataset.value;
         renderDialog();
         break;
+      case 'site-type':
+        ui.siteType = btn.dataset.value;
+        renderDialog();
+        break;
+      case 'build-kitchen':
+        s.buildKitchen();
+        renderDrawer();
+        break;
+      case 'kitchen-backup':
+        s.buyBackup();
+        renderDrawer();
+        break;
+      case 'franchise-accept':
+        s.acceptFranchise(Number(btn.dataset.id));
+        renderDrawer();
+        break;
+      case 'ipo-raise':
+        s.raiseFunds();
+        renderDrawer();
+        break;
+      case 'ipo-list':
+        s.listCompany();
+        renderDrawer();
+        break;
+      case 'coop-shares':
+        s.launchShares();
+        renderDrawer();
+        break;
+      case 'coop-heir':
+        s.setHeir(btn.dataset.name);
+        renderDrawer();
+        break;
+      case 'seasonal':
+        if (s.launchSeasonal()) toast(`🍂 季節限定「${s.seasonal.name}」上市！`, 'good');
+        renderDrawer();
+        break;
       case 'open-branch':
-        if (s.openBranch(btn.dataset.site, ui.siteSize || 'medium')) {
+        if (s.openBranch(btn.dataset.site, ui.siteSize || 'medium', ui.siteType || 'standard')) {
           closeDialog();
           if (ui.tab === 'goals') renderDrawer();
         }
@@ -2918,6 +3176,10 @@
       renderDrawer();
     } else if (t.dataset.action === 'menu') {
       s.menu[t.dataset.id] = t.checked;
+      renderDrawer();
+    } else if (t.dataset.action === 'auth-set') {
+      s.policy.auth[t.dataset.key] = t.dataset.key === 'budget' ? Number(t.value) : t.value;
+      s.checkProgress();
       renderDrawer();
     } else if (t.dataset.action === 'delegate') {
       s.policy.delegate = t.checked;
