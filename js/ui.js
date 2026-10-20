@@ -1,7 +1,7 @@
 // 介面：開始畫面、上方資訊列、底部工具列與抽屜、檢視面板、事件對話、週報、結局
 (function () {
   const { Sim, CATALOG, catalogById, ACHIEVEMENTS, MIN_WAGE, WEEKDAYS, INS, TAX_LABEL, CUSTOMER_TYPES } = window.BossSim;
-  const { INDUSTRIES, CAT_LABELS, LOTS, TRAITS, LEVELS, DISTRICTS, DISTRICT_INFO, DIFFICULTY, FLOORS, WALLS, SIGNS, BRANCH_SITES, BRANCH_SIZES } = window.BossIndustries;
+  const { DECOR_THEMES, INDUSTRIES, CAT_LABELS, LOTS, TRAITS, LEVELS, DISTRICTS, DISTRICT_INFO, DIFFICULTY, FLOORS, WALLS, SIGNS, BRANCH_SITES, BRANCH_SIZES } = window.BossIndustries;
   const Fun = window.BossFun;
   const { portraitSVG, bossLook, VISITORS } = window.BossLooks;
   const app = document.getElementById('app');
@@ -1293,7 +1293,7 @@
                 .join('')}</div>
               <div class="style-row"><span>牆面 <small>$3,000</small></span>${WALLS.map((c) => `<button class="swatch ${(s.style.wall || WALLS[0]) === c ? 'active' : ''}" style="background:${c}" data-action="style" data-kind="wall" data-value="${c}" aria-label="牆面顏色"></button>`).join('')}</div>
               <div class="style-row"><span>招牌 <small>$5,000</small></span>${SIGNS.map((c) => `<button class="swatch ${(s.style.sign || s.ind.signColor) === c ? 'active' : ''}" style="background:${c}" data-action="style" data-kind="sign" data-value="${c}" aria-label="招牌顏色"></button>`).join('')}</div>`
-            : `<div class="catalog">${items
+            : `${ui.buildCat === 'decor' ? decorSummary() : ''}<div class="catalog">${items
                 .map((d) => {
                   const tags = [];
                   if (d.serves) tags.push(`做 ${d.serves.map((id) => s.ind.products.find((p) => p.id === id)?.name).filter(Boolean).join('、')}`);
@@ -1308,6 +1308,7 @@
                   if (d.staffMood) tags.push('員工心情 +');
                   if (d.speed && d.speed > 1) tags.unshift(`速度 ×${d.speed}`);
                   if (d.selfServe) tags.unshift('不用店員');
+                  if (d.theme && DECOR_THEMES[d.theme]) tags.unshift(`${DECOR_THEMES[d.theme].icon}${DECOR_THEMES[d.theme].name}風`);
                   const sb = d.side && s.ind.products.find((p) => p.id === d.side);
                   if (sb) {
                     const b = sb.side;
@@ -1539,6 +1540,21 @@
       }
       ${authPanel()}
       <p class="drawer-tip">每個人都有看不到的「領導力」和「企圖心」：技能好不一定會帶人（彼得原理），企圖心太低的人被升上去會壓力很大，企圖心高的人等太久會主動來要求升遷。升職後有 14 天試用期。</p>
+    </div>`;
+  }
+
+  // 🎨 裝潢狀態：美觀分、風格、流行、新舊
+  function decorSummary() {
+    const s = ui.sim;
+    const D = s.decor;
+    const th = s.themeInfo;
+    const tr = s.decorTrend && s.decorTrend.until >= s.day ? DECOR_THEMES[s.decorTrend.theme] : null;
+    const pct = (v) => `${Math.round(v * 100)}%`;
+    const counts = Object.entries(D.counts).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${DECOR_THEMES[k].icon}${DECOR_THEMES[k].name} ${n} 件`).join('・');
+    return `<div class="decor-sum">
+      <div><span>美觀分</span><b>${Math.round(D.A)}</b><small>來客 +${pct(0.3 * (1 - Math.exp(-D.A / 35)))}・評價 +${(0.55 * (1 - Math.exp(-D.A / 30))).toFixed(2)}・可以多收 ${pct(s.priceTolerance)} 不掉客</small></div>
+      <div><span>風格</span><b>${th ? `${th.icon}${th.name}` : D.mixed ? '😵 太雜' : '還沒成形'}</b><small>${th ? th.desc : D.mixed ? '兩種風格都很多、又都不夠突出：美觀分 -10%' : '同一種風格放 3 件以上、佔一半以上的美觀分，就會有風格加成'}${counts ? `<br>${counts}` : ''}</small></div>
+      <div><span>新舊</span><b>${pct(D.fresh)}</b><small>裝潢放久了會舊（最多 -35%）${tr ? `<br>🔥 最近流行${tr.icon}${tr.name}風（效果 +25%）` : ''}</small>${D.fresh < 0.9 ? `<button data-action="refresh-decor" ${s.cash < s.refreshCost ? 'disabled' : ''}>🧽 翻新（${money(s.refreshCost)}）</button>` : ''}</div>
     </div>`;
   }
 
@@ -2980,6 +2996,10 @@
         refreshStaffViews();
         break;
       }
+      case 'refresh-decor':
+        if (s.refreshDecor()) window.BossAudio.play('place');
+        renderDrawer();
+        break;
       case 'pet-adopt':
         if (s.adoptPet(btn.dataset.kind)) {
           confetti(30);

@@ -148,8 +148,16 @@ function daily(r) {
   // 研發新品
   for (const p of s.ind.products) if (p.rd && !s.recipes.has(p.id) && s.level >= (p.lv || 1) && s.cash > p.rd + 150000 && s.research(p.id)) note(`第 ${s.day} 天：研發了${p.name}`);
 
-  // 價格跟著物價
-  for (const p of s.ind.products) s.prices[p.id] = Math.round((p.price * s.idx.cpi) / 5) * 5;
+  // 價格跟著物價；店裡越漂亮，就敢多收一點
+  for (const p of s.ind.products) s.prices[p.id] = Math.round((p.price * s.idx.cpi * (1 + s.priceTolerance * 0.5)) / 5) * 5;
+  // 裝潢：照產業挑一種風格慢慢湊，CP 值高的先買；舊了就翻新
+  const TH = { breakfast: 'retro', noodle: 'retro', drinks: 'insta', barber: 'retro', scooter: 'tech', store: 'cozy' }[s.ind.id];
+  if (s.day % 5 === 2 && s.cash > 220000) {
+    const pool = CATALOG.filter((d) => d.cat === 'decor' && d.beauty && (!d.industries || d.industries.includes(s.ind.id)) && s.unlocked(d) && s.cash > d.price + 200000);
+    const pick = pool.filter((d) => d.theme === TH).sort((a, b) => b.beauty / Math.sqrt(b.price) - a.beauty / Math.sqrt(a.price))[0] || pool.sort((a, b) => b.beauty / Math.sqrt(b.price) - a.beauty / Math.sqrt(a.price))[0];
+    if (pick && s.decor.A < 60 + s.level * 3) tryPlace(pick.id);
+  }
+  if (s.decor.fresh < 0.8 && s.cash > s.refreshCost + 300000) s.refreshDecor();
 
   // 小編：挑本週時事的內容發文
   if (s.canPost) {

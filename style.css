@@ -5046,3 +5046,11 @@ kbd {
 .room-card .primary { justify-self: start; padding: 7px 14px; }
 .toggle-row.small small { font-size: 0.75rem; }
 .pet-card { border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; display: grid; gap: 6px; background: var(--card); }
+
+/* 🎨 裝潢狀態 */
+.decor-sum { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; margin-bottom: 10px; }
+.decor-sum > div { background: rgba(127, 127, 127, 0.08); border-radius: 12px; padding: 8px 10px; display: grid; gap: 2px; }
+.decor-sum span { font-size: 0.75rem; color: var(--muted); }
+.decor-sum b { font-size: 1.15rem; }
+.decor-sum small { font-size: 0.75rem; color: var(--muted); }
+.decor-sum button { justify-self: start; margin-top: 4px; font-size: 0.8rem; }

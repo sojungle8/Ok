@@ -1,7 +1,7 @@
 // 開店模擬核心：店面格子、客人與員工的自主行為、營業時間與班表、財務、事件
 // 不碰 DOM，可以在 Node 裡跑
 (function (root) {
-  const { SIDE_BIZ, fillWords, applyNames, FOOD_IND, INDUSTRIES, CATALOG, LOTS, NAMES, TRAITS, LEVELS, DISTRICTS, DISTRICT_INFO, CUSTOMER_TYPES, DIFFICULTY, FLOORS, WALLS, SIGNS, BRANCH_SITES, BRANCH_SIZES, TOURIST_PREF } = root.BossIndustries;
+  const { DECOR_THEMES, SIDE_BIZ, fillWords, applyNames, FOOD_IND, INDUSTRIES, CATALOG, LOTS, NAMES, TRAITS, LEVELS, DISTRICTS, DISTRICT_INFO, CUSTOMER_TYPES, DIFFICULTY, FLOORS, WALLS, SIGNS, BRANCH_SITES, BRANCH_SIZES, TOURIST_PREF } = root.BossIndustries;
   const { EVENTS, IGNORE, VIOLATIONS } = root.BossData;
   const Looks = root.BossLooks;
   const Fun = root.BossFun || { KARENS: [], TRENDS: [], POST_HOOKS: [], POST_BODIES: [], POST_ENDINGS: [], COMMENTS: {}, HEADLINES: [], STAFF_QUIPS: [], FUNNY_REVIEWS: { good: [], bad: [] } };
@@ -287,6 +287,70 @@
     }
     get beauty() {
       return this.objects.reduce((s, o) => s + (o.def.beauty || 0), 0);
+    }
+
+    // ───── 🎨 裝潢：美觀分（會隨時間變舊）、主題風格、流行 ─────
+    // 每天或家具變動時重算一次
+    get decor() {
+      const key = `${this.day}|${this.objects.length}|${this.styleVer || 0}|${this.decorTrend ? this.decorTrend.theme : ''}`;
+      if (this._decor && this._decorKey === key) return this._decor;
+      const counts = {};
+      const themeB = {};
+      let A = 0;
+      let total = 0;
+      for (const o of this.objects) {
+        const b = o.def.beauty || 0;
+        if (!b) continue;
+        const age = this.day - (o.bought ?? this.day);
+        const fresh = 1 - Math.min(0.35, age / 960);
+        const hot = this.decorTrend && o.def.theme === this.decorTrend.theme && this.decorTrend.until >= this.day ? 1.25 : 1;
+        const v = b * fresh * hot;
+        A += v;
+        total += b;
+        if (o.def.theme) {
+          counts[o.def.theme] = (counts[o.def.theme] || 0) + 1;
+          themeB[o.def.theme] = (themeB[o.def.theme] || 0) + v;
+        }
+      }
+      // 主題：同一種風格至少 3 件、而且佔一半以上的美觀分
+      const sorted = Object.entries(themeB).sort((a, b) => b[1] - a[1]);
+      let theme = null;
+      if (sorted.length && counts[sorted[0][0]] >= 3 && sorted[0][1] >= A * 0.5) theme = sorted[0][0];
+      // 兩種風格都很多又都不夠突出：看起來很亂
+      const mixed = !theme && sorted.filter(([k]) => counts[k] >= 3).length >= 2;
+      if (mixed) A *= 0.9;
+      const fresh = total ? A / total : 1;
+      this._decor = { A, theme, mixed, counts, fresh };
+      this._decorKey = key;
+      return this._decor;
+    }
+
+    get themeInfo() {
+      const t = this.decor.theme;
+      return t ? DECOR_THEMES[t] : null;
+    }
+
+    // 店裡漂亮：客人對價格沒那麼敏感（0～約 40%）
+    get priceTolerance() {
+      const A = this.decor.A;
+      return 0.35 * (1 - Math.exp(-A / 40)) + (this.decor.theme === 'artsy' ? 0.05 : 0);
+    }
+
+    // 翻新：把所有裝潢整理一遍，舊了的感覺消失
+    get refreshCost() {
+      const v = this.objects.filter((o) => o.def.beauty).reduce((t, o) => t + o.def.price, 0);
+      return Math.round((v * 0.2) / 1000) * 1000;
+    }
+
+    refreshDecor() {
+      const cost = this.refreshCost;
+      if (!cost || this.cash < cost) return false;
+      this.cash -= cost;
+      this.ledger.other -= cost;
+      for (const o of this.objects) if (o.def.beauty) o.bought = this.day;
+      this._decor = null;
+      this.notify('🎨 店裡重新翻修過一遍，看起來像新開的一樣！', 'good');
+      return true;
     }
     get draw() {
       return this.objects.reduce((s, o) => s + (o.def.draw || 0), 0);
@@ -668,7 +732,8 @@
         const T = this.typeOf(b);
         const coop = this.coop && this.coop.shares ? 8 : 0; // 員工持股：大家是在幫自己的店做事
         b.morale = clamp(b.morale + (mt + mf.morale + area + coop + (T.morale || 0) - b.morale) * 0.45, 0, 100);
-        const rt = 3.5 + mf.rating + (T.rating || 0) + (b.morale - 55) / 45 + b.reno * 0.18 + (pm < 1 ? 0.2 : pm > 1 ? -0.25 : 0) + (this.rating - 3.8) * 0.3 - Math.max(0, load - 1.2) * 0.8;
+        // 本店的門面就是品牌形象：裝潢好，分店的評價也沾光
+        const rt = 3.5 + mf.rating + (T.rating || 0) + 0.12 * (1 - Math.exp(-this.decor.A / 40)) + (b.morale - 55) / 45 + b.reno * 0.18 + (pm < 1 ? 0.2 : pm > 1 ? -0.25 : 0) + (this.rating - 3.8) * 0.3 - Math.max(0, load - 1.2) * 0.8;
         b.rating = clamp(b.rating + (rt + (this.level >= 25 ? 0.1 : 0) - b.rating) * 0.4, 1, 5);
         const r = this.branchWeek(b);
         const p = Math.round(r.profit);
@@ -850,7 +915,7 @@
         this.cash -= def.price;
         this.ledger.other -= def.price;
       }
-      const o = { id: uid++, type, def, x, z, rot, cells: this.footprint(def, x, z, rot) };
+      const o = { id: uid++, type, def, x, z, rot, cells: this.footprint(def, x, z, rot), bought: this.day };
       this.initObject(o);
       this.objects.push(o);
       this.gridDirty = true;
@@ -1526,7 +1591,7 @@
       const r = this.rival;
       if (!r || r.closed) return;
       const avgRatio = this.priceRatio();
-      const mine = (this.rating - 3.6) * 0.5 + (1 - avgRatio) * 1.2 + (this.cleanliness - 70) / 200 + this.beauty / 120 + (this.loyalty ? 0.06 : 0);
+      const mine = (this.rating - 3.6) * 0.5 + (1 - avgRatio) * 1.2 + (this.cleanliness - 70) / 200 + this.decor.A / 120 + (this.loyalty ? 0.06 : 0);
       const target = clamp(r.quality - mine, 0.05, 1);
       r.strength = clamp(r.strength + (target - r.strength) * 0.35 + (this.rng() - 0.5) * 0.06, 0, 1);
       r.low = r.strength < 0.18 ? r.low + 1 : 0;
@@ -1604,6 +1669,7 @@
       score *= 0.75 + this.rng() * 0.5;
       if (this.flags.has('trendDare')) score *= 1.1;
       if (this.roomLv('toilet') >= 3) score *= 1.06; // 網美廁所：客人打卡的照片也幫你宣傳
+      if (this.decor.theme === 'insta') score *= 1.12;
       let fire = null;
       if (b.risky && this.rng() < b.risky) fire = b.riskText || '踩到雷了';
       const base = 40 + this.social.followers * 0.25;
@@ -1736,6 +1802,8 @@
         if (t.id === 'student' && this.festival && this.festival.id === 'school') w *= 1.5;
         w *= (this.ind.mix && this.ind.mix[t.id]) || 1;
         if (this.collabs.some((c) => c.types.includes(t.id))) w *= 1.25;
+        const th = this.themeInfo;
+        if (th && th.types[t.id]) w *= th.types[t.id];
         list.push([t, w]);
         total += w;
       }
@@ -3589,8 +3657,12 @@
       const rating = this.reviews.length >= 5 ? this.rating : 3.8;
       const ratingF = clamp(0.55 + 0.15 * (rating - 2), 0.4, 1.1);
       const avgRatio = this.priceRatio();
-      const priceF = avgRatio <= 1.05 ? Math.pow(avgRatio, -0.8) : Math.pow(1.05, -0.8) * Math.pow(avgRatio / 1.05, -3);
-      const beautyF = 1 + Math.min(0.25, this.beauty / 60) + this.draw;
+      // 店裡越漂亮，客人越能接受比較高的價格
+      const effRatio = 1 + (avgRatio - 1) * (1 - this.priceTolerance);
+      const priceF = effRatio <= 1.05 ? Math.pow(effRatio, -0.8) : Math.pow(1.05, -0.8) * Math.pow(effRatio / 1.05, -3);
+      // 裝潢：沒有上限但效果遞減；風格鮮明再加一點
+      const D = this.decor;
+      const beautyF = 1 + 0.3 * (1 - Math.exp(-D.A / 35)) + 0.22 * (1 - Math.exp(-this.draw / 0.25)) + (D.theme ? 0.04 : 0);
       const lotF = 1 + this.lotIdx * 0.35;
       const summer = this.isSummer ? this.ind.summerBoost || 1 : 1;
       const heat = this.isSummer && !this.cooling ? 0.9 : 1;
@@ -3999,7 +4071,7 @@
         path: [],
         state: 'arriving',
         waited: 0,
-        patience: 16 * (this.ind.patience || 1) * this.diff.patience * (opt.rider ? 1.4 : 1) * (type ? type.patience : 1) * (this.level >= 19 ? 1.1 : 1) * (this.pets.some((p) => p.kind === 'dog' && p.joy > 40) ? 1.1 : 1),
+        patience: 16 * (this.ind.patience || 1) * this.diff.patience * (opt.rider ? 1.4 : 1) * (type ? type.patience : 1) * (this.level >= 19 ? 1.1 : 1) * (this.pets.some((p) => p.kind === 'dog' && p.joy > 40) ? 1.1 : 1) * (this.decor.theme === 'cozy' ? 1.05 : 1),
         // 寵物友善：有些客人帶毛孩來
         pet: !opt.rider && !opt.product && this.policy.petFriendly && type && type.id !== 'office' && this.rng() < (this.policy.petStrict ? 0.08 : 0.14) ? (this.rng() < 0.75 ? 'dog' : 'cat') : null,
         speed: type ? type.speed : 1.1,
@@ -4243,12 +4315,13 @@
       // 滿意度
       let stars = 4.3;
       stars -= (c.waited / c.patience) * 2;
-      stars += Math.min(0.5, this.beauty / 25);
+      const Dc = this.decor;
+      stars += 0.55 * (1 - Math.exp(-Dc.A / 30)) + (Dc.theme === 'retro' && c.type === 'elderly' ? 0.2 : 0);
       if (e) stars += (e.mood - 55) / 90;
       if (e && e.traits.includes('chatty')) stars += TRAITS.chatty.charm * 3;
       const type = CUSTOMER_TYPES[c.type];
       const sens = type ? type.priceSens : 1;
-      const ratio = unit / (p.price * this.idx.cpi);
+      const ratio = 1 + (unit / (p.price * this.idx.cpi) - 1) * (1 - this.priceTolerance);
       if (ratio > 1.1) stars -= (ratio - 1.1) * 4 * sens;
       if (ratio < 0.9) stars += 0.2 * sens;
       if (this.isSummer && !this.cooling) stars -= 0.4;
@@ -4708,6 +4781,7 @@
     speedOf(e) {
       let s = 0.55 + e.skill / 110;
       if (this.sideOf(e) && this.sideOf(e).speed) s *= this.sideOf(e).speed;
+      if (this.decor.theme === 'tech') s *= 1.03;
       if (e.energy < 30) s *= 0.55 + e.energy / 70;
       if (e.hunger < 20) s *= 0.85;
       s *= 0.85 + e.mood / 400;
@@ -4997,7 +5071,7 @@
         target += Math.min(8, f * 4) - Math.min(10, r * 5);
       }
       target += (e.wage / this.marketWage - 1) * 60;
-      target += Math.min(10, this.beauty / 4);
+      target += Math.min(10, this.decor.A / 5) + (this.decor.theme === 'cozy' ? 2 : 0);
       if (this.objects.some((o) => o.def.staffMood)) target += 3;
       if (!this.restSpots().length) target -= 6;
       if (!this.policy.breaks) target -= 10;
@@ -5620,6 +5694,15 @@
         // Lv.11 以後的經驗主要靠連鎖賺的錢
         if (L.branches > 0) this.gainXp(L.branches / 60);
       }
+      // 裝潢流行：每隔一陣子，某一種風格會紅起來
+      if (!this.decorTrend || this.decorTrend.until < this.day) {
+        if (this.week >= 4 && this.rng() < 0.35) {
+          const keys = Object.keys(DECOR_THEMES);
+          const k = keys[Math.floor(this.rng() * keys.length)];
+          this.decorTrend = { theme: k, until: this.day + 7 * (6 + Math.floor(this.rng() * 5)) };
+          this.notify(`🎨 最近流行「${DECOR_THEMES[k].icon}${DECOR_THEMES[k].name}風」的店，這種裝潢效果 +25%（到第 ${this.decorTrend.until} 天）`, 'event');
+        } else this.decorTrend = null;
+      }
       // 後場：洗廁所的分配、老鼠、過期品、請了清潔阿姨
       if (this.flags.has('cleaner')) {
         const v = 1500;
@@ -5848,7 +5931,7 @@
         shopName: this.shopName,
         mode: this.mode,
         lotIdx: this.lotIdx,
-        objects: this.objects.map((o) => [o.type, o.x, o.z, o.rot]),
+        objects: this.objects.map((o) => [o.type, o.x, o.z, o.rot, o.bought ?? this.day]),
         day: this.day,
         cash: this.cash,
         loan: this.loan,
@@ -5872,6 +5955,7 @@
         owner: this.owner,
         areaManager: this.areaManager || null,
         bestCombo: this.bestCombo || 0,
+        decorTrend: this.decorTrend || null,
         rooms: this.rooms,
         toiletClean: this.toiletClean,
         toiletDownUntil: this.toiletDownUntil || 0,
@@ -5920,7 +6004,10 @@
       const s = new Sim(d.ind, { ...opts, shopName: d.shopName, mode: d.mode });
       s.objects = [];
       s.setLot(d.lotIdx);
-      for (const [t, x, z, r] of d.objects) s.place(t, x, z, r, true);
+      for (const [t, x, z, r, b] of d.objects) {
+        const o = s.place(t, x, z, r, true);
+        if (o && b != null) o.bought = b;
+      }
       if (d.ledger) s.ledger = { ...s.emptyLedger(), ...d.ledger };
       s.eventLog = d.eventLog || [];
       Object.assign(s, { day: d.day, cash: d.cash, loan: d.loan, jerk: d.jerk, reviews: d.reviews, prices: d.prices, menu: d.menu, policy: { ...s.policy, ...d.policy }, idx: d.idx, costMult: d.costMult, history: d.history, cleanWeeks: d.cleanWeeks || 0 });
@@ -5957,6 +6044,7 @@
       s.xp = d.xp || 0;
       s.areaManager = d.areaManager || null;
       s.bestCombo = d.bestCombo || 0;
+      s.decorTrend = d.decorTrend || null;
       s.rooms = { storage: 0, rest: 0, office: 0, toilet: 0, ...(d.rooms || {}) };
       for (const e of s.staff) e.inRoom = null;
       s.toiletClean = d.toiletClean ?? 100;

@@ -483,6 +483,21 @@
     桃園中壢: { traffic: 0.95, rent: 0.85 },
   };
 
+  // ───── 裝潢風格：同一種風格湊齊會有加成，會吸引特定的客人 ─────
+  const DECOR_THEMES = {
+    retro: { icon: '🏮', name: '台味復古', desc: '長輩和觀光客很愛，評價小加分', types: { elderly: 1.25, family: 1.05 }, items: ['shrine', 'luckycat', 'lantern', 'poster', 'barberpole', 'tirewall', 'statue'] },
+    artsy: { icon: '🌿', name: '文青', desc: '上班族和學生覺得有質感，比較能接受高一點的價格', types: { office: 1.15, student: 1.1 }, items: ['plant', 'mural', 'greenwall', 'artpiece', 'chandelier', 'magazine'] },
+    insta: { icon: '📸', name: '網美', desc: '學生最愛，小編貼文效果更好', types: { student: 1.25 }, items: ['photowall', 'neon', 'claw', 'fame'] },
+    tech: { icon: '🤖', name: '科技', desc: '上班族覺得很新潮，員工做事也順一點', types: { office: 1.2 }, items: ['tv', 'robot', 'ledsign'] },
+    cozy: { icon: '🛋️', name: '溫馨', desc: '家庭客喜歡，員工心情好、客人比較有耐心', types: { family: 1.2 }, items: ['aquarium', 'umbrella', 'menuboard', 'helmetrack'] },
+  };
+  // 高級裝潢的美觀度調高：佔一樣的格子，效果要對得起價錢
+  const BEAUTY_FIX = { neon: 5, fame: 9, aquarium: 5, mural: 9, ledsign: 6, chandelier: 12, greenwall: 14, artpiece: 16, robot: 8, statue: 20 };
+  for (const d of CATALOG) {
+    if (BEAUTY_FIX[d.id]) d.beauty = BEAUTY_FIX[d.id];
+    for (const [k, t] of Object.entries(DECOR_THEMES)) if (t.items.includes(d.id)) d.theme = k;
+  }
+
   // ───── 兼營業務：在台灣，每一行最後都會被逼成十項全能 ─────
   // 每項業務要買一台小設備；會帶來「額外」的客人（不搶原本的生意），有些還會讓客人順便買東西
   // rate：尖峰時每小時大約幾位客人；hours：各時段倍率（沒寫的時段用 base）；impulse：順便消費的機率
@@ -581,5 +596,5 @@
     }
   }
 
-  root.BossIndustries = { SIDE_BIZ, WORDS, FOOD_IND, word, fillWords, applyNames, INDUSTRIES, CATALOG, CAT_LABELS, LOTS, NAMES, TRAITS, LEVELS, DISTRICTS, DISTRICT_INFO, CUSTOMER_TYPES, DIFFICULTY, FLOORS, WALLS, SIGNS, BRANCH_SITES, BRANCH_SIZES, TOURIST_PREF };
+  root.BossIndustries = { DECOR_THEMES, SIDE_BIZ, WORDS, FOOD_IND, word, fillWords, applyNames, INDUSTRIES, CATALOG, CAT_LABELS, LOTS, NAMES, TRAITS, LEVELS, DISTRICTS, DISTRICT_INFO, CUSTOMER_TYPES, DIFFICULTY, FLOORS, WALLS, SIGNS, BRANCH_SITES, BRANCH_SIZES, TOURIST_PREF };
 })(typeof window !== 'undefined' ? window : globalThis);
