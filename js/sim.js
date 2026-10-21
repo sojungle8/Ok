@@ -357,7 +357,33 @@
       return true;
     }
     get draw() {
-      return this.objects.reduce((s, o) => s + (o.def.draw || 0), 0);
+      return this.objects.reduce((s, o) => s + (o.def.draw || 0) + (this.isSummer ? o.def.drawSummer || 0 : 0), 0);
+    }
+
+    // ───── 生財器具的效果 ─────
+    // 同一種效果（省料、減報廢）取效果最好的那台，不會買兩台就疊加
+    toolMult(key, id) {
+      let v = 1;
+      for (const o of this.objects) {
+        const m = o.def[key];
+        if (m && m[id] != null) v = Math.min(v, m[id]);
+      }
+      return v;
+    }
+    // 某個品項有沒有工具讓它做得更快（烘罩機、封口機、診斷電腦……）
+    toolSpeed(pid) {
+      let v = 1;
+      for (const o of this.objects) if (o.def.speedFor && o.def.speedFor.items.includes(pid)) v = Math.max(v, o.def.speedFor.mult);
+      return v;
+    }
+    // 某個品項有沒有器具讓它評價更好（現磨豆漿、熬湯大鍋、珍珠現煮……）
+    toolStars(pid) {
+      let v = 0;
+      for (const o of this.objects) if (o.def.starsFor && o.def.starsFor.items.includes(pid)) v = Math.max(v, o.def.starsFor.v);
+      return v;
+    }
+    get toolPatience() {
+      return this.objects.reduce((m, o) => Math.max(m, o.def.patience || 1), 1);
     }
     get cooling() {
       if (this.objects.some((o) => o.def.cool)) return 1;
@@ -1097,7 +1123,7 @@
       const ps = this.ind.products.filter((p) => g.products.includes(p.id));
       const w = ps.reduce((s, p) => s + p.weight, 0);
       const avg = ps.reduce((s, p) => s + p.cost * p.weight, 0) / w;
-      return avg * this.idx.cpi * this.costMult.materials * (0.85 + 0.15 * this.idx.oil) * this.kitchenMult;
+      return avg * this.idx.cpi * this.costMult.materials * (0.85 + 0.15 * this.idx.oil) * this.kitchenMult * this.toolMult('costCut', g.id);
     }
 
     // ───── 🤝 加盟 ─────
@@ -4604,7 +4630,7 @@
         path: [],
         state: 'arriving',
         waited: 0,
-        patience: 16 * (this.ind.patience || 1) * this.diff.patience * (opt.rider ? 1.4 : 1) * (type ? type.patience : 1) * (this.level >= 19 ? 1.1 : 1) * (this.level >= 38 ? 1.05 : 1) * (this.pets.some((p) => p.kind === 'dog' && p.joy > 40) ? 1.1 : 1) * (this.decor.theme === 'cozy' ? 1.05 : 1),
+        patience: 16 * (this.ind.patience || 1) * this.diff.patience * (opt.rider ? 1.4 : 1) * (type ? type.patience : 1) * (this.level >= 19 ? 1.1 : 1) * (this.level >= 38 ? 1.05 : 1) * (this.pets.some((p) => p.kind === 'dog' && p.joy > 40) ? 1.1 : 1) * (this.decor.theme === 'cozy' ? 1.05 : 1) * this.toolPatience,
         // 寵物友善：有些客人帶毛孩來
         pet: !opt.rider && !opt.product && this.policy.petFriendly && type && type.id !== 'office' && this.rng() < (this.policy.petStrict ? 0.08 : 0.14) ? (this.rng() < 0.75 ? 'dog' : 'cat') : null,
         speed: type ? type.speed : 1.1,
@@ -4814,7 +4840,7 @@
       c.reserved = null;
       // 外送平台抽成 30%
       const price = Math.round(unit * c.qty * (c.rider ? 0.7 : 1));
-      const cost = p.cost * c.qty * this.idx.cpi * this.costMult.materials * (0.85 + 0.15 * this.idx.oil) * this.kitchenMult;
+      const cost = p.cost * c.qty * this.idx.cpi * this.costMult.materials * (0.85 + 0.15 * this.idx.oil) * this.kitchenMult * (this.ingOf[p.id] ? this.toolMult('costCut', this.ingOf[p.id].id) : 1);
       this.cash += price;
       this.ledger.revenue += price;
       this.today.revenue += price;
@@ -4860,6 +4886,7 @@
       if (ratio < 0.9) stars += 0.2 * sens;
       if (this.isSummer && !this.cooling) stars -= 0.4;
       if (e && e.skill > 70) stars += 0.2;
+      stars += this.toolStars(p.id);
       // 長輩喜歡愛聊天的店員；店裡髒會被扣分
       if (c.type === 'elderly' && e && e.traits.includes('chatty')) stars += 0.3;
       if (c.type === 'student' && this.sideOf(e) && this.sideOf(e).charm) stars += this.sideOf(e).charm;
@@ -5235,7 +5262,7 @@
               c.progress = Math.min(c.progress, 0.3);
               break;
             }
-            const spd = (c.obj && c.obj.def.speed) || 1;
+            const spd = ((c.obj && c.obj.def.speed) || 1) * this.toolSpeed(c.product.id);
             const work = c.product.time * (1 + (c.qty - 1) * 0.6);
             if (lane && lane.self) {
               // 自助結帳：不用店員
@@ -6280,7 +6307,7 @@
       }
       // 食材：隔夜報廢一部分，記下今天的用量
       for (const g of this.ind.stock || []) {
-        const lost = Math.floor(this.stock[g.id] * g.spoil * this.wasteMult * (this.roomLevel('storage') ? this.roomLevel('storage').spoil : 1));
+        const lost = Math.floor(this.stock[g.id] * g.spoil * this.wasteMult * (this.roomLevel('storage') ? this.roomLevel('storage').spoil : 1) * this.toolMult('spoilCut', g.id));
         if (lost > 0) {
           this.stock[g.id] -= lost;
           const v = Math.round(lost * this.unitCost(g));

@@ -1331,6 +1331,8 @@
                   if (d.speed && d.speed > 1) tags.unshift(`速度 ×${d.speed}`);
                   if (d.selfServe) tags.unshift('不用店員');
                   if (d.theme && DECOR_THEMES[d.theme]) tags.unshift(`${DECOR_THEMES[d.theme].icon}${DECOR_THEMES[d.theme].name}風`);
+                  // 生財器具：先講它實際做什麼
+                  if (d.desc && !d.side) tags.unshift(d.desc);
                   const sb = d.side && s.ind.products.find((p) => p.id === d.side);
                   let fit = '';
                   if (sb) {
