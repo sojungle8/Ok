@@ -4221,6 +4221,67 @@
       }
     }
 
+    // ───── 🚓 街頭時事：臨檢、毒駕追逐、清晨有人倒在騎樓 ─────
+    get streetState() {
+      return (this.street = this.street || {});
+    }
+    planStreet() {
+      const S = this.streetState;
+      S.chaseAt = null;
+      S.checkpoint = null;
+      if (!this.openToday) return;
+      // 臨檢：大約一兩週一次，晚上在路口
+      if (this.day >= (S.nextCheck ?? 6) && this.rng() < 0.4) {
+        const from = Math.max(this.hours.open + 60, Math.min(this.hours.close - 90, 19 * 60 + this.rng() * 120));
+        S.checkpoint = { from, to: from + 120 + this.rng() * 60 };
+        S.nextCheck = this.day + 6 + Math.floor(this.rng() * 8);
+      }
+      // 毒駕追逐：很少見（平均一個多月一次）
+      if (this.day >= (S.nextChase ?? 8) && this.rng() < 0.12) {
+        S.chaseAt = this.hours.open + 30 + this.rng() * Math.max(60, this.hours.span - 60);
+        S.nextChase = this.day + 10 + Math.floor(this.rng() * 20);
+      }
+      // 清晨有人倒在騎樓（疑似喪屍煙彈）：更少見，開門時發現
+      if (Fun.STREET_EVENTS && this.day >= (S.nextCollapse ?? 14) && this.rng() < 0.15) {
+        S.collapse = { day: this.day, lying: true };
+        S.nextCollapse = this.day + 20 + Math.floor(this.rng() * 25);
+        this.pendingEvents.push({ ev: Fun.STREET_EVENTS.collapse(this), at: this.hours.open + 5, where: 'door' });
+      }
+    }
+
+    // 街上的狀況對來客的影響：臨檢的時候外送員和騎車的人會繞路，走路的人反而覺得安全
+    streetMult(kind) {
+      const C = this.street && this.street.checkpoint;
+      if (!C || this.minute < C.from || this.minute > C.to) return 1;
+      if (kind === 'rider') return 0.6;
+      return this.ind.arriveByScooter ? 0.8 : 1.04;
+    }
+
+    updateStreet() {
+      const S = this.street;
+      if (!S) return;
+      const C = S.checkpoint;
+      if (C && !C.told && this.minute >= C.from) {
+        C.told = true;
+        this.notify('🚓 路口在臨檢：騎車的客人和外送員今晚會少一點，走路的客人覺得比較安心。');
+      }
+      if (S.chaseAt != null && this.minute >= S.chaseAt) {
+        S.chaseAt = null;
+        const arrest = this.rng() < 0.6;
+        const crash = this.rng() < 0.3 && Fun.STREET_EVENTS;
+        S.chase = { id: uid++, at: this.minute, arrest };
+        if (arrest) S.arrestUntil = this.minute + 25;
+        this.sound('siren');
+        this.notify(arrest ? '🚨 警車鳴笛追一台蛇行的車，就在你店門口攔下來了！' : '🚨 一台車蛇行飆過去，後面警車鳴笛狂追……', 'event');
+        for (const c of this.customers) if (c.state === 'queue' && this.rng() < 0.4) this.popup(c, ['蛤？！', '拍拍拍', '毒駕吧', '好可怕'][Math.floor(this.rng() * 4)], 'muted');
+        if (crash) this.pendingEvents.push({ ev: Fun.STREET_EVENTS.crash(this, arrest), at: this.minute + 3, where: 'door' });
+      }
+      if (S.ambulanceUntil && this.minute >= S.ambulanceUntil) {
+        S.ambulanceUntil = 0;
+        if (S.collapse) S.collapse.lying = false;
+      }
+    }
+
     planCases() {
       if (!Fun.complaintEvent || !this.openToday) return;
       // 延遲後果到期：影片被轉傳、客人回頭發好評、同一個奧客又來
@@ -5102,9 +5163,9 @@
       // 來客
       if (this.isOpen) {
         const base = (this.ind.baseArrivals * this.ind.demand[this.hour] * this.attractiveness()) / 60;
-        if (this.rng() < base * this.weatherMult('walk') * dt) this.spawnCustomer();
+        if (this.rng() < base * this.weatherMult('walk') * this.streetMult('walk') * dt) this.spawnCustomer();
         // 外送平台的訂單：外送員騎車來取餐
-        if (this.policy.delivery && this.ind.delivery && this.rng() < base * 0.22 * (this.flags.has('riderFriendly') ? 1.1 : 1) * this.weatherMult('delivery') * dt) this.spawnCustomer({ rider: true });
+        if (this.policy.delivery && this.ind.delivery && this.rng() < base * 0.22 * (this.flags.has('riderFriendly') ? 1.1 : 1) * this.weatherMult('delivery') * this.streetMult('rider') * dt) this.spawnCustomer({ rider: true });
         // 開放借廁所：路人進來借，有些人會順便買東西
         if (this.policy.toiletOpen && this.toiletOk && Fun.TOILET_BORROW) {
           const br = (Fun.TOILET_BORROW[this.ind.id] || 0.5) * this.ind.demand[this.hour] * this.weatherMult('walk');
@@ -5116,6 +5177,7 @@
           if (r > 0 && this.rng() < (r / 60) * dt) this.spawnCustomer({ product: p });
         }
       }
+      this.updateStreet();
       // 路上的奇景
       if (Fun.STREET_GAGS && this.passers.length && this.rng() < 0.012 * dt) {
         const p = this.passers.find((x) => x.kind === 'passer' && x.x > 0 && x.x < this.W);
@@ -5822,6 +5884,7 @@
       }
       // 客訴：機率跟昨天的人潮、新手、尖峰有多亂有關；處理完會隨機冷卻幾天，同一種題材十天內不重複
       this.planCases();
+      this.planStreet();
       if (this.rivalNews && this.rival) {
         this.rivalNews = false;
         this.pendingEvents.push({ ev: rivalEvent(this), at: this.hours.open + 40, where: 'door' });
@@ -6187,6 +6250,11 @@
         }
       }
       if (fx.sendHomeOf && byId(fx.sendHomeOf) && (byId(fx.sendHomeOf).state === 'working' || byId(fx.sendHomeOf).state === 'break')) this.sendHome(byId(fx.sendHomeOf));
+      // 騎樓倒地的人：救護車來載走（不管怎麼處理，最後都會送醫）
+      if (fx.streetClear) {
+        const S = this.streetState;
+        S.ambulanceUntil = this.minute + (fx.streetClear === 'fast' ? 12 : 30);
+      }
       // 選了之後才知道的花費（例如查完紀錄發現真的是店裡錯，要補一份）
       if (fx.extraCash) {
         this.cash += fx.extraCash;

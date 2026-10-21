@@ -866,3 +866,39 @@
     },
   };
 })(typeof window !== 'undefined' ? window : globalThis);
+
+// 🚓 街頭時事：毒駕追逐撞倒騎樓機車、清晨騎樓有人倒地抽搐（疑似喪屍煙彈）
+// 倒地的人是醫療緊急狀況，不拿來開玩笑：正確的做法是打 119、保持距離；拍下來上網會被罵
+(function (root) {
+  const Fun = root.BossFun;
+  if (!Fun) return;
+  Fun.STREET_EVENTS = {
+    collapse: (s) => ({
+      id: 'street_collapse',
+      icon: '🚑',
+      title: '騎樓有人倒在地上抽搐',
+      text: '一早拉開鐵捲門，騎樓角落躺著一個年輕人，全身一直抽動、叫不太醒，旁邊掉了一支電子煙。路過的人停下來看，有人已經拿出手機。',
+      speaker: { look: 'caller', name: '路過的阿伯' },
+      choices: [
+        { label: '馬上打 119，請大家退開、把旁邊的東西移走', effects: { streetClear: 'fast', morale: 2, followers: 30, review: [5, '騎樓有人倒下，店家很冷靜地叫救護車'] }, result: '救護車十分鐘就到了。醫護人員說：「處理得很好，沒有亂搖他。」員工說剛剛手都在抖。', tip: '遇到疑似藥物中毒、抽搐的人：撥 119，移開旁邊的危險物品、讓他側躺保持呼吸順暢，不要強行壓住、搖晃或餵東西。含依托咪酯的「喪屍煙彈」已被列為毒品管制。' },
+        { label: '叫員工把他扶起來、搖醒他', effects: { streetClear: 'slow', jerk: 1, morale: -3, review: [3, '店員手忙腳亂在搖一個倒在地上的人'] }, result: '員工一靠近他就抽得更厲害，大家都嚇到了。後來救護人員說：「這種時候不要搖他，等我們來就好。」' },
+        { label: '拍下來上傳，提醒大家喪屍煙彈很可怕', effects: { streetClear: 'slow', followers: 400, jerk: 3, review: [2, '老闆拍倒在地上的人上網，很沒品'] }, result: '影片很快被分享了好幾千次，但留言開始出現「拍病人上網對嗎？」「先叫救護車吧」。你晚上默默把影片刪掉了。' },
+        { label: '當沒看到，先開店要緊', effects: { streetClear: 'slow', morale: -4, jerk: 2, review: [2, '門口有人倒在地上，店家照樣開店不理'] }, result: '後來是路過的阿伯打的 119。員工整個早上都心神不寧。' },
+      ],
+      ignore: { effects: { streetClear: 'slow', morale: -3, review: [2, '門口有人倒在地上都沒人管'] }, result: '最後是路人叫了救護車。' },
+    }),
+    crash: (s, arrest) => ({
+      id: 'street_crash',
+      icon: '🛵',
+      title: '毒駕的車撞倒騎樓的機車',
+      text: `剛剛被警察追的那台車蛇行過來，擦撞了你騎樓停的一排機車，倒了三台。${arrest ? '駕駛已經被警察壓在車旁邊，' : '車子沒停就跑了，'}機車的主人跑出來看，臉都綠了。你的監視器剛好拍到全程。`,
+      speaker: { look: 'caller', name: '機車的主人' },
+      choices: [
+        { label: '把監視器畫面交給警方', effects: { followers: 60, morale: 2, review: [5, '店家主動提供監視器畫面，好有正義感'] }, result: arrest ? '警察說畫面很清楚，駕駛驗出毒品反應，會依公共危險罪移送。機車的主人一直跟你道謝，還買了一堆東西。' : '警察靠你的畫面查到車牌，兩天後抓到人。機車的主人特地回來道謝，買了一堆東西。', tip: '毒駕屬於刑法的公共危險罪，除了刑責還會吊銷駕照；提供監視器畫面協助調查，是店家可以做的最實際的事。' },
+        { label: '剪成影片上傳「店門口驚魂記」', effects: { followers: 700, viral: 0.05, review: [3, '店家把車禍影片拿去衝流量'] }, result: '影片爆紅，大家都在問是哪家店。不過機車的主人不太高興：「我的車倒在地上被幾十萬人看……」' },
+        { label: '關我什麼事，繼續做生意', effects: { review: [3, '騎樓機車被撞，店家都不出來看一下'], morale: -2 }, result: '機車的主人只好自己一台一台扶起來，邊扶邊往店裡看了好幾眼。' },
+      ],
+      ignore: { effects: { review: [3, '店門口出事，店家沒有出來'] }, result: '警察後來自己來調閱監視器。' },
+    }),
+  };
+})(typeof window !== 'undefined' ? window : globalThis);

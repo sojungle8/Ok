@@ -100,6 +100,10 @@
       const notes = [659.25, 622.25, 659.25, 622.25, 659.25, 493.88, 587.33, 523.25, 440];
       notes.forEach((f, i) => tone(f, t + i * 0.22, i === notes.length - 1 ? 0.8 : 0.24, { type: 'square', vol: 0.05 }));
     },
+    // 警笛：高低兩個音來回
+    siren: (t) => {
+      for (let i = 0; i < 6; i++) tone(i % 2 ? 660 : 880, t + i * 0.32, 0.3, { type: 'sawtooth', vol: 0.035 });
+    },
     // 鐵捲門：一連串金屬喀啦聲
     shutter: (t) => {
       for (let i = 0; i < 14; i++) tone(90 + (i % 3) * 25, t + i * 0.07, 0.08, { type: 'sawtooth', vol: 0.05, slide: 0.7 });

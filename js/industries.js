@@ -413,7 +413,7 @@
   };
 
   const CAT_LABELS = {
-    station: '設備',
+    station: '生財設備',
     seat: '座位',
     wait: '等候區',
     shop: '陳列',

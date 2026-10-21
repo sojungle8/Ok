@@ -2653,6 +2653,201 @@
       return { g, dir, speed: (type === 'bus' ? 3 : 4) + Math.random() * 2.5, L };
     }
 
+    // ───── 🚓 街頭時事的畫面：毒駕追逐、臨檢、騎樓倒地的人和救護車 ─────
+    makeVehicle(kind) {
+      const g = new THREE.Group();
+      const body = kind === 'police' ? '#f4f6f8' : kind === 'ambulance' ? '#ffffff' : '#2b2b30';
+      const L = kind === 'ambulance' ? 2.5 : 1.9;
+      B(g, L, kind === 'ambulance' ? 0.9 : 0.45, 0.8, body, 0, 0.18, 0, { roughness: 0.4, metalness: 0.2 });
+      if (kind !== 'ambulance') {
+        B(g, L * 0.55, 0.32, 0.72, body, -0.1, 0.63, 0, { roughness: 0.4 });
+        B(g, L * 0.5, 0.26, 0.74, basic('#a9c9de'), -0.1, 0.66, 0);
+      } else B(g, 0.6, 0.3, 0.82, basic('#a9c9de'), L / 2 - 0.35, 0.65, 0);
+      if (kind === 'police') B(g, L * 0.98, 0.12, 0.82, '#1f3a6b', 0, 0.36, 0);
+      if (kind === 'ambulance') B(g, L * 0.98, 0.1, 0.82, '#d23c33', 0, 0.55, 0);
+      for (const x of [-L / 2 + 0.4, L / 2 - 0.4]) for (const z of [-0.38, 0.38]) {
+        const w = C(g, 0.17, 0.17, 0.12, '#1d1d1d', x, 0, z, 10);
+        w.rotation.x = Math.PI / 2;
+        w.position.y = 0.17;
+      }
+      let lights = null;
+      if (kind === 'police' || kind === 'ambulance') {
+        // 警示燈：紅藍（救護車紅白）輪流閃
+        const a = new THREE.MeshBasicMaterial({ color: '#ff2a2a' });
+        const b = new THREE.MeshBasicMaterial({ color: kind === 'police' ? '#2a6bff' : '#ffffff' });
+        const top = kind === 'ambulance' ? 1.1 : 0.98;
+        const m1 = new THREE.Mesh(boxGeo(0.18, 0.1, 0.3), a);
+        m1.position.set(kind === 'ambulance' ? L / 2 - 0.4 : -0.1, top, -0.16);
+        const m2 = new THREE.Mesh(boxGeo(0.18, 0.1, 0.3), b);
+        m2.position.set(kind === 'ambulance' ? L / 2 - 0.4 : -0.1, top, 0.16);
+        g.add(m1, m2);
+        lights = [a, b];
+      }
+      g.traverse((o) => {
+        if (o.isMesh) o.castShadow = false;
+      });
+      this.world.add(g);
+      return { g, lights, L };
+    }
+
+    flashLights(v, now) {
+      if (!v || !v.lights) return;
+      const on = Math.floor(now / 220) % 2 === 0;
+      v.lights[0].color.set(on ? '#ff2a2a' : '#3a0a0a');
+      v.lights[1].color.set(!on ? (v.lights[1].userData.white ? '#ffffff' : '#2a6bff') : '#0a1a3a');
+    }
+
+    makeOfficer(kind = 'police') {
+      const look = { ...window.BossLooks.randomLook(Math.random), shirt: kind === 'police' ? '#1f3a6b' : '#f2f2f2', hat: 'cap', hatColor: kind === 'police' ? '#1f3a6b' : '#d23c33', suit: false, extra: null, apron: null, tie: null };
+      const p = People.make(look);
+      p.group.traverse((o) => {
+        if (o.isMesh) o.castShadow = false;
+      });
+      this.world.add(p.group);
+      return p;
+    }
+
+    dropIncident(key) {
+      const it = this.inc && this.inc[key];
+      if (!it) return;
+      for (const v of it.cars || []) this.world.remove(v.g);
+      for (const p of it.people || []) this.world.remove(p.group);
+      for (const m of it.props || []) this.world.remove(m);
+      this.inc[key] = null;
+    }
+
+    updateIncidents(dt, now, ts) {
+      const s = this.sim;
+      const S = s.street;
+      this.inc = this.inc || {};
+      if (!S) return;
+      const H = s.H;
+      const run = ts > 0 ? dt : 0;
+      // 毒駕追逐：蛇行的車在前、警車在後；有時候在店門口被攔下來
+      const ch = this.inc.chase;
+      if (S.chase && (!ch || ch.id !== S.chase.id)) {
+        this.dropIncident('chase');
+        const sus = this.makeVehicle('car');
+        const pol = this.makeVehicle('police');
+        const x0 = -s.W * 0.5 - 16;
+        sus.g.position.set(x0, 0, H + 1.7);
+        pol.g.position.set(x0 - 3.2, 0, H + 1.7);
+        this.inc.chase = { id: S.chase.id, arrest: S.chase.arrest, cars: [sus, pol], people: [], phase: 'drive', t: 0 };
+      }
+      const c = this.inc.chase;
+      if (c) {
+        const [sus, pol] = c.cars;
+        c.t += run;
+        this.flashLights(pol, now);
+        if (c.phase === 'drive') {
+          const v = 12 * run;
+          sus.g.position.x += v;
+          pol.g.position.x += v;
+          // 蛇行
+          sus.g.position.z = H + 1.7 + Math.sin(c.t * 7) * 0.35;
+          sus.g.rotation.y = -Math.cos(c.t * 7) * 0.25;
+          const stopX = s.W / 2 + 2.5;
+          if (c.arrest && sus.g.position.x >= stopX) {
+            c.phase = 'stop';
+            sus.g.rotation.y = -0.35;
+            sus.g.position.z = H + 1.5;
+            pol.g.position.x = stopX - 2.8;
+            // 兩位警察下車，把駕駛帶到警車旁邊
+            const o1 = this.makeOfficer();
+            const o2 = this.makeOfficer();
+            const d = People.make({ ...window.BossLooks.randomLook(Math.random), shirt: '#555b66' });
+            this.world.add(d.group);
+            o1.group.position.set(stopX - 0.6, 0, H + 0.95);
+            o2.group.position.set(stopX + 0.6, 0, H + 0.95);
+            d.group.position.set(stopX, 0, H + 0.95);
+            for (const p of [o1, o2, d]) p.group.scale.setScalar(1.25);
+            c.people = [o1, o2, d];
+          } else if (sus.g.position.x > s.W * 1.5 + 18) this.dropIncident('chase');
+        } else if (c.phase === 'stop') {
+          const [o1, o2, d] = c.people;
+          // 駕駛被壓著、手舉起來；警察一個在講無線電
+          d.armR.rotation.x = -2.8;
+          d.armL.rotation.x = -2.8;
+          d.group.rotation.y = Math.sin(now / 300) * 0.1;
+          o1.armR.rotation.x = -1.4;
+          o1.group.rotation.y = Math.PI / 2;
+          o2.group.rotation.y = -Math.PI / 2;
+          o2.armL.rotation.x = -0.6 + Math.sin(now / 180) * 0.2;
+          if (!(S.arrestUntil > s.minute)) {
+            for (const p of c.people) this.world.remove(p.group);
+            c.people = [];
+            c.phase = 'leave';
+          }
+        } else if (c.phase === 'leave') {
+          const v = 7 * run;
+          pol.g.position.x += v;
+          sus.g.position.x += v * 0.6;
+          sus.g.rotation.y *= 0.95;
+          if (pol.g.position.x > s.W * 1.5 + 18) this.dropIncident('chase');
+        }
+      }
+      // 臨檢：路口停一台警車、擺三角錐，警察揮指揮棒
+      const C2 = S.checkpoint;
+      const checking = C2 && s.minute >= C2.from && s.minute <= C2.to;
+      if (checking && !this.inc.check) {
+        const pol = this.makeVehicle('police');
+        const x = s.W - 0.5;
+        pol.g.position.set(x, 0, H + 3.05);
+        pol.g.rotation.y = Math.PI;
+        const props = [];
+        for (let i = 0; i < 3; i++) {
+          const cone = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.38, 10), mat('#ff7a1a'));
+          cone.position.set(x - 2.2 + i * 0.7, 0.19, H + 2.35);
+          this.world.add(cone);
+          props.push(cone);
+        }
+        const o = this.makeOfficer();
+        o.group.position.set(x - 1.2, 0, H + 2.45);
+        o.group.scale.setScalar(1.25);
+        o.group.rotation.y = -Math.PI / 2;
+        // 指揮棒（發光）
+        const stick = new THREE.Mesh(boxGeo(0.05, 0.4, 0.05), new THREE.MeshBasicMaterial({ color: '#ff3b2f' }));
+        stick.position.set(0, -0.35, 0.05);
+        o.armR.add(stick);
+        this.inc.check = { cars: [pol], people: [o], props };
+      } else if (!checking && this.inc.check) this.dropIncident('check');
+      if (this.inc.check) {
+        this.flashLights(this.inc.check.cars[0], now);
+        this.inc.check.people[0].armR.rotation.x = -1.6 + Math.sin(now / 250) * 0.6;
+      }
+      // 騎樓倒地的人：側躺、一直抽動；救護車來了之後被送走
+      const col = S.collapse;
+      const lying = col && col.lying && col.day === s.day;
+      if (lying && !this.inc.collapse) {
+        const p = People.make({ ...window.BossLooks.randomLook(Math.random), shirt: '#4a4f57' });
+        p.group.scale.setScalar(1.25);
+        p.group.rotation.z = Math.PI / 2;
+        if (p.blob) p.blob.visible = false;
+        p.group.position.set(Math.max(0.6, s.doorX - 1.6), 0.25, H + 0.6);
+        this.world.add(p.group);
+        const vape = new THREE.Mesh(boxGeo(0.05, 0.03, 0.18), mat('#2b2b30'));
+        vape.position.set(Math.max(0.6, s.doorX - 1.6) + 0.5, 0.02, H + 0.9);
+        this.world.add(vape);
+        this.inc.collapse = { people: [p], props: [vape], cars: [] };
+      } else if (!lying && this.inc.collapse) this.dropIncident('collapse');
+      if (this.inc.collapse) {
+        const p = this.inc.collapse.people[0];
+        // 不規則的抽動
+        const j = Math.sin(now / 45) * Math.sin(now / 170);
+        p.group.rotation.x = j * 0.08;
+        p.armR.rotation.x = -0.4 + j * 0.5;
+        p.legL.rotation.x = j * 0.4;
+        const amb = S.ambulanceUntil > s.minute;
+        if (amb && !this.inc.collapse.cars.length) {
+          const v = this.makeVehicle('ambulance');
+          v.lights[1].userData.white = true;
+          v.g.position.set(p.group.position.x + 0.5, 0, H + 1.7);
+          this.inc.collapse.cars.push(v);
+        }
+        if (this.inc.collapse.cars[0]) this.flashLights(this.inc.collapse.cars[0], now);
+      }
+    }
+
     makePigeon() {
       const s = this.sim;
       const g = new THREE.Group();
@@ -2766,6 +2961,7 @@
         if (out) this.trafficGroup.remove(c.g);
         return !out;
       });
+      this.updateIncidents(dt, now, ts);
       // 鴿子：有人走近就飛走，過一陣子再飛回來
       const walkers = [...s.customers, ...s.passers];
       if (s.boss && s.boss.state === 'working' && !s.boss.away) walkers.push(s.boss);

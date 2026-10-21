@@ -1280,10 +1280,11 @@
   function drawerBuild() {
     const s = ui.sim;
     const mine = (d) => !d.industries || d.industries.includes(s.ind.id);
-    const cats = Object.keys(CAT_LABELS).filter((c) => CATALOG.some((d) => d.cat === c && mine(d)));
+    // 生財工具和設備是同一類（都是做生意的器具），放在同一個分頁
+    const cats = Object.keys(CAT_LABELS).filter((c) => c !== 'tool' && CATALOG.some((d) => d.cat === c && mine(d)));
     // 兼營業務的設備另外一個分頁
     if (CATALOG.some((d) => d.side && mine(d))) cats.splice(1, 0, 'side');
-    const items = ui.buildCat === 'side' ? CATALOG.filter((d) => d.side && mine(d)) : CATALOG.filter((d) => d.cat === ui.buildCat && !d.side && mine(d));
+    const items = ui.buildCat === 'side' ? CATALOG.filter((d) => d.side && mine(d)) : CATALOG.filter((d) => (d.cat === ui.buildCat || (ui.buildCat === 'station' && d.cat === 'tool')) && !d.side && mine(d));
     const lotNext = LOTS[s.lotIdx + 1];
     return `
       <div class="drawer-tabs">
@@ -3561,10 +3562,12 @@
   }
 
   // 結果畫面下方的小知識：照內容分成法律、防詐、經營三種，不要把經營建議標成「法律」
-  const TIP_FRAUD = /詐騙|詐欺集團|165|119|冒名|冒充/;
+  const TIP_FRAUD = /詐騙|詐欺集團|165|冒名|冒充|推銷/;
+  const TIP_SAFE = /119|中毒|抽搐|急救|救護/;
   const TIP_LAW = /法》|法第|[^做方辦說]法(?!定義務)|條例|規則|要點|規定|規範|違反|違法|罰鍰|罰款|開罰|處罰|罪|勞基|勞保|著作權|肖像權|個人資料|營業秘密|僱傭|雇主(應|不得|不能|有義務)|不得|最低工資|職業災害|解除契約|工作時間|工時|加班費|勞動部|給付工資|應由雇主負擔/;
   function tipKind(t) {
     if (TIP_FRAUD.test(t)) return { cls: 'fraud', icon: '🛡️', label: '防詐小提醒' };
+    if (TIP_SAFE.test(t)) return { cls: 'fraud', icon: '🚑', label: '安全小常識' };
     if (TIP_LAW.test(t)) return { cls: 'law', icon: '📘', label: '法律小知識' };
     return { cls: 'biz', icon: '💡', label: '經營小撇步' };
   }
