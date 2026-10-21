@@ -2437,7 +2437,7 @@
          ${deltaChips(r.delta)}
          ${r.left && r.left.length ? `<p class="left-note">👋 <b>離開：</b>${r.left.map((l) => `${esc(l.name)}${l.rank ? `（${l.rank}）` : ''}・到職 ${l.days < 7 ? `${Math.max(1, l.days)} 天` : `${Math.floor(l.days / 7)} 週`}・${l.why}`).join('、')}${r.delta.morale < 0 ? '<br><small>員工心情下降，是因為同事離開大家會難過（好朋友更明顯）。記得補人，排班才不會缺。</small>' : '<br><small>記得到「員工 → 應徵者」補人。</small>'}</p>` : ''}
          ${d.result.by && d.result.by !== '你' ? `<p class="calc">處理者：${esc(d.result.by)}</p>` : ''}
-         ${r.choice.tip ? `<div class="tip">📘 <strong>法律小知識：</strong>${r.choice.tip}</div>` : ''}
+         ${tipBox(r.choice.tip)}
          <button class="primary" data-action="close-dialog">回去顧店（Enter）</button>`
       );
     } else if (d.type === 'week') {
@@ -2542,7 +2542,7 @@
         ${r.jiaobei ? `<div class="jiaobei">${r.jiaobei.map((j) => `<div><span>${J[j].icon}</span><b>${J[j].name}</b><small>${J[j].text}</small></div>`).join('')}</div>` : ''}
         <ul class="act-lines">${r.lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>
         ${r.chips.length ? `<div class="chips">${r.chips.map((c) => `<span class="chip ${/^[💸📉]/u.test(c) ? 'bad' : 'good'}">${esc(c)}</span>`).join('')}</div>` : ''}
-        ${r.tip ? `<div class="tip">📘 <strong>法律小知識：</strong>${r.tip}</div>` : ''}
+        ${tipBox(r.tip)}
         <button class="primary" data-action="close-dialog">回店裡</button>
       </div>`;
     } else if (d.type === 'rival-visit') {
@@ -2561,7 +2561,7 @@
         <h2>${r.activity.name}</h2>
         <ul class="act-lines">${r.lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>
         <div class="chips">${r.changes.map((c) => `<span class="chip ${c.d >= 0 ? 'good' : 'bad'}">${c.like === 'like' ? '😍' : c.like === 'dislike' ? '😒' : '🙂'} ${esc(c.name)} 心情 ${c.d >= 0 ? '+' : ''}${c.d}</span>`).join('')}</div>
-        ${r.activity.tip ? `<div class="tip">📘 <strong>法律小知識：</strong>${r.activity.tip}</div>` : ''}
+        ${tipBox(r.activity.tip)}
         <button class="primary" data-action="close-dialog">回去顧店</button>
       </div>`;
     } else if (d.type === 'chapter') {
@@ -3539,6 +3539,20 @@
     } catch (e) {
       /* 不支援就算了 */
     }
+  }
+
+  // 結果畫面下方的小知識：照內容分成法律、防詐、經營三種，不要把經營建議標成「法律」
+  const TIP_FRAUD = /詐騙|詐欺集團|165|119|冒名|冒充/;
+  const TIP_LAW = /法》|法第|[^做方辦說]法(?!定義務)|條例|規則|要點|規定|規範|違反|違法|罰鍰|罰款|開罰|處罰|罪|勞基|勞保|著作權|肖像權|個人資料|營業秘密|僱傭|雇主(應|不得|不能|有義務)|不得|最低工資|職業災害|解除契約|工作時間|工時|加班費|勞動部|給付工資|應由雇主負擔/;
+  function tipKind(t) {
+    if (TIP_FRAUD.test(t)) return { cls: 'fraud', icon: '🛡️', label: '防詐小提醒' };
+    if (TIP_LAW.test(t)) return { cls: 'law', icon: '📘', label: '法律小知識' };
+    return { cls: 'biz', icon: '💡', label: '經營小撇步' };
+  }
+  function tipBox(t) {
+    if (!t) return '';
+    const k = tipKind(t);
+    return `<div class="tip ${k.cls}">${k.icon} <strong>${k.label}：</strong>${t}</div>`;
   }
 
   // 下一個有東西拿的等級（設備、店面、效果、稱號）

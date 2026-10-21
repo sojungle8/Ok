@@ -1712,6 +1712,9 @@ kbd {
   font-size: 0.9rem;
   margin: 12px 0;
 }
+/* 小知識分三種：法律（預設藍）、防詐（紅）、經營小撇步（綠） */
+.tip.fraud { background: color-mix(in srgb, #c0392b 12%, var(--card)); }
+.tip.biz { background: color-mix(in srgb, #2f8f6b 12%, var(--card)); }
 
 .alert {
   border-radius: 10px;
