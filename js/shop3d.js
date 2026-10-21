@@ -1027,6 +1027,20 @@
       this.panT = new THREE.Vector3();
     }
 
+    // 一鍵看後場：鏡頭轉到店的背面、拉高一點往下看、對準後場中間；再按一次回到原本的視角
+    viewBackroom() {
+      if (this.camRot === 2 && this.panT && this.panT.z < -1) return this.resetView();
+      const s = this.sim;
+      const target = (5 * Math.PI) / 4;
+      const k = Math.round((this.camAz - target) / (Math.PI * 2));
+      this.camAzT = target + k * Math.PI * 2;
+      this.pitchT = 1.05;
+      // 直式手機畫面比較窄：拉得更近
+      const portrait = this.container.clientHeight > this.container.clientWidth;
+      this.zoomT = Math.max(portrait ? 1.9 : 1.45, Math.min(portrait ? 2.4 : 2, 10 / Math.max(6, s.W)));
+      this.panT = new THREE.Vector3(0, 0, -1.55 - ((s.H + 1.2) / 2 + 0.4));
+    }
+
     // 雙擊地板：拉近到那個位置；再雙擊一次拉回來
     focusAt(x, z) {
       if (this.zoomT >= 1.6) return this.resetView();
@@ -1524,7 +1538,7 @@
       this.buildAnnex(g);
       // 合併靜態場景：牆、隔壁店家、柱子、路邊的機車
       for (const gr of [...Object.values(this.walls), ...Object.values(this.neighbors), this.frontProps, this.trees, this.annexWalls].filter(Boolean)) People.mergeGroup(gr);
-      People.mergeGroup(g, [...Object.values(this.walls), ...Object.values(this.neighbors), this.frontProps, this.trees, this.annexWalls, this.annexSigns, this.clock, this.trafficGroup, this.pigeonGroup, this.sign, this.shutter, this.frontSigns, this.glowGroup]);
+      People.mergeGroup(g, [...Object.values(this.walls), ...Object.values(this.neighbors), this.frontProps, this.trees, this.annexWalls, this.annexSigns, this.annexDoors, this.clock, this.trafficGroup, this.pigeonGroup, this.sign, this.shutter, this.frontSigns, this.glowGroup]);
       if (this.renderer) this.renderer.shadowMap.needsUpdate = true;
       this.updateCamera();
     }
@@ -1534,6 +1548,8 @@
       const s = this.sim;
       this.annexWalls = null;
       this.annexSigns = null;
+      this.annexDoors = null;
+      this.stallDoor = null;
       if (!s.hasBackroom || !root.BossFun.ROOMS) return;
       const W = s.W;
       const D = 2.8;
@@ -1543,7 +1559,9 @@
       const floorCol = { storage: '#9a958c', rest: '#d9c7a7', office: '#b98a5b', toilet: '#dfe8ec' };
       this.annexWalls = new THREE.Group();
       this.annexSigns = new THREE.Group();
-      g.add(this.annexWalls, this.annexSigns);
+      // 員工門：鏡頭從後面看的時候跟著牆一起收起來，才不會擋住後場
+      this.annexDoors = new THREE.Group();
+      g.add(this.annexWalls, this.annexSigns, this.annexDoors);
       const wallMat = mat('#e9e2d6');
       // 外牆（鏡頭在後面時會降低）
       B(this.annexWalls, W + 0.3, WALL_H, 0.15, wallMat, W / 2, 0, z1 - 0.07);
@@ -1561,8 +1579,12 @@
         fl.position.set(cx, 0.01, (z0 + z1) / 2);
         fl.receiveShadow = true;
         g.add(fl);
-        // 隔間牆（矮一點，才看得到裡面）
-        if (i > 0) B(g, 0.1, 1.3, D, '#d8cfc2', x0, 0, (z0 + z1) / 2);
+        // 隔間牆（矮一點，才看得到裡面）：靠店這一側留一條走道，各房間的門口開在走道上
+        const zc = -0.95;
+        if (i > 0) B(g, 0.1, 1.3, zc - z1, '#d8cfc2', x0, 0, (zc + z1) / 2);
+        // 門口兩側的矮門框，看得出房間從哪裡進出
+        B(g, 0.12, 1.3, 0.1, '#cfc4b4', x0 + 0.12, 0, zc - 0.05);
+        B(g, 0.12, 1.3, 0.1, '#cfc4b4', x1 - 0.12, 0, zc - 0.05);
         // 房間名牌（貼在外牆內側）
         const R = root.BossFun.ROOMS[id];
         const tex = canvasTex(256, 72, (c, tw, th) => {
@@ -1601,7 +1623,7 @@
           const door = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 1.9), new THREE.MeshStandardMaterial({ map: doorTex }));
           door.position.set(d.x + 0.5, 0.95, z);
           door.rotation.y = rot;
-          this.annexSigns.add(door);
+          this.annexDoors.add(door);
         }
       }
     }
@@ -1618,7 +1640,7 @@
         }
         if (lv >= 2) B(g, 0.7, 1.7, 0.6, '#dfe6ea', x1 - 0.5, 0, zb + 0.1, { metalness: 0.3 });
         if (lv >= 3) {
-          B(g, 0.3, 0.25, 0.3, '#2b2b30', cx, 0, z0 - 0.4);
+          B(g, 0.3, 0.25, 0.3, '#2b2b30', cx, 0, z0 - 1.25);
           B(g, 0.32, 0.22, 0.05, basic('#5ef0ff'), cx, 2.0, z1 + 0.05);
         }
       } else if (id === 'rest') {
@@ -1630,28 +1652,45 @@
           B(g, 0.45, 0.9, 0.45, '#f3f3f3', x0 + 0.3, 0, zb);
         }
         if (lv >= 3) {
-          B(g, 0.5, 0.5, 0.7, '#3a3a40', cx, 0, z0 - 0.5);
-          B(g, 0.5, 0.6, 0.15, '#3a3a40', cx, 0.5, z0 - 0.82);
+          B(g, 0.5, 0.5, 0.7, '#3a3a40', cx, 0, z0 - 1.2);
+          B(g, 0.5, 0.6, 0.15, '#3a3a40', cx, 0.5, z0 - 1.52);
         }
       } else if (id === 'office') {
         B(g, 1.0, 0.75, 0.55, '#6b4a32', cx, 0, zb + 0.3);
         B(g, 0.35, 0.25, 0.04, basic('#9fd3ff'), cx, 0.75, zb + 0.15);
         C(g, 0.2, 0.2, 0.45, '#2b2b30', cx, 0, zb + 0.85, 10);
-        if (lv >= 2) for (const dx of [-0.35, 0.35]) C(g, 0.17, 0.17, 0.42, '#c97b2c', cx + dx, 0, z0 - 0.45, 10);
+        if (lv >= 2) for (const dx of [-0.35, 0.35]) C(g, 0.17, 0.17, 0.42, '#c97b2c', cx + dx, 0, z0 - 1.15, 10);
         if (lv >= 3) {
           B(g, 0.45, 0.55, 0.45, '#4a4f57', x1 - 0.35, 0, zb, { metalness: 0.6 });
           C(g, 0.06, 0.06, 0.03, '#d4a017', x1 - 0.35, 0.3, zb + 0.24, 10).rotation.x = Math.PI / 2;
         }
       } else if (id === 'toilet') {
+        // 隔間門：有人在用就關上，門上亮「使用中」
+        const doorTex = canvasTex(64, 128, (c, tw, th) => {
+          c.fillStyle = '#9fb7c4';
+          c.fillRect(0, 0, tw, th);
+          c.fillStyle = '#d9482b';
+          c.fillRect(8, 20, tw - 16, 26);
+          c.fillStyle = '#fff';
+          c.font = 'bold 15px sans-serif';
+          c.textAlign = 'center';
+          c.fillText('使用中', tw / 2, 39);
+        });
+        const sd = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 1.5), new THREE.MeshStandardMaterial({ map: doorTex, side: THREE.DoubleSide }));
+        sd.position.set(cx, 0.75, -1.8);
+        sd.userData.keep = true;
+        sd.visible = false;
+        this.stallDoor = sd;
+        this.annexSigns.add(sd);
         if (lv === 1) {
           B(g, 0.45, 0.06, 0.6, '#f3f3f3', cx, 0, zb + 0.4);
         } else {
           C(g, 0.18, 0.15, 0.4, '#ffffff', cx, 0, zb + 0.15, 14);
           B(g, 0.42, 0.42, 0.14, '#ffffff', cx, 0.3, zb - 0.1);
-          B(g, 0.45, 0.12, 0.35, '#f3f3f3', x0 + 0.35, 0.75, z0 - 0.4);
+          B(g, 0.45, 0.12, 0.35, '#f3f3f3', x0 + 0.35, 0.75, z0 - 1.3);
         }
         if (lv >= 3) {
-          B(g, 0.6, 0.8, 0.03, basic('#cfe8ff'), x0 + 0.35, 1.1, z0 - 0.25);
+          B(g, 0.03, 0.8, 0.6, basic('#cfe8ff'), x0 + 0.08, 1.1, z0 - 1.3);
           const pl = new THREE.Mesh(new THREE.SphereGeometry(0.22, 10, 8), mat('#4f9a5a'));
           pl.position.set(x1 - 0.3, 0.5, zb);
           g.add(pl);
@@ -1838,6 +1877,7 @@
       if (this.trees) this.trees.visible = !frontNear;
       if (this.clock) this.clock.visible = !near.includes('back');
       if (this.annexWalls) this.annexWalls.scale.y = near.includes('back') ? 0.12 : 1;
+      if (this.annexDoors) this.annexDoors.visible = !near.includes('back');
       this.applyShutterCut(frontNear);
       if (this.frontSigns) this.frontSigns.visible = !frontNear;
       this.frontNear = frontNear;
@@ -2049,6 +2089,12 @@
       let z = a.z + 0.5;
       let y = 0;
       let sitting = false;
+      // 在後場：坐在沙發／椅子上；上廁所的人關上隔間門（看不到人，只看到門上「使用中」）
+      const R = a.inRoom;
+      const using = R && R.phase === 'use';
+      if (using && R.sit) sitting = true;
+      const hidden = using && R.act === 'stall' && kind === 'customer';
+      if (v.root.visible === hidden) v.root.visible = !hidden;
       if (kind === 'customer') {
         // 騎機車來的客人：在店外騎車，進店前把車停在門口
         const outside = a.z >= this.sim.H;
@@ -2067,8 +2113,25 @@
         const ev = this.sim.activeEvents.find((e) => e.staff === a);
         People.setMood(p, ev ? 'worried' : a.energy < 25 ? 'sad' : a.mood >= 70 ? 'happy' : a.mood >= 40 ? 'neutral' : a.mood >= 22 ? 'worried' : 'sad');
         const serving = a.task && a.task.lane && a.task.lane.customer && a.task.lane.customer.state === 'atLane' && !a.path.length;
-        const mopping = a.task && a.task.type === 'clean';
-        People.setCarry(p, mopping ? 'mop' : null);
+        const mopping = (a.task && a.task.type === 'clean') || (a.task && a.task.type === 'toilet' && using);
+        // 從儲藏室搬貨出來：手上抱著一箱
+        const crate = (a.task && a.task.type === 'visit' && a.task.carry && R && R.phase === 'out') || a.carryUntil > this.sim.minute;
+        People.setCarry(p, mopping ? 'mop' : crate ? 'crate' : null);
+        // 後場裡的動作：拿貨架上的東西、打電腦、喝水、按摩椅在震
+        if (p.group.position.x) p.group.position.x = 0;
+        if (using && !mopping) {
+          if (R.act === 'shelf') {
+            p.armR.rotation.x = -2.2 + Math.sin(now / 200) * 0.4;
+            p.armL.rotation.x = -2.0 + Math.cos(now / 200) * 0.4;
+          } else if (R.act === 'desk') {
+            p.armR.rotation.x = -1.2 + Math.sin(now / 70) * 0.15;
+            p.armL.rotation.x = -1.2 + Math.cos(now / 70) * 0.15;
+          } else if (R.act === 'drink' || R.act === 'eat') {
+            p.armR.rotation.x = -1.6 + Math.max(0, Math.sin(now / 600)) * -0.8;
+          } else if (R.act === 'massage') {
+            p.group.position.x = Math.sin(now / 40) * 0.015;
+          }
+        }
         if (mopping && !a.path.length) {
           p.armR.rotation.x = -0.5 + Math.sin(now / 160) * 0.35;
           p.armL.rotation.x = -0.5 + Math.sin(now / 160) * 0.35;
@@ -2937,6 +3000,26 @@
         if (it.el.style.transform !== t) it.el.style.transform = t;
       }
 
+      // 後場房間的名牌：用途、幾個人在用、是誰（看後場或拉近的時候、或房間裡有人時顯示）
+      if (s.hasBackroom && root.BossFun.ROOMS) {
+        const backView = this.camRot === 1 || this.camRot === 2;
+        for (const id of ['storage', 'rest', 'office', 'toilet']) {
+          const lv = s.roomLv(id);
+          if (!lv) continue;
+          const occ = s.roomOccupants(id);
+          if (!occ.length && !backView) continue;
+          const R = root.BossFun.ROOMS[id];
+          const cap = s.roomSpots(id).length;
+          const names = occ.filter((a) => s.staff.includes(a)).map((a) => a.name);
+          const guests = occ.length - names.length;
+          const text = `${R.icon}${R.name.replace('員工', '').replace('老闆', '')} ${occ.length}/${cap}${names.length ? `・${names.slice(0, 3).join('、')}` : ''}${guests ? `・客人 ${guests}` : ''}`;
+          const el = this.label(`room-${id}`, `room-tag${occ.length ? ' busy' : ''}`);
+          if (el.textContent !== text) el.textContent = text;
+          const { x0, x1 } = s.roomSlot(id);
+          this.place(el, (x0 + x1) / 2, 1.6, -1.9);
+        }
+        if (this.stallDoor) this.stallDoor.visible = s.roomOccupants('toilet').some((a) => a.inRoom.phase === 'use' && a.inRoom.act === 'stall' && !s.staff.includes(a));
+      }
       // 選取框與滑鼠指著的東西
       if (this.selected) {
         const a = this.selected;

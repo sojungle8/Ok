@@ -529,6 +529,12 @@
       if (!ok.length) return false; // 沒有預算內的好選項：還是要通報老闆
       let pick;
       if (kind === 'karen') pick = ok.find(({ c }) => /站在|請他離開/.test(this.w(c.label))) || null;
+      // 時事客訴：代理人不一定看得出真相（領導力越高越準），看不出來就照規則「退費、補償」
+      else if (kind === 'complaint' && p.ev.caseKind) {
+        const right = ok.find(({ c }) => c.correct);
+        const safe = ok.find(({ c }) => c.tag === 'refund') || ok.find(({ c }) => c.tag === 'apology');
+        pick = right && this.rng() < 0.3 + agent.lead / 140 ? right : safe || right || null;
+      }
       else if (kind === 'fight' && rule === 'course') pick = ok.find(({ c }) => /溝通課/.test(c.label)) || ok.find(({ c }) => /調解/.test(c.label));
       else if (kind === 'fight') pick = ok.find(({ c }) => /調解/.test(c.label) && !/沒什麼用/.test(c.label)) || null;
       // 吵架找不到照規則的做法：不要亂選，交給老闆
@@ -3606,6 +3612,8 @@
       // 有辦公室：叫進來當面稱讚，效果更好
       e.mood = clamp(e.mood + (this.roomLv('office') ? 11 : 8), 0, 100);
       this.jerk = clamp(this.jerk - 0.5, 0, JERK_LIMIT);
+      // 有辦公室：真的叫進辦公室坐一下（沒在服務客人才去）
+      if (this.roomLv('office') && e.state === 'working') this.officeTalk(e);
       this.say(e, ['被老闆稱讚了！', '今天做得很有成就感', '嘿嘿 ✨'][Math.floor(this.rng() * 3)], 90);
       return true;
     }
@@ -3618,6 +3626,7 @@
       this.jerk = clamp(this.jerk + 3, 0, JERK_LIMIT);
       // 沒有辦公室：當著大家的面罵，其他人心情也會變差
       if (!this.roomLv('office')) for (const o of this.staff) if (o !== e) o.mood = clamp(o.mood - 2, 0, 100);
+      else if (e.state === 'working') this.officeTalk(e);
       this.say(e, k > 1 ? '……（快哭了）' : '……是，我會注意。', 120);
     }
 
@@ -4186,6 +4195,41 @@
       }
     }
 
+    planCases() {
+      if (!Fun.complaintEvent || !this.openToday) return;
+      // 延遲後果到期：影片被轉傳、客人回頭發好評、同一個奧客又來
+      const due = (this.caseQueue || []).filter((q) => q.day <= this.day);
+      this.caseQueue = (this.caseQueue || []).filter((q) => q.day > this.day);
+      for (const q of due) if (Fun.caseFollow && Fun.caseFollow[q.kind]) Fun.caseFollow[q.kind](this, q.theme);
+      const repeat = this.caseRepeat;
+      if (!repeat && this.day < (this.caseNext ?? 3)) return;
+      const L = this.lastDay || {};
+      const traffic = Math.min(1.5, (L.visitors || 30) / 60);
+      const rookies = this.staff.filter((e) => this.roster.has(e.id) && (e.skill < 45 || this.day - e.hiredDay < 14)).length;
+      const angry = L.visitors ? L.angry / L.visitors : 0;
+      const p = repeat ? 1 : (0.14 + 0.1 * traffic + 0.04 * rookies + angry * 0.6) * this.diff.events;
+      if (this.rng() >= p) return;
+      this.caseRecent = this.caseRecent || {};
+      const pool = (Fun.CASES || []).filter((T) => T.cond(this) && this.day - (this.caseRecent[T.id] ?? -99) >= 10);
+      // 偶爾一天連來兩件（假日、尖峰），大部分時候是平靜的
+      const n = repeat ? 1 : this.rng() < 0.12 ? 2 : 1;
+      const used = new Set();
+      for (let i = 0; i < n; i++) {
+        const at = this.hours.open + 45 + this.rng() * Math.max(60, Math.min(this.hours.span, 600) - 90);
+        let theme = repeat || null;
+        if (!theme) {
+          const left = pool.filter((T) => !used.has(T.id));
+          // 舊式客訴（一般的出錯／誤會）也留著，和時事題材混在一起
+          theme = !left.length || this.rng() < 0.3 ? 'classic' : left[Math.floor(this.rng() * left.length)].id;
+        }
+        used.add(theme);
+        if (theme !== 'classic') this.caseRecent[theme] = this.day;
+        this.pendingEvents.push(theme === 'classic' ? { ev: null, at, where: 'staff', complaint: this.rng() < 0.55 ? 'legit' : 'misread' } : { ev: null, at, where: 'staff', caseTheme: theme, caseKind: repeat ? 'unreasonable' : null });
+      }
+      this.caseRepeat = null;
+      this.caseNext = this.day + 1 + Math.floor(this.rng() * 4);
+    }
+
     planPetEvents() {
       if (!this.roster) return;
       const at = () => this.hours.open + 60 + this.rng() * Math.max(60, Math.min(this.hours.span, 600) - 120);
@@ -4249,26 +4293,137 @@
     }
 
     // 後場的四個房間由左到右：儲藏室、休息室、辦公室、廁所（世界座標）
+    // 員工門進去是一條走道（z -0.15～-0.95），各房間的門口開在走道那一側
     roomSlot(id) {
       const i = ['storage', 'rest', 'office', 'toilet'].indexOf(id);
       const w = this.W / 4;
       return { x0: i * w, x1: (i + 1) * w };
     }
 
+    // 每個房間裡可以使用的位置（世界座標）：face 是面向的方向，sit 表示坐著用
+    roomSpots(id) {
+      const { x0, x1 } = this.roomSlot(id);
+      const cx = (x0 + x1) / 2;
+      const lv = this.roomLv(id);
+      const out = [];
+      if (id === 'storage') {
+        out.push({ x: x0 + 0.45, z: -2.05, face: Math.PI, act: 'shelf' }, { x: Math.min(x1 - 0.35, x0 + 1.2), z: -2.05, face: Math.PI, act: 'shelf' });
+      } else if (id === 'rest') {
+        out.push({ x: x0 + 0.6, z: -1.1, face: Math.PI, sit: true, act: 'eat' }, { x: x0 + 1.15, z: -1.45, face: -Math.PI / 2, act: 'drink' });
+        if (lv >= 2) out.push({ x: x1 - 0.95, z: -2.3, face: 0, sit: true, act: 'sofa' }, { x: x1 - 0.45, z: -2.3, face: 0, sit: true, act: 'sofa' });
+        if (lv >= 3) out.push({ x: cx, z: -1.35, face: 0, sit: true, act: 'massage' });
+      } else if (id === 'office') {
+        out.push({ x: cx, z: -1.75, face: Math.PI, sit: true, act: 'desk' });
+        if (lv >= 2) out.push({ x: cx - 0.35, z: -1.3, face: Math.PI, sit: true, act: 'guest' }, { x: cx + 0.35, z: -1.3, face: Math.PI, sit: true, act: 'guest' });
+        else out.push({ x: cx + 0.4, z: -1.35, face: Math.PI, act: 'guest' });
+      } else if (id === 'toilet') {
+        out.push({ x: cx, z: -2.2, face: 0, act: 'stall' });
+        if (lv >= 3) out.push({ x: x0 + 0.4, z: -1.45, face: -Math.PI / 2, act: 'sink' });
+      }
+      return out;
+    }
+
     roomOccupants(id) {
       return [...this.staff, ...this.customers].filter((a) => a.inRoom && a.inRoom.id === id);
     }
 
-    enterRoom(a, id, mins) {
-      const k = this.roomOccupants(id).length;
-      const sl = this.roomSlot(id);
-      const wx = Math.min(sl.x1 - 0.45, sl.x0 + 0.45 + (k % 3) * 0.6);
-      const wz = -0.85 - (Math.floor(k / 3) % 2) * 0.9;
-      a.inRoom = { id, until: this.minute + mins, from: { x: Math.round(a.x), z: Math.round(a.z) } };
+    // 房間裡還空著的位置（act 指定用途，例如談話只坐客座）
+    freeRoomSpot(id, act) {
+      const used = new Set(this.roomOccupants(id).map((a) => a.inRoom.spot));
+      const spots = this.roomSpots(id);
+      const free = spots.map((sp, k) => k).filter((k) => !used.has(k) && (!act || spots[k].act === act || (act === 'any' && spots[k].act !== 'desk')));
+      if (!free.length) return -1;
+      // 休息室：舒服的位置（按摩椅、沙發）比較多人搶；其他房間隨機挑一個空位
+      if (id === 'rest') {
+        const w = { massage: 3, sofa: 2, eat: 1.2, drink: 0.8 };
+        let r = this.rng() * free.reduce((t, k) => t + (w[spots[k].act] || 1), 0);
+        for (const k of free) if ((r -= w[spots[k].act] || 1) <= 0) return k;
+      }
+      return free[Math.floor(this.rng() * free.length)];
+    }
+
+    // 走進後場：從員工門 → 走道 → 房間門口 → 位置，一路用走的（不瞬移）
+    enterRoom(a, id, mins, act) {
+      const spots = this.roomSpots(id);
+      let k = this.freeRoomSpot(id, act || 'any');
+      if (k < 0) k = this.freeRoomSpot(id);
+      if (k < 0) return false;
+      const sp = spots[k];
+      const d = this.backDoorCell() || { x: Math.round(a.x), z: 0 };
+      const { x0, x1 } = this.roomSlot(id);
+      const doorX = Math.max(x0 + 0.35, Math.min(x1 - 0.35, sp.x));
+      // 換成代理人座標（畫面上會 +0.5）
+      const P = (x, z) => ({ x: x - 0.5, z: z - 0.5 });
+      a.inRoom = { id, until: this.minute + mins, mins, spot: k, act: sp.act, sit: !!sp.sit, face: sp.face, phase: 'in', way: [P(d.x + 0.5, -0.4), P(d.x + 0.5, -0.6), P(doorX, -0.6), P(doorX, -1.0), P(sp.x, sp.z)], from: { x: Math.round(a.x), z: Math.round(a.z) } };
       a.path = [];
-      a.x = wx - 0.5;
-      a.z = wz - 0.5;
-      a.moving = false;
+      a.moving = true;
+      return true;
+    }
+
+    // 用完了：沿原路走回員工門
+    leaveRoom(a) {
+      const R = a.inRoom;
+      if (!R || R.phase === 'out') return;
+      const d = this.backDoorCell() || R.from;
+      const { x0, x1 } = this.roomSlot(R.id);
+      const P = (x, z) => ({ x: x - 0.5, z: z - 0.5 });
+      const doorX = Math.max(x0 + 0.35, Math.min(x1 - 0.35, a.x + 0.5));
+      R.phase = 'out';
+      R.way = [P(doorX, -1.0), P(doorX, -0.6), P(d.x + 0.5, -0.6), P(d.x + 0.5, -0.3), { x: d.x, z: d.z }];
+      a.moving = true;
+    }
+
+    // 叫進辦公室談話：走進去坐客座，談完走出來（正在服務客人的人做完手上的再說）
+    officeTalk(e) {
+      if (!this.roomLv('office') || e.inRoom || (e.task && e.task.lane && e.task.lane.customer && e.task.lane.customer.state === 'atLane')) return false;
+      return this.sendToRoom(e, 'office', 5, 'guest');
+    }
+
+    // 叫員工去後場某個房間做事（走到員工門再進去）
+    sendToRoom(e, room, mins, act, carry) {
+      if (!this.roomLv(room) || e.inRoom || this.freeRoomSpot(room, act) < 0) return false;
+      const d = this.backDoorCell();
+      if (!d) return false;
+      this.dropTask(e);
+      if (!this.walkTo(e, d)) return false;
+      e.task = { type: 'visit', room, mins, act, carry };
+      return true;
+    }
+
+    // 在後場走路：回傳 true 表示已經走回店裡了
+    stepRoom(a, dt, speed = 2.4) {
+      const R = a.inRoom;
+      if (!R) return true;
+      let step = speed * dt;
+      while (R.way.length && step > 0) {
+        const t = R.way[0];
+        const dx = t.x - a.x;
+        const dz = t.z - a.z;
+        const dist = Math.hypot(dx, dz);
+        if (dist > 0.001) a.dir = Math.atan2(dx, dz);
+        if (dist <= step) {
+          a.x = t.x;
+          a.z = t.z;
+          step -= dist;
+          R.way.shift();
+        } else {
+          a.x += (dx / dist) * step;
+          a.z += (dz / dist) * step;
+          step = 0;
+        }
+      }
+      a.moving = R.way.length > 0;
+      if (!R.way.length) {
+        if (R.phase === 'in') {
+          R.phase = 'use';
+          R.until = this.minute + R.mins;
+          a.dir = R.face;
+        } else if (R.phase === 'out') {
+          this.exitRoom(a);
+          return true;
+        }
+      }
+      return false;
     }
 
     exitRoom(a) {
@@ -4276,6 +4431,7 @@
       a.x = d.x;
       a.z = d.z;
       a.inRoom = null;
+      a.moving = false;
     }
 
     get toiletOk() {
@@ -5033,10 +5189,8 @@
     updateCustomers(dt) {
       for (const c of this.customers) {
         if (c.inRoom) {
-          if (this.minute >= c.inRoom.until) {
-            this.exitRoom(c);
-            this.afterToilet(c);
-          }
+          if (c.inRoom.phase === 'use' && this.minute >= c.inRoom.until) this.leaveRoom(c);
+          if (this.stepRoom(c, dt, 2.4 * (c.speed || 1))) this.afterToilet(c);
           continue;
         }
         const arrived = this.moveAgent(c, 2.4 * (c.speed || 1), dt);
@@ -5044,8 +5198,7 @@
           case 'toToilet':
             if (arrived) {
               const L = this.roomLv('toilet');
-              if (this.toiletOk && this.roomOccupants('toilet').length < (L >= 3 ? 2 : 1)) {
-                this.enterRoom(c, 'toilet', 3 + this.rng() * 3);
+              if (this.toiletOk && this.roomOccupants('toilet').length < (L >= 3 ? 2 : 1) && this.enterRoom(c, 'toilet', 3 + this.rng() * 3, 'stall')) {
                 this.useToilet(c);
               } else {
                 c.waited += dt;
@@ -5188,7 +5341,11 @@
     }
 
     goHome(e) {
-      if (e.inRoom) this.exitRoom(e);
+      // 在後場的人先走出來（不瞬移），走出來之後下一刻才下班
+      if (e.inRoom) {
+        this.leaveRoom(e);
+        return;
+      }
       this.dropTask(e);
       e.state = 'leaving';
       this.walkTo(e, { x: this.rng() < 0.5 ? -OUT_W : this.W + OUT_W - 1, z: this.H });
@@ -5196,17 +5353,33 @@
 
     updateStaff(dt) {
       for (const e of this.staff) {
-        // 在後場：時間到了才出來（休息的人在下面照常恢復體力）
-        if (e.inRoom && e.inRoom.id === 'toilet' && this.minute >= e.inRoom.until) {
-          this.exitRoom(e);
-          this.toiletClean = 100;
-          e.toiletWeek = (e.toiletWeek || 0) + 1;
-          e.mood = clamp(e.mood - 0.8, 0, 100);
-          e.task = null;
+        // 在後場：走進去、使用、走出來（休息的人在下面照常恢復體力）
+        if (e.inRoom) {
+          const R = e.inRoom;
+          const timeUp = R.phase === 'use' && this.minute >= R.until;
+          if (timeUp && R.id === 'toilet' && e.task && e.task.type === 'toilet') {
+            this.toiletClean = 100;
+            e.toiletWeek = (e.toiletWeek || 0) + 1;
+            e.mood = clamp(e.mood - 0.8, 0, 100);
+            this.leaveRoom(e);
+          } else if (timeUp && R.id !== 'rest') this.leaveRoom(e);
+          if (!this.onDuty(e) && R.phase !== 'out') this.leaveRoom(e);
+          if (this.stepRoom(e, dt, 2.8)) {
+            const t = e.task;
+            if (t && (t.type === 'toilet' || t.type === 'visit')) {
+              if (t.carry) e.carryUntil = this.minute + 4;
+              e.task = null;
+            }
+            if (e.state === 'break' && e.restDone) {
+              e.restDone = false;
+              e.task = null;
+              e.state = 'working';
+              this.say(e, '休息完，回去工作！', 30);
+            }
+          } else if (R.id !== 'rest' || R.phase !== 'use') continue;
         }
-        if (e.inRoom && e.inRoom.id === 'toilet') continue;
         const duty = this.onDuty(e);
-        const arrived = this.moveAgent(e, 2.8, dt);
+        const arrived = e.inRoom ? true : this.moveAgent(e, 2.8, dt);
 
         if (e.state === 'off') {
           if (duty) {
@@ -5251,8 +5424,12 @@
 
         if (e.state === 'break') {
           const t = e.task;
-          if (t && t.room === 'rest' && arrived && !e.inRoom) this.enterRoom(e, 'rest', 9999);
-          if (arrived && t) {
+          if (t && t.room === 'rest' && arrived && !e.inRoom && !this.enterRoom(e, 'rest', 9999)) {
+            // 休息室坐滿了：在走道邊站著喘口氣
+            t.room = null;
+            this.say(e, '休息室坐滿了……', 30);
+          }
+          if (arrived && t && (!t.room || (e.inRoom && e.inRoom.phase === 'use'))) {
             const R = t.room === 'rest' && this.roomLevel('rest');
             const bonus = R ? R.rest : t.obj ? t.obj.def.restBonus || 1 : 0.5;
             e.energy = clamp(e.energy + 1.6 * bonus * dt, 0, 100);
@@ -5260,7 +5437,12 @@
           }
           if (e.energy > 88 && e.hunger > 75) {
             if (t && t.obj) t.obj.seatTaken[t.seat] = null;
-            if (e.inRoom) this.exitRoom(e);
+            if (e.inRoom) {
+              // 從休息室走出來之後才回崗位
+              e.restDone = true;
+              this.leaveRoom(e);
+              continue;
+            }
             e.task = null;
             e.state = 'working';
             this.say(e, '休息完，回去工作！', 30);
@@ -5281,11 +5463,23 @@
 
         // 廁所髒了：沒在服務客人的人去打掃（同一時間只派一個）
         if (e.task && e.task.type === 'toilet') {
-          if (arrived) {
-            if (this.toiletOk && this.roomOccupants('toilet').length < (this.roomLv('toilet') >= 3 ? 2 : 1)) this.enterRoom(e, 'toilet', 6);
-            else e.task = null;
+          if (arrived && !e.inRoom) {
+            if (!(this.toiletOk && this.roomOccupants('toilet').length < (this.roomLv('toilet') >= 3 ? 2 : 1) && this.enterRoom(e, 'toilet', 6, 'stall'))) e.task = null;
           }
           continue;
+        }
+        // 去後場辦事：儲藏室搬貨、辦公室談話
+        if (e.task && e.task.type === 'visit') {
+          if (arrived && !e.inRoom && !this.enterRoom(e, e.task.room, e.task.mins, e.task.act)) e.task = null;
+          continue;
+        }
+        // 儲藏室有貨：沒在忙的人偶爾去搬一箱出來補貨
+        if (!serving && working && this.roomLv('storage') && this.isOpen && (this.restockDue || 0) <= this.minute && !this.staff.some((o) => o.task && o.task.type === 'visit' && o.task.room === 'storage') && !(e.task && e.task.lane && e.task.lane.customer) && this.rng() < 0.02 * dt) {
+          this.restockDue = this.minute + 90 + this.rng() * 90;
+          if (this.sendToRoom(e, 'storage', 2 + this.rng() * 2, 'shelf', true)) {
+            if (this.rng() < 0.4) this.say(e, ['去後面搬貨', '蛋快沒了，去拿', '補一下貨'][Math.floor(this.rng() * 3)], 25);
+            continue;
+          }
         }
         if (!serving && working && this.toiletOk && this.toiletClean < 55 && !this.staff.some((o) => o.task && o.task.type === 'toilet') && !(e.task && e.task.lane && e.task.lane.customer)) {
           const d = this.backDoorCell();
@@ -5599,12 +5793,8 @@
         this.toiletDuty = null;
         if (this.staff.includes(e)) this.pendingEvents.push({ ev: this.toiletDutyEvent(e, n), at: this.hours.open + 45, where: 'staff', staffPref: e, subject: e });
       }
-      // 一般客訴：有時候是店裡真的做錯，有時候是客人誤會
-      if (Fun.complaintEvent && this.rng() < 0.22 * this.diff.events) {
-        const at = this.hours.open + 60 + this.rng() * Math.max(60, Math.min(this.hours.span, 600) - 120);
-        const pend = { ev: null, at, where: 'staff', complaint: this.rng() < 0.55 ? 'legit' : 'misread' };
-        this.pendingEvents.push(pend);
-      }
+      // 客訴：機率跟昨天的人潮、新手、尖峰有多亂有關；處理完會隨機冷卻幾天，同一種題材十天內不重複
+      this.planCases();
       if (this.rivalNews && this.rival) {
         this.rivalNews = false;
         this.pendingEvents.push({ ev: rivalEvent(this), at: this.hours.open + 40, where: 'door' });
@@ -5699,7 +5889,26 @@
         if (p.staffPref && !this.staff.includes(p.staffPref)) return;
         p.staff = p.staffPref && working.includes(p.staffPref) ? p.staffPref : working[Math.floor(this.rng() * working.length)];
       }
+      // 不要老是同一個員工被客訴（新舊客訴都一樣）
+      if ((p.complaint || p.caseTheme) && p.staff) {
+        if (p.staff.id === this.caseVictim) {
+          const others = working.filter((w) => w.id !== this.caseVictim);
+          if (others.length) p.staff = others[Math.floor(this.rng() * others.length)];
+        }
+        this.caseVictim = p.staff.id;
+      }
       if (p.complaint) p.ev = Fun.complaintEvent(this, p.complaint, p.staff);
+      if (p.caseTheme && Fun.caseEvent) {
+        // 真相：新手、技能低的人出錯的機率高一點；其他是誤會或無理要求
+        let kind = p.caseKind;
+        if (!kind) {
+          const e = p.staff;
+          const mis = 0.3 + (e && e.skill < 45 ? 0.15 : 0) + (e && this.day - e.hiredDay < 14 ? 0.1 : 0);
+          const r = this.rng();
+          kind = r < mis ? 'mistake' : r < mis + 0.27 ? 'unreasonable' : 'misread';
+        }
+        p.ev = Fun.caseEvent(this, kind, p.staff, p.caseTheme);
+      }
       p.spawnedAt = this.minute;
       p.id = p.id || uid++;
       // 📋 授權制度：符合規則的事情，交給店長／區經理直接處理
@@ -5951,6 +6160,10 @@
         }
       }
       if (fx.sendHomeOf && byId(fx.sendHomeOf) && (byId(fx.sendHomeOf).state === 'working' || byId(fx.sendHomeOf).state === 'break')) this.sendHome(byId(fx.sendHomeOf));
+      if (fx.caseLater && Fun.caseFollow) {
+        const [kind, days, theme] = fx.caseLater;
+        this.caseQueue = [...(this.caseQueue || []), { kind, theme, day: this.day + days + Math.floor(this.rng() * 3) }];
+      }
       if (fx.viral) {
         this.demandMods.push({ mult: 1 + fx.viral, days: 4 });
         this.notify('📱 「老闆嗆奧客」的影片被路人上傳，網友狂刷「這老闆可以」！', 'achieve');
@@ -5976,7 +6189,11 @@
 
     resolve(ev, index) {
       this.today.bossEvents = (this.today.bossEvents || 0) + 1;
-      return this.applyChoice(ev, ev.ev.choices[index]);
+      const r = this.applyChoice(ev, ev.ev.choices[index]);
+      // 升遷、談心這類一對一的事：有辦公室就真的叫進去談
+      const who = ev.subject || ev.staff;
+      if (r && who && this.staff.includes(who) && this.roomLv('office') && /^(career_|rm_talk|rm_office)/.test(String(ev.ev.id))) this.officeTalk(who);
+      return r;
     }
 
     ignoreEvent(ev, force) {
@@ -6419,6 +6636,9 @@
         idx: this.idx,
         costMult: this.costMult,
         // 存檔當下的時間和今天的營業紀錄：讀檔從這個時間繼續，不會把今天重玩一遍（營收重複算）
+        caseQueue: this.caseQueue || [],
+        caseRecent: this.caseRecent || {},
+        caseNext: this.caseNext ?? null,
         minute: this.minute,
         today: this.today,
         weather: this.weather ? this.weather.id : null,
@@ -6494,6 +6714,9 @@
       if (d.ledger) s.ledger = { ...s.emptyLedger(), ...d.ledger };
       s.eventLog = d.eventLog || [];
       Object.assign(s, { day: d.day, cash: d.cash, loan: d.loan, jerk: d.jerk, reviews: d.reviews, prices: d.prices, menu: d.menu, policy: { ...s.policy, ...d.policy }, idx: d.idx, costMult: d.costMult, history: d.history, cleanWeeks: d.cleanWeeks || 0 });
+      s.caseQueue = d.caseQueue || [];
+      s.caseRecent = d.caseRecent || {};
+      if (d.caseNext != null) s.caseNext = d.caseNext;
       // 舊存檔的評論有半顆星：換成整數星，評價和星等分布才會一致
       s.reviews = (s.reviews || []).map((r) => (r.stars % 1 ? { ...r, stars: Math.floor(r.stars + s.rng()) } : r));
       // 舊存檔沒有精簡紀錄：從留下來的週報補

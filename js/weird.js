@@ -713,3 +713,155 @@
     };
   };
 })(typeof window !== 'undefined' ? window : globalThis);
+
+// 🧾 時事客訴（虛構情境）：同一個題材有三種真相——店裡真的出錯、客人誤會、無理要求
+// 線索寫在敘述裡（訂單明細、截圖日期、收款紀錄），選項文字三種真相都一樣、順序打亂：要看線索判斷，不能永遠按同一個
+(function (root) {
+  const Fun = root.BossFun;
+  if (!Fun) return;
+  const pick = (sim, arr) => arr[Math.floor(sim.rng() * arr.length)];
+  // 每個題材：clue 是三種真相各自的敘述（{v} 員工、{p} 品項），evidence 是「查紀錄」看到什麼
+  Fun.CASES = [
+    {
+      id: 'video',
+      icon: '📹',
+      title: '客人邊拍短影音邊抱怨',
+      cond: (s) => true,
+      clue: {
+        mistake: '一位客人舉著手機直播：「大家看，{p}送來的時候已經灑了一半，店員還說沒事！」你看了一下櫃台，{v}剛剛確實手忙腳亂，桌上還有一灘沒擦。',
+        misread: '一位客人舉著手機：「大家看，這家店態度超差，問一句就被白眼！」{v}小聲說：「我剛剛是在看出餐單，不是翻白眼……監視器可以看。」',
+        unreasonable: '一位自稱「美食網紅」的客人架好手機：「我有十萬粉絲，今天這餐招待我，我就幫你們拍一支；不招待的話……我就照實拍喔。」{v}在旁邊不知道怎麼辦。',
+      },
+      evidence: { mistake: '監視器畫面：{v}端的時候真的晃了一下', misread: '監視器畫面：{v}低頭在看出餐單', unreasonable: '這位客人上週在別家店也是同一套說詞' },
+    },
+    {
+      id: 'delivery',
+      icon: '🛵',
+      title: '外送少了一樣',
+      cond: (s) => s.policy.delivery && s.ind.delivery,
+      clue: {
+        mistake: '外送平台轉來一則客訴：「點兩份{p}只送來一份！」你翻出這張單，訂單明細確實是兩份，但出餐單上只打勾了一份。',
+        misread: '外送平台轉來一則客訴：「點兩份{p}只送來一份！」你翻出這張單，訂單明細只有一份；客人另一份是在同一時間、另一張單點的，還沒送到。',
+        unreasonable: '外送平台轉來一則客訴：「飲料灑了，我要整單退費、再全部重送一次，外送員也要賠我精神損失。」附的照片是一杯完好的{p}。',
+      },
+      evidence: { mistake: '出餐單：第二份沒有打勾', misread: '訂單明細：這張單只有一份', unreasonable: '照片裡的{p}完好無缺' },
+    },
+    {
+      id: 'coupon',
+      icon: '🎟️',
+      title: '客人拿優惠截圖要折扣',
+      cond: (s) => true,
+      clue: {
+        mistake: '客人拿出手機：「粉專寫這週買一送一，你們店員說沒有？」你點開粉專，活動真的還掛著，小編忘了跟{v}說。',
+        misread: '客人拿出手機：「粉專寫買一送一，你們店員說沒有？」你放大截圖，右上角的日期是去年這個時候。',
+        unreasonable: '客人拿出三張不同的優惠截圖：「我要三個一起用，還要再打九折，不然我就給一星。」其中一張圖的字體明顯跟你們粉專不一樣。',
+      },
+      evidence: { mistake: '粉專：活動真的還在', misread: '截圖日期：去年', unreasonable: '其中一張截圖的字體不是你們的' },
+    },
+    {
+      id: 'aisummary',
+      icon: '🤖',
+      title: '「AI 說你們有賣這個」',
+      cond: (s) => true,
+      clue: {
+        mistake: '客人指著手機：「AI 摘要說你們今天營業到晚上十點，我專程來的，結果你們要收了？」你一查，地圖上的營業時間是你半年前沒改到的舊資料。',
+        misread: '客人指著手機：「AI 說你們的招牌是松露{p}，怎麼菜單上沒有？」你看了一下，那段 AI 摘要把隔壁商圈另一家店的評論混進來了。',
+        unreasonable: '客人指著手機：「AI 說你們今天全品項五折，我要用五折結帳。」畫面上的對話是他自己問 AI「如果這家店五折會怎樣」。',
+      },
+      evidence: { mistake: '地圖上的營業時間：半年沒更新', misread: 'AI 摘要引用的是別家店', unreasonable: '那段對話是客人自己假設的' },
+    },
+    {
+      id: 'pay',
+      icon: '📱',
+      title: '行動支付扣了兩次？',
+      cond: (s) => true,
+      clue: {
+        mistake: '客人氣沖沖地回來：「你們刷了我兩次！」你打開收款後台，同一分鐘真的有兩筆一樣的金額，{v}當時以為第一筆沒成功又按了一次。',
+        misread: '客人氣沖沖地回來：「你們刷了我兩次！」你打開收款後台，只有一筆成功；他手機上的另一筆是銀行的「授權中」，幾天後會自動消失。',
+        unreasonable: '客人堅持：「我付過了，你們自己系統的問題。」你打開收款後台，沒有這筆；他給你看的截圖上寫著「交易失敗」，但他不肯再付。',
+      },
+      evidence: { mistake: '收款後台：同一分鐘兩筆', misread: '收款後台：只有一筆成功', unreasonable: '客人的截圖寫著「交易失敗」' },
+    },
+  ];
+
+  // 三種真相各自的後果。tag：apology 道歉補償、explain 查紀錄說明、firm 挺員工客氣拒絕、refund 直接退費息事寧人、blame 當眾罵員工
+  const OUT = {
+    mistake: {
+      apology: (v) => ({ effects: { cash: -800, review: [5, '有出錯，但店家馬上道歉補救，會再來'], mood: 2, later: ['praise', 2] }, result: `你先道歉、馬上補救，還多送了一點心意。客人收起手機：「這樣處理我可以接受。」${v}也說下次會更小心。`, correct: true, tip: '客人反映的問題確實是店家疏失時，先道歉、立刻補救，通常比爭論誰對誰錯更能留住客人。' }),
+      explain: (v, ev) => ({ effects: { cash: -400, review: [4, '查完發現是店家的錯，有好好道歉'] }, result: `你查了一下——${ev}。你老實承認是店裡的問題，補上了。客人雖然等了一下，但覺得你們很實在。` }),
+      firm: (v) => ({ effects: { review: [1, '明明是店家的錯還硬拗'], mood: 3, later: ['viral', 3] }, result: `你堅持店裡沒錯，客人冷笑著離開。${v}很感謝你挺他，但大家心裡都知道這次確實是店裡出包。`, tip: '保護員工很重要，但對真正的疏失，挺員工的方式是「一起扛、一起改進」，而不是否認問題。' }),
+      refund: () => ({ effects: { cash: -400, review: [3, '有退費，但沒有一句道歉'] }, result: '客人拿了退費就走了，沒有生氣，但大概也不會再來。' }),
+    },
+    misread: {
+      apology: (v) => ({ effects: { cash: -800, review: [4, '店家很客氣'], mood: -5 }, result: `你直接道歉補償，客人滿意地走了。${v}有點委屈：「明明不是我們弄錯的……」` }),
+      explain: (v, ev) => ({ effects: { cash: -100, review: [5, '原來是我誤會了，老闆超有耐心'], mood: 3, later: ['praise', 2] }, result: `你拿出紀錄慢慢說明——${ev}。客人看完不好意思地笑了：「歹勢歹勢，是我搞錯。」走之前還多買了一點。`, correct: true, tip: '客人誤會時，拿出證據、語氣放軟，保住客人的面子，通常能把抱怨變成好感。' }),
+      firm: (v) => ({ effects: { review: [2, '就算是我搞錯，口氣也太硬了'], mood: 3 }, result: `你直接說店裡沒錯。你說的是事實，但客人覺得很丟臉，留了一則酸酸的評論。${v}倒是鬆了一口氣。` }),
+      refund: (v) => ({ effects: { cash: -400, mood: -6 }, result: `你不想吵，直接退費。${v}小聲說：「明明不是我們的錯……」` }),
+    },
+    unreasonable: {
+      apology: (v) => ({ effects: { cash: -800, mood: -8, later: ['repeat', 5] }, result: `你道歉又補償，客人心滿意足地走了。${v}看著你，什麼都沒說。聽說這招他在很多店都用過。` }),
+      explain: (v, ev) => ({ effects: { review: [3, '店家一直跟我講道理'], mood: 2 }, result: `你拿出紀錄說明——${ev}。客人不太服氣，但也拿不出話反駁，碎念著走了。` }),
+      firm: (v) => ({ effects: { review: [2, '店家不肯通融'], mood: 7, morale: 1, jerk: -1 }, result: `你客氣但堅定地說：「這個我們沒辦法。」${v}在旁邊站得直直的。旁邊的熟客小聲說：「老闆做得好。」`, correct: true, tip: '面對無理要求，客氣但堅定地拒絕、保護第一線員工，比一味讓步更能守住店的規矩和士氣。' }),
+      refund: (v) => ({ effects: { cash: -400, mood: -8, later: ['repeat', 6] }, result: `你為了息事寧人直接退費。客人笑著走了，${v}嘆了一口氣。` }),
+    },
+  };
+
+  Fun.caseEvent = (sim, kind, victim, themeId) => {
+    const T = Fun.CASES.find((x) => x.id === themeId) || Fun.CASES[0];
+    const v = victim ? victim.name : '店員';
+    const vid = victim ? victim.id : null;
+    const core = sim.ind.products.filter((p) => !p.side && !p.rd);
+    const prod = (pick(sim, core) || { name: '餐點' }).name;
+    const fill = (t) => t.replace(/\{v\}/g, v).replace(/\{p\}/g, prod);
+    const ev = fill(T.evidence[kind]);
+    const O = OUT[kind];
+    const mk = (tag, label, quote) => {
+      const o = O[tag](v, ev);
+      const fx = { ...o.effects };
+      if (fx.mood && vid) fx.moodOf = [[vid, fx.mood]];
+      delete fx.mood;
+      if (fx.later) fx.caseLater = [...fx.later, T.id];
+      delete fx.later;
+      return { label, quote, effects: fx, result: o.result, tip: o.tip, tag, correct: !!o.correct };
+    };
+    const choices = [
+      mk('apology', '先道歉，補償一份{w:gift}'),
+      mk('explain', '拿出紀錄跟客人一起對'),
+      mk('firm', `站在${v}這邊，客氣但堅定地說明`),
+      mk('refund', '不想吵，直接退費'),
+      { label: `當著客人的面罵${v}`, effects: { cash: -400, review: [2, '老闆當場罵員工，看了很不舒服'], jerk: 3, ...(vid ? { moodOf: [[vid, -12]] } : {}) }, result: `${v}低著頭一直道歉。客人反而覺得尷尬，匆匆離開。`, tag: 'blame' },
+    ];
+    for (let i = choices.length - 1; i > 0; i--) {
+      const j = Math.floor(sim.rng() * (i + 1));
+      [choices[i], choices[j]] = [choices[j], choices[i]];
+    }
+    return {
+      id: `cmp_${T.id}`,
+      icon: T.icon,
+      title: T.title,
+      text: fill(T.clue[kind]),
+      choices,
+      caseKind: kind,
+      caseTheme: T.id,
+      ignore: { effects: { review: [kind === 'unreasonable' ? 2 : 1, '反映問題半天沒人理'] }, result: '沒人出面處理，客人留下一則評論走了。' },
+    };
+  };
+
+  // 延遲後果：影片被轉傳、同一個奧客又來、客人回頭發好評
+  Fun.caseFollow = {
+    viral: (sim, theme) => {
+      sim.demandMods.push({ mult: 0.94, days: 4 });
+      sim.addReview(1, '看到影片才知道這家店出包還不認', 'image');
+      sim.notify(`📉 前幾天「${(Fun.CASES.find((x) => x.id === theme) || {}).title || '客訴'}」的事被轉傳了，留言一面倒，這幾天來客少了一點。`, 'bad');
+    },
+    praise: (sim) => {
+      sim.social.followers += 60;
+      sim.addReview(5, pick(sim, ['上次有點小狀況，但店家處理得很好，今天又來了', '老闆很講理，推', '有問題好好溝通，這家店值得支持']));
+      sim.notify('💬 之前客訴的那位客人又來了，還留了一則好評。', 'good');
+    },
+    repeat: (sim, theme) => {
+      sim.caseRepeat = theme;
+      sim.notify('😒 聽說上次那位客人在社團分享「怎麼跟這家店拗到東西」……', 'bad');
+    },
+  };
+})(typeof window !== 'undefined' ? window : globalThis);

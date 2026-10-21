@@ -5125,3 +5125,7 @@ kbd {
 .lv-road li.next { background: color-mix(in srgb, var(--accent) 14%, transparent); }
 .lv-road li.done { opacity: 0.6; }
 .lv-done summary { cursor: pointer; font-size: 0.8rem; color: var(--muted); margin-bottom: 4px; }
+
+/* 🚪 後場房間名牌 */
+.room-tag { position: absolute; left: 0; top: 0; pointer-events: none; white-space: nowrap; font-size: 0.7rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: rgba(40, 32, 26, 0.72); color: #fff; }
+.room-tag.busy { background: rgba(44, 138, 87, 0.9); }

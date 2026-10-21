@@ -307,6 +307,7 @@
             <button data-action="zoom" data-dir="1" title="放大">＋</button>
             <button data-action="zoom" data-dir="-1" title="縮小">－</button>
             <button data-action="cam-reset" title="鏡頭回到預設（雙擊地板可以拉近）">⌖</button>
+            <button data-action="cam-back" title="一鍵看後場（再按一次回到原本視角）">🚪</button>
           </div>
         </div>
         <section class="drawer card" id="drawer" hidden></section>
@@ -3115,10 +3116,7 @@
         renderDrawer();
         break;
       case 'cam-back':
-        if (ui.view) {
-          ui.view.camAzT = ui.view.camAz + Math.PI;
-          ui.view.zoomT = Math.max(ui.view.zoomT, 1.3);
-        }
+        if (ui.view) ui.view.viewBackroom();
         break;
       case 'train': {
         const who = staffOf(btn);
