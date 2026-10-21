@@ -47,6 +47,43 @@
     return m;
   }
 
+  // 器具前面的小名牌：圖示＋名字，用貼圖畫一次就好
+  const plateTex = new Map();
+  function plate(g, def, y, z) {
+    if (!def) return;
+    let t = plateTex.get(def.id);
+    if (!t) {
+      t = canvasTex(256, 72, (c, w, h) => {
+        c.fillStyle = 'rgba(255,255,255,.94)';
+        c.fillRect(0, 0, w, h);
+        c.strokeStyle = 'rgba(0,0,0,.25)';
+        c.lineWidth = 4;
+        c.strokeRect(2, 2, w - 4, h - 4);
+        c.fillStyle = '#2a2420';
+        c.font = 'bold 34px sans-serif';
+        c.textAlign = 'center';
+        c.textBaseline = 'middle';
+        c.fillText(`${def.icon}${def.name.length > 6 ? def.name.slice(0, 6) : def.name}`, w / 2, h / 2 + 2);
+      });
+      plateTex.set(def.id, t);
+    }
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.17), new THREE.MeshBasicMaterial({ map: t }));
+    m.position.set(0, y, z + 0.012);
+    g.add(m);
+    return m;
+  }
+
+  // 中空的櫃子（前面或上面開口），裡面的東西才看得到
+  function shell(g, w, h, d, color, z, open = 'front', opts) {
+    const t = 0.04;
+    B(g, w, h, t, color, 0, 0, z - d / 2 + t / 2, opts); // 背板
+    B(g, t, h, d, color, -w / 2 + t / 2, 0, z, opts);
+    B(g, t, h, d, color, w / 2 - t / 2, 0, z, opts);
+    B(g, w, t, d, color, 0, 0, z, opts); // 底
+    if (open === 'front') B(g, w, t, d, color, 0, h - t, z, opts); // 頂
+    else B(g, w, h, t, color, 0, 0, z + d / 2 - t / 2, opts); // 上面開口：前面要有面板
+  }
+
   function canvasTex(w, h, draw) {
     const c = document.createElement('canvas');
     c.width = w;
@@ -449,6 +486,369 @@
         g.add(sign);
         if (!self) B(g, 0.03, (seat ? 1.3 : 1.55) - top, 0.03, '#555', 0, top, -0.32);
       }
+    },
+
+    // ───── 生財器具的專屬造型：一眼看得出是什麼 ─────
+    // 每一種都有自己的外型（鍋就是鍋、輪胎機上面有輪胎），前面再貼一塊小名牌
+    teppanStove(g, view, def) {
+      B(g, 0.9, 0.8, 0.7, '#b8bec6', 0, 0, 0, { metalness: 0.6, roughness: 0.35 });
+      B(g, 0.84, 0.05, 0.6, '#1d1d1f', 0, 0.8, -0.02, { metalness: 0.5, roughness: 0.4 });
+      // 兩盤滋滋作響的鐵板麵（黑色鐵盤＋黃色麵＋荷包蛋）
+      for (const x of [-0.2, 0.2]) {
+        C(g, 0.17, 0.17, 0.03, '#2b2b30', x, 0.85, 0, 18, { metalness: 0.6 });
+        C(g, 0.13, 0.13, 0.05, '#e8c25a', x, 0.87, 0, 14);
+        C(g, 0.05, 0.05, 0.02, '#ffffff', x + 0.05, 0.92, 0.03, 10);
+        C(g, 0.025, 0.025, 0.02, '#f2a516', x + 0.05, 0.935, 0.03, 8);
+      }
+      B(g, 0.05, 0.02, 0.25, '#9aa1a9', 0.38, 0.85, 0.1, { metalness: 0.7 });
+      g.userData.steam = [new THREE.Vector3(-0.2, 1.0, 0), new THREE.Vector3(0.2, 1.0, 0)];
+      plate(g, def, 0.45, 0.36);
+    },
+    toaster(g, view, def) {
+      B(g, 0.9, 0.78, 0.7, '#e9d8c3', 0, 0, 0);
+      // 不鏽鋼烤箱：玻璃門裡面亮著橘光
+      B(g, 0.66, 0.42, 0.5, '#c9ced6', 0, 0.78, -0.05, { metalness: 0.7, roughness: 0.3 });
+      B(g, 0.46, 0.24, 0.02, basic('#ff9a3c'), -0.06, 0.86, 0.21);
+      for (let i = 0; i < 3; i++) C(g, 0.025, 0.025, 0.03, '#2b2b30', 0.24, 0.88 + i * 0.1, 0.21, 8).rotation.x = Math.PI / 2;
+      // 上面兩片烤好的吐司
+      for (const x of [-0.12, 0.12]) {
+        B(g, 0.2, 0.03, 0.2, '#d9a35a', x, 1.2, 0);
+        B(g, 0.18, 0.031, 0.18, '#f2d49b', x, 1.2, 0);
+      }
+      plate(g, def, 0.42, 0.36);
+    },
+    soyMachine(g, view, def) {
+      B(g, 0.9, 0.8, 0.7, '#e9d8c3', 0, 0, 0);
+      // 高高的不鏽鋼磨豆機＋一壺白白的豆漿＋一碗黃豆
+      C(g, 0.15, 0.17, 0.62, '#c9ced6', -0.18, 0.8, -0.08, 18, { metalness: 0.7, roughness: 0.3 });
+      C(g, 0.18, 0.12, 0.12, '#c9ced6', -0.18, 1.42, -0.08, 18, { metalness: 0.7 });
+      C(g, 0.11, 0.1, 0.28, basic('#f7f3e8', { transparent: true, opacity: 0.9 }), 0.2, 0.8, 0.08, 16);
+      C(g, 0.13, 0.1, 0.07, '#8a5a3b', 0.2, 0.8, -0.2, 14);
+      for (let i = 0; i < 5; i++) {
+        const b = new THREE.Mesh(new THREE.SphereGeometry(0.03, 6, 5), mat('#e2c46b'));
+        b.position.set(0.15 + (i % 3) * 0.05, 0.88, -0.22 + Math.floor(i / 3) * 0.05);
+        g.add(b);
+      }
+      plate(g, def, 0.45, 0.36);
+    },
+    pickupWindow(g, view, def) {
+      // 外帶窗口：一個有條紋遮雨棚的小窗框，台面上擺著外帶袋
+      B(g, 0.9, 0.9, 0.5, '#f3efe8', 0, 0, -0.1);
+      for (const x of [-0.42, 0.42]) B(g, 0.06, 1.0, 0.06, '#8a5a3b', x, 0.9, 0.12);
+      B(g, 0.9, 0.08, 0.06, '#8a5a3b', 0, 1.9, 0.12);
+      const awn = canvasTex(128, 32, (c, w, h) => {
+        for (let i = 0; i < 8; i++) {
+          c.fillStyle = i % 2 ? '#ffffff' : '#d9482b';
+          c.fillRect((i * w) / 8, 0, w / 8, h);
+        }
+      });
+      const a = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 0.35), new THREE.MeshStandardMaterial({ map: awn, side: THREE.DoubleSide }));
+      a.position.set(0, 1.85, 0.3);
+      a.rotation.x = -0.9;
+      g.add(a);
+      for (let i = 0; i < 3; i++) B(g, 0.16, 0.2, 0.1, '#f7f7f2', -0.25 + i * 0.25, 0.9, 0.08);
+      C(g, 0.05, 0.04, 0.16, '#c58b54', 0.32, 0.9, -0.15, 10);
+      plate(g, def, 0.45, 0.16);
+    },
+    eggFridge(g, view, def) {
+      // 玻璃門冷藏架：看得到一盤一盤的雞蛋
+      shell(g, 0.8, 1.7, 0.6, '#e8edf2', -0.05);
+      B(g, 0.7, 1.45, 0.02, basic('#dff3ff', { transparent: true, opacity: 0.35 }), 0, 0.15, 0.26);
+      for (let r = 0; r < 3; r++) {
+        B(g, 0.66, 0.03, 0.45, '#c9a36b', 0, 0.3 + r * 0.45, -0.05);
+        for (let i = 0; i < 4; i++) for (let j = 0; j < 2; j++) {
+          const e = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 6), mat(r === 1 ? '#f3e0c4' : '#fffaf0'));
+          e.scale.y = 1.25;
+          e.position.set(-0.22 + i * 0.15, 0.39 + r * 0.45, -0.12 + j * 0.15);
+          g.add(e);
+        }
+      }
+      plate(g, def, 1.55, 0.27);
+    },
+    stockPot(g, view, def) {
+      // 爐架上一口超大的高湯鍋，湯是褐色的，還插著一支大湯勺
+      B(g, 0.85, 0.42, 0.7, '#3a3a40', 0, 0, 0, { metalness: 0.5 });
+      C(g, 0.33, 0.33, 0.06, '#1d1d1f', 0, 0.42, 0, 20);
+      C(g, 0.34, 0.32, 0.62, '#c9ced6', 0, 0.48, 0, 24, { metalness: 0.8, roughness: 0.25 });
+      C(g, 0.31, 0.31, 0.02, '#7a4a25', 0, 1.06, 0, 24);
+      for (const x of [-0.38, 0.38]) B(g, 0.08, 0.05, 0.12, '#9aa1a9', x, 0.95, 0, { metalness: 0.7 });
+      const ladle = B(g, 0.04, 0.7, 0.04, '#9aa1a9', 0.12, 0.9, 0.05, { metalness: 0.7 });
+      ladle.rotation.z = -0.4;
+      g.userData.steam = [new THREE.Vector3(-0.1, 1.2, 0), new THREE.Vector3(0.12, 1.2, 0.05)];
+      plate(g, def, 0.2, 0.36);
+    },
+    luweiCase(g, view, def) {
+      // 滷味櫃：玻璃櫃裡一格一格的滷味，上面掛紅色燈籠招牌
+      B(g, 0.9, 0.7, 0.7, '#8e5a2b', 0, 0, 0);
+      B(g, 0.86, 0.4, 0.6, basic('#fff1c9', { transparent: true, opacity: 0.4 }), 0, 0.7, 0);
+      const cs = ['#7a4a25', '#c97b2c', '#3a2c25', '#e8c25a', '#5aa04a', '#a0522d'];
+      for (let i = 0; i < 6; i++) {
+        const x = -0.28 + (i % 3) * 0.28;
+        const z = -0.13 + Math.floor(i / 3) * 0.26;
+        B(g, 0.24, 0.04, 0.22, '#f3f3f3', x, 0.72, z);
+        for (let k = 0; k < 3; k++) C(g, 0.035, 0.035, 0.14, cs[(i + k) % cs.length], x - 0.06 + k * 0.06, 0.76, z, 8);
+      }
+      const lan = new THREE.Mesh(new THREE.SphereGeometry(0.11, 12, 10), mat('#d9302b', { emissive: '#5a0d08' }));
+      lan.scale.y = 1.2;
+      lan.position.set(0.35, 1.35, 0.25);
+      g.add(lan);
+      B(g, 0.02, 0.25, 0.02, '#333', 0.35, 1.47, 0.25);
+      plate(g, def, 0.35, 0.36);
+    },
+    noodleMaker(g, view, def) {
+      // 製麵機：兩根滾筒，前面垂著一排麵條
+      B(g, 0.85, 0.75, 0.65, '#9aa1a9', 0, 0, 0, { metalness: 0.6, roughness: 0.35 });
+      B(g, 0.7, 0.35, 0.45, '#c9ced6', 0, 0.75, -0.05, { metalness: 0.6 });
+      for (const y of [0.92, 1.02]) {
+        const r = C(g, 0.06, 0.06, 0.6, '#e8edf2', 0, y, 0.2, 14, { metalness: 0.7 });
+        r.rotation.z = Math.PI / 2;
+        r.position.set(0, y, 0.2);
+      }
+      for (let i = 0; i < 9; i++) B(g, 0.02, 0.32, 0.02, '#f2d49b', -0.24 + i * 0.06, 0.6, 0.3);
+      B(g, 0.55, 0.04, 0.3, '#c9a36b', 0, 0.55, 0.28);
+      plate(g, def, 0.3, 0.33);
+    },
+    coldCase(g, view, def) {
+      // 直立玻璃展示櫃：一層一層的小菜盤
+      shell(g, 0.85, 1.6, 0.6, '#5aa9a0', -0.05);
+      B(g, 0.75, 1.3, 0.02, basic('#dff3ff', { transparent: true, opacity: 0.35 }), 0, 0.2, 0.26);
+      const dish = ['#5aa04a', '#f2d49b', '#ffffff', '#c97b2c'];
+      for (let r = 0; r < 3; r++) for (let i = 0; i < 3; i++) {
+        C(g, 0.09, 0.08, 0.03, '#ffffff', -0.24 + i * 0.24, 0.3 + r * 0.42, 0.05, 14);
+        C(g, 0.07, 0.06, 0.04, dish[(r + i) % dish.length], -0.24 + i * 0.24, 0.33 + r * 0.42, 0.05, 12);
+      }
+      B(g, 0.75, 0.06, 0.02, basic('#ffffff'), 0, 1.48, 0.27);
+      plate(g, def, 1.6, 0.27);
+    },
+    sealer(g, view, def) {
+      B(g, 0.9, 0.8, 0.7, '#f3efe8', 0, 0, 0);
+      // 封口機：方形機身＋上面一捲封膜＋下面一杯正在封的珍奶
+      B(g, 0.42, 0.55, 0.4, '#e8743b', -0.12, 0.8, -0.05);
+      const roll = C(g, 0.12, 0.12, 0.3, '#f7f7f2', -0.12, 1.4, -0.05, 16);
+      roll.rotation.z = Math.PI / 2;
+      roll.position.set(-0.12, 1.47, -0.05);
+      B(g, 0.3, 0.04, 0.3, '#2b2b30', -0.12, 1.08, 0.12);
+      C(g, 0.08, 0.06, 0.22, basic('#e8c39e', { transparent: true, opacity: 0.85 }), -0.12, 0.85, 0.12, 14);
+      for (let i = 0; i < 3; i++) C(g, 0.065, 0.05, 0.2, '#f5f1e8', 0.25, 0.8, -0.15 + i * 0.15, 12);
+      plate(g, def, 0.45, 0.36);
+    },
+    pearlPot(g, view, def) {
+      B(g, 0.9, 0.8, 0.7, '#f3efe8', 0, 0, 0);
+      // 電磁爐上一鍋黑黑的珍珠，旁邊一桶煮好的
+      B(g, 0.4, 0.05, 0.4, '#1d1d1f', -0.15, 0.8, 0);
+      C(g, 0.18, 0.17, 0.25, '#c9ced6', -0.15, 0.85, 0, 18, { metalness: 0.8 });
+      for (let i = 0; i < 7; i++) {
+        const b = new THREE.Mesh(new THREE.SphereGeometry(0.035, 6, 5), mat('#1a1410'));
+        b.position.set(-0.15 + Math.cos(i) * 0.1, 1.1, Math.sin(i) * 0.1);
+        g.add(b);
+      }
+      C(g, 0.13, 0.12, 0.22, basic('#dff3ff', { transparent: true, opacity: 0.5 }), 0.25, 0.8, -0.05, 14);
+      C(g, 0.11, 0.11, 0.12, '#2b1d14', 0.25, 0.82, -0.05, 12);
+      g.userData.steam = [new THREE.Vector3(-0.15, 1.25, 0)];
+      plate(g, def, 0.45, 0.36);
+    },
+    fruitBar(g, view, def) {
+      B(g, 0.9, 0.8, 0.7, '#2f8f6b', 0, 0, 0);
+      B(g, 0.94, 0.04, 0.74, '#f6f1ea', 0, 0.8, 0);
+      // 三籃水果（檸檬、柳橙、芭樂）＋一台果汁機
+      const fr = [['#f4d03f', -0.28], ['#f39c12', 0], ['#7dbb48', 0.28]];
+      for (const [c, x] of fr) {
+        C(g, 0.12, 0.1, 0.07, '#c9a36b', x, 0.84, 0.15, 12);
+        for (let i = 0; i < 3; i++) {
+          const f = new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 8), mat(c, { roughness: 0.5 }));
+          f.position.set(x - 0.05 + i * 0.05, 0.95 + (i === 1 ? 0.04 : 0), 0.15);
+          g.add(f);
+        }
+      }
+      B(g, 0.18, 0.12, 0.18, '#2b2b30', 0, 0.84, -0.2);
+      C(g, 0.08, 0.06, 0.24, basic('#ffe08a', { transparent: true, opacity: 0.8 }), 0, 0.96, -0.2, 12);
+      plate(g, def, 0.45, 0.36);
+    },
+    iceMaker(g, view, def) {
+      // 製冰機：白色機身，上半部窗口看得到一堆冰塊
+      B(g, 0.8, 0.8, 0.65, '#f3f6f8', 0, 0, -0.05, { roughness: 0.4 });
+      // 上半部是透明的儲冰槽
+      B(g, 0.8, 0.6, 0.03, '#f3f6f8', 0, 0.8, -0.36);
+      for (const x of [-0.385, 0.385]) B(g, 0.03, 0.6, 0.65, '#f3f6f8', x, 0.8, -0.05);
+      B(g, 0.74, 0.6, 0.02, basic('#bfe6ff', { transparent: true, opacity: 0.35 }), 0, 0.8, 0.27);
+      for (let i = 0; i < 18; i++) B(g, 0.1, 0.09, 0.1, '#e6f6ff', -0.27 + (i % 6) * 0.11, 0.8 + Math.floor(i / 6) * 0.1, 0.12 - (i % 2) * 0.15, { roughness: 0.1, metalness: 0.1 });
+      B(g, 0.8, 0.12, 0.66, '#9fc7e6', 0, 1.4, -0.05);
+      plate(g, def, 0.45, 0.28);
+    },
+    colorStation(g, view, def) {
+      // 燙染區：可躺的椅子＋上面罩著半圓的加熱罩＋一碗染膏
+      B(g, 0.62, 0.42, 0.62, '#3a3a40', 0, 0, 0);
+      B(g, 0.66, 0.1, 0.66, '#8e44ad', 0, 0.42, 0, { roughness: 0.5 });
+      const back = B(g, 0.66, 0.6, 0.1, '#8e44ad', 0, 0.5, -0.3, { roughness: 0.5 });
+      back.rotation.x = -0.25;
+      B(g, 0.05, 1.3, 0.05, '#9aa1a9', 0, 0.3, -0.42, { metalness: 0.7 });
+      const hood = new THREE.Mesh(new THREE.SphereGeometry(0.26, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), mat('#e8edf2', { side: THREE.DoubleSide }));
+      hood.position.set(0, 1.45, -0.28);
+      hood.rotation.x = Math.PI;
+      g.add(hood);
+      C(g, 0.08, 0.06, 0.06, '#2b2b30', 0.4, 0.6, 0.2, 12);
+      C(g, 0.065, 0.065, 0.02, '#8e2b6b', 0.4, 0.66, 0.2, 12);
+      plate(g, def, 0.25, 0.33);
+    },
+    hoodDryer(g, view, def) {
+      // 烘罩機：有輪子的立架，頂端一顆大大的圓罩
+      C(g, 0.28, 0.3, 0.05, '#2b2b30', 0, 0, 0, 16);
+      C(g, 0.03, 0.03, 1.2, '#9aa1a9', 0, 0.05, 0, 8, { metalness: 0.7 });
+      const hood = new THREE.Mesh(new THREE.SphereGeometry(0.3, 18, 12, 0, Math.PI * 2, 0, Math.PI * 0.6), mat('#f4a3c0', { side: THREE.DoubleSide }));
+      hood.position.set(0, 1.55, 0.12);
+      hood.rotation.x = Math.PI * 0.75;
+      g.add(hood);
+      B(g, 0.14, 0.1, 0.1, '#e8edf2', 0, 1.2, -0.05);
+      plate(g, def, 0.75, 0.05);
+    },
+    magRack(g, view, def) {
+      // 木頭雜誌架：斜斜放著一排彩色雜誌和報紙
+      B(g, 0.8, 1.1, 0.25, '#8a5a3b', 0, 0, -0.2);
+      const cs = ['#d9482b', '#2c6fbb', '#f2c14e', '#2f8f6b', '#8e44ad', '#f7f7f2'];
+      for (let r = 0; r < 3; r++) {
+        B(g, 0.78, 0.04, 0.2, '#6b4430', 0, 0.18 + r * 0.32, -0.02);
+        for (let i = 0; i < 3; i++) {
+          const m = B(g, 0.22, 0.28, 0.02, cs[(r * 3 + i) % cs.length], -0.25 + i * 0.25, 0.22 + r * 0.32, 0.02);
+          m.rotation.x = -0.25;
+        }
+      }
+      plate(g, def, 1.15, -0.06);
+    },
+    hairShelf(g, view, def) {
+      // 美髮商品櫃：三層架子，擺滿洗髮精、髮蠟
+      shell(g, 0.85, 1.5, 0.42, '#f3efe8', -0.12);
+      const cs = ['#5aa9a0', '#2c6fbb', '#e0478a', '#2b2b30', '#f2c14e'];
+      for (let r = 0; r < 3; r++) {
+        B(g, 0.8, 0.03, 0.38, '#d8cfc2', 0, 0.3 + r * 0.42, -0.08);
+        for (let i = 0; i < 5; i++) C(g, 0.05, 0.05, r === 2 ? 0.1 : 0.24, cs[(i + r) % cs.length], -0.3 + i * 0.15, 0.33 + r * 0.42, -0.02, 10);
+      }
+      plate(g, def, 1.5, 0.06);
+    },
+    tireBalancer(g, view, def) {
+      // 輪胎平衡機：機身側邊掛著一顆輪胎，前面有小螢幕
+      B(g, 0.6, 0.95, 0.6, '#2c6fbb', -0.1, 0, -0.05, { roughness: 0.5 });
+      B(g, 0.3, 0.2, 0.02, basic('#5fd3a0'), -0.1, 0.7, 0.26);
+      const axle = C(g, 0.04, 0.04, 0.3, '#9aa1a9', 0.25, 0.75, 0, 8, { metalness: 0.7 });
+      axle.rotation.z = Math.PI / 2;
+      axle.position.set(0.3, 0.75, 0);
+      const tire = new THREE.Mesh(new THREE.TorusGeometry(0.24, 0.08, 10, 20), mat('#1d1d1d', { roughness: 0.8 }));
+      tire.position.set(0.42, 0.75, 0);
+      tire.rotation.y = Math.PI / 2;
+      tire.castShadow = true;
+      g.add(tire);
+      const rim = C(g, 0.17, 0.17, 0.06, '#c9ced6', 0.42, 0.75, 0, 14, { metalness: 0.8 });
+      rim.rotation.z = Math.PI / 2;
+      rim.position.set(0.42, 0.75, 0);
+      plate(g, def, 0.4, 0.26);
+    },
+    diagPC(g, view, def) {
+      // 診斷電腦：推車上一台螢幕（上面有波形），一條線拉到地上的接頭
+      B(g, 0.6, 0.05, 0.45, '#555b66', 0, 0.15, 0);
+      B(g, 0.6, 0.05, 0.45, '#555b66', 0, 0.75, 0);
+      for (const [x, z] of [[-0.27, -0.2], [0.27, -0.2], [-0.27, 0.2], [0.27, 0.2]]) {
+        B(g, 0.04, 0.75, 0.04, '#9aa1a9', x, 0.05, z, { metalness: 0.6 });
+        C(g, 0.04, 0.04, 0.04, '#1d1d1d', x, 0, z, 8);
+      }
+      B(g, 0.5, 0.36, 0.05, '#1d1d1d', 0, 0.85, -0.08);
+      const scr = canvasTex(128, 96, (c, w, h) => {
+        c.fillStyle = '#0d2238';
+        c.fillRect(0, 0, w, h);
+        c.strokeStyle = '#5fd3a0';
+        c.lineWidth = 4;
+        c.beginPath();
+        for (let x = 0; x <= w; x += 8) c.lineTo(x, h / 2 + Math.sin(x / 9) * 20 * Math.sin(x / 40));
+        c.stroke();
+        c.fillStyle = '#f2c14e';
+        c.font = 'bold 18px sans-serif';
+        c.fillText('OK', 8, 22);
+      });
+      const sm = new THREE.Mesh(new THREE.PlaneGeometry(0.44, 0.3), new THREE.MeshBasicMaterial({ map: scr }));
+      sm.position.set(0, 1.03, -0.05);
+      g.add(sm);
+      B(g, 0.3, 0.02, 0.15, '#2b2b30', 0, 0.8, 0.12);
+      const cable = B(g, 0.025, 0.6, 0.025, '#e2a12a', 0.32, 0.2, 0.15);
+      cable.rotation.z = 0.5;
+      plate(g, def, 0.3, 0.23);
+    },
+    washBay(g, view, def) {
+      // 洗車區：藍色排水地墊、水桶、泡泡、一支噴槍
+      B(g, 0.92, 0.04, 0.92, '#2c6fbb', 0, 0, 0, { roughness: 0.3 });
+      for (let i = 0; i < 4; i++) B(g, 0.85, 0.01, 0.03, '#1f5a9a', 0, 0.04, -0.3 + i * 0.2);
+      C(g, 0.13, 0.11, 0.25, '#f2c14e', -0.28, 0.04, -0.25, 14);
+      for (let i = 0; i < 4; i++) {
+        const b = new THREE.Mesh(new THREE.SphereGeometry(0.07 + (i % 2) * 0.03, 8, 6), mat('#ffffff', { roughness: 0.2 }));
+        b.position.set(-0.28 + (i - 1.5) * 0.06, 0.32 + (i % 2) * 0.05, -0.25);
+        g.add(b);
+      }
+      B(g, 0.06, 1.0, 0.06, '#9aa1a9', 0.35, 0.04, -0.35, { metalness: 0.7 });
+      B(g, 0.2, 0.05, 0.05, '#2b2b30', 0.3, 0.95, -0.3);
+      B(g, 0.05, 0.12, 0.05, '#d9482b', 0.22, 0.9, -0.28);
+      plate(g, def, 0.75, -0.3);
+    },
+    oilDrum(g, view, def) {
+      // 機油桶架：兩桶大油桶，上面一支手動抽油幫浦
+      B(g, 0.9, 0.12, 0.6, '#555b66', 0, 0, 0);
+      for (const [x, c] of [[-0.22, '#e2a12a'], [0.22, '#2c6fbb']]) {
+        C(g, 0.2, 0.2, 0.7, c, x, 0.12, 0, 18, { metalness: 0.4, roughness: 0.4 });
+        for (const y of [0.3, 0.6]) C(g, 0.205, 0.205, 0.025, '#2b2b30', x, 0.12 + y, 0, 18);
+      }
+      B(g, 0.04, 0.35, 0.04, '#9aa1a9', -0.22, 0.82, 0, { metalness: 0.7 });
+      B(g, 0.2, 0.04, 0.04, '#9aa1a9', -0.14, 1.12, 0, { metalness: 0.7 });
+      plate(g, def, 0.4, 0.31);
+    },
+    hotCase(g, view, def) {
+      // 熱食櫃：黃光玻璃櫃裡擺著便當，旁邊一格關東煮
+      B(g, 0.9, 0.75, 0.7, '#d9482b', 0, 0, 0);
+      B(g, 0.86, 0.5, 0.62, basic('#ffe7b3', { transparent: true, opacity: 0.45 }), 0, 0.75, 0);
+      B(g, 0.8, 0.02, 0.02, basic('#ffd27a'), 0, 1.22, 0.3);
+      for (let i = 0; i < 3; i++) {
+        B(g, 0.22, 0.06, 0.16, '#2b2b30', -0.28 + i * 0.25, 0.77, -0.12);
+        B(g, 0.2, 0.02, 0.14, ['#f2d49b', '#c97b2c', '#5aa04a'][i], -0.28 + i * 0.25, 0.83, -0.12);
+      }
+      B(g, 0.5, 0.12, 0.25, '#c9ced6', -0.1, 0.77, 0.15, { metalness: 0.6 });
+      for (let i = 0; i < 4; i++) C(g, 0.03, 0.03, 0.12, ['#e8c25a', '#ffffff', '#c97b2c', '#7a4a25'][i], -0.25 + i * 0.1, 0.85, 0.15, 8);
+      g.userData.steam = [new THREE.Vector3(-0.1, 1.0, 0.15)];
+      plate(g, def, 0.35, 0.36);
+    },
+    coffeeMachine(g, view, def) {
+      B(g, 0.9, 0.8, 0.7, '#6b4a32', 0, 0, 0);
+      B(g, 0.94, 0.04, 0.74, '#f6f1ea', 0, 0.8, 0);
+      // 義式咖啡機：亮面機身、兩個沖煮頭、上面溫杯
+      B(g, 0.66, 0.42, 0.42, '#c9ced6', 0, 0.84, -0.12, { metalness: 0.8, roughness: 0.25 });
+      for (const x of [-0.16, 0.16]) {
+        B(g, 0.12, 0.06, 0.12, '#2b2b30', x, 0.98, 0.1);
+        C(g, 0.05, 0.04, 0.08, '#ffffff', x, 0.86, 0.12, 10);
+      }
+      for (let i = 0; i < 4; i++) C(g, 0.045, 0.04, 0.07, '#f7f7f2', -0.22 + i * 0.15, 1.26, -0.12, 10);
+      C(g, 0.03, 0.03, 0.2, '#9aa1a9', 0.3, 0.98, 0.05, 8, { metalness: 0.7 }).rotation.z = 0.5;
+      g.userData.steam = [new THREE.Vector3(0.16, 1.0, 0.12)];
+      plate(g, def, 0.45, 0.36);
+    },
+    softServe(g, view, def) {
+      // 霜淇淋機：機身＋上面一支超大的霜淇淋招牌
+      B(g, 0.7, 1.0, 0.6, '#f4a3c0', 0, 0, -0.05, { roughness: 0.4 });
+      B(g, 0.5, 0.25, 0.25, '#e8edf2', 0, 0.75, 0.12, { metalness: 0.5 });
+      for (const x of [-0.12, 0.12]) B(g, 0.06, 0.12, 0.06, '#9aa1a9', x, 0.63, 0.22, { metalness: 0.7 });
+      const cone = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.32, 14), mat('#d9a35a'));
+      cone.rotation.x = Math.PI;
+      cone.position.set(0, 1.18, 0);
+      g.add(cone);
+      for (let i = 0; i < 3; i++) {
+        const sw = new THREE.Mesh(new THREE.SphereGeometry(0.14 - i * 0.035, 14, 10), mat('#fffaf0', { roughness: 0.3 }));
+        sw.scale.y = 0.8;
+        sw.position.set(0, 1.38 + i * 0.1, 0);
+        g.add(sw);
+      }
+      plate(g, def, 0.35, 0.26);
+    },
+    freezerCase(g, view, def) {
+      // 臥式冷凍櫃：上面是玻璃拉門，看得到彩色的冷凍食品
+      shell(g, 0.9, 0.75, 0.65, '#e8edf2', 0, 'top');
+      B(g, 0.84, 0.02, 0.58, basic('#cfe8ff', { transparent: true, opacity: 0.45 }), 0, 0.76, 0);
+      const cs = ['#2c6fbb', '#e74c3c', '#f2c14e', '#2ecc71', '#ffffff', '#8e44ad'];
+      for (let i = 0; i < 6; i++) B(g, 0.22, 0.08, 0.18, cs[i], -0.27 + (i % 3) * 0.27, 0.66, -0.12 + Math.floor(i / 3) * 0.25);
+      B(g, 0.9, 0.08, 0.04, '#9fc7e6', 0, 0.55, 0.33);
+      plate(g, def, 0.25, 0.34);
     },
 
     // ───── 高等級裝潢（Lv.11 以後） ─────
