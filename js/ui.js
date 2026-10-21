@@ -1533,7 +1533,7 @@
         <span>現在在班的主管：${fx.list.length ? fx.list.map((e) => esc(e.name)).join('、') : '沒有'}</span>
         ${now.length ? `<span class="pos">效果：${now.join('・')}</span>` : ''}
       </div>
-      <label class="toggle-row"><input type="checkbox" data-action="delegate" ${s.policy.delegate ? 'checked' : ''} /> <span><b>店長代理處理事件</b><small>你來不及處理（或出門在外）的事件，在班上的店長（沒有店長就找領導力 60 以上的組長）會照他的風格幫你決定：暖心型顧員工、鐵血型顧業績（領導力低的話可能做出慣老闆的選擇）、摸魚型有一半會忘記。</small></span></label>
+      <label class="toggle-row"><input type="checkbox" data-action="delegate" ${s.policy.delegate ? 'checked' : ''} /> <span><b>店長代理處理事件</b><small>你來不及處理（或出門在外）的事件，在班上的店長（沒有店長就找領導力 60 以上的組長）會照他的風格幫你決定：暖心型顧員工、鐵血型顧業績（領導力低的話可能做出慣老闆的選擇）、摸魚型有一半會忘記。代理也要守預算：每件事最多花 $${s.delegateBudget.toLocaleString()}（有授權制度時照「單件上限」），超過就交還給你；結婚、家人住院這類老闆自己的人生大事，誰都不能代你決定。</small></span></label>
       <h3>👑 店長</h3>
       ${mgr ? card(mgr) : '<p class="muted">還沒有店長。店長在班上時大家做事快一點、心情好一點，也能幫你處理事件；全店只能有一位。</p>'}
       <h3>🎖️ 組長（每 3 個員工可以有 1 位）</h3>
@@ -1638,7 +1638,7 @@
     if (!owned.length) return '';
     const known = owned.filter((b) => s.knows(e, b.id)).length;
     return `<div class="skill-row"><small>🧰 兼營技能 ${known}/${owned.length}${owned.length - known >= 2 ? '・<span class="neg">業務太雜，心情會變差</span>' : ''}</small><div>${owned
-      .map((b) => (s.knows(e, b.id) ? `<span class="chip ok">${b.icon} ${b.name} ✓</span>` : `<button class="chip-btn" data-action="train" data-id="${b.id}" ${s.cash < s.skillCost || e.trainDay === s.day ? 'disabled' : ''} title="送去上課學會（$${s.skillCost.toLocaleString()}，每人每天一門）">${b.icon} ${b.name}・📚 $${s.skillCost.toLocaleString()}</button>`))
+      .map((b) => (s.knows(e, b.id) ? `<span class="chip ok">${b.icon} ${b.name} ✓</span>` : `<button class="chip-btn" data-action="train-skill" data-id="${b.id}" ${s.cash < s.skillCost || e.trainDay === s.day ? 'disabled' : ''} title="送去上課學會（$${s.skillCost.toLocaleString()}，每人每天一門）">${b.icon} ${b.name}・📚 $${s.skillCost.toLocaleString()}</button>`))
       .join('')}</div></div>`;
   }
 
@@ -1664,7 +1664,7 @@
       ];
       const sel = (key, opts, v) => `<select data-action="auth-set" data-key="${key}">${opts.map(([id, l]) => `<option value="${id}" ${v === id ? 'selected' : ''}>${l}</option>`).join('')}</select>`;
       out += `<h3>📋 授權制度</h3>
-      <p class="muted">${agent ? `現在由 <b>${esc(agent.title)}${esc(agent.name)}</b> 依規則處理。` : '⚠️ 現在沒有人可以代你處理：要有店長在班，或任命區經理。'}升遷、外人上門的事情，一定會交給你。已代處理 ${s.authCount || 0} 件。</p>
+      <p class="muted">${agent ? `現在由 <b>${esc(agent.title)}${esc(agent.name)}</b> 依規則處理。` : '⚠️ 現在沒有人可以代你處理：要有店長在班，或任命區經理。'}升遷、外人上門、老闆自己的人生大事（結婚、家人住院……），一定會交給你；每件事的總花費（含老闆個人支出）超過單件上限也會交還給你。已代處理 ${s.authCount || 0} 件。</p>
       <div class="auth-grid">${RULES.map(([k, l, o]) => `<label><span>${l}</span>${sel(k, o, A[k] || 'off')}</label>`).join('')}
         <label><span>💰 單件預算上限</span>${sel('budget', [1000, 5000, 20000, 50000].map((v) => [String(v), money(v)]), String(A.budget || 0))}</label>
       </div>`;
@@ -1849,7 +1849,7 @@
     return `
       <div class="drawer-body two-col">
         <div>
-          <h3>{w:supplies}庫存 <small>每天開門前送貨；急件約 40 分鐘到，貴三成</small></h3>
+          <h3>{w:supplies}庫存 <small>每天開門前送貨；急件約 40 分鐘到，貴${s.level >= 18 ? '一成五' : '三成'}</small></h3>
           <div class="stock-list">
             ${s.ind.stock
               .map((g) => {
@@ -1876,7 +1876,8 @@
               })
               .join('')}
           </div>
-          ${toggle('autoStock', s.policy.autoStock, '依昨天的用量自動調整進貨量（多抓 15%）', '自己決定每天進多少貨', true)}
+          ${toggle('autoStock', s.policy.autoStock, '依昨天的用量自動調整進貨量（多抓 20%，賣完的多抓 35%）', '自己決定每天進多少貨', true)}
+          ${s.policy.autoStock && s.parNote && s.parNote.day === s.day ? `<p class="calc">📦 今天早上自動調整了：${esc(s.parNote.text)}</p>` : ''}
           ${s.lastDay && s.lastDay.waste ? `<p class="calc">昨晚報廢了 ${money(s.lastDay.waste)} 的{w:supplies}。</p>` : ''}
           ${s.lastDay && s.lastDay.soldOut ? `<p class="calc neg">昨天有 ${s.lastDay.soldOut} 位客人因為賣完了離開。</p>` : ''}
         </div>
@@ -1949,7 +1950,7 @@
           <p class="calc">勞保＋就保約 ${(INS.labor * 100).toFixed(1)}%・健保約 ${(INS.health * 100).toFixed(1)}%・勞退 ${(INS.pension * 100).toFixed(0)}%<br>營業稅：${s.taxStatus ? TAX_LABEL[s.taxStatus] : '第一週結算時由國稅局核定'}</p>
           <h3>銀行</h3>
           <p class="calc">借款 ${money(s.loan)}（月息 2%，上限 $600,000）</p>
-          <div class="insp-actions"><button data-action="borrow">借 $100,000</button><button data-action="repay" ${s.loan <= 0 ? 'disabled' : ''}>還 $100,000</button></div>
+          <div class="insp-actions"><button data-action="borrow" ${s.loan >= 600000 ? 'disabled title="已經借到上限 $600,000"' : ''}>${s.loan >= 600000 ? '已借到上限' : `借 ${money(Math.min(100000, 600000 - s.loan))}`}</button><button data-action="repay" ${s.loan <= 0 ? 'disabled' : ''}>還 $100,000</button></div>
         </div>
         <div>
           <h3>{w:menu}與價格 <small>建議價會跟著物價漲</small></h3>
@@ -2020,7 +2021,8 @@
           <h3>這週到目前為止 <small>第 ${s.week} 週</small></h3>
           <table class="ledger">${rows.map(([k, v]) => `<tr><th>${k}</th><td class="${v < 0 ? 'neg' : 'pos'}">${signedMoney(v)}</td></tr>`).join('')}
             <tr class="total"><th>合計</th><td class="${net < 0 ? 'neg' : 'pos'}">${signedMoney(net)}</td></tr>
-            ${s.branches.length ? `<tr><th>　其中本店</th><td class="${net - (L.branches || 0) < 0 ? 'neg' : 'pos'}">${signedMoney(net - (L.branches || 0))}</td></tr><tr><th>　其中分店（週末結算）</th><td>${L.branches ? signedMoney(L.branches) : '上週 ' + signedMoney(s.branches.reduce((t, b) => t + (b.last || 0), 0))}</td></tr>` : ''}</table>
+            ${s.branches.length ? `<tr><th>　其中本店</th><td class="${net - (L.branches || 0) < 0 ? 'neg' : 'pos'}">${signedMoney(net - (L.branches || 0))}</td></tr><tr><th>　其中分店（週末結算）</th><td>${L.branches ? signedMoney(L.branches) : s.lastBranchNet ? '上週 ' + signedMoney(s.lastBranchNet.net) : '還沒結算'}</td></tr>${!L.branches && s.lastBranchNet && s.lastBranchNet.areaPay ? `<tr><th>　　＝各分店合計</th><td>${signedMoney(s.lastBranchNet.stores)}</td></tr><tr><th>　　－區經理薪水</th><td class="neg">${signedMoney(-s.lastBranchNet.areaPay)}</td></tr>` : ''}` : ''}</table>
+          ${L.dividend || L.ownerLoan ? `<p class="calc">💼 不算在損益裡的現金進出：${L.dividend ? `老闆領分紅 ${money(L.dividend)}` : ''}${L.dividend && L.ownerLoan ? '・' : ''}${L.ownerLoan ? `公司代墊老闆私人開銷 ${money(L.ownerLoan)}` : ''}</p>` : ''}
           ${L.waste ? `<p class="calc">{w:supplies}進貨裡有 ${money(L.waste)} 是過期報廢掉的。</p>` : ''}
           <p class="calc">🧾 ${s.taxStatus ? TAX_LABEL[s.taxStatus] : '營業稅在週末結算'}；營業稅每週結算一次。</p>
           ${s.lastDay ? `<p class="calc">昨天：服務 ${s.lastDay.served} 人・營收 ${money(s.lastDay.revenue)}・生氣離開 ${s.lastDay.angry} 人・太擠沒進來 ${s.lastDay.balked} 人</p>` : ''}
@@ -2056,6 +2058,7 @@
     rival: ['🏪', '對手', '隔壁搞小動作'],
     event: ['⚡', '事件', '事件的選擇造成的'],
     pet: ['🐾', '毛孩', '對貓狗過敏的客人：劃無毛孩區、店寵裝圍欄，或關掉寵物友善'],
+    funny: ['🤪', '奇葩評論', '網路上什麼人都有，看看就好，不用改什麼'],
     toilet: ['🚽', '廁所', '沒有廁所、廁所太髒或要排很久：到「建造 → 後場」蓋廁所，記得有人打掃'],
   };
   // 長期目標的進度
@@ -2151,7 +2154,7 @@
         <div class="ibar"><span>壓力</span><div class="bar"><div class="bar-fill ${o.stress >= 70 ? 'jerk' : o.stress >= 45 ? 'energy' : 'morale'}" style="width:${Math.round(o.stress)}%"></div></div><b>${Math.round(o.stress)}</b></div>
         <div class="ibar"><span>健康</span><div class="bar"><div class="bar-fill ${o.health < 50 ? 'jerk' : 'skill'}" style="width:${Math.round(o.health)}%"></div></div><b>${Math.round(o.health)}</b></div>
         ${o.kids ? `<div class="ibar"><span>親子</span><div class="bar"><div class="bar-fill hunger" style="width:${Math.round(o.familyBond)}%"></div></div><b>${Math.round(o.familyBond)}</b></div>` : ''}
-        <p class="calc">${has || '還沒有什麼個人資產'}${o.loan ? `・借給朋友 ${money(o.loan)}` : ''}<br>壓力來源：自己處理的事件、沒人處理的事件、全年無休、客人等到生氣、沒有店長的分店。多授權、派店長、排公休、度假都會讓壓力下降；壓力太大會生病住院。</p>
+        <p class="calc">${has || '還沒有什麼個人資產'}${o.loan ? `・借給朋友 ${money(o.loan)}` : ''}${o.owe ? `<br>🧾 <b>老闆欠公司 ${money(o.owe)}</b>（個人錢不夠時公司代墊的；領分紅會先扣還）` : ''}<br>壓力來源：自己處理的事件、沒人處理的事件、全年無休、客人等到生氣、沒有店長的分店。多授權、派店長、排公休、度假都會讓壓力下降；壓力太大會生病住院。</p>
         ${v ? `<p class="calc">現在的人生評語：<b>${v.title}</b>${v.notes.length ? `（${v.notes.join('、')}）` : ''}</p>` : ''}
       </div>
       <div class="catalog">${Object.entries(L)
@@ -2176,10 +2179,10 @@
     return `
       <div class="drawer-body two-col">
         <div>
-          <div class="rating-big"><b>${r.toFixed(1)}</b><span class="stars">${stars(r)}</span><small>評價＝最近 ${recent.length} 則評論的平均・評價越高，路過的人越願意進來</small></div>
+          <div class="rating-big"><b>${r.toFixed(1)}</b><span class="stars">${stars(r)}</span><small>評價＝最近 ${recent.length} 則評論的平均 ${recent.length ? (recent.reduce((t, v) => t + v.stars, 0) / recent.length).toFixed(2) : '—'}${s.level >= 21 && recent.length > 40 ? '・Lv.21 起最低的 5 則一星不算' : ''}${s.level >= 25 ? `・等級加成 +${s.level >= 40 ? '0.2' : '0.1'}` : ''}・評價越高，路過的人越願意進來</small></div>
           <div class="rating-dist">${dist.map((n, i) => `<div><span>${5 - i}★</span><i style="width:${recent.length ? (n / recent.length) * 100 : 0}%"></i><b>${n}</b></div>`).join('')}</div>
           <h3>低分的原因 <small>最近 ${recent.length} 則裡有 ${low.length} 則三星以下</small></h3>
-          ${top.length ? `<div class="why-list">${top.map(([k, n]) => `<div><b>${WHY[k][0]} ${WHY[k][1]}</b><span>${n} 則</span><small>${WHY[k][2]}</small></div>`).join('')}</div>` : '<p class="muted">最近沒有低分評論，繼續保持！</p>'}
+          ${top.length ? `<div class="why-list">${top.map(([k, n]) => { const w = WHY[k] || WHY.event; return `<div><b>${w[0]} ${w[1]}</b><span>${n} 則</span><small>${w[2]}</small></div>`; }).join('')}</div>` : '<p class="muted">最近沒有低分評論，繼續保持！</p>'}
         </div>
         <div>
           <div class="segmented tiny"><button data-action="review-filter" data-value="" class="${ui.reviewLow ? '' : 'active'}">全部</button><button data-action="review-filter" data-value="low" class="${ui.reviewLow ? 'active' : ''}">只看三星以下</button></div>
@@ -2413,6 +2416,9 @@
                else {
                  const fx = s.resolveEffects(c);
                  meta = fx.cash ? `<span class="cost ${fx.cash > 0 ? 'good' : 'bad'}">${signedMoney(fx.cash)}</span>` : '';
+                 // 老闆個人的錢不夠：先講清楚差額會由公司代墊、記成老闆欠公司
+                 const need = (fx.lifeWealth < 0 ? -fx.lifeWealth : 0) + (fx.lifeBuy && Fun.LIFE_SPEND && Fun.LIFE_SPEND[fx.lifeBuy] ? Fun.LIFE_SPEND[fx.lifeBuy].cost : 0);
+                 if (need > s.owner.wealth) meta += `<span class="cost bad">⚠️ 你個人只有 ${money(s.owner.wealth)}，差 ${money(need - s.owner.wealth)} 會由公司代墊（記成老闆欠公司）</span>`;
                }
                return `<button class="choice ${c.minigame ? 'is-game' : ''}" data-action="choose" data-i="${i}">
                  <span class="choice-label"><kbd>${i + 1}</kbd>${pron(ev, c.label)}</span>
@@ -2645,7 +2651,7 @@
       ${aw ? `<div class="award"><span>${aw.medal}</span><div><small>第 ${aw.year} 年・年度好店評選（${aw.score} 分）</small><b>${aw.title}</b><p>${aw.desc}${aw.reward ? ` 獎金 ${money(aw.reward)}！` : ''}</p></div></div>` : ''}
       <div class="event-kicker">📊 週報・第 ${r.week} 週</div>
       <h2>${r.profit >= 0 ? '這週有賺錢！' : '這週虧錢了'} <span class="${r.profit < 0 ? 'neg' : 'pos'}">${signedMoney(r.profit)}</span></h2>
-      ${r.branchDetail && r.branchDetail.length ? `<div class="split"><div><span>🏪 本店</span><b class="${r.home < 0 ? 'neg' : 'pos'}">${signedMoney(r.home)}</b><small>含事件、成就、設備等其他收支</small></div><div><span>🏙️ 分店合計</span><b class="${r.branches < 0 ? 'neg' : 'pos'}">${signedMoney(r.branches)}</b><small>${r.branchDetail.map((b) => `${esc(b.name)} ${signedMoney(b.last)}${b.lostN ? `（流失 ${b.lostN} 人）` : ''}`).join('・')}</small></div></div>` : ''}
+      ${r.branchDetail && r.branchDetail.length ? `<div class="split"><div><span>🏪 本店</span><b class="${r.home < 0 ? 'neg' : 'pos'}">${signedMoney(r.home)}</b><small>含事件、成就、設備等其他收支</small></div><div><span>🏙️ 分店合計</span><b class="${r.branches < 0 ? 'neg' : 'pos'}">${signedMoney(r.branches)}</b><small>${r.branchDetail.map((b) => `${esc(b.name)} ${signedMoney(b.last)}${b.lostN ? `（流失 ${b.lostN} 人）` : ''}`).join('・')}${r.areaPay ? `・區經理薪水 ${signedMoney(-r.areaPay)}` : ''}</small></div></div>` : ''}
       <table class="ledger">${rows.map(([k, v]) => `<tr><th>${k}</th><td class="${v < 0 ? 'neg' : 'pos'}">${signedMoney(v)}</td></tr>`).join('')}</table>
       <div class="week-stats">
         <div><span>評價</span><b>${r.rating.toFixed(1)} ★</b></div>
@@ -2698,14 +2704,15 @@
   function reactionOf(d) {
     const delta = d.result.delta;
     const s = ui.sim;
-    const e = (d.ev.staff && s.staff.includes(d.ev.staff) && d.ev.staff) || s.staff[0];
-    if (!e) return { look: bossLook(ui.settings.gender), name: '你', mood: 'smug' };
+    // 誰在反應：員工的事是那位員工、跟某人有關的是那個人；電話和門口的事是老闆自己（不要隨便抓第一位員工）
+    const e = (d.ev.staff && s.staff.includes(d.ev.staff) && d.ev.staff) || (d.ev.subject && s.staff.includes(d.ev.subject) && d.ev.subject) || null;
+    if (!e) return { look: bossLook(ui.settings.gender), name: '你', mood: d.result.delta.jerk >= 4 ? 'smug' : d.result.delta.morale >= 3 ? 'happy' : 'neutral' };
     let mood = 'neutral';
     if (delta.jerk >= 10) mood = d.result.event.id.length % 2 ? 'sad' : 'angry';
     else if (delta.jerk >= 4 || delta.morale <= -4) mood = 'worried';
     else if (delta.morale >= 3 || delta.jerk <= -2 || d.game === true) mood = 'happy';
     if (d.game === false && mood === 'neutral') mood = 'shocked';
-    return { look: e.look, name: d.ev.where === 'staff' ? e.name : `${e.name}（員工）`, mood };
+    return { look: e.look, name: e.name, mood };
   }
 
   function deltaChips(d) {
@@ -2873,6 +2880,11 @@
         const id = btn.dataset.id;
         s.par[id] = Math.max(0, s.par[id] + Number(btn.dataset.d));
         ui.tutFlags.par = true;
+        // 自己改了進貨量：自動調整要關掉，不然隔天早上又被改回去
+        if (s.policy.autoStock) {
+          s.policy.autoStock = false;
+          toast('📦 你手動改了進貨量，「依昨天用量自動調整」已經關掉；之後照你設定的量進貨');
+        }
         renderDrawer();
         break;
       }
@@ -3177,10 +3189,17 @@
         renderDrawer();
         break;
       }
-      case 'train': {
+      // 兼營業務上課（跟一般技能課是不同的按鈕，以前共用 'train' 會被技能課攔走、按了沒反應）
+      case 'train-skill': {
         const who = ui.inspect && ui.inspect.ref;
-        if (who && s.trainSkill(who, btn.dataset.id)) {
-          toast(`📚 ${who.name} 學會了新業務`, 'good');
+        const b = (s.ownedSide() || []).find((x) => x.id === btn.dataset.id);
+        if (!who || !b) break;
+        const cost = s.skillCost;
+        if (s.knows(who, b.id)) toast(`${who.name} 已經會${b.name}了`);
+        else if (who.trainDay === s.day) toast(`${who.name} 今天已經上過一門課了，明天再去`, 'bad');
+        else if (s.cash < cost) toast(`現金不夠（上課費 ${money(cost)}）`, 'bad');
+        else if (s.trainSkill(who, b.id)) {
+          toast(`📚 ${who.name} 去上了「${b.name}」的課（${money(cost)}），學會了！之後做這項業務會快很多`, 'good');
           window.BossAudio.play('cheer');
         }
         renderInspector();
@@ -3413,7 +3432,7 @@
         renderDrawer();
         break;
       case 'borrow':
-        s.borrow(100000);
+        if (!s.borrow(100000)) toast('已經借到銀行上限 $600,000，要先還一些才能再借', 'bad');
         renderDrawer();
         break;
       case 'repay':

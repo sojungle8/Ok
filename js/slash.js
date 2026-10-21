@@ -16,9 +16,9 @@
         id: 'side_delivery',
         icon: '🛵',
         title: `${e.name}想早點下班去跑單`,
-        text: `${e.name}看了一下手機：「老闆，今天下雨，外送單價加成很高……我可以早一個小時走嗎？」`,
+        text: `${e.name}看了一下手機：「老闆，${s.weather && ['rain', 'typhoon'].includes(s.weather.id) ? '今天下雨，外送單價加成很高' : '平台說今天晚餐時段有尖峰加成'}……我可以早一個小時走嗎？」`,
         choices: [
-          { label: '好，路上小心', effects: { sendHomeOf: e.id, moodOf: [[e.id, 8]] }, result: `${e.name}穿上雨衣衝出去：「謝謝老闆！」` },
+          { label: '好，早一小時走', note: '比原本的下班時間早 1 小時', effects: { leaveEarly: [e.id, 60], moodOf: [[e.id, 8]] }, result: `${e.name}：「謝謝老闆！我做到${s.weather && ['rain', 'typhoon'].includes(s.weather.id) ? '時間就穿雨衣衝' : '時間就去上線'}！」` },
           { label: '今天人手不夠，下次吧', effects: { moodOf: [[e.id, -6]] }, result: `${e.name}嘆了口氣，把手機收起來。` },
           { label: '「上班時間不要想別的工作」', quote: '你到底是做哪邊的？', effects: { moodOf: [[e.id, -12]], jerk: 1 }, result: `${e.name}沒說話。後來同事說，${ta(e)}在找別的店。` },
         ],
@@ -231,7 +231,7 @@
         title: `補習班臨時叫${e.name}去代課`,
         text: `${e.name}接到電話：「老闆，補習班老師生病，叫我晚上去代課……我可以提早兩小時走嗎？」`,
         choices: [
-          { label: '去吧，學生要緊', effects: { sendHomeOf: e.id, moodOf: [[e.id, 6]] }, result: `${e.name}背起包包：「明天我早點來！」` },
+          { label: '去吧，學生要緊', note: '比原本的下班時間早 2 小時', effects: { leaveEarly: [e.id, 120], moodOf: [[e.id, 6]] }, result: `${e.name}：「謝謝老闆！我時間到就去，明天我早點來！」` },
           { label: '「你要選一邊」', effects: { moodOf: [[e.id, -10]] }, result: `${e.name}打電話跟補習班說不行，掛掉後臉很臭。` },
         ],
         ignore: { effects: { moodOf: [[e.id, -4]] }, result: `${e.name}只好推掉代課。` },
