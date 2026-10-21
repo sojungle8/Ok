@@ -5129,3 +5129,21 @@ kbd {
 /* 🚪 後場房間名牌 */
 .room-tag { position: absolute; left: 0; top: 0; pointer-events: none; white-space: nowrap; font-size: 0.7rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: rgba(40, 32, 26, 0.72); color: #fff; }
 .room-tag.busy { background: rgba(44, 138, 87, 0.9); }
+
+/* 手機：排班表每人折成三行（名字＋班別／一週七天／每週休＋崗位），不用左右滑也看得到整週 */
+@media (max-width: 600px) {
+  .sc-row {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    min-width: 0;
+  }
+  .sc-row > :nth-child(1) { grid-column: span 4; }
+  .sc-row > :nth-child(2) { grid-column: span 3; }
+  .sc-row > :nth-child(10) { grid-column: span 3; }
+  .sc-row > :nth-child(11) { grid-column: span 4; }
+  .sc-head > :nth-child(1),
+  .sc-head > :nth-child(2),
+  .sc-head > :nth-child(10),
+  .sc-head > :nth-child(11) { display: none; }
+  .sc-foot > :nth-child(10) { display: none; }
+  .sc-foot > :nth-child(11) { grid-column: 1 / -1; }
+}

@@ -1238,6 +1238,8 @@
   function openTab(tab) {
     ui.tab = ui.tab === tab ? null : tab;
     if (ui.tab !== 'build') endBuild();
+    // 手機螢幕小：開選單時收掉人物卡，免得兩張卡疊在一起（員工分頁看員工卡例外）
+    if (ui.tab && ui.inspect && innerWidth < 700 && !(ui.tab === 'staff' && ui.inspect.kind === 'staff')) closeInspector();
     renderDrawer();
     renderQuestChip();
     document.querySelectorAll('.toolbar button').forEach((b) => b.classList.toggle('active', b.dataset.tab === ui.tab));
@@ -2026,7 +2028,7 @@
           <table class="ledger">${rows.map(([k, v]) => `<tr><th>${k}</th><td class="${v < 0 ? 'neg' : 'pos'}">${signedMoney(v)}</td></tr>`).join('')}
             <tr class="total"><th>合計</th><td class="${net < 0 ? 'neg' : 'pos'}">${signedMoney(net)}</td></tr>
             ${s.branches.length ? `<tr><th>　其中本店</th><td class="${net - (L.branches || 0) < 0 ? 'neg' : 'pos'}">${signedMoney(net - (L.branches || 0))}</td></tr><tr><th>　其中分店（週末結算）</th><td>${L.branches ? signedMoney(L.branches) : s.lastBranchNet ? '上週 ' + signedMoney(s.lastBranchNet.net) : '還沒結算'}</td></tr>${!L.branches && s.lastBranchNet && s.lastBranchNet.areaPay ? `<tr><th>　　＝各分店合計</th><td>${signedMoney(s.lastBranchNet.stores)}</td></tr><tr><th>　　－區經理薪水</th><td class="neg">${signedMoney(-s.lastBranchNet.areaPay)}</td></tr>` : ''}` : ''}</table>
-          ${L.dividend || L.ownerLoan ? `<p class="calc">💼 不算在損益裡的現金進出：${L.dividend ? `老闆領分紅 ${money(L.dividend)}` : ''}${L.dividend && L.ownerLoan ? '・' : ''}${L.ownerLoan ? `公司代墊老闆私人開銷 ${money(L.ownerLoan)}` : ''}</p>` : ''}
+          ${L.dividend || L.ownerLoan || L.capital ? `<p class="calc">💼 不算在損益裡的現金進出：${[L.capital ? `募資／上市進帳 ${money(L.capital)}` : '', L.dividend ? `老闆領分紅 ${money(L.dividend)}` : '', L.ownerLoan ? `公司代墊老闆私人開銷 ${money(L.ownerLoan)}` : ''].filter(Boolean).join('・')}</p>` : ''}
           ${L.waste ? `<p class="calc">{w:supplies}進貨裡有 ${money(L.waste)} 是過期報廢掉的。</p>` : ''}
           <p class="calc">🧾 ${s.taxStatus ? TAX_LABEL[s.taxStatus] : '營業稅在週末結算'}；營業稅每週結算一次。</p>
           ${s.lastDay ? `<p class="calc">昨天：服務 ${s.lastDay.served} 人・營收 ${money(s.lastDay.revenue)}・生氣離開 ${s.lastDay.angry} 人・太擠沒進來 ${s.lastDay.balked} 人</p>` : ''}
@@ -2183,7 +2185,7 @@
     return `
       <div class="drawer-body two-col">
         <div>
-          <div class="rating-big"><b>${r.toFixed(1)}</b><span class="stars">${stars(r)}</span><small>評價＝最近 ${recent.length} 則評論的平均 ${recent.length ? (recent.reduce((t, v) => t + v.stars, 0) / recent.length).toFixed(2) : '—'}${s.level >= 21 && recent.length > 40 ? '・Lv.21 起最低的 5 則一星不算' : ''}${s.level >= 25 ? `・等級加成 +${s.level >= 40 ? '0.2' : '0.1'}` : ''}・評價越高，路過的人越願意進來</small></div>
+          <div class="rating-big"><b>${r.toFixed(1)}</b><span class="stars">${stars(r)}</span><small>${recent.length ? `評價＝最近 ${recent.length} 則評論的平均 ${(recent.reduce((t, v) => t + v.stars, 0) / recent.length).toFixed(2)}` : '還沒有評論，先用開店的基本評價'}${s.level >= 21 && recent.length > 40 ? '・Lv.21 起最低的 5 則一星不算' : ''}${s.level >= 25 ? `・等級加成 +${s.level >= 40 ? '0.2' : '0.1'}` : ''}・評價越高，路過的人越願意進來</small></div>
           <div class="rating-dist">${dist.map((n, i) => `<div><span>${5 - i}★</span><i style="width:${recent.length ? (n / recent.length) * 100 : 0}%"></i><b>${n}</b></div>`).join('')}</div>
           <h3>低分的原因 <small>最近 ${recent.length} 則裡有 ${low.length} 則三星以下</small></h3>
           ${top.length ? `<div class="why-list">${top.map(([k, n]) => { const w = WHY[k] || WHY.event; return `<div><b>${w[0]} ${w[1]}</b><span>${n} 則</span><small>${w[2]}</small></div>`; }).join('')}</div>` : '<p class="muted">最近沒有低分評論，繼續保持！</p>'}

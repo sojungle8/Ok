@@ -1197,7 +1197,8 @@
       // 投資人不會給你估值的一大塊：大概是一年半的本業獲利，而且之後每週要分走兩成獲利
       const amt = Math.round(Math.min(this.valuation * 0.08, Math.max(0, avg) * 52) / 10000) * 10000;
       this.cash += amt;
-      this.ledger.other += amt;
+      // 募資是股東拿錢進來，不是賺的：記在損益外，不算淨利
+      this.ledger.capital = (this.ledger.capital || 0) + amt;
       this.ipo = { investors: true, streak: 0, listed: false, qWeek: this.week, qProfit: 0, target: Math.round(Math.max(this.ind.cash * 0.5, avg * 13 * 0.97)), quarters: 0 };
       this.notify(`🔔 募資完成，進帳 ${'$' + amt.toLocaleString()}！董事會給了第一季的目標：淨利 ${'$' + this.ipo.target.toLocaleString()}。`, 'achieve');
       this.checkProgress();
@@ -1211,7 +1212,7 @@
       const avg = h.length ? h.reduce((t, x) => t + x.profit - (x.other || 0), 0) / h.length : 0;
       const amt = Math.round(Math.min(this.valuation * 0.1, Math.max(0, avg) * 52) / 10000) * 10000;
       this.cash += amt;
-      this.ledger.other += amt;
+      this.ledger.capital = (this.ledger.capital || 0) + amt;
       this.notify(`🔔 敲鐘掛牌！公開發行進帳 ${'$' + amt.toLocaleString()}。`, 'achieve');
       this.checkProgress();
       return true;

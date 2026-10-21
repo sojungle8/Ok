@@ -137,8 +137,11 @@ function daily(r) {
   if (s.beauty < 6) tryPlace('plant');
   // 一直有人生氣：多一台設備
   const starterStations = s.ind.starter.filter(([t]) => catalogById[t].cat === 'station').length;
-  if (angryRate > 0.08 && s.staff.length >= base && s.stations.length < starterStations + 2 && s.day - lastFix > 14 && s.cash > 200000) {
-    const st = CATALOG.filter((d) => d.cat === 'station' && (!d.industries || d.industries.includes(s.ind.id)) && s.unlocked(d) && !d.selfServe).sort((a, b) => (b.speed || 1) - (a.speed || 1))[0];
+  // 只算本業的設備（兼營的不算）；買卡最久的那一種：每台要負擔的「點單量 × 製作時間」最多的
+  const mainSt = s.stations.filter((o) => !o.def.side);
+  if (angryRate > 0.08 && angryStreak >= 3 && s.staff.length >= base && mainSt.length < starterStations + 3 && s.day - lastFix > 14 && s.cash > 100000) {
+    const loadOf = (id) => s.ind.products.filter((p) => p.station === id).reduce((t, p) => t + (p.weight || 1) * (p.time || 1), 0) / (mainSt.filter((o) => o.def.id === id).length + 1);
+    const st = CATALOG.filter((d) => d.cat === 'station' && (!d.industries || d.industries.includes(s.ind.id)) && s.unlocked(d) && !d.selfServe && !d.side).sort((a, b) => loadOf(b.id) * (b.speed || 1) - loadOf(a.id) * (a.speed || 1))[0];
     if (st && tryPlace(st.id)) lastFix = s.day;
   }
   if (s.ind.dineIn && s.objects.filter((o) => o.def.cat === 'seat').length < 3) tryPlace('table4');

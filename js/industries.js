@@ -167,7 +167,7 @@
       baseArrivals: 10,
       basket: 1, // 平均每位客人點幾份
       dineIn: false,
-      patience: 3,
+      patience: 3.6, // 剪一顆頭 20 幾分鐘，理髮店的客人本來就預期要等
       demand: curve([[9, 0.35], [10, 0.6], [11, 0.7], [12, 0.45], [13, 0.6], [14, 0.85], [15, 1], [16, 0.95], [17, 0.85], [18, 0.6], [19, 0.3]]),
       products: [
         { id: 'cut', name: '剪髮', icon: '✂️', price: 250, cost: 15, time: 22, station: 'barberchair', weight: 6 },
