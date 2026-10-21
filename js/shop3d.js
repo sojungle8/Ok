@@ -101,6 +101,493 @@
   ];
 
   // ───── 設備與家具模型（區域座標：+z 是正面，x 0～w-1 是佔的格子）─────
+  // 小工具：球、甜甜圈、文字貼圖面板
+  function S(g, r, color, x, y, z, sy = 1, opts) {
+    const m = new THREE.Mesh(new THREE.SphereGeometry(r, 12, 9), typeof color === 'string' ? mat(color, opts) : color);
+    m.scale.y = sy;
+    m.position.set(x, y, z);
+    m.castShadow = true;
+    g.add(m);
+    return m;
+  }
+  function T(g, r, tube, color, x, y, z, ry = 0) {
+    const m = new THREE.Mesh(new THREE.TorusGeometry(r, tube, 8, 18), mat(color));
+    m.position.set(x, y, z);
+    m.rotation.y = ry;
+    m.castShadow = true;
+    g.add(m);
+    return m;
+  }
+  const textTex = new Map();
+  function sign(g, text, bg, fg, w, h, x, y, z, ry = 0) {
+    const key = text + bg + fg;
+    let t = textTex.get(key);
+    if (!t) {
+      t = canvasTex(256, 128, (c, cw, ch) => {
+        c.fillStyle = bg;
+        c.fillRect(0, 0, cw, ch);
+        c.fillStyle = fg;
+        c.font = `bold ${text.length > 3 ? 54 : 78}px sans-serif`;
+        c.textAlign = 'center';
+        c.textBaseline = 'middle';
+        c.fillText(text, cw / 2, ch / 2 + 4);
+      });
+      textTex.set(key, t);
+    }
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: t }));
+    m.position.set(x, y, z);
+    m.rotation.y = ry;
+    g.add(m);
+    return m;
+  }
+  // 小櫃台（大部分兼營業務的底座）
+  const counter = (g, color, top = '#f6f1ea') => {
+    B(g, 0.9, 0.8, 0.7, color, 0, 0, 0);
+    B(g, 0.94, 0.04, 0.74, top, 0, 0.8, 0);
+  };
+  // 可躺的服務椅（掏耳朵、按摩、剪髮捐贈）
+  const lounger = (g, color) => {
+    B(g, 0.6, 0.4, 0.62, '#3a3a40', 0, 0, 0);
+    B(g, 0.66, 0.1, 0.66, color, 0, 0.4, 0, { roughness: 0.5 });
+    const back = B(g, 0.66, 0.6, 0.1, color, 0, 0.48, -0.3, { roughness: 0.5 });
+    back.rotation.x = -0.35;
+    for (const x of [-0.36, 0.36]) B(g, 0.08, 0.06, 0.5, '#2b2b30', x, 0.62, 0);
+  };
+  const parcels = (g, y0, cols = 3, rows = 3, z = -0.05) => {
+    const cs = ['#c99a5b', '#d8b07a', '#b98a4f', '#e2c08d'];
+    for (let r = 0; r < rows; r++) for (let i = 0; i < cols; i++) {
+      const w = 0.2 + ((i + r) % 2) * 0.06;
+      B(g, w, 0.16 + (i % 2) * 0.05, 0.22, cs[(i + r) % cs.length], -0.27 + i * 0.27, y0 + r * 0.32, z);
+      B(g, 0.08, 0.05, 0.005, '#ffffff', -0.27 + i * 0.27, y0 + r * 0.32 + 0.06, z + 0.112);
+    }
+  };
+
+  // ───── 兼營業務的專屬造型：一眼看得出在做什麼 ─────
+  const SIDE_MODELS = {
+    // 🏪 超商
+    sb_parcel(g, def) {
+      // 包裹櫃：三層架子堆滿紙箱，每箱都貼了單號
+      for (const x of [-0.43, 0.43]) B(g, 0.04, 1.4, 0.4, '#7b828c', x, 0, -0.1);
+      for (let r = 0; r < 4; r++) B(g, 0.9, 0.03, 0.4, '#9aa1a9', 0, 0.05 + r * 0.32, -0.1);
+      parcels(g, 0.08, 3, 3, -0.1);
+      B(g, 0.12, 0.2, 0.06, '#2b2b30', 0.32, 1.28, 0.05);
+      plate(g, def, 1.45, 0.1);
+    },
+    sb_atm(g, def) {
+      // ATM：藍色機台、螢幕、按鍵、出鈔口，頂上一塊 ATM 燈箱
+      B(g, 0.66, 1.5, 0.55, '#2c6fbb', 0, 0, -0.1, { roughness: 0.4, metalness: 0.2 });
+      B(g, 0.5, 0.36, 0.08, '#1d1d1d', 0, 0.95, 0.15).rotation.x = -0.2;
+      const scr = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.26), basic('#7fd3ff'));
+      scr.position.set(0, 1.13, 0.2);
+      scr.rotation.x = -0.2;
+      g.add(scr);
+      g.userData.screen = scr;
+      B(g, 0.4, 0.04, 0.25, '#c9ced6', 0, 0.78, 0.25, { metalness: 0.6 });
+      for (let i = 0; i < 9; i++) B(g, 0.06, 0.02, 0.05, '#f3f3f3', -0.08 + (i % 3) * 0.08, 0.82, 0.18 + Math.floor(i / 3) * 0.06);
+      B(g, 0.3, 0.03, 0.02, '#1d1d1d', 0, 0.62, 0.18);
+      sign(g, 'ATM', '#ffffff', '#2c6fbb', 0.6, 0.22, 0, 1.62, 0.18);
+    },
+    sb_copy(g, def) {
+      // 影印機：灰色機身、上蓋、出紙匣上有一疊紙
+      B(g, 0.8, 0.85, 0.6, '#d8dde3', 0, 0, -0.05);
+      B(g, 0.8, 0.06, 0.6, '#9aa1a9', 0, 0.85, -0.05);
+      B(g, 0.2, 0.08, 0.14, '#2b2b30', 0.25, 0.91, 0.12);
+      B(g, 0.4, 0.04, 0.3, '#f7f7f2', -0.2, 0.55, 0.38);
+      for (let i = 0; i < 4; i++) B(g, 0.36, 0.008, 0.26, '#ffffff', -0.2, 0.6 + i * 0.012, 0.38);
+      B(g, 0.1, 0.03, 0.04, basic('#5fd3a0'), 0.25, 0.99, 0.16);
+      plate(g, def, 0.35, 0.26);
+    },
+    sb_hotdog(g, def) {
+      // 熱狗機：不鏽鋼底座＋一排滾動的熱狗，外面一圈玻璃罩
+      counter(g, '#d9482b');
+      B(g, 0.8, 0.08, 0.5, '#c9ced6', 0, 0.84, 0, { metalness: 0.7 });
+      const dogs = [];
+      for (let i = 0; i < 6; i++) {
+        const d = C(g, 0.035, 0.035, 0.42, '#b5562a', 0, 0.97, -0.18 + i * 0.07, 10);
+        d.rotation.z = Math.PI / 2;
+        d.position.set(0, 0.96, -0.18 + i * 0.07);
+        dogs.push(d);
+      }
+      B(g, 0.84, 0.3, 0.54, basic('#dff3ff', { transparent: true, opacity: 0.3 }), 0, 0.92, 0);
+      sign(g, '熱狗', '#f2c14e', '#d9482b', 0.5, 0.2, 0, 1.4, -0.2);
+      g.userData.steam = [new THREE.Vector3(0, 1.1, 0)];
+      plate(g, def, 0.42, 0.36);
+    },
+    sb_kiosk(g, def) {
+      // 多媒體機：直立機台、大螢幕、下面出單口
+      B(g, 0.6, 1.55, 0.45, '#8e44ad', 0, 0, -0.12, { roughness: 0.4 });
+      const scr = new THREE.Mesh(new THREE.PlaneGeometry(0.46, 0.5), basic('#f2e6ff'));
+      scr.position.set(0, 1.1, 0.105);
+      g.add(scr);
+      g.userData.screen = scr;
+      B(g, 0.3, 0.04, 0.05, '#1d1d1d', 0, 0.72, 0.11);
+      B(g, 0.24, 0.005, 0.12, '#ffffff', 0, 0.68, 0.16);
+      sign(g, '繳費售票', '#ffffff', '#8e44ad', 0.56, 0.16, 0, 1.63, 0.105);
+    },
+    sb_power(g, def) {
+      // 行動電源租借站：一排插槽，每格亮綠燈
+      B(g, 0.7, 1.2, 0.3, '#2f8f6b', 0, 0.2, -0.25, { roughness: 0.4 });
+      B(g, 0.12, 0.2, 0.12, '#2b2b30', 0, 0, -0.25);
+      for (let r = 0; r < 4; r++) for (let i = 0; i < 3; i++) {
+        B(g, 0.16, 0.18, 0.04, '#1d1d1d', -0.2 + i * 0.2, 0.35 + r * 0.24, -0.08);
+        B(g, 0.03, 0.03, 0.01, basic(r === 3 && i === 1 ? '#ff4d4d' : '#5fff8a'), -0.2 + i * 0.2 + 0.05, 0.47 + r * 0.24, -0.055);
+      }
+      sign(g, '🔋租借', '#ffffff', '#2f8f6b', 0.5, 0.16, 0, 1.5, -0.09);
+    },
+    sb_lotto(g, def) {
+      // 彩券行：紅色櫃台、大大的「彩」字招牌、一疊彩券
+      counter(g, '#c0392b', '#fff3c4');
+      sign(g, '彩', '#d9302b', '#ffe066', 0.4, 0.4, 0, 1.4, -0.25);
+      B(g, 0.03, 0.55, 0.03, '#555', 0, 0.84, -0.27);
+      for (let i = 0; i < 5; i++) {
+        const t = B(g, 0.12, 0.005, 0.18, ['#f2c14e', '#ffffff', '#e74c3c', '#2ecc71', '#3498db'][i], -0.3 + i * 0.15, 0.84 + i * 0.002, 0.15);
+        t.rotation.y = (i - 2) * 0.2;
+      }
+      C(g, 0.06, 0.06, 0.12, '#2b2b30', 0.3, 0.84, -0.1, 10);
+      plate(g, def, 0.42, 0.36);
+    },
+    sb_laundry(g, def) {
+      // 投幣洗衣：上下兩台機器，圓形玻璃門，旁邊投幣孔
+      for (const [y, c] of [[0, '#f3f3f3'], [0.8, '#e8edf2']]) {
+        B(g, 0.8, 0.78, 0.65, c, 0, y, -0.05);
+        const door = new THREE.Mesh(new THREE.CircleGeometry(0.22, 24), basic('#9fc7e6'));
+        door.position.set(-0.05, y + 0.38, 0.28);
+        g.add(door);
+        T(g, 0.22, 0.025, '#9aa1a9', -0.05, y + 0.38, 0.28);
+        B(g, 0.08, 0.14, 0.02, '#2b2b30', 0.3, y + 0.5, 0.275);
+      }
+      plate(g, def, 1.62, 0.28);
+    },
+    // 🍳 早餐店
+    sb_parcelb(g, def) {
+      // 代收包裹：小鐵架上幾箱包裹，旁邊夾著簽收單
+      for (const x of [-0.43, 0.43]) B(g, 0.04, 1.0, 0.4, '#7b828c', x, 0, -0.1);
+      for (let r = 0; r < 3; r++) B(g, 0.9, 0.03, 0.4, '#9aa1a9', 0, 0.05 + r * 0.32, -0.1);
+      parcels(g, 0.08, 3, 2, -0.1);
+      B(g, 0.2, 0.28, 0.02, '#8a5a3b', 0.32, 0.72, 0.11);
+      B(g, 0.16, 0.22, 0.005, '#ffffff', 0.32, 0.74, 0.122);
+      plate(g, def, 1.05, 0.1);
+    },
+    sb_lunchbox(g, def) {
+      // 便當：一疊疊的便當盒（看得到飯菜）＋一鍋大電鍋
+      counter(g, '#e67e22');
+      for (let i = 0; i < 4; i++) {
+        const x = -0.3 + (i % 2) * 0.22;
+        const y = 0.84 + Math.floor(i / 2) * 0.08;
+        B(g, 0.2, 0.07, 0.16, '#2b2b30', x, y, 0.1);
+        B(g, 0.08, 0.01, 0.12, '#ffffff', x - 0.04, y + 0.07, 0.1);
+        B(g, 0.07, 0.012, 0.12, ['#c97b2c', '#5aa04a'][i % 2], x + 0.05, y + 0.07, 0.1);
+      }
+      C(g, 0.17, 0.17, 0.3, '#f3f3f3', 0.2, 0.84, -0.12, 18);
+      C(g, 0.15, 0.17, 0.06, '#e74c3c', 0.2, 1.14, -0.12, 18);
+      g.userData.steam = [new THREE.Vector3(0.2, 1.3, -0.12)];
+      plate(g, def, 0.42, 0.36);
+    },
+    sb_pourover(g, def) {
+      // 手沖咖啡：木吧台上兩組濾杯架、細口壺、玻璃分享壺
+      counter(g, '#6b4a32', '#d9b48c');
+      for (const x of [-0.22, 0.08]) {
+        B(g, 0.02, 0.3, 0.02, '#2b2b30', x, 0.84, -0.05);
+        const cone = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.12, 14, 1, true), mat('#ffffff', { side: THREE.DoubleSide }));
+        cone.rotation.x = Math.PI;
+        cone.position.set(x, 1.12, 0.02);
+        g.add(cone);
+        C(g, 0.06, 0.07, 0.12, basic('#dff3ff', { transparent: true, opacity: 0.5 }), x, 0.84, 0.02, 14);
+        C(g, 0.055, 0.055, 0.05, '#4a2c1a', x, 0.85, 0.02, 12);
+      }
+      C(g, 0.07, 0.08, 0.16, '#c9ced6', 0.32, 0.84, 0.05, 14, { metalness: 0.8 });
+      const spout = C(g, 0.012, 0.012, 0.2, '#c9ced6', 0.24, 0.94, 0.05, 8, { metalness: 0.8 });
+      spout.rotation.z = 0.9;
+      plate(g, def, 0.42, 0.36);
+    },
+    sb_kidsbrunch(g, def) {
+      // 親子早午餐：粉彩色的小桌、小椅子，桌上有鬆餅，旁邊一顆氣球
+      B(g, 0.7, 0.04, 0.6, '#ffd6e7', 0, 0.45, 0);
+      for (const [x, z] of [[-0.3, -0.25], [0.3, -0.25], [-0.3, 0.25], [0.3, 0.25]]) B(g, 0.04, 0.45, 0.04, '#f4a3c0', x, 0, z);
+      for (const [x, c] of [[-0.42, '#9ad1f5'], [0.42, '#ffe066']]) {
+        B(g, 0.18, 0.25, 0.18, c, x, 0, 0.3);
+      }
+      C(g, 0.1, 0.1, 0.03, '#d9a35a', -0.1, 0.49, 0, 14);
+      C(g, 0.1, 0.1, 0.03, '#e8b56b', -0.1, 0.52, 0, 14);
+      S(g, 0.04, '#e74c3c', -0.08, 0.57, 0.02);
+      C(g, 0.05, 0.04, 0.1, '#ffffff', 0.15, 0.49, 0.05, 10);
+      B(g, 0.12, 0.12, 0.12, '#2c6fbb', 0.2, 0, -0.32);
+      B(g, 0.1, 0.1, 0.1, '#e74c3c', 0.22, 0.12, -0.32);
+      B(g, 0.005, 0.8, 0.005, '#555', 0.38, 0.45, -0.25);
+      S(g, 0.12, '#e0478a', 0.38, 1.35, -0.25, 1.2);
+      plate(g, def, 0.25, 0.32);
+    },
+    // 🍜 麵店
+    sb_luwei(g, def) {
+      // 外帶滷味攤：有輪子的小推車，一格格的竹籃，旁邊一鍋滷汁
+      B(g, 0.9, 0.7, 0.6, '#8e5a2b', 0, 0.12, 0);
+      for (const x of [-0.35, 0.35]) {
+        const w = C(g, 0.12, 0.12, 0.05, '#1d1d1d', x, 0.06, 0.3, 12);
+        w.rotation.x = Math.PI / 2;
+        w.position.set(x, 0.12, 0.3);
+      }
+      const cs = ['#7a4a25', '#e8c25a', '#5aa04a', '#c97b2c', '#3a2c25', '#f3e0c4'];
+      for (let i = 0; i < 6; i++) {
+        const x = -0.3 + (i % 3) * 0.24;
+        const z = -0.1 + Math.floor(i / 3) * 0.22;
+        C(g, 0.1, 0.08, 0.06, '#c9a36b', x, 0.82, z, 12);
+        S(g, 0.05, cs[i], x, 0.9, z, 0.6);
+      }
+      C(g, 0.12, 0.12, 0.14, '#2b2b30', 0.32, 0.82, 0.12, 14);
+      C(g, 0.11, 0.11, 0.01, '#5a3218', 0.32, 0.96, 0.12, 14);
+      B(g, 0.9, 0.04, 0.6, '#d9302b', 0, 1.5, 0);
+      for (const x of [-0.42, 0.42]) B(g, 0.03, 0.68, 0.03, '#555', x, 0.82, -0.27);
+      g.userData.steam = [new THREE.Vector3(0.32, 1.05, 0.12)];
+      plate(g, def, 0.35, 0.31);
+    },
+    sb_bentob(g, def) {
+      // 便當外帶：架上一排排綁好橡皮筋的便當，櫃台上一袋袋團訂
+      counter(g, '#e67e22');
+      for (let r = 0; r < 3; r++) for (let i = 0; i < 3; i++) {
+        B(g, 0.22, 0.07, 0.17, '#f7f1e3', -0.27 + i * 0.27, 0.84 + r * 0.08, -0.12);
+        B(g, 0.23, 0.01, 0.02, '#e74c3c', -0.27 + i * 0.27, 0.88 + r * 0.08, -0.12);
+      }
+      for (let i = 0; i < 2; i++) B(g, 0.2, 0.24, 0.12, '#f7f7f2', -0.15 + i * 0.3, 0.84, 0.2);
+      plate(g, def, 0.42, 0.36);
+    },
+    sb_dumpling(g, def) {
+      // 冷凍水餃：冷凍櫃上一包包白色的水餃，旁邊立一塊「團購取貨」牌
+      shell(g, 0.9, 0.75, 0.65, '#2c6fbb', 0, 'top');
+      B(g, 0.84, 0.02, 0.58, basic('#cfe8ff', { transparent: true, opacity: 0.4 }), 0, 0.76, 0);
+      for (let i = 0; i < 6; i++) {
+        const x = -0.27 + (i % 3) * 0.27;
+        const z = -0.12 + Math.floor(i / 3) * 0.25;
+        B(g, 0.22, 0.08, 0.18, '#f7f7f2', x, 0.62, z);
+        for (let k = 0; k < 2; k++) S(g, 0.04, '#fffaf0', x - 0.04 + k * 0.08, 0.72, z, 0.6);
+      }
+      B(g, 0.03, 0.55, 0.03, '#555', 0.4, 0.75, -0.3);
+      sign(g, '團購取貨', '#ffffff', '#2c6fbb', 0.5, 0.16, 0.3, 1.32, -0.28);
+      plate(g, def, 0.25, 0.34);
+    },
+    sb_newyear(g, def) {
+      // 年菜代訂：紅色櫃台上疊著綁金色緞帶的禮盒，上面掛一對春聯
+      counter(g, '#c0392b', '#f7e3b0');
+      for (let i = 0; i < 3; i++) {
+        const y = 0.84 + i * 0.13;
+        B(g, 0.42 - i * 0.08, 0.12, 0.32 - i * 0.04, '#d9302b', -0.05, y, 0);
+        B(g, 0.43 - i * 0.08, 0.125, 0.04, '#f2c14e', -0.05, y, 0);
+      }
+      sign(g, '年菜', '#d9302b', '#ffe066', 0.36, 0.3, 0.3, 1.25, -0.25);
+      S(g, 0.08, '#d9302b', 0.3, 1.55, -0.2, 1.2);
+      plate(g, def, 0.42, 0.36);
+    },
+    // 🧋 飲料店
+    sb_chicken(g, def) {
+      // 雞排炸物：油炸鍋、炸籃，保溫燈下面擺著金黃色的大雞排
+      counter(g, '#c9ced6', '#9aa1a9');
+      B(g, 0.4, 0.12, 0.4, '#2b2b30', -0.2, 0.84, 0);
+      B(g, 0.36, 0.02, 0.36, '#d4a017', -0.2, 0.94, 0);
+      B(g, 0.2, 0.1, 0.2, '#9aa1a9', -0.2, 0.97, 0, { metalness: 0.7 });
+      B(g, 0.03, 0.03, 0.25, '#2b2b30', -0.2, 1.1, 0.12);
+      for (let i = 0; i < 2; i++) {
+        const cut = B(g, 0.22, 0.03, 0.17, '#d9902a', 0.25, 0.84 + i * 0.035, -0.05 + i * 0.08);
+        cut.rotation.y = 0.3 * i;
+      }
+      B(g, 0.4, 0.04, 0.2, '#555', 0.25, 1.35, 0);
+      B(g, 0.36, 0.02, 0.16, basic('#ff9a3c'), 0.25, 1.33, 0);
+      B(g, 0.03, 0.5, 0.03, '#555', 0.42, 0.84, -0.08);
+      sign(g, '雞排', '#d4a017', '#5a2a0a', 0.4, 0.2, 0, 1.6, -0.2);
+      g.userData.steam = [new THREE.Vector3(-0.2, 1.05, 0)];
+      plate(g, def, 0.42, 0.36);
+    },
+    sb_dessert(g, def) {
+      // 甜點冰品：玻璃冰櫃裡擺著一碗碗剉冰（上面有紅豆、芒果）
+      shell(g, 0.9, 0.75, 0.65, '#f4a3c0', 0, 'top');
+      B(g, 0.84, 0.25, 0.58, basic('#dff3ff', { transparent: true, opacity: 0.3 }), 0, 0.75, 0);
+      const tops = ['#a0332f', '#f39c12', '#7dbb48', '#e74c3c'];
+      for (let i = 0; i < 4; i++) {
+        const x = -0.2 + (i % 2) * 0.4;
+        const z = -0.12 + Math.floor(i / 2) * 0.25;
+        C(g, 0.11, 0.08, 0.06, '#ffffff', x, 0.62, z, 14);
+        S(g, 0.1, '#f7fbff', x, 0.72, z, 0.8);
+        S(g, 0.05, tops[i], x, 0.8, z, 0.6);
+      }
+      plate(g, def, 0.25, 0.34);
+    },
+    sb_fruit(g, def) {
+      // 現切水果杯：冷藏台上一排透明杯，看得到西瓜、芒果、芭樂丁
+      counter(g, '#2f8f6b');
+      const cs = ['#e74c3c', '#f39c12', '#7dbb48', '#f4d03f', '#e0478a', '#f39c12'];
+      for (let i = 0; i < 6; i++) {
+        const x = -0.3 + (i % 3) * 0.3;
+        const z = -0.1 + Math.floor(i / 3) * 0.22;
+        C(g, 0.065, 0.055, 0.18, basic('#ffffff', { transparent: true, opacity: 0.45 }), x, 0.84, z, 12);
+        for (let k = 0; k < 3; k++) B(g, 0.05, 0.05, 0.05, cs[(i + k) % cs.length], x - 0.02 + (k % 2) * 0.03, 0.86 + k * 0.05, z);
+      }
+      S(g, 0.16, '#2e8b57', 0.3, 1.2, -0.22, 0.8);
+      B(g, 0.32, 0.005, 0.32, '#e74c3c', 0.3, 1.1, -0.22);
+      plate(g, def, 0.42, 0.36);
+    },
+    sb_merch(g, def) {
+      // 聯名周邊：展示架上擺著玩偶和鑰匙圈，牆上一張海報
+      shell(g, 0.85, 1.5, 0.42, '#8e44ad', -0.12);
+      const cs = ['#ffe066', '#f4a3c0', '#9ad1f5', '#7dbb48'];
+      for (let r = 0; r < 2; r++) {
+        B(g, 0.8, 0.03, 0.38, '#d8cfc2', 0, 0.4 + r * 0.5, -0.1);
+        for (let i = 0; i < 3; i++) {
+          const x = -0.25 + i * 0.25;
+          S(g, 0.08, cs[(i + r) % 4], x, 0.53 + r * 0.5, -0.05);
+          S(g, 0.055, cs[(i + r) % 4], x, 0.66 + r * 0.5, -0.05);
+          S(g, 0.02, cs[(i + r + 1) % 4], x - 0.04, 0.72 + r * 0.5, -0.05);
+          S(g, 0.02, cs[(i + r + 1) % 4], x + 0.04, 0.72 + r * 0.5, -0.05);
+        }
+      }
+      sign(g, '聯名限定', '#ffe066', '#8e44ad', 0.6, 0.18, 0, 1.3, -0.3);
+      plate(g, def, 0.2, 0.1);
+    },
+    // 💈 理髮店
+    sb_ear(g, def) {
+      // 掏耳朵：躺椅＋一盞立燈＋工具盤（一支支耳挖）
+      lounger(g, '#c97b2c');
+      B(g, 0.03, 1.3, 0.03, '#2b2b30', -0.4, 0, -0.35);
+      const lamp = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.12, 14, 1, true), mat('#f2c14e', { side: THREE.DoubleSide }));
+      lamp.position.set(-0.3, 1.3, -0.25);
+      lamp.rotation.z = -0.8;
+      g.add(lamp);
+      S(g, 0.04, basic('#fff3c4'), -0.27, 1.25, -0.23);
+      B(g, 0.2, 0.6, 0.2, '#d8d8d8', 0.42, 0, 0.3);
+      B(g, 0.22, 0.02, 0.18, '#f3f3f3', 0.42, 0.6, 0.3);
+      for (let i = 0; i < 4; i++) B(g, 0.01, 0.01, 0.14, '#c9a36b', 0.36 + i * 0.04, 0.63, 0.3);
+      plate(g, def, 0.22, 0.32);
+    },
+    sb_shampoo(g, def) {
+      // 洗髮精、髮蠟：櫃台上一座洗髮精瓶子疊成的金字塔，旁邊一排髮蠟罐
+      counter(g, '#5aa9a0');
+      const cs = ['#5aa9a0', '#2c6fbb', '#e0478a'];
+      let k = 0;
+      for (let r = 0; r < 3; r++) for (let i = 0; i < 3 - r; i++) C(g, 0.05, 0.05, 0.2, cs[k++ % 3], -0.25 + i * 0.12 + r * 0.06, 0.84 + r * 0.2, -0.05, 12);
+      for (let i = 0; i < 4; i++) C(g, 0.045, 0.045, 0.05, '#2b2b30', 0.15 + (i % 2) * 0.12, 0.84, 0.05 + Math.floor(i / 2) * 0.12, 12);
+      sign(g, '專業髮品', '#ffffff', '#2c6fbb', 0.5, 0.16, 0, 1.55, -0.3);
+      plate(g, def, 0.42, 0.36);
+    },
+    sb_massage(g, def) {
+      // 肩頸按摩：有洞的按摩床，上面摺一條毛巾，旁邊放精油
+      B(g, 0.6, 0.55, 0.85, '#d8d8d8', 0, 0, 0);
+      B(g, 0.64, 0.12, 0.88, '#6c5ce7', 0, 0.55, 0, { roughness: 0.6 });
+      C(g, 0.08, 0.08, 0.13, '#2b2b30', 0, 0.55, -0.3, 14);
+      B(g, 0.4, 0.06, 0.2, '#ffffff', 0, 0.67, 0.25);
+      C(g, 0.04, 0.04, 0.12, '#c97b2c', 0.38, 0.55, 0.38, 10);
+      plate(g, def, 0.3, 0.44);
+    },
+    sb_donate(g, def) {
+      // 剪髮捐贈：粉紅緞帶椅＋透明箱裡一束束綁好的長髮
+      lounger(g, '#e0478a');
+      B(g, 0.3, 0.35, 0.25, basic('#ffffff', { transparent: true, opacity: 0.4 }), 0.42, 0.55, 0.3);
+      for (let i = 0; i < 3; i++) {
+        const h = B(g, 0.04, 0.25, 0.04, ['#3a2c25', '#6b4430', '#1d1d1d'][i], 0.34 + i * 0.08, 0.57, 0.3);
+        h.rotation.z = 0.3;
+      }
+      B(g, 0.2, 0.55, 0.2, '#d8d8d8', 0.42, 0, 0.3);
+      S(g, 0.06, '#e0478a', -0.42, 1.0, -0.3);
+      plate(g, def, 0.22, 0.32);
+    },
+    sb_pet(g, def) {
+      // 寵物修剪：美容桌、吊臂，桌上站著一隻毛茸茸的小狗
+      B(g, 0.8, 0.06, 0.55, '#d4a017', 0, 0.75, 0);
+      for (const [x, z] of [[-0.35, -0.22], [0.35, -0.22], [-0.35, 0.22], [0.35, 0.22]]) B(g, 0.04, 0.75, 0.04, '#9aa1a9', x, 0, z, { metalness: 0.6 });
+      B(g, 0.03, 0.8, 0.03, '#9aa1a9', -0.38, 0.81, -0.25, { metalness: 0.7 });
+      B(g, 0.35, 0.03, 0.03, '#9aa1a9', -0.22, 1.58, -0.25, { metalness: 0.7 });
+      S(g, 0.14, '#f3e0c4', 0, 0.97, 0, 0.75);
+      S(g, 0.1, '#f3e0c4', 0.17, 1.1, 0);
+      S(g, 0.04, '#7a4a25', 0.2, 1.2, -0.06);
+      S(g, 0.04, '#7a4a25', 0.2, 1.2, 0.06);
+      S(g, 0.025, '#1d1d1d', 0.27, 1.1, 0);
+      for (const [x, z] of [[-0.08, -0.07], [0.08, -0.07], [-0.08, 0.07], [0.08, 0.07]]) B(g, 0.04, 0.12, 0.04, '#f3e0c4', x, 0.81, z);
+      plate(g, def, 0.45, 0.28);
+    },
+    // 🛵 機車行
+    sb_gear(g, def) {
+      // 雨衣安全帽：衣架上掛著彩色雨衣，下面一排安全帽
+      for (const x of [-0.4, 0.4]) B(g, 0.04, 1.6, 0.04, '#555b66', x, 0, -0.15);
+      B(g, 0.84, 0.04, 0.04, '#555b66', 0, 1.55, -0.15);
+      const cs = ['#f2c14e', '#2c6fbb', '#e74c3c', '#2f8f6b'];
+      for (let i = 0; i < 4; i++) {
+        const c = B(g, 0.17, 0.75, 0.05, cs[i], -0.27 + i * 0.18, 0.78, -0.12);
+        c.rotation.x = 0.08;
+      }
+      B(g, 0.84, 0.04, 0.4, '#7b828c', 0, 0.35, -0.05);
+      for (let i = 0; i < 3; i++) {
+        const h = new THREE.Mesh(new THREE.SphereGeometry(0.12, 14, 10, 0, Math.PI * 2, 0, Math.PI / 2), mat(cs[(i + 1) % 4]));
+        h.position.set(-0.27 + i * 0.27, 0.39, -0.02);
+        h.castShadow = true;
+        g.add(h);
+      }
+      plate(g, def, 0.15, 0.16);
+    },
+    sb_inspect(g, def) {
+      // 代辦驗車過戶：辦公桌、一疊文件、印章、檔案夾
+      B(g, 0.85, 0.04, 0.6, '#8a5a3b', 0, 0.72, 0);
+      for (const x of [-0.38, 0.38]) B(g, 0.06, 0.72, 0.55, '#6b4430', x, 0, 0);
+      for (let i = 0; i < 5; i++) B(g, 0.22, 0.012, 0.3, i % 2 ? '#ffffff' : '#f7f1e3', -0.2, 0.76 + i * 0.013, 0.05);
+      C(g, 0.03, 0.03, 0.08, '#d9302b', 0.05, 0.76, 0.12, 10);
+      for (let i = 0; i < 3; i++) B(g, 0.06, 0.24, 0.2, ['#2c6fbb', '#e74c3c', '#f2c14e'][i], 0.2 + i * 0.07, 0.76, -0.18);
+      sign(g, '代辦', '#ffffff', '#2c6fbb', 0.36, 0.2, 0, 1.3, -0.3);
+      B(g, 0.03, 0.55, 0.03, '#555', 0, 0.76, -0.31);
+      plate(g, def, 0.45, 0.31);
+    },
+    sb_wash(g, def) {
+      // 機車美容：紅色高壓清洗機、捲起來的水管、一桶泡沫
+      B(g, 0.4, 0.5, 0.35, '#d9482b', -0.15, 0.08, 0);
+      for (const z of [-0.15, 0.15]) {
+        const w = C(g, 0.08, 0.08, 0.04, '#1d1d1d', -0.15, 0, z, 12);
+        w.rotation.x = Math.PI / 2;
+        w.position.set(-0.15, 0.08, z * 1.3);
+      }
+      T(g, 0.12, 0.025, '#2b2b30', -0.15, 0.72, 0.05);
+      B(g, 0.04, 0.4, 0.04, '#9aa1a9', 0.15, 0.25, 0.2, { metalness: 0.7 });
+      C(g, 0.13, 0.11, 0.25, '#2c6fbb', 0.25, 0, -0.2, 14);
+      for (let i = 0; i < 4; i++) S(g, 0.06 + (i % 2) * 0.02, '#ffffff', 0.22 + (i - 1.5) * 0.05, 0.3 + (i % 2) * 0.04, -0.2, 1, { roughness: 0.2 });
+      plate(g, def, 0.35, 0.18);
+    },
+    sb_used(g, def) {
+      // 二手車買賣：展示台上一台機車，掛著大大的價格牌
+      B(g, 0.9, 0.08, 0.9, '#7b828c', 0, 0, 0);
+      B(g, 0.22, 0.25, 0.75, '#d9482b', 0, 0.3, 0);
+      B(g, 0.2, 0.1, 0.4, '#2b2b30', 0, 0.55, -0.1);
+      B(g, 0.25, 0.4, 0.06, '#d9482b', 0, 0.3, 0.33);
+      B(g, 0.4, 0.03, 0.03, '#2b2b30', 0, 0.72, 0.33);
+      for (const z of [-0.32, 0.32]) {
+        const w = C(g, 0.15, 0.15, 0.06, '#1d1d1d', 0, 0.08, z, 14);
+        w.rotation.z = Math.PI / 2;
+        w.position.set(0, 0.23, z);
+      }
+      sign(g, '$38,000', '#f2c14e', '#d9302b', 0.45, 0.2, 0.3, 0.75, 0.35);
+      plate(g, def, 0.08, 0.46);
+    },
+    sb_rent(g, def) {
+      // 機車出租：牆上的鑰匙板，一支支鑰匙掛好，旁邊一頂租用安全帽
+      B(g, 0.8, 0.9, 0.05, '#8a5a3b', 0, 0.6, -0.3);
+      for (let r = 0; r < 3; r++) for (let i = 0; i < 4; i++) {
+        B(g, 0.01, 0.05, 0.03, '#9aa1a9', -0.27 + i * 0.18, 1.32 - r * 0.25, -0.26);
+        B(g, 0.06, 0.04, 0.02, ['#e74c3c', '#2c6fbb', '#f2c14e', '#2f8f6b'][(i + r) % 4], -0.27 + i * 0.18, 1.24 - r * 0.25, -0.26);
+      }
+      B(g, 0.6, 0.6, 0.4, '#f2c14e', 0, 0, 0);
+      const h = new THREE.Mesh(new THREE.SphereGeometry(0.13, 14, 10, 0, Math.PI * 2, 0, Math.PI / 2), mat('#2c6fbb'));
+      h.position.set(0.15, 0.6, 0);
+      g.add(h);
+      sign(g, '租車', '#ffffff', '#e2a12a', 0.36, 0.18, 0, 1.62, -0.27);
+      plate(g, def, 0.3, 0.21);
+    },
+    sb_swap(g, def) {
+      // 電池交換站：高高的機櫃，四格電池倉亮著綠燈
+      B(g, 0.6, 1.7, 0.45, '#2f8f6b', 0, 0, -0.1, { roughness: 0.4 });
+      for (let i = 0; i < 4; i++) {
+        B(g, 0.22, 0.28, 0.03, '#1d1d1d', -0.13 + (i % 2) * 0.26, 0.3 + Math.floor(i / 2) * 0.36, 0.13);
+        B(g, 0.12, 0.03, 0.01, basic(i === 3 ? '#f2c14e' : '#5fff8a'), -0.13 + (i % 2) * 0.26, 0.52 + Math.floor(i / 2) * 0.36, 0.15);
+      }
+      const scr = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.24), basic('#bff5d6'));
+      scr.position.set(0, 1.25, 0.126);
+      g.add(scr);
+      g.userData.screen = scr;
+      sign(g, '換電', '#ffffff', '#2f8f6b', 0.4, 0.18, 0, 1.55, 0.126);
+    },
+  };
+
   const MODELS = {
     griddle(g) {
       B(g, 1.9, 0.82, 0.8, '#c9ced6', 0.5, 0, 0, { metalness: 0.6, roughness: 0.35 });
@@ -396,6 +883,8 @@
     },
     // ───── 兼營業務的小設備：同一個櫃台造型，上面放不同的道具、掛自己的招牌 ─────
     kiosk(g, view, def) {
+      // 兼營業務有專屬造型就用專屬的
+      if (def && SIDE_MODELS[def.side]) return SIDE_MODELS[def.side](g, def);
       const k = (def && def.kiosk) || { color: '#7f8c8d', prop: 'boxes' };
       const self = def && def.selfServe;
       const seat = def && def.seatCust;
