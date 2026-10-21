@@ -487,7 +487,7 @@
 
     // 一個選項真正要花多少錢：公司現金＋老闆個人的錢（個人不夠的部分會由公司代墊，所以一起算）
     choiceCost(fx) {
-      let c = Math.max(0, -(fx.cash || 0));
+      let c = Math.max(0, -(fx.cash || 0)) + Math.max(0, -(fx.extraCash || 0));
       if (fx.lifeWealth < 0) c += -fx.lifeWealth;
       if (fx.lifeBuy && Fun.LIFE_SPEND && Fun.LIFE_SPEND[fx.lifeBuy]) c += Fun.LIFE_SPEND[fx.lifeBuy].cost;
       return c;
@@ -6160,6 +6160,11 @@
         }
       }
       if (fx.sendHomeOf && byId(fx.sendHomeOf) && (byId(fx.sendHomeOf).state === 'working' || byId(fx.sendHomeOf).state === 'break')) this.sendHome(byId(fx.sendHomeOf));
+      // 選了之後才知道的花費（例如查完紀錄發現真的是店裡錯，要補一份）
+      if (fx.extraCash) {
+        this.cash += fx.extraCash;
+        this.ledger.events += fx.extraCash;
+      }
       if (fx.caseLater && Fun.caseFollow) {
         const [kind, days, theme] = fx.caseLater;
         this.caseQueue = [...(this.caseQueue || []), { kind, theme, day: this.day + days + Math.floor(this.rng() * 3) }];

@@ -784,23 +784,24 @@
     },
   ];
 
+  // 同一個做法在三種真相下，按鈕上看到的花費都一樣（不能從價錢猜答案）；結果才知道的額外花費放在 extraCash
   // 三種真相各自的後果。tag：apology 道歉補償、explain 查紀錄說明、firm 挺員工客氣拒絕、refund 直接退費息事寧人、blame 當眾罵員工
   const OUT = {
     mistake: {
       apology: (v) => ({ effects: { cash: -800, review: [5, '有出錯，但店家馬上道歉補救，會再來'], mood: 2, later: ['praise', 2] }, result: `你先道歉、馬上補救，還多送了一點心意。客人收起手機：「這樣處理我可以接受。」${v}也說下次會更小心。`, correct: true, tip: '客人反映的問題確實是店家疏失時，先道歉、立刻補救，通常比爭論誰對誰錯更能留住客人。' }),
-      explain: (v, ev) => ({ effects: { cash: -400, review: [4, '查完發現是店家的錯，有好好道歉'] }, result: `你查了一下——${ev}。你老實承認是店裡的問題，補上了。客人雖然等了一下，但覺得你們很實在。` }),
+      explain: (v, ev) => ({ effects: { cash: -200, extraCash: -300, review: [4, '查完發現是店家的錯，有好好道歉'] }, result: `你查了一下——${ev}。你老實承認是店裡的問題，補上了。客人雖然等了一下，但覺得你們很實在。` }),
       firm: (v) => ({ effects: { review: [1, '明明是店家的錯還硬拗'], mood: 3, later: ['viral', 3] }, result: `你堅持店裡沒錯，客人冷笑著離開。${v}很感謝你挺他，但大家心裡都知道這次確實是店裡出包。`, tip: '保護員工很重要，但對真正的疏失，挺員工的方式是「一起扛、一起改進」，而不是否認問題。' }),
       refund: () => ({ effects: { cash: -400, review: [3, '有退費，但沒有一句道歉'] }, result: '客人拿了退費就走了，沒有生氣，但大概也不會再來。' }),
     },
     misread: {
       apology: (v) => ({ effects: { cash: -800, review: [4, '店家很客氣'], mood: -5 }, result: `你直接道歉補償，客人滿意地走了。${v}有點委屈：「明明不是我們弄錯的……」` }),
-      explain: (v, ev) => ({ effects: { cash: -100, review: [5, '原來是我誤會了，老闆超有耐心'], mood: 3, later: ['praise', 2] }, result: `你拿出紀錄慢慢說明——${ev}。客人看完不好意思地笑了：「歹勢歹勢，是我搞錯。」走之前還多買了一點。`, correct: true, tip: '客人誤會時，拿出證據、語氣放軟，保住客人的面子，通常能把抱怨變成好感。' }),
+      explain: (v, ev) => ({ effects: { cash: -200, review: [5, '原來是我誤會了，老闆超有耐心'], mood: 3, later: ['praise', 2] }, result: `你拿出紀錄慢慢說明——${ev}。客人看完不好意思地笑了：「歹勢歹勢，是我搞錯。」走之前還多買了一點。`, correct: true, tip: '客人誤會時，拿出證據、語氣放軟，保住客人的面子，通常能把抱怨變成好感。' }),
       firm: (v) => ({ effects: { review: [2, '就算是我搞錯，口氣也太硬了'], mood: 3 }, result: `你直接說店裡沒錯。你說的是事實，但客人覺得很丟臉，留了一則酸酸的評論。${v}倒是鬆了一口氣。` }),
       refund: (v) => ({ effects: { cash: -400, mood: -6 }, result: `你不想吵，直接退費。${v}小聲說：「明明不是我們的錯……」` }),
     },
     unreasonable: {
       apology: (v) => ({ effects: { cash: -800, mood: -8, later: ['repeat', 5] }, result: `你道歉又補償，客人心滿意足地走了。${v}看著你，什麼都沒說。聽說這招他在很多店都用過。` }),
-      explain: (v, ev) => ({ effects: { review: [3, '店家一直跟我講道理'], mood: 2 }, result: `你拿出紀錄說明——${ev}。客人不太服氣，但也拿不出話反駁，碎念著走了。` }),
+      explain: (v, ev) => ({ effects: { cash: -200, review: [3, '店家一直跟我講道理'], mood: 2 }, result: `你拿出紀錄說明——${ev}。客人不太服氣，但也拿不出話反駁，碎念著走了。` }),
       firm: (v) => ({ effects: { review: [2, '店家不肯通融'], mood: 7, morale: 1, jerk: -1 }, result: `你客氣但堅定地說：「這個我們沒辦法。」${v}在旁邊站得直直的。旁邊的熟客小聲說：「老闆做得好。」`, correct: true, tip: '面對無理要求，客氣但堅定地拒絕、保護第一線員工，比一味讓步更能守住店的規矩和士氣。' }),
       refund: (v) => ({ effects: { cash: -400, mood: -8, later: ['repeat', 6] }, result: `你為了息事寧人直接退費。客人笑著走了，${v}嘆了一口氣。` }),
     },
