@@ -1,7 +1,7 @@
 // 不同類型的玩家：放置不管、只照遊戲提示做、慣老闆、亂花錢
 // 看每種玩法會走到哪裡、多久、失敗前有沒有警告、前幾天訊息量多不多
 // 用法：node tools/personas.js <persona> <難度> <產業> [種子]
-//   persona：idle（開了店就不管）、hint（只照💡提示做，事件隨便選）、jerk（壓薪、不保勞健保、選最省錢的）、spend（看到就買、能開分店就開）
+//   persona：idle（開了店就不管）、helper（小幫手說什麼就做什麼）、hint（只照💡提示做，事件隨便選）、jerk（壓薪、不保勞健保、選最省錢的）、spend（看到就買、能開分店就開）
 for (const f of ['data', 'fun', 'weird', 'trends26', 'activities', 'city', 'plots', 'career', 'progress', 'slash', 'sidebiz', 'backroom', 'pets', 'life', 'portraits', 'industries', 'sim']) require(`../js/${f}.js`);
 const { Sim, CATALOG, catalogById } = globalThis.BossSim;
 const I = globalThis.BossIndustries;
@@ -40,6 +40,8 @@ const choices = (ev) => ev.ev.choices.map((c, i) => [c, i]).filter(([c]) => !c.m
 function pick(ev) {
   const cs = choices(ev);
   if (!cs.length) return 0;
+  // 完全照小幫手：選它標的那個
+  if (persona === 'helper' && ev.helperHint >= 0) return ev.helperHint;
   if (persona === 'jerk') {
     // 只看錢：最省錢（或最賺）的那個，不管慣老闆指數
     let best = cs[0];
@@ -105,6 +107,15 @@ function followHints() {
   }
 }
 
+// 🤖 小幫手的建議卡：照做（rate＝照做的機率）
+function takeHelper(rate) {
+  for (const t of [...(s.helperTips || [])]) {
+    if (rnd() > rate) continue;
+    st.helperDone = (st.helperDone || 0) + 1;
+    s.helperDo(t.id);
+  }
+}
+
 function daily(r) {
   const d = s.day;
   st.soldOut = (st.soldOut || 0) + (r.soldOut || 0);
@@ -115,7 +126,11 @@ function daily(r) {
   if (s.cash < 0 && st.firstNeg == null) st.firstNeg = d;
   if (s.cash < 60000 && st.lowCashDay == null) st.lowCashDay = d;
   if (persona === 'idle') return;
-  if (persona === 'hint') return followHints();
+  if (persona === 'helper') return takeHelper(1);
+  if (persona === 'hint') {
+    takeHelper(0.6);
+    return followHints();
+  }
   if (persona === 'jerk') {
     // 壓到最低工資、不保勞健保、不給加班費和休息、全年無休；人不夠就請，不爽就罵
     Object.assign(s.policy, { insurance: false, overtimePay: false, breaks: false, restDays: 'none' });
@@ -173,6 +188,7 @@ console.log(`事件：共 ${st.events} 件、逾時 ${st.ignored}；每天平均
 console.log(`通知：每天平均 第1天 ${st.notesByDay[1] || 0}、第2-7天 ${avg(st.notesByDay, 2, 7)}、第8-28天 ${avg(st.notesByDay, 8, 28)}`);
 console.log(`賣完：${st.soldOut || 0} 人次、${st.soldOutDays || 0} 天超過 3 人；報廢 $${Math.round(st.waste || 0).toLocaleString()}（營收的 ${((st.waste / st.revenue) * 100).toFixed(1)}%）`);
 console.log(`提示出現次數 ${JSON.stringify(st.hintsSeen)}；照做 ${JSON.stringify(st.hintsDone)}`);
+console.log(`小幫手建議照做 ${st.helperDone || 0} 次`);
 console.log(`章節：${st.chapters.join('；') || '—'}`);
 console.log(`慣老闆指數（每 28 天）：${st.jerkWeek.join(' ')}`);
 const evJ = st.jerkEv.reduce((t, x) => t + x[1], 0);

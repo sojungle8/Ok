@@ -5165,3 +5165,49 @@ kbd {
   .drawer-tabs button { min-height: 38px; }
   .tut-head .link { padding: 10px 8px; margin: -10px -8px; }
 }
+
+/* 🤖 小幫手的建議卡：整張可以點（照做），右邊 ✕ 是不要 */
+.inbox-item.helper {
+  padding: 0;
+  gap: 0;
+  border-color: #5b8def;
+  box-shadow: 0 0 0 2px rgba(91, 141, 239, 0.2), var(--shadow);
+}
+.inbox-item.helper .hp-do {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  padding: 6px 4px 6px 10px;
+  border: none;
+  background: transparent;
+  color: inherit;
+}
+.inbox-item.helper .hp-do > span {
+  font-size: 1.1rem;
+  white-space: nowrap;
+}
+.inbox-item.helper .hp-no {
+  align-self: stretch;
+  min-width: 36px;
+  border: none;
+  border-left: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  border-radius: 0 12px 12px 0;
+}
+.cost.helper-pick {
+  background: rgba(91, 141, 239, 0.14);
+  color: #3a66c4;
+}
+@media (max-width: 600px) {
+  .inbox-item.helper small {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .inbox-item.helper b { font-size: 0.82rem; }
+}

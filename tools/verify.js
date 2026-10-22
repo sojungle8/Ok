@@ -516,6 +516,27 @@ T('進貨：自動進貨看最近幾天和上週同一天，不會被一天的�
   ok(s.par[g] >= 300, `下雨一天後進貨量掉到 ${s.par[g]}`);
 });
 
+T('小幫手：只提建議，不自己請人、調薪、處理事件；按了建議卡才會做', () => {
+  const s = mk('noodle', { mode: 'easy', events: false });
+  s.policy.helper = true;
+  for (const e of s.staff) e.wage = 196;
+  const wages = s.staff.map((e) => e.wage).join();
+  const n0 = s.staff.length;
+  days(s, 3);
+  ok(s.staff.length <= n0 && s.staff.map((e) => e.wage).join().startsWith(wages.slice(0, 3)), '小幫手自己動手了');
+  ok(!s.eventLog || !s.eventLog.some((l) => /小幫手/.test(l.by)), '小幫手替玩家選了事件');
+  const tip = (s.helperTips || []).find((t) => t.act.type === 'wage');
+  ok(tip, `沒有調薪建議：${(s.helperTips || []).map((t) => t.title).join('、')}`);
+  s.helperDo(tip.id);
+  ok(s.staff.every((e) => e.wage >= s.marketWage), '按了照做卻沒調薪');
+  const t2 = (s.helperTips || [])[0];
+  if (t2) {
+    s.helperDismiss(t2.id);
+    s.helperDaily(s.lastDay);
+    ok(!s.helperTips.some((t) => t.key === t2.key), '按了不要，隔天又提同一件事');
+  }
+});
+
 // ───── 存檔 ─────
 T('存檔：營業中存、讀回來時間、現金、今天營收、帳本都一樣，不會重叫早上的貨', () => {
   const s = mk('breakfast');

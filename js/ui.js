@@ -488,7 +488,7 @@
       done: () => ui.speed > 0 && ui.sim.today.served > 0,
     },
     { title: '看看員工', short: '點一位腳下有綠圈的員工',  text: () => '點一位員工（腳下有綠色圓圈的人），看他的心情、精力和想法。', done: () => ui.inspect && ui.inspect.kind === 'staff' },
-    { title: '教學完成！', text: () => '最後提醒：要給加班費、要排休、勞健保要保。店裡太髒會被衛生局開罰，附近也可能開競爭對手。慣老闆指數到 100，店就會收起來。祝生意興隆！', next: true },
+    { title: '教學完成！', text: () => '最後提醒：要給加班費、要排休、勞健保要保。店裡太髒會被衛生局開罰，附近也可能開競爭對手。慣老闆指數到 100，或現金是負的、銀行也借不到錢，店就會收起來。祝生意興隆！', next: true },
   ];
 
   function startTutorial() {
@@ -1007,6 +1007,19 @@
       }
       if (b.querySelector('b').textContent !== a.title) b.querySelector('b').textContent = a.title;
       if (b.querySelector('small').textContent !== a.sub) b.querySelector('small').textContent = a.sub;
+    }
+    // 🤖 小幫手的建議卡：點卡片才照做，✕ 是不要
+    if (s.policy.helper) {
+      // 手機畫面小：一次只放兩張
+      for (const t of (s.helperTips || []).slice(0, smallScreen() ? 2 : 3)) {
+        ids.add(t.id);
+        if (el.querySelector(`[data-id="${t.id}"]`)) continue;
+        const b = document.createElement('div');
+        b.className = 'inbox-item act helper';
+        b.dataset.id = t.id;
+        b.innerHTML = `<button class="hp-do" data-action="helper-do" data-id="${t.id}"><span>🤖${t.icon}</span><div><b>${esc(t.title)}</b><small>${esc(t.sub)}・點一下照做</small></div></button><button class="hp-no" data-action="helper-no" data-id="${t.id}" aria-label="不要">✕</button>`;
+        el.appendChild(b);
+      }
     }
     for (const b of [...el.children]) if (!ids.has(b.dataset.id)) b.remove();
   }
@@ -2442,7 +2455,7 @@
            <li>🕹️ <b>老闆下場</b>：右下角的按鈕（或 G 鍵）可以自己操控老闆，在店裡和街上走動、顧櫃台、拖地、發傳單、騎機車、出門去夜市和廟裡</li>
            <li>⏩ 右上角可以暫停或快轉；打烊後會自動快轉到隔天</li>
          </ul>
-         ${s.policy.helper ? '<div class="tip helper-tip">🤖 <b>經營小幫手已經上工了</b>：人手、薪水、價格、休息區這些基本的事它會幫你顧，放太久的事件也會幫你處理，做了什麼都會用藍色訊息告訴你。你可以先只看它怎麼經營，想自己來的時候到 💡 或 ☰ 把它關掉。</div>' : ''}
+         ${s.policy.helper ? '<div class="tip helper-tip">🤖 <b>經營小幫手已經上工了</b>：它會盯著人手、薪水、價格、清潔這些事，發現問題就在左上角放一張建議卡，<b>要你點了才會做</b>；事件裡也會標出它會選哪個。決定還是你來下。</div>' : ''}
          <div class="tip">${isTouch ? '拖曳畫面可以移動視角，兩指縮放；' : '拖曳畫面可以移動視角，滾輪縮放，Q／E 旋轉；'}員工頭上出現 <b class="bang">!</b> 是有事找你，左上角也會列出來。</div>
          <button class="primary" data-action="close-dialog">開門營業</button>`
       );
@@ -2468,6 +2481,7 @@
                  const need = (fx.lifeWealth < 0 ? -fx.lifeWealth : 0) + (fx.lifeBuy && Fun.LIFE_SPEND && Fun.LIFE_SPEND[fx.lifeBuy] ? Fun.LIFE_SPEND[fx.lifeBuy].cost : 0);
                  if (need > s.owner.wealth) meta += `<span class="cost bad">⚠️ 你個人只有 ${money(s.owner.wealth)}，差 ${money(need - s.owner.wealth)} 會由公司代墊（記成老闆欠公司）</span>`;
                }
+               if (s.policy.helper && ev.helperHint === i) meta = '<span class="cost helper-pick">🤖 小幫手會選這個（對員工好、不當慣老闆）</span>' + meta;
                return `<button class="choice ${c.minigame ? 'is-game' : ''}" data-action="choose" data-i="${i}">
                  <span class="choice-label"><kbd>${i + 1}</kbd>${pron(ev, c.label)}</span>
                  ${c.quote ? `<span class="quote">「${pron(ev, c.quote)}」</span>` : ''}
@@ -2733,10 +2747,10 @@
     return { look, name: (ev.ev.speaker && ev.ev.speaker.name) || look.name, mood: ev.ev.id === 'd_karen' ? 'angry' : key === 'investor' ? 'smug' : 'neutral' };
   }
 
-  // 🤖 經營小幫手的開關：幫忙顧人手、薪水、價格、設備，放太久的事件也會幫你處理
+  // 🤖 經營小幫手的開關：只提醒、只建議，要玩家按了才會做
   function helperToggle() {
     const on = ui.sim && ui.sim.policy.helper;
-    return `<button class="toggle ${on ? 'on' : 'off'} helper-toggle" data-action="helper"><span class="knob"></span><span><b>🤖 經營小幫手${on ? '：開' : '：關'}</b><small>${on ? '人手不夠會幫你招人、薪水跟上行情、心情差的員工會去關心、缺休息桌或冷氣會幫你買、物價漲了會調價格；事件放太久會幫你選對員工好的選項。每做一件事都會跟你說。' : '覺得事情太多、顧不過來？打開小幫手，基本的事交給它，你只要做想做的事。'}</small></span></button>`;
+    return `<button class="toggle ${on ? 'on' : 'off'} helper-toggle" data-action="helper"><span class="knob"></span><span><b>🤖 經營小幫手${on ? '：開' : '：關'}</b><small>${on ? '盯著人手、薪水、心情、設備、價格、清潔，發現問題就在左上角放建議卡，點了才會做；事件會標出它會選哪個，但要你自己選。' : '覺得事情太多、顧不過來？打開小幫手，它會提醒你該注意什麼，給你建議；決定還是你來下。'}</small></span></button>`;
   }
 
   // 事件裡的「他」指的是來找你的那位員工時，女生要寫「她」
@@ -3336,9 +3350,21 @@
         closeDialog();
         if (ui.tab !== btn.dataset.tab) openTab(btn.dataset.tab);
         break;
+      case 'helper-do': {
+        const r = s.helperDo(btn.dataset.id);
+        if (r) toast(`🤖 ${r}`, 'helper');
+        renderInbox();
+        if (ui.tab) renderDrawer();
+        break;
+      }
+      case 'helper-no':
+        s.helperDismiss(btn.dataset.id);
+        renderInbox();
+        break;
       case 'helper':
         s.policy.helper = !s.policy.helper;
-        toast(s.policy.helper ? '🤖 小幫手上工了！它做了什麼都會跟你說' : '🤖 小幫手下班了，接下來你自己來');
+        if (s.policy.helper) s.helperDaily(s.lastDay || null);
+        toast(s.policy.helper ? '🤖 小幫手上工了！發現問題會提建議，要你按了才會做' : '🤖 小幫手下班了，接下來你自己來');
         renderDialog();
         break;
       case 'autopause':
