@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- /skeleton -->
+<title>單字卡盒 Word Box</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: one narrow column built like a Leitner card box — box rail on top, the active card in the middle, method notes below. */
+:root {
+  --bg: #eef1f6;
+  --card: #ffffff;
+  --ink: #18213a;
+  --muted: #5b6684;
+  --line: #d3d9e6;
+  --accent: #2346c8;
+  --accent-ink: #ffffff;
+  --mark: #ffe066;
+  --good: #1d8a52;
+  --bad: #c43a3a;
+  --font-display: "Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --font-body: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #10142a; --card: #1a2040; --ink: #e8ecf8; --muted: #9aa5c6; --line: #2e3762;
+    --accent: #7d9bff; --accent-ink: #0d1330; --mark: #e8c63a; --good: #4cc98a; --bad: #ff7b7b;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #10142a; --card: #1a2040; --ink: #e8ecf8; --muted: #9aa5c6; --line: #2e3762;
+  --accent: #7d9bff; --accent-ink: #0d1330; --mark: #e8c63a; --good: #4cc98a; --bad: #ff7b7b;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 16px/1.6 var(--font-body);
+}
+.wrap {
+  max-width: 640px; margin: 0 auto;
+  padding-block: 24px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 20px;
+}
+header { display: flex; justify-content: space-between; align-items: end; gap: 12px; flex-wrap: wrap; }
+h1 { font: 800 clamp(30px, 7vw, 42px)/1 var(--font-display); margin: 0; letter-spacing: -0.02em; text-wrap: balance; }
+h1 span { background: linear-gradient(transparent 58%, var(--mark) 58%); }
+.xp { font: 500 13px var(--font-mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.xp b { color: var(--ink); font-size: 18px; }
+
+/* Leitner rail */
+.rail { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.slot { border: 1px solid var(--line); border-radius: 8px; background: var(--card); padding: 8px 6px 6px; text-align: center; }
+.slot .n { font: 800 22px/1 var(--font-display); font-variant-numeric: tabular-nums; }
+.slot .l { font-size: 11px; color: var(--muted); letter-spacing: 0.04em; }
+.slot .bar { height: 4px; border-radius: 2px; background: var(--line); margin-top: 6px; overflow: hidden; }
+.slot .bar i { display: block; height: 100%; background: var(--accent); }
+
+/* Card */
+.card {
+  background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+  padding: 22px 20px; display: flex; flex-direction: column; gap: 16px;
+  box-shadow: 0 1px 0 var(--line), 0 6px 0 -2px var(--card), 0 7px 0 -2px var(--line);
+}
+.meta { display: flex; justify-content: space-between; gap: 8px; font: 500 12px var(--font-mono); color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.combo { color: var(--accent); }
+.prompt { min-height: 96px; display: flex; flex-direction: column; justify-content: center; gap: 6px; }
+.word { font: 800 clamp(34px, 9vw, 52px)/1.05 var(--font-display); letter-spacing: -0.01em; overflow-wrap: anywhere; }
+.hint { color: var(--muted); }
+.sentence { font-size: 17px; }
+.sentence .blank { display: inline-block; min-width: 5ch; border-bottom: 2px solid var(--accent); font-family: var(--font-mono); }
+.options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 420px) { .options { grid-template-columns: 1fr; } }
+button { font: inherit; color: inherit; cursor: pointer; }
+.opt {
+  text-align: left; padding: 12px 14px; border-radius: 10px; border: 1.5px solid var(--line);
+  background: var(--bg); font-weight: 500; transition: border-color .15s, transform .1s;
+}
+.opt:hover:not(:disabled) { border-color: var(--accent); }
+.opt:active:not(:disabled) { transform: scale(0.98); }
+.opt kbd { font: 500 11px var(--font-mono); color: var(--muted); margin-right: 8px; }
+.opt.right { border-color: var(--good); background: color-mix(in srgb, var(--good) 14%, var(--card)); }
+.opt.wrong { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 14%, var(--card)); }
+.opt:disabled { cursor: default; }
+.spell { display: flex; gap: 8px; }
+.spell input {
+  flex: 1; min-width: 0; font: 500 20px var(--font-mono); padding: 10px 12px; border-radius: 10px;
+  border: 1.5px solid var(--line); background: var(--bg); color: var(--ink);
+}
+.btn {
+  padding: 11px 18px; border-radius: 10px; border: 0; background: var(--accent); color: var(--accent-ink);
+  font-weight: 700; white-space: nowrap;
+}
+.btn.ghost { background: transparent; color: var(--accent); border: 1.5px solid var(--accent); }
+button:focus-visible, input:focus-visible { outline: 3px solid var(--mark); outline-offset: 2px; }
+.feedback { border-top: 1px dashed var(--line); padding-top: 14px; display: flex; flex-direction: column; gap: 8px; }
+.feedback .verdict { font-weight: 700; }
+.feedback .verdict.ok { color: var(--good); }
+.feedback .verdict.no { color: var(--bad); }
+.feedback .ex { color: var(--muted); }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.speak { background: none; border: 1.5px solid var(--line); border-radius: 999px; padding: 4px 12px; font-size: 14px; }
+
+/* Mode picker */
+.modes { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.mode { text-align: left; padding: 14px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--bg); display: flex; flex-direction: column; gap: 2px; }
+.mode:hover { border-color: var(--accent); }
+.mode b { font: 800 18px var(--font-display); }
+.mode span { font-size: 13px; color: var(--muted); }
+.big { font: 800 56px/1 var(--font-display); font-variant-numeric: tabular-nums; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; text-align: center; }
+.stats .l { font-size: 12px; color: var(--muted); }
+
+/* Notes */
+.notes h2 { font: 800 20px var(--font-display); margin: 0 0 8px; }
+.notes ol { margin: 0; padding-left: 1.3em; display: flex; flex-direction: column; gap: 8px; }
+.notes li b { background: linear-gradient(transparent 60%, var(--mark) 60%); }
+.notes p { color: var(--muted); font-size: 14px; margin: 10px 0 0; }
+.reset { align-self: flex-start; background: none; border: 0; color: var(--muted); text-decoration: underline; font-size: 13px; padding: 0; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+.pop { animation: pop .25s ease-out; }
+@keyframes pop { from { transform: scale(0.97); opacity: .6; } to { transform: none; opacity: 1; } }
+</style>
+<!-- skeleton -->
+</head>
+<body>
+<!-- /skeleton -->
+<div class="wrap">
+  <header>
+    <h1>單字<span>卡盒</span></h1>
+    <div class="xp">XP <b id="xp">0</b> · 最佳連擊 <b id="best">0</b></div>
+  </header>
+
+  <div class="rail" id="rail" aria-label="Leitner 卡盒進度"></div>
+
+  <section class="card" id="stage" aria-live="polite"></section>
+
+  <section class="card notes">
+    <h2>為什麼這樣玩學得最快</h2>
+    <ol>
+      <li><b>主動回想</b>：先自己想答案再看解答，比重複閱讀記得更久（測驗效應）。</li>
+      <li><b>間隔重複</b>：答對的字升到下一盒、越來越少出現；答錯的字回到第 1 盒、很快再考一次。</li>
+      <li><b>聽說並進</b>：每個字都能聽發音，聽力模式只給聲音，練耳朵也練辨識。</li>
+      <li><b>放在句子裡學</b>：拼字模式用例句填空，字義跟用法一起記。</li>
+      <li><b>每天短時間</b>：一輪 10 題約 3 分鐘，天天玩勝過一週一次猛背。</li>
+    </ol>
+    <p>進度只存在這台裝置的瀏覽器裡。</p>
+    <button class="reset" id="reset">清除進度</button>
+  </section>
+</div>
+
+<script>
+const WORDS = [
+  ["abandon","放棄","They had to abandon the car in the snow."],
+  ["achieve","達成","She worked hard to achieve her goal."],
+  ["advice","建議","Can you give me some advice?"],
+  ["afford","負擔得起","I can't afford a new phone right now."],
+  ["anxious","焦慮的","He felt anxious before the exam."],
+  ["appointment","預約；約會","I have a dentist appointment at three."],
+  ["available","可用的；有空的","Is this seat available?"],
+  ["avoid","避免","Try to avoid sugar at night."],
+  ["borrow","借（入）","Can I borrow your pen?"],
+  ["brave","勇敢的","The brave firefighter saved the cat."],
+  ["budget","預算","We need to stay within our budget."],
+  ["celebrate","慶祝","Let's celebrate your birthday tonight."],
+  ["challenge","挑戰","Learning English is a fun challenge."],
+  ["climate","氣候","The climate here is warm and wet."],
+  ["comfortable","舒適的","This sofa is very comfortable."],
+  ["compare","比較","Don't compare yourself to others."],
+  ["confident","有自信的","She sounds confident when she speaks."],
+  ["convenient","方便的","The station is very convenient."],
+  ["curious","好奇的","Cats are curious animals."],
+  ["decide","決定","I can't decide what to eat."],
+  ["deliver","遞送","They deliver pizza until midnight."],
+  ["describe","描述","Can you describe the man you saw?"],
+  ["direction","方向","We walked in the wrong direction."],
+  ["disappointed","失望的","I was disappointed by the movie."],
+  ["earn","賺取","He earns money by teaching piano."],
+  ["effort","努力","It takes effort to build a habit."],
+  ["embarrassed","尷尬的","I felt embarrassed when I fell."],
+  ["environment","環境","We should protect the environment."],
+  ["experience","經驗","Do you have any work experience?"],
+  ["explain","解釋","Please explain the rules again."],
+  ["familiar","熟悉的","That song sounds familiar."],
+  ["forgive","原諒","Please forgive me for being late."],
+  ["generous","慷慨的","My uncle is very generous."],
+  ["habit","習慣","Reading every day is a good habit."],
+  ["honest","誠實的","Thank you for being honest with me."],
+  ["improve","改善；進步","Practice will improve your English."],
+  ["include","包含","Does the price include tax?"],
+  ["invite","邀請","I want to invite you to my party."],
+  ["journey","旅程","The journey took six hours."],
+  ["knowledge","知識","Books give us knowledge."],
+  ["mention","提到","He didn't mention the meeting."],
+  ["mistake","錯誤","Everyone makes mistakes."],
+  ["neighbor","鄰居","Our neighbor has two dogs."],
+  ["opinion","意見","What's your opinion on this?"],
+  ["patient","有耐心的","Be patient, the bus will come."],
+  ["polite","有禮貌的","It's polite to say thank you."],
+  ["prepare","準備","I need to prepare for the test."],
+  ["prefer","比較喜歡","I prefer tea to coffee."],
+  ["promise","承諾","I promise I will call you."],
+  ["receive","收到","Did you receive my email?"],
+  ["recommend","推薦","Can you recommend a good book?"],
+  ["remind","提醒","Remind me to buy milk."],
+  ["schedule","行程表","My schedule is full this week."],
+  ["solution","解決辦法","We found a simple solution."],
+  ["suggest","建議（提議）","I suggest we leave early."],
+  ["support","支持","My family always supports me."],
+  ["temperature","溫度","The temperature dropped at night."],
+  ["traffic","交通","The traffic is terrible today."],
+  ["upset","難過的；不高興的","She was upset about the news."],
+  ["worried","擔心的","Don't be worried, it's fine."]
+];
+const BOX_LABELS = ["新字","學習中","熟悉","掌握","精通"];
+const ROUND = 10;
+const KEY = "wordbox-v1";
+
+let save = { box: {}, xp: 0, best: 0 };
+try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.box) save = s; } catch (e) {}
+function persist() { try { localStorage.setItem(KEY, JSON.stringify(save)); } catch (e) {} }
+const boxOf = w => save.box[w] || 1;
+
+const $ = id => document.getElementById(id);
+const stage = $("stage");
+const esc = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
+
+const canSpeak = "speechSynthesis" in window;
+function speak(text) {
+  if (!canSpeak) return;
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = "en-US"; u.rate = 0.9;
+    speechSynthesis.speak(u);
+  } catch (e) {}
+}
+
+function renderRail() {
+  const counts = [0, 0, 0, 0, 0];
+  WORDS.forEach(([w]) => counts[boxOf(w) - 1]++);
+  $("rail").innerHTML = counts.map((n, i) =>
+    `<div class="slot"><div class="n">${n}</div><div class="l">${i + 1}・${BOX_LABELS[i]}</div><div class="bar"><i style="width:${n / WORDS.length * 100}%"></i></div></div>`
+  ).join("");
+  $("xp").textContent = save.xp;
+  $("best").textContent = save.best;
+}
+
+// Lower boxes come up first; ties are shuffled so rounds vary.
+function pickRound() {
+  return shuffle(WORDS.slice()).sort((a, b) => boxOf(a[0]) - boxOf(b[0])).slice(0, ROUND);
+}
+
+let run = null;
+
+function home() {
+  run = null;
+  stage.innerHTML = `
+    <div class="meta"><span>選一種玩法</span><span>每輪 ${ROUND} 題</span></div>
+    <div class="modes">
+      <button class="mode" data-m="meaning"><b>看字選義</b><span>看英文，選中文意思</span></button>
+      <button class="mode" data-m="listen"><b>聽音選義</b><span>只聽發音，選中文意思</span></button>
+      <button class="mode" data-m="spell"><b>例句拼字</b><span>看中文和例句，打出單字</span></button>
+      <button class="mode" data-m="mix"><b>綜合挑戰</b><span>三種題型隨機混合</span></button>
+    </div>`;
+  stage.querySelectorAll(".mode").forEach(b => b.onclick = () => start(b.dataset.m));
+}
+
+function start(mode) {
+  run = { mode, queue: pickRound(), i: 0, right: 0, combo: 0, gained: 0, up: 0 };
+  ask();
+}
+
+function ask() {
+  const [w, zh, ex] = run.queue[run.i];
+  let type = run.mode === "mix" ? ["meaning", "listen", "spell"][Math.random() * 3 | 0] : run.mode;
+  if (type === "listen" && !canSpeak) type = "meaning";
+  run.cur = { w, zh, ex, type, done: false };
+  const head = `<div class="meta"><span>${run.i + 1} / ${ROUND} · 第 ${boxOf(w)} 盒</span><span class="combo">${run.combo >= 2 ? "連擊 ×" + run.combo : ""}</span></div>`;
+
+  if (type === "spell") {
+    const blanked = esc(ex).replace(new RegExp("\\b" + w + "\\w*", "i"), `<span class="blank">${w[0]}…</span>`);
+    stage.innerHTML = `${head}
+      <div class="prompt pop"><div class="hint">${esc(zh)}</div><div class="sentence">${blanked}</div></div>
+      <form class="spell" id="spellForm"><input id="spellIn" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="輸入英文單字" aria-label="輸入英文單字"><button class="btn">確定</button></form>
+      <div id="fb"></div>`;
+    $("spellForm").onsubmit = e => { e.preventDefault(); if (!run.cur.done) answer($("spellIn").value.trim().toLowerCase() === w); };
+    $("spellIn").focus();
+    return;
+  }
+
+  const others = shuffle(WORDS.filter(x => x[0] !== w)).slice(0, 3).map(x => x[1]);
+  const opts = shuffle([zh, ...others]);
+  const prompt = type === "listen"
+    ? `<div class="row"><button class="btn" id="play">▶ 播放發音</button><span class="hint">聽完選出意思</span></div>`
+    : `<div class="word">${esc(w)}</div><div class="row"><button class="speak" id="play">▶ 發音</button></div>`;
+  stage.innerHTML = `${head}<div class="prompt pop">${prompt}</div>
+    <div class="options">${opts.map((o, k) => `<button class="opt" data-ok="${o === zh}"><kbd>${k + 1}</kbd>${esc(o)}</button>`).join("")}</div>
+    <div id="fb"></div>`;
+  $("play").onclick = () => speak(w);
+  stage.querySelectorAll(".opt").forEach(b => b.onclick = () => {
+    if (run.cur.done) return;
+    stage.querySelectorAll(".opt").forEach(x => { x.disabled = true; if (x.dataset.ok === "true") x.classList.add("right"); });
+    if (b.dataset.ok !== "true") b.classList.add("wrong");
+    answer(b.dataset.ok === "true");
+  });
+  if (type === "listen") speak(w);
+}
+
+function answer(ok) {
+  const c = run.cur; c.done = true;
+  const before = boxOf(c.w);
+  if (ok) {
+    run.right++; run.combo++;
+    const pts = 10 * (1 + Math.floor(run.combo / 3));
+    run.gained += pts; save.xp += pts;
+    save.best = Math.max(save.best, run.combo);
+    if (before < 5) { save.box[c.w] = before + 1; run.up++; }
+  } else {
+    run.combo = 0;
+    save.box[c.w] = 1;
+  }
+  persist(); renderRail();
+  const where = ok ? (before < 5 ? `升到第 ${before + 1} 盒` : "已在最高盒") : "回到第 1 盒，很快會再出現";
+  $("fb").innerHTML = `<div class="feedback pop">
+    <div class="verdict ${ok ? "ok" : "no"}">${ok ? "答對了" : "再記一次"}：${esc(c.w)} = ${esc(c.zh)}（${where}）</div>
+    <div class="ex">${esc(c.ex)}</div>
+    <div class="row"><button class="speak" id="say">▶ 聽例句</button><button class="btn" id="next">${run.i + 1 < ROUND ? "下一題" : "看結果"} ↵</button></div>
+  </div>`;
+  $("say").onclick = () => speak(c.ex);
+  $("next").onclick = next;
+  $("next").focus();
+}
+
+function next() {
+  run.i++;
+  run.i < ROUND ? ask() : finish();
+}
+
+function finish() {
+  const pct = Math.round(run.right / ROUND * 100);
+  const mode = run.mode;
+  stage.innerHTML = `
+    <div class="meta"><span>本輪結果</span><span>${pct >= 80 ? "很好" : pct >= 50 ? "繼續加油" : "多練幾輪"}</span></div>
+    <div class="big pop">${run.right}<span class="hint" style="font-size:24px"> / ${ROUND}</span></div>
+    <div class="stats">
+      <div><div class="n big" style="font-size:28px">${pct}%</div><div class="l">正確率</div></div>
+      <div><div class="n big" style="font-size:28px">+${run.gained}</div><div class="l">XP</div></div>
+      <div><div class="n big" style="font-size:28px">${run.up}</div><div class="l">個字升盒</div></div>
+    </div>
+    <div class="row"><button class="btn" id="again">再玩一輪</button><button class="btn ghost" id="menu">換玩法</button></div>`;
+  $("again").onclick = () => start(mode);
+  $("menu").onclick = home;
+}
+
+document.addEventListener("keydown", e => {
+  if (!run || !run.cur || e.target.tagName === "INPUT" && !run.cur.done) return;
+  if (!run.cur.done && /^[1-4]$/.test(e.key)) { const b = stage.querySelectorAll(".opt")[e.key - 1]; if (b) b.click(); }
+  else if (run.cur.done && e.key === "Enter" && $("next") && document.activeElement !== $("next")) next();
+});
+
+$("reset").onclick = function () {
+  if (this.dataset.armed) { save = { box: {}, xp: 0, best: 0 }; persist(); renderRail(); home(); this.textContent = "清除進度"; delete this.dataset.armed; }
+  else { this.dataset.armed = "1"; this.textContent = "再按一次確認清除"; }
+};
+
+renderRail();
+home();
+</script>
+<!-- skeleton -->
+</body>
+</html>
+<!-- /skeleton -->
