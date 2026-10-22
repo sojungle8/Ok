@@ -1878,8 +1878,10 @@
       if (w / h > this.aspect) h = w / this.aspect;
       else w = h * this.aspect;
       const mx = (minX + maxX) / 2;
-      const my = (minY + maxY) / 2;
       const z = this.zoom;
+      // 下面被面板蓋住一塊（手機的人物卡）：把店往上挪到看得到的地方
+      const ch = this.container.clientHeight || 1;
+      const my = (minY + maxY) / 2 - ((this.viewShift || 0) / 2 / ch) * (h / z);
       Object.assign(this.camera, { left: mx - w / 2 / z, right: mx + w / 2 / z, top: my + h / 2 / z, bottom: my - h / 2 / z });
       this.camera.updateProjectionMatrix();
       this.sun.shadow.camera.left = -s.W - 4;
@@ -1902,6 +1904,11 @@
         this.zoom = v;
         this.updateCamera();
       }
+    }
+
+    // 畫面下方被蓋住幾個像素（0：沒被蓋住）
+    setViewShift(px) {
+      this.viewShiftT = Math.max(0, px || 0);
     }
 
     setPitch(p) {
@@ -1957,6 +1964,7 @@
       this.camAz = ease(this.camAz, this.camAzT, 0.0005);
       this.pitch = ease(this.pitch, this.pitchT, 0.0005);
       this.zoom = ease(this.zoom, this.zoomT, 0.001);
+      this.viewShift = ease(this.viewShift || 0, this.viewShiftT || 0, 0.5);
       if (this.panT) {
         const nx = ease(this.pan.x, this.panT.x, 0.002);
         const nz = ease(this.pan.z, this.panT.z, 0.002);

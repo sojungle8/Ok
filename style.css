@@ -5147,3 +5147,21 @@ kbd {
   .sc-foot > :nth-child(10) { display: none; }
   .sc-foot > :nth-child(11) { grid-column: 1 / -1; }
 }
+
+/* 慣老闆指數 70 以上：紅條閃爍提醒 */
+.tb-meter.danger small { color: var(--bad, #d64545); font-weight: 700; }
+.tb-meter.danger .bar { animation: jerk-pulse 1.2s ease-in-out infinite; }
+@keyframes jerk-pulse {
+  50% { box-shadow: 0 0 0 3px rgba(214, 69, 69, 0.35); }
+}
+
+/* 觸控螢幕：常用按鈕至少 40px 左右，手指才按得準 */
+@media (pointer: coarse) {
+  .toolbar { gap: 0; padding-left: 4px; padding-right: 4px; }
+  .toolbar button { flex: 1 1 0; min-width: 0; min-height: 50px; padding: 4px 0; }
+  .tb-speed button { min-width: 40px; min-height: 36px; padding: 4px 6px; }
+  .x, .drawer-x { min-width: 40px; min-height: 40px; }
+  .price-ctl button { width: 38px; height: 38px; font-size: 1.05rem; }
+  .drawer-tabs button { min-height: 38px; }
+  .tut-head .link { padding: 10px 8px; margin: -10px -8px; }
+}

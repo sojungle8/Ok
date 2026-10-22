@@ -459,6 +459,63 @@ T('街頭：清晨倒地的人，打 119 後救護車會來載走', () => {
   ok(!s.street.collapse.lying, '救護車沒把人載走');
 });
 
+// ───── 警告與提示（試玩發現的問題） ─────
+T('警告：慣老闆指數過 50／70／85 各提醒一次，並說出是哪件事', () => {
+  const s = mk('drinks');
+  const bad = [];
+  s.cb.notify = (t, k) => k === 'bad' && /慣老闆指數超過/.test(t) && bad.push(t);
+  s.jerk = 45;
+  const p = fakeEv('壓榨測試', [{ label: '壓', effects: { jerk: 8 } }]);
+  s.activeEvents.push(p);
+  s.resolve(p, 0);
+  ok(bad.length === 1 && bad[0].includes('壓榨測試'), `過 50 的警告：${bad.join('｜')}`);
+  s.jerk = 72;
+  s.checkEnding();
+  s.jerk = 90;
+  s.checkEnding();
+  ok(bad.length === 3, `應該警告 3 次，實際 ${bad.length}`);
+  s.checkEnding();
+  ok(bad.length === 3, '同一級重複警告');
+  ok(s.advice().some((a) => a.icon === '😈'), '💡提示沒有慣老闆的項目');
+});
+T('提示：人已經比服務位多還有人生氣 → 叫你買設備，不是請人', () => {
+  const s = mk('breakfast');
+  days(s, 2);
+  while (s.staff.length < 14 && s.candidates.length) s.hire(0);
+  s.lastDay = { ...s.lastDay, visitors: 100, angry: 20 };
+  const a = s.advice().find((x) => x.icon === '😡');
+  ok(a && a.tab === 'build' && /設備/.test(a.text), `提示：${a && a.text}`);
+});
+T('提示：虧錢但價格已經偏貴時，不會叫你再漲價', () => {
+  const s = mk('noodle');
+  days(s, 7);
+  for (const p of s.ind.products) s.prices[p.id] = Math.round(p.price * 1.3);
+  s.reviews = Array.from({ length: 50 }, () => ({ stars: 5, text: '', day: s.day }));
+  s.history.push({ ...s.history[s.history.length - 1], profit: -50000, other: 0, rewards: 0, branches: 0 });
+  const a = s.advice().filter((x) => x.icon === '📉');
+  ok(a.length && !a.some((x) => x.text.includes('漲價')), `提示：${a.map((x) => x.text).join('｜')}`);
+});
+T('警告：現金變負、借滿時倒數到週末結算', () => {
+  const s = mk('store');
+  const bad = [];
+  s.cb.notify = (t, k) => k === 'bad' && /現金/.test(t) && bad.push(t);
+  days(s, 1);
+  s.cash = -300000;
+  s.loan = 600000;
+  days(s, 1);
+  ok(bad.some((t) => /週末結算/.test(t)), `沒有倒數警告：${bad.join('｜')}`);
+});
+T('進貨：自動進貨看最近幾天和上週同一天，不會被一天的低用量帶走', () => {
+  const s = mk('drinks');
+  days(s, 8);
+  const g = s.ind.stock[0].id;
+  s.usageLog = [{ [g]: 300 }, { [g]: 280 }, { [g]: 290 }, { [g]: 300 }, { [g]: 310 }, { [g]: 290 }, { [g]: 60 }];
+  s.lastUsage[g] = 60;
+  s.lastDay = { ...s.lastDay, outWarned: {} };
+  s.morningOrder();
+  ok(s.par[g] >= 300, `下雨一天後進貨量掉到 ${s.par[g]}`);
+});
+
 // ───── 存檔 ─────
 T('存檔：營業中存、讀回來時間、現金、今天營收、帳本都一樣，不會重叫早上的貨', () => {
   const s = mk('breakfast');

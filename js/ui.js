@@ -330,6 +330,19 @@
     sim.cb = {
       sound: (n) => window.BossAudio.play(n),
       notify: (t, k) => toast(t, k),
+      // 慣老闆指數快爆了：快轉中先調回正常速度，免得一眨眼就結束
+      moneyWarn: (maxed) => {
+        if (maxed && ui.speed > 2) {
+          ui.speed = 2;
+          renderTopbar();
+        }
+      },
+      jerkWarn: (lv) => {
+        if (lv >= 2 && ui.speed > 2) {
+          ui.speed = 2;
+          renderTopbar();
+        }
+      },
       event: (ev, text) => {
         // 快轉中有事找你：先把速度調回正常，不然一眨眼事件就過期了
         if (ui.autoPause && ui.speed > 2) {
@@ -449,11 +462,31 @@
   const TUT = [
     { title: '歡迎來到你的店', text: () => (isTouch ? '拖曳畫面移動視角，兩指縮放，右下角可以旋轉。' : '拖曳畫面移動視角、滾輪縮放、Q／E 旋轉。') + '時間先暫停，我們一步一步來。', next: true },
     { title: '看看庫存', short: '點下方的「📦 庫存」',  text: () => '點下方的「📦 庫存」。每天早上會自動進貨到你設定的量；賣完了客人會失望離開，叫太多又會過期報廢。', target: '[data-tab="stock"]', done: () => ui.tab === 'stock' },
-    { title: '調整進貨量', short: '按＋或－改一種{w:supplies}的進貨量',  text: () => '按「＋」或「－」改一種{w:supplies}的每天進貨量。也可以打開「依昨天用量自動調整」。', target: '[data-action="par"]', done: () => ui.tutFlags.par || ui.sim.policy.autoStock },
+    // 自動進貨開著（一般、輕鬆模式的預設）：只說明，不叫新手按＋－（手動改會把自動進貨關掉）
+    {
+      title: '進貨量',
+      get short() {
+        return ui.sim.policy.autoStock ? '看一下就好，按「下一步」' : '按＋或－改一種{w:supplies}的進貨量';
+      },
+      text: () => (ui.sim.policy.autoStock ? '「依用量自動調整進貨量」已經幫你打開了：每天早上會照最近幾天賣掉的量多抓一點。假日或好天氣會突然多賣，那時再手動調高（手動改了就會關掉自動）。' : '按「＋」或「－」改一種{w:supplies}的每天進貨量。也可以打開「依用量自動調整進貨量」。'),
+      target: '[data-action="par"]',
+      get next() {
+        return ui.sim.policy.autoStock;
+      },
+      done: () => ui.tutFlags.par,
+    },
     { title: '定價', short: '在「{w:menu}與價格」按＋或－改一個價格',  text: () => '打開「⚙️ 經營」，在「{w:menu}與價格」按＋／－改一個品項的價格。太貴學生和長輩會不想來，太便宜又賺不到錢。', target: '[data-tab="manage"], [data-action="price"]', done: () => ui.tutFlags.price },
-    { title: '擺設', short: '建造 → 選一樣東西 → 點地板放下',  text: () => '打開「🏗️ 建造」，買一盆盆栽（或任何東西），點地板放下去。店面漂亮，路人比較願意進來。', target: '[data-tab="build"]', done: () => ui.sim.objects.length > ui.tutObjs },
+    { title: '擺設', short: '建造 →「裝飾」→ 盆栽 → 點地板放下',  text: () => '打開「🏗️ 建造」，在「裝飾」分類買一盆盆栽，點地板放下去。店面漂亮，路人比較願意進來。', target: '[data-tab="build"], [data-cat="decor"], [data-type="plant"]', done: () => ui.sim.objects.length > ui.tutObjs },
     { title: '招人', short: '員工 →「🙋 應徵者」→ 錄取', text: () => '打開「👥 員工」，切到「🙋 應徵者」分頁錄取一位。人手不夠，客人會等到生氣離開。旁邊的「👥 總覽」一眼就能看到所有人的心情和體力。', target: '[data-tab="staff"], [data-v="hire"], [data-action="hire"]', done: () => ui.sim.staff.length > ui.tutStaff },
-    { title: '開門營業', short: '關掉面板，按右上角的 ▶', text: () => '先把下面的面板關起來（打開面板時時間會暫停），再按右上角的 ▶ 讓時間開始走。客人會走進來點餐，員工沒事做的時候會拿拖把打掃。', target: '[data-action="speed"][data-v="2"]', done: () => ui.speed > 0 && ui.sim.today.served > 0 },
+    {
+      title: '開門營業',
+      get short() {
+        return ui.speed > 0 ? '⏳ 時間在走了，等第一位客人結帳…' : '關掉面板，按右上角的 ▶';
+      },
+      text: () => (ui.speed > 0 ? `現在 ${ui.sim.clockLabel}，${hhmm(ui.sim.policy.open)} 開門。客人會走進來點餐，第一位結完帳就完成這一步；想快一點可以按 ▶▶。` : '先把下面的面板關起來（打開面板時時間會暫停），再按右上角的 ▶ 讓時間開始走。客人會走進來點餐，員工沒事做的時候會拿拖把打掃。'),
+      target: '[data-action="speed"][data-v="2"]',
+      done: () => ui.speed > 0 && ui.sim.today.served > 0,
+    },
     { title: '看看員工', short: '點一位腳下有綠圈的員工',  text: () => '點一位員工（腳下有綠色圓圈的人），看他的心情、精力和想法。', done: () => ui.inspect && ui.inspect.kind === 'staff' },
     { title: '教學完成！', text: () => '最後提醒：要給加班費、要排休、勞健保要保。店裡太髒會被衛生局開罰，附近也可能開競爭對手。慣老闆指數到 100，店就會收起來。祝生意興隆！', next: true },
   ];
@@ -903,6 +936,7 @@
     width('morbar', mor);
     txt('jerktext', `😈 慣老闆指數 ${jerk}`);
     width('jerkbar', jerk);
+    f('jerkbar').closest('.tb-meter').classList.toggle('danger', jerk >= 70);
     el.querySelectorAll('[data-action="speed"]').forEach((b) => b.classList.toggle('active', Number(b.dataset.v) === ui.speed));
     const mu = el.querySelector('[data-action="music"]');
     mu.classList.toggle('off', !window.BossAudio.prefs.music);
@@ -1079,6 +1113,7 @@
 
   function closeInspector() {
     ui.inspect = null;
+    if (ui.view && ui.view.setViewShift) ui.view.setViewShift(0);
     const el = document.getElementById('inspector');
     if (el) {
       el.hidden = true;
@@ -1224,6 +1259,12 @@
   function fitInspector() {
     const insp = document.getElementById('inspector');
     const drawer = document.getElementById('drawer');
+    // 手機：人物卡貼在下面時，鏡頭把店往上挪，別讓卡片蓋住正在看的人
+    if (ui.view && ui.view.setViewShift) {
+      const vp = insp && insp.parentElement.getBoundingClientRect();
+      const r = insp && !insp.hidden && insp.getBoundingClientRect();
+      ui.view.setViewShift(r && smallScreen() && (!drawer || drawer.hidden) && r.bottom > vp.bottom - 40 ? r.height : 0);
+    }
     if (!insp || insp.hidden) return;
     const vp = insp.parentElement.getBoundingClientRect();
     if (drawer && !drawer.hidden) {
@@ -1238,6 +1279,7 @@
   function openTab(tab) {
     ui.tab = ui.tab === tab ? null : tab;
     if (ui.tab !== 'build') endBuild();
+    if (ui.tab === 'build' && ui.tut && TUT[ui.tut.step] && TUT[ui.tut.step].title === '擺設') ui.buildCat = 'decor';
     // 手機螢幕小：開選單時收掉人物卡，免得兩張卡疊在一起（員工分頁看員工卡例外）
     if (ui.tab && ui.inspect && innerWidth < 700 && !(ui.tab === 'staff' && ui.inspect.kind === 'staff')) closeInspector();
     renderDrawer();
@@ -1882,7 +1924,7 @@
               })
               .join('')}
           </div>
-          ${toggle('autoStock', s.policy.autoStock, '依昨天的用量自動調整進貨量（多抓 20%，賣完的多抓 35%）', '自己決定每天進多少貨', true)}
+          ${toggle('autoStock', s.policy.autoStock, '依用量自動調整進貨量（看最近三天和上週同一天，多抓 15%；賣完的多抓 30%）', '自己決定每天進多少貨', true)}
           ${s.policy.autoStock && s.parNote && s.parNote.day === s.day ? `<p class="calc">📦 今天早上自動調整了：${esc(s.parNote.text)}</p>` : ''}
           ${s.lastDay && s.lastDay.waste ? `<p class="calc">昨晚報廢了 ${money(s.lastDay.waste)} 的{w:supplies}。</p>` : ''}
           ${s.lastDay && s.lastDay.soldOut ? `<p class="calc neg">昨天有 ${s.lastDay.soldOut} 位客人因為賣完了離開。</p>` : ''}
@@ -2889,7 +2931,7 @@
         // 自己改了進貨量：自動調整要關掉，不然隔天早上又被改回去
         if (s.policy.autoStock) {
           s.policy.autoStock = false;
-          toast('📦 你手動改了進貨量，「依昨天用量自動調整」已經關掉；之後照你設定的量進貨');
+          toast('📦 你手動改了進貨量，「依用量自動調整」已經關掉；之後照你設定的量進貨');
         }
         renderDrawer();
         break;

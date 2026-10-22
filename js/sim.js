@@ -106,7 +106,7 @@
         delegate: true, // 老闆來不及處理的事件，讓在班上的店長代為處理
         helper: !!this.diff.helper, // 🤖 經營小幫手
         auth: { complaint: 'off', karen: 'off', fight: 'off', branch: 'off', misc: 'off', budget: 5000 }, // 📋 授權制度
-        autoStock: this.mode !== 'hell', // 依昨天的用量自動調整進貨量
+        autoStock: this.mode !== 'hell', // 依最近幾天的用量自動調整進貨量
       };
       this.idx = { cpi: 1, wage: 1, oil: 1, power: 1 };
       this.costMult = { materials: 1, rent: 1, utilities: 1 };
@@ -1449,11 +1449,16 @@
       const items = {};
       const changed = [];
       for (const g of this.ind.stock || []) {
-        // 自動進貨：照昨天的用量多抓一點；昨天賣完代表真正的需求比用量多，再多抓一些
+        // 自動進貨：照最近幾天（和上週同一天）的用量多抓一點；昨天賣完代表真正的需求比用量多，再多抓一些
         if (this.policy.autoStock && this.lastUsage[g.id]) {
           const out = this.lastDay && this.lastDay.outWarned && this.lastDay.outWarned[g.id];
           const before = this.par[g.id];
-          this.par[g.id] = Math.max(5, Math.ceil((Math.max(this.lastUsage[g.id], out ? this.par[g.id] : 0) * (out ? 1.35 : 1.2)) / 5) * 5);
+          const log = (this.usageLog || []).map((u) => u[g.id] || 0);
+          const recent = log.slice(-3);
+          const avg3 = recent.length ? recent.reduce((t, v) => t + v, 0) / recent.length : 0;
+          const lastWeek = log.length >= 7 ? log[0] : 0; // 上週同一天
+          const base = Math.max(this.lastUsage[g.id], avg3, lastWeek, out ? this.par[g.id] : 0);
+          this.par[g.id] = Math.max(5, Math.ceil((base * (out ? 1.3 : 1.15)) / 5) * 5);
           if (this.par[g.id] !== before) changed.push(`${g.icon || ''}${g.name} ${before}→${this.par[g.id]}`);
         }
         const need = this.par[g.id] - this.stock[g.id] - this.incoming(g.id);
@@ -1465,7 +1470,7 @@
         // 一週提醒一次就好，詳細的每天寫在庫存頁
         if (this.day - (this.parNotifyDay ?? -99) >= 7) {
           this.parNotifyDay = this.day;
-          this.notify(`📦 「依昨天用量自動調整進貨量」開著：今天改成 ${changed.slice(0, 3).join('・')}${changed.length > 3 ? '…' : ''}（庫存頁可以關掉）`);
+          this.notify(`📦 「依用量自動調整進貨量」開著：今天改成 ${changed.slice(0, 3).join('・')}${changed.length > 3 ? '…' : ''}（庫存頁可以關掉）`);
         }
       }
       this.orderStock(items, { at: this.dayStart + 15 });
@@ -1900,6 +1905,21 @@
     }
 
     // ───── 店長建議：現在最該處理的幾件事 ─────
+    // 最常排隊的本業設備（每台要負擔的點單量 × 製作時間最多的）
+    busiestStation() {
+      const main = this.stations.filter((o) => !o.def.side && !o.def.selfServe);
+      let best = null;
+      let bestLoad = -1;
+      for (const def of new Set(main.map((o) => o.def))) {
+        const load = this.ind.products.filter((p) => p.station === def.id && (!p.rd || this.recipes.has(p.id))).reduce((t, p) => t + (p.weight || 1) * (p.time || 1), 0) / main.filter((o) => o.def === def).length;
+        if (load > bestLoad) {
+          bestLoad = load;
+          best = def;
+        }
+      }
+      return best;
+    }
+
     advice() {
       const out = [];
       const d = this.lastDay;
@@ -1907,16 +1927,39 @@
       if (!working) out.push({ icon: '👥', text: '一個員工都沒有，店開不起來！先去錄取應徵者。', tab: 'staff' });
       const cov = working ? this.coverage() : null;
       if (!this.policy.helper && d && (d.angry / Math.max(1, d.visitors) > 0.08 || this.staff.some((e) => e.mood < 35))) out.push({ icon: '🤖', text: '覺得事情太多顧不過來？可以打開上面的「經營小幫手」，人手、薪水、價格這些瑣事交給它。' });
-      // 生意好卻在虧錢：通常是價格太低或人太多
+      // 本業虧錢：找出最可能的原因，只給一個方向（避免和「價格太貴」的提示互相打架）
       const lw = this.history[this.history.length - 1];
-      if (lw && lw.profit - (lw.other || 0) - (lw.rewards || 0) < 0 && this.rating >= 4.3) {
-        const extra = cov && cov.days.every((p) => !p || Math.min(...p) > cov.lanes);
-        out.push({ icon: '📉', text: `上週本業虧了 ${Math.round(-(lw.profit - (lw.other || 0) - (lw.rewards || 0))).toLocaleString()} 元，但評價有 ${this.rating.toFixed(1)} ★：客人很喜歡你，可以試著漲價 5～10%${extra ? '；另外每一班的人都比服務位多，多出來的人只能拖地' : ''}。`, tab: 'manage' });
+      const core = lw ? lw.profit - (lw.other || 0) - (lw.rewards || 0) - (lw.branches || 0) : 0;
+      if (lw && core < 0 && lw.revenue > 0) {
+        const pay = ((lw.wages || 0) + (lw.labor || 0) + (lw.health || 0) + (lw.pension || 0)) / lw.revenue;
+        const mat = (lw.materials || 0) / lw.revenue;
+        const pr = this.priceRatio();
+        const loss = `上週本業虧了 ${Math.round(-core).toLocaleString()} 元`;
+        let tip;
+        if (this.rating >= 4.3 && pr < 1.05) tip = `，但評價有 ${this.rating.toFixed(1)} ★：客人很喜歡你，可以試著漲價 5～10%。`;
+        else if (mat > 0.45) tip = `：材料佔營收 ${Math.round(mat * 100)}%，太高了。看看庫存頁的報廢，或價格是不是比建議價低。`;
+        else if (pay > 0.5) tip = `：薪水和勞健保佔營收 ${Math.round(pay * 100)}%。客人不夠多，撐不起這麼多人——讓店更吸引人（美觀 ${Math.round(this.decor.A)} 分，買點裝飾、發文、發傳單），或縮短營業時間少一班。`;
+        else tip = `：客人不夠多。評價 ${this.rating.toFixed(1)} ★、美觀 ${Math.round(this.decor.A)} 分：買點裝飾、發文蹭時事、發傳單，都能讓路過的人走進來。`;
+        out.push({ icon: '📉', text: loss + tip, tab: tip.includes('漲價') || tip.includes('價格') ? 'manage' : 'build' });
       }
       // 只有在還沒開過店、或真的有客人等到生氣時才提醒（不是每個服務位都要有人）
       if (cov && cov.short >= 2 && (!d || d.angry / Math.max(1, d.visitors) > 0.03)) out.push({ icon: '📅', text: `排休之後，一週有 ${cov.short} 天每一班的人比服務位（${cov.lanes} 個）少，尖峰時客人會等很久。多請一兩個人，或在「員工 → 排班與崗位」最下面看每天每班有幾個人。`, tab: 'staff' });
-      if (d && d.visitors > 10 && d.angry / d.visitors > 0.08) out.push({ icon: '😡', text: `昨天有 ${d.angry} 位客人等到生氣離開：人手不夠，或設備的服務位不夠。多請一個人，或在尖峰那一班多排人。`, tab: 'staff' });
-      if (d && d.soldOut > 3) out.push({ icon: '📦', text: `昨天有 ${d.soldOut} 位客人遇到賣完：把進貨量調高，或打開自動進貨。`, tab: 'stock' });
+      if (d && d.visitors > 10 && d.angry / d.visitors > 0.08) {
+        // 先分清楚卡在哪：每班的人已經比服務位多，再請人也沒用，要加設備
+        const enough = cov && cov.days.every((p) => !p || Math.min(...p) >= Math.ceil(cov.lanes));
+        if (enough) {
+          const st = this.busiestStation();
+          out.push({ icon: '😡', text: `昨天有 ${d.angry} 位客人等到生氣離開，可是每班的人已經比服務位（${cov.lanes} 個）多了：卡在設備，不是人手。${st ? `客人最常排「${st.name}」，多買一台（$${st.price.toLocaleString()}）` : '多買一台最常排隊的設備'}；先不要再請人，薪水會吃掉利潤。`, tab: 'build' });
+        } else out.push({ icon: '😡', text: `昨天有 ${d.angry} 位客人等到生氣離開：有幾班的人比服務位（${cov ? cov.lanes : '?'} 個）少。多請一個人，或在尖峰那一班多排人。`, tab: 'staff' });
+      }
+      // 人請太多：薪水吃掉營收
+      if (lw && lw.revenue > 0 && cov) {
+        const pay = (lw.wages || 0) + (lw.labor || 0) + (lw.health || 0) + (lw.pension || 0);
+        const perShift = Math.min(...cov.days.filter(Boolean).map((p) => Math.min(...p)));
+        if (pay / lw.revenue > 0.55 && perShift > cov.lanes + 1) out.push({ icon: '💸', text: `上週薪水和勞健保佔了營收的 ${Math.round((pay / lw.revenue) * 100)}%，每班至少 ${perShift} 人，但服務位只有 ${cov.lanes} 個：多出來的人只能拖地。先別再請人，有人離職也不用急著補。`, tab: 'staff' });
+      }
+      if (d && d.soldOut > 3) out.push({ icon: '📦', text: this.policy.autoStock ? `昨天有 ${d.soldOut} 位客人遇到賣完。自動進貨會照最近幾天的用量抓，但碰到假日、好天氣、節日會突然多賣：那幾天前手動調高進貨量，或賣完時叫急件。` : `昨天有 ${d.soldOut} 位客人遇到賣完：把進貨量調高，或打開「依用量自動調整進貨量」。`, tab: 'stock' });
+      if (this.jerk >= 50) out.push({ icon: '😈', text: `慣老闆指數 ${Math.round(this.jerk)}，到 100 遊戲就結束了。${(this.jerkWhy || []).length ? `最近讓它上升的是${this.jerkWhy.slice(0, 2).map((x) => `「${x.title}」`).join('、')}；` : ''}多稱讚員工、給加班費和休息，事件選照顧員工的做法。`, tab: 'staff' });
       if (this.cleanliness < 65) out.push({ icon: '🧽', text: `店裡有點髒（${Math.round(this.cleanliness)} 分），客人會變少，也可能被稽查。叫大家先打掃或請清潔公司大掃除。`, tab: 'stock' });
       const tired = this.staff.filter((e) => e.mood < 35);
       if (tired.length) out.push({ icon: '😞', text: `${tired.map((e) => e.name).join('、')} 心情很差，再這樣下去會離職：加薪、稱讚、讓他休假，或檢查是不是排太長的班。`, tab: 'staff' });
@@ -3652,8 +3695,9 @@
       this.scoldCount = (this.scoldCount || 0) + 1;
       this.jerk = clamp(this.jerk + 3, 0, JERK_LIMIT);
       // 沒有辦公室：當著大家的面罵，其他人心情也會變差
-      if (!this.roomLv('office')) for (const o of this.staff) if (o !== e) o.mood = clamp(o.mood - 2, 0, 100);
-      else if (e.state === 'working') this.officeTalk(e);
+      if (!this.roomLv('office')) {
+        for (const o of this.staff) if (o !== e) o.mood = clamp(o.mood - 2, 0, 100);
+      } else if (e.state === 'working') this.officeTalk(e);
       this.say(e, k > 1 ? '……（快哭了）' : '……是，我會注意。', 120);
     }
 
@@ -5079,11 +5123,13 @@
     // 🔥 連續好評：連續幾位客人都滿意（4 星以上），到里程碑有小獎勵；有人不滿意就歸零
     comboStep(ok) {
       if (!ok) {
-        if (this.combo >= 10) this.notify(`💨 連續好評在 ${this.combo} 位中斷了`);
+        // 畫面上的連擊標籤已經看得到；只有斷掉一大串才另外通知
+        if (this.combo >= 50) this.notify(`💨 連續好評在 ${this.combo} 位中斷了`);
         this.combo = 0;
         return;
       }
       this.combo = (this.combo || 0) + 1;
+      const record = this.combo > (this.bestCombo || 0);
       this.bestCombo = Math.max(this.bestCombo || 0, this.combo);
       const M = [10, 25, 50, 100, 200, 500];
       if (M.includes(this.combo)) {
@@ -5092,7 +5138,8 @@
         this.gainXp(xp);
         this.social.followers += fans;
         this.sound('combo');
-        this.notify(`🔥 連續 ${this.combo} 位客人都很滿意！經驗 +${xp}、粉絲 +${fans}`, 'achieve');
+        // 小里程碑只在連擊標籤上跳一下；大的、或破紀錄才發通知，免得通知被洗掉
+        if (this.combo >= 50 || record) this.notify(`🔥 連續 ${this.combo} 位客人都很滿意${record && this.combo > 10 ? '（新紀錄）' : ''}！經驗 +${xp}、粉絲 +${fans}`, 'achieve');
         if (this.cb.combo) this.cb.combo(this.combo);
       }
     }
@@ -6280,6 +6327,8 @@
       }
       const after = { cash: this.cash, morale: Math.round(this.morale), jerk: Math.round(this.jerk), staff: this.staff.length };
       const delta = Object.fromEntries(Object.keys(after).map((k) => [k, Math.round(after[k] - before[k])]));
+      // 記下最近讓慣老闆指數上升的事，警告時告訴玩家是哪幾件
+      if (delta.jerk > 0) this.jerkWhy = [{ title: this.w(ev.ev.title.replace(/\{who\}/g, (ev.subject || ev.staff || {}).name || '員工')), n: delta.jerk, day: this.day }, ...(this.jerkWhy || []).filter((x) => x.day >= this.day - 30)].slice(0, 5);
       this.checkEnding();
       // 事件紀錄：什麼事、誰、選了什麼、誰處理的、結果
       const who = ev.subject || ev.staff || null;
@@ -6386,6 +6435,8 @@
         this.lastUsage[g.id] = this.usage[g.id] || 0;
         this.usage[g.id] = 0;
       }
+      // 最近 7 天的用量：自動進貨看最近幾天的平均和上週同一天，不會被一天下雨帶著跑
+      this.usageLog = [...(this.usageLog || []), { ...this.lastUsage }].slice(-7);
       // 清潔：油垢慢慢累積；打烊打掃會把地上的髒污清掉
       if (this.openToday) this.grime += 0.5 + report.served / 500;
       if (this.policy.closingClean) {
@@ -6439,6 +6490,14 @@
       if (!this.restSpots().length && this.staff.length) this.jerk += 0.3;
       if (this.realWage < 0.95) this.jerk += 0.4;
       this.jerk = clamp(this.jerk - 0.6, 0, JERK_LIMIT);
+      this.jerkWatch();
+      // 💸 錢快撐不住：現金是負的就每天提醒，銀行借滿了要倒數到週末結算
+      if (this.cash < 0) {
+        const left = (DAYS_PER_WEEK - (this.day % DAYS_PER_WEEK)) % DAYS_PER_WEEK;
+        if (this.loan >= 600000) this.notify(`🚨 現金是負的（$${Math.round(this.cash).toLocaleString()}），銀行也不肯再借了。${left ? `再 ${left} 天` : '今天'}週末結算時還是負的，店就要收起來。賣掉用不到的設備或分店、減少人手和進貨，先撐過去。`, 'bad');
+        else this.notify(`⚠️ 現金變成負的了（$${Math.round(this.cash).toLocaleString()}）。到「⚙️ 經營」跟銀行借錢週轉，再看看帳本是哪一項花太多。`, 'bad');
+        if (this.cb.moneyWarn) this.cb.moneyWarn(this.loan >= 600000);
+      }
 
       // 離職
       for (const e of [...this.staff]) {
@@ -6700,8 +6759,24 @@
       return pay;
     }
 
+    // 慣老闆指數越過 50／70／85 時警告一次（降回去 10 分以下才會再提醒）
+    jerkWatch() {
+      const marks = [50, 70, 85];
+      const lv = marks.filter((m) => this.jerk >= m).length;
+      const was = this.jerkWarn || 0;
+      if (lv > was) {
+        const why = (this.jerkWhy || []).slice(0, 3).map((x) => `「${x.title}」+${x.n}`).join('、');
+        const head = ['', '⚠️ 慣老闆指數超過 50，員工私下開始抱怨了。', '🚨 慣老闆指數超過 70，網路上有人在討論你的店。', '🚨🚨 慣老闆指數超過 85！到 100 就會上新聞、員工集體出走（遊戲結束）。'][lv];
+        this.notify(`${head}${why ? `最近讓指數上升的：${why}。` : ''}多稱讚員工、照規定給加班費和休息、選照顧員工的做法，指數會慢慢降。`, 'bad');
+        if (this.cb.jerkWarn) this.cb.jerkWarn(lv, Math.round(this.jerk));
+      }
+      if (lv < was && this.jerk < marks[was - 1] - 10) this.jerkWarn = lv;
+      else this.jerkWarn = Math.max(was, lv);
+    }
+
     checkEnding(weekEnd = false) {
       if (this.over) return;
+      this.jerkWatch();
       if (this.jerk >= JERK_LIMIT) {
         this.over = true;
         this.ending = {
@@ -6747,6 +6822,7 @@
         history: this.history.slice(-HISTORY_WEEKS),
         profitLog: this.profitLog || [],
         bestWeek: this.bestWeek || 0,
+        jerkWarn: this.jerkWarn || 0,
         bestCoreWeek: this.bestCoreWeek || 0,
         achievements: [...this.achievements],
         cleanWeeks: this.cleanWeeks,
@@ -6779,6 +6855,7 @@
         stock: this.stock,
         par: this.par,
         lastUsage: this.lastUsage,
+        usageLog: this.usageLog || [],
         incoming: Object.fromEntries((this.ind.stock || []).map((g) => [g.id, this.incoming(g.id)])),
         grime: this.grime,
         dirt: this.dirt.map((d) => ({ ...d, by: null })),
@@ -6822,6 +6899,7 @@
       s.reviews = (s.reviews || []).map((r) => (r.stars % 1 ? { ...r, stars: Math.floor(r.stars + s.rng()) } : r));
       // 舊存檔沒有精簡紀錄：從留下來的週報補
       s.profitLog = d.profitLog || (d.history || []).map((h) => Math.round(h.profit));
+      s.jerkWarn = d.jerkWarn || 0;
       s.bestWeek = d.bestWeek ?? Math.max(0, ...(d.history || []).map((h) => Math.round(h.profit)));
       s.bestCoreWeek = d.bestCoreWeek ?? Math.max(0, ...(d.history || []).map((h) => Math.round(h.profit - (h.other || 0))));
       if (d.stock) {
@@ -6830,6 +6908,7 @@
           s.par[g.id] = d.par[g.id] ?? s.par[g.id];
         }
         s.lastUsage = d.lastUsage || {};
+        s.usageLog = d.usageLog || [];
       }
       s.grime = d.grime || 0;
       s.dirt = d.dirt || [];

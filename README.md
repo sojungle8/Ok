@@ -295,8 +295,10 @@ js/audio.js         音效與背景音樂（WebAudio 即時合成）
 js/ui.js            介面
 tools/run-sim.js    無畫面跑模擬，檢查每個產業的營收、成本、缺貨和清潔
 tools/playtest.js   AI 玩家：照一般玩家的玩法經營一整年，看能不能破關
-tools/verify.js     功能逐項測試：每個玩法開一局、做那個動作、檢查結果（47 項）
+tools/verify.js     功能逐項測試：每個玩法開一局、做那個動作、檢查結果（52 項）
 tools/uitest.js     介面點擊測試：手機／桌機打開每個分頁、按遍按鈕，抓錯誤與版面溢出
+tools/personas.js   不同類型的玩家：放置不管、只照💡提示做、慣老闆、亂花錢，看各自會走到哪裡
+tools/newplayer.js  新玩家實玩：清空存檔、不跳過教學，用真的觸控點擊照教學做，再正常速度玩一段
 ```
 
 ```
@@ -308,8 +310,10 @@ node tools/run-sim.js 14 breakfast  # 只跑早餐店
 node tools/playtest.js normal breakfast 1   # AI 玩家照一般玩法試著破關（難度、產業、隨機種子）
 node tools/playtest.js normal breakfast 1 long        # 照章節一路玩到第二幕結局（預設走上市路線）
 node tools/playtest.js normal drinks 2 long coop      # 走員工持股路線
-node tools/verify.js [關鍵字]                          # 功能測試（可只跑名稱含關鍵字的項目）
+node tools/verify.js [關鍵字]                          # 功能測試（52 項，可只跑名稱含關鍵字的項目）
 node tools/uitest.js drinks,barber phone              # 介面點擊測試（需要 playwright）
+node tools/personas.js hint normal breakfast 1        # 玩家類型：idle／hint／jerk／spend
+node tools/newplayer.js drinks phone 120              # 新玩家從教學開始實玩（需要 playwright）
 ```
 
 AI 玩家只用玩家按得到的操作，而且不走慣老闆路線（守法、照行情給薪、不資遣、不動手）。目前的測試結果（每種跑 3 個種子）：
