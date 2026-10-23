@@ -516,25 +516,31 @@ T('進貨：自動進貨看最近幾天和上週同一天，不會被一天的�
   ok(s.par[g] >= 300, `下雨一天後進貨量掉到 ${s.par[g]}`);
 });
 
-T('小幫手：只提建議，不自己請人、調薪、處理事件；按了建議卡才會做', () => {
+T('小幫手：會顧店（薪水、心情、放太久的小事），但不會建設、改設定、改價格、借錢', () => {
   const s = mk('noodle', { mode: 'easy', events: false });
   s.policy.helper = true;
   for (const e of s.staff) e.wage = 196;
-  const wages = s.staff.map((e) => e.wage).join();
-  const n0 = s.staff.length;
+  Object.assign(s.policy, { overtimePay: false });
+  const objs = s.objects.length;
+  const prices = JSON.stringify(s.prices);
+  s.cash = 25000;
   days(s, 3);
-  ok(s.staff.length <= n0 && s.staff.map((e) => e.wage).join().startsWith(wages.slice(0, 3)), '小幫手自己動手了');
-  ok(!s.eventLog || !s.eventLog.some((l) => /小幫手/.test(l.by)), '小幫手替玩家選了事件');
-  const tip = (s.helperTips || []).find((t) => t.act.type === 'wage');
-  ok(tip, `沒有調薪建議：${(s.helperTips || []).map((t) => t.title).join('、')}`);
-  s.helperDo(tip.id);
-  ok(s.staff.every((e) => e.wage >= s.marketWage), '按了照做卻沒調薪');
-  const t2 = (s.helperTips || [])[0];
-  if (t2) {
-    s.helperDismiss(t2.id);
-    s.helperDaily(s.lastDay);
-    ok(!s.helperTips.some((t) => t.key === t2.key), '按了不要，隔天又提同一件事');
-  }
+  ok(s.staff.every((e) => e.wage >= s.marketWage), '薪水沒有跟上行情');
+  ok(s.objects.length === objs, '小幫手自己買了東西');
+  ok(JSON.stringify(s.prices) === prices, '小幫手自己改了價格');
+  ok(!s.policy.overtimePay, '小幫手自己改了設定');
+  ok(s.loan === 0, '小幫手自己借了錢');
+  const card = (s.helperTips || []).find((t) => t.act.type === 'legal');
+  ok(card, `沒有「打開加班費」的建議卡：${(s.helperTips || []).map((t) => t.title).join('、')}`);
+  s.helperDo(card.id);
+  ok(s.policy.overtimePay, '按了照做卻沒打開');
+  // 人生大事放著不會被代選
+  const p = fakeEv('life_test', [{ label: '買', effects: { lifeBuy: 'gym' } }, { label: '不買', effects: {} }]);
+  p.spawnedAt = s.minute - 100;
+  p.deadline = s.minute + 5;
+  s.activeEvents.push(p);
+  s.helperEvents();
+  ok(s.activeEvents.includes(p), '小幫手替老闆決定了人生大事');
 });
 
 // ───── 存檔 ─────

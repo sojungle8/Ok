@@ -1008,7 +1008,7 @@
       if (b.querySelector('b').textContent !== a.title) b.querySelector('b').textContent = a.title;
       if (b.querySelector('small').textContent !== a.sub) b.querySelector('small').textContent = a.sub;
     }
-    // 🤖 小幫手的建議卡：點卡片才照做，✕ 是不要
+    // 🤖 小幫手的建議卡：點卡片帶你去處理，✕ 是不要
     if (s.policy.helper) {
       // 手機畫面小：一次只放兩張
       for (const t of (s.helperTips || []).slice(0, smallScreen() ? 2 : 3)) {
@@ -1017,7 +1017,7 @@
         const b = document.createElement('div');
         b.className = 'inbox-item act helper';
         b.dataset.id = t.id;
-        b.innerHTML = `<button class="hp-do" data-action="helper-do" data-id="${t.id}"><span>🤖${t.icon}</span><div><b>${esc(t.title)}</b><small>${esc(t.sub)}・點一下照做</small></div></button><button class="hp-no" data-action="helper-no" data-id="${t.id}" aria-label="不要">✕</button>`;
+        b.innerHTML = `<button class="hp-do" data-action="helper-do" data-id="${t.id}"><span>🤖${t.icon}</span><div><b>${esc(t.title)}</b><small>${esc(t.sub)}・點一下前往</small></div></button><button class="hp-no" data-action="helper-no" data-id="${t.id}" aria-label="不要">✕</button>`;
         el.appendChild(b);
       }
     }
@@ -2455,7 +2455,7 @@
            <li>🕹️ <b>老闆下場</b>：右下角的按鈕（或 G 鍵）可以自己操控老闆，在店裡和街上走動、顧櫃台、拖地、發傳單、騎機車、出門去夜市和廟裡</li>
            <li>⏩ 右上角可以暫停或快轉；打烊後會自動快轉到隔天</li>
          </ul>
-         ${s.policy.helper ? '<div class="tip helper-tip">🤖 <b>經營小幫手已經上工了</b>：它會盯著人手、薪水、價格、清潔這些事，發現問題就在左上角放一張建議卡，<b>要你點了才會做</b>；事件裡也會標出它會選哪個。決定還是你來下。</div>' : ''}
+         ${s.policy.helper ? '<div class="tip helper-tip">🤖 <b>經營小幫手已經上工了</b>：它會幫你<b>顧店</b>：人手補齊、薪水跟上行情、關心心情差的員工、太髒請人打掃、放太久的小事件。<b>建設、擴店、分店、營業設定、價格、借錢</b>是你的決定，它只會在左上角放建議卡，點了會帶你去自己處理。它顧店的功勞不全算你的：開著的日子，年底結算「不當慣老闆」「員工心情」只算一部分。</div>' : ''}
          <div class="tip">${isTouch ? '拖曳畫面可以移動視角，兩指縮放；' : '拖曳畫面可以移動視角，滾輪縮放，Q／E 旋轉；'}員工頭上出現 <b class="bang">!</b> 是有事找你，左上角也會列出來。</div>
          <button class="primary" data-action="close-dialog">開門營業</button>`
       );
@@ -2481,7 +2481,7 @@
                  const need = (fx.lifeWealth < 0 ? -fx.lifeWealth : 0) + (fx.lifeBuy && Fun.LIFE_SPEND && Fun.LIFE_SPEND[fx.lifeBuy] ? Fun.LIFE_SPEND[fx.lifeBuy].cost : 0);
                  if (need > s.owner.wealth) meta += `<span class="cost bad">⚠️ 你個人只有 ${money(s.owner.wealth)}，差 ${money(need - s.owner.wealth)} 會由公司代墊（記成老闆欠公司）</span>`;
                }
-               if (s.policy.helper && ev.helperHint === i) meta = '<span class="cost helper-pick">🤖 小幫手會選這個（對員工好、不當慣老闆）</span>' + meta;
+               if (s.policy.helper && ev.helperHint === i) meta = `<span class="cost helper-pick">🤖 小幫手會選這個（對員工好、不當慣老闆）${s.isPersonalEvent(ev) || s.kindChoice(ev, 3000) < 0 ? '；但這件事要你自己決定，放著不會幫你選' : ''}</span>` + meta;
                return `<button class="choice ${c.minigame ? 'is-game' : ''}" data-action="choose" data-i="${i}">
                  <span class="choice-label"><kbd>${i + 1}</kbd>${pron(ev, c.label)}</span>
                  ${c.quote ? `<span class="quote">「${pron(ev, c.quote)}」</span>` : ''}
@@ -2747,10 +2747,10 @@
     return { look, name: (ev.ev.speaker && ev.ev.speaker.name) || look.name, mood: ev.ev.id === 'd_karen' ? 'angry' : key === 'investor' ? 'smug' : 'neutral' };
   }
 
-  // 🤖 經營小幫手的開關：只提醒、只建議，要玩家按了才會做
+  // 🤖 經營小幫手的開關：幫忙顧店；建設、設定只給建議
   function helperToggle() {
     const on = ui.sim && ui.sim.policy.helper;
-    return `<button class="toggle ${on ? 'on' : 'off'} helper-toggle" data-action="helper"><span class="knob"></span><span><b>🤖 經營小幫手${on ? '：開' : '：關'}</b><small>${on ? '盯著人手、薪水、心情、設備、價格、清潔，發現問題就在左上角放建議卡，點了才會做；事件會標出它會選哪個，但要你自己選。' : '覺得事情太多、顧不過來？打開小幫手，它會提醒你該注意什麼，給你建議；決定還是你來下。'}</small></span></button>`;
+    return `<button class="toggle ${on ? 'on' : 'off'} helper-toggle" data-action="helper"><span class="knob"></span><span><b>🤖 經營小幫手${on ? '：開' : '：關'}</b><small>${on ? '幫你顧店：補人手、薪水跟上行情、關心員工、打掃、處理放太久的小事件。建設、分店、設定、價格、借錢只給建議卡，點了帶你去自己處理。開著的日子，年底結算的「不當慣老闆」「員工心情」只算一部分。' : '覺得事情太多、顧不過來？打開小幫手幫你顧店；建設和設定還是你來決定。'}</small></span></button>`;
   }
 
   // 事件裡的「他」指的是來找你的那位員工時，女生要寫「她」
@@ -3350,11 +3350,25 @@
         closeDialog();
         if (ui.tab !== btn.dataset.tab) openTab(btn.dataset.tab);
         break;
+      // 建議卡不會替你做：建設的卡帶你去建造、拿起那樣東西讓你自己擺；設定的卡帶你去經營頁
       case 'helper-do': {
-        const r = s.helperDo(btn.dataset.id);
-        if (r) toast(`🤖 ${r}`, 'helper');
+        const t = s.helperTake(btn.dataset.id);
+        if (!t) break;
+        const a = t.act;
+        if (a.type === 'place') {
+          const def = a.types.map((id) => CATALOG.find((d) => d.id === id)).find((d) => d && s.unlocked(d) && s.cash >= d.price) || CATALOG.find((d) => d.id === a.types[0]);
+          ui.buildCat = def.cat === 'tool' ? 'station' : def.cat;
+          if (ui.tab !== 'build') openTab('build');
+          else renderDrawer();
+          if (s.cash >= def.price && s.unlocked(def)) {
+            startBuild(def.id);
+            toast(`🤖 選好了「${def.name}」，點地板決定要擺在哪裡`, 'helper');
+          } else toast(`🤖 「${def.name}」要 ${money(def.price)}，現在錢不夠`, 'helper');
+        } else {
+          if (ui.tab !== 'manage') openTab('manage');
+          toast(`🤖 ${{ shifts: '在「營業與排班」把一天分成兩班', legal: '在「勞健保與稅」把加班費、勞健保、休息打開', priceSug: '在「菜單與價格」把偏低的價格調回建議價', priceUp: '在「菜單與價格」自己決定要不要漲', borrow: '在「銀行」決定要不要借錢' }[a.type] || '在這裡調整'}`, 'helper');
+        }
         renderInbox();
-        if (ui.tab) renderDrawer();
         break;
       }
       case 'helper-no':
@@ -3364,7 +3378,7 @@
       case 'helper':
         s.policy.helper = !s.policy.helper;
         if (s.policy.helper) s.helperDaily(s.lastDay || null);
-        toast(s.policy.helper ? '🤖 小幫手上工了！發現問題會提建議，要你按了才會做' : '🤖 小幫手下班了，接下來你自己來');
+        toast(s.policy.helper ? '🤖 小幫手上工了！顧店的事交給它，建設和設定它只會給建議' : '🤖 小幫手下班了，接下來你自己來');
         renderDialog();
         break;
       case 'autopause':

@@ -1923,7 +1923,7 @@
       const working = this.staff.length;
       if (!working) out.push({ icon: '👥', text: '一個員工都沒有，店開不起來！先去錄取應徵者。', tab: 'staff' });
       const cov = working ? this.coverage() : null;
-      if (!this.policy.helper && d && (d.angry / Math.max(1, d.visitors) > 0.08 || this.staff.some((e) => e.mood < 35))) out.push({ icon: '🤖', text: '覺得事情太多顧不過來？可以打開上面的「經營小幫手」，它會盯著人手、薪水、價格，發現問題就給你建議（要你點了才會做）。' });
+      if (!this.policy.helper && d && (d.angry / Math.max(1, d.visitors) > 0.08 || this.staff.some((e) => e.mood < 35))) out.push({ icon: '🤖', text: '覺得事情太多顧不過來？可以打開上面的「經營小幫手」，它會幫你顧人手、薪水、員工心情和打掃；建設和設定還是你決定。' });
       // 本業虧錢：找出最可能的原因，只給一個方向（避免和「價格太貴」的提示互相打架）
       const lw = this.history[this.history.length - 1];
       const core = lw ? lw.profit - (lw.other || 0) - (lw.rewards || 0) - (lw.branches || 0) : 0;
@@ -3114,8 +3114,8 @@
     }
 
     // ───── 🤖 經營小幫手 ─────
-    // 幫不熟經營遊戲的人盯著基本盤：人手、薪水、休息區、冷氣、價格、打掃
-    // 只提醒、只建議：每件事都是一張建議卡，玩家按了才會做；事件只標出建議，不替玩家選
+    // 幫不熟經營遊戲的人顧店：人手補齊、薪水跟上行情、關心員工、打掃、放太久的小事件
+    // 建設、擴店、分店、營業設定、價格、借錢是老闆的決定：只放建議卡，玩家按了才會做
     autoPlace(type) {
       const def = catalogById[type];
       if (!def || this.cash < def.price + 20000 || !this.unlocked(def)) return null;
@@ -3137,13 +3137,14 @@
     }
 
     // 好心的選擇：員工開心、不當慣老闆，其次才看錢
-    kindChoice(ev) {
+    kindChoice(ev, budget = Infinity) {
       let best = -1;
       let bs = -Infinity;
       ev.ev.choices.forEach((c, i) => {
         if (c.minigame) return;
         const fx = this.resolveEffects(c);
         if (fx.brawl || fx.leave || fx.demoteOf || fx.promoteOf) return;
+        if (this.choiceCost(fx) > budget) return;
         if (fx.cash < 0 && -fx.cash > this.cash * 0.6) return; // 不要為了當好人把店搞倒
         const mood = (fx.morale || 0) * 3 + (fx.moodOf ? fx.moodOf.reduce((t, [, d]) => t + d, 0) / 2 : 0);
         const sc = mood + (fx.cash || 0) / 2000 - (fx.jerk || 0) * 8 - (fx.karenServe ? 1 : 0) + (fx.review ? (fx.review[0] - 3) * 4 : 0);
@@ -3158,15 +3159,24 @@
     // 🤖 小幫手只提醒、只建議，不替老闆做決定：
     // 每件事都變成一張建議卡（照做／不要），玩家按了才會執行；事件只附上建議，要玩家自己選
     helperEvents() {
-      for (const ev of this.activeEvents) {
-        if (ev.helperHint == null) {
-          const i = this.kindChoice(ev);
-          ev.helperHint = i;
+      for (const ev of [...this.activeEvents]) {
+        if (ev.helperHint == null) ev.helperHint = this.kindChoice(ev);
+        const waited = this.minute - (ev.spawnedAt ?? this.minute);
+        if (waited < 30 && this.minute < ev.deadline - 10) continue;
+        // 顧店的小事放太久就幫忙處理；老闆的人生大事、要花大錢的事一定留給老闆
+        const i = this.isPersonalEvent(ev) ? -1 : this.kindChoice(ev, 3000);
+        if (i < 0) {
+          if (!ev.helperWarned && this.minute > ev.deadline - 15) {
+            ev.helperWarned = true;
+            this.helperSay(this.w(`「${ev.ev.title}」要老闆自己決定，快過期了！`));
+          }
+          continue;
         }
-        // 快過期了提醒一次（不會幫你選）
-        if (!ev.helperWarned && this.minute > ev.deadline - 15 && ev.helperHint >= 0) {
-          ev.helperWarned = true;
-          this.helperSay(this.w(`「${ev.ev.title}」快過期了，放著不管會照最差的情況算。我會選「${ev.ev.choices[ev.helperHint].label}」，但要你決定`));
+        ev.by = '🤖 小幫手';
+        const r = this.applyChoice(ev, ev.ev.choices[i]);
+        if (r) {
+          this.helperSay(this.w(`「${ev.ev.title}」放太久了，幫你選了「${ev.ev.choices[i].label}」`));
+          if (this.cb.helped) this.cb.helped(r, ev);
         }
       }
     }
@@ -3179,6 +3189,13 @@
       if (this.helperTips.length >= 3) return;
       this.helperTips.push({ id: `h${uid++}`, key, icon, title: this.w(title), sub: this.w(sub), act, day: this.day });
       if (this.cb.helped) this.cb.helped();
+    }
+
+    // 玩家點了建議卡要自己去處理：先收起來（問題還在的話，明天會再提）
+    helperTake(id) {
+      const t = (this.helperTips || []).find((x) => x.id === id);
+      if (t) this.helperTips = this.helperTips.filter((x) => x !== t);
+      return t || null;
     }
 
     helperDismiss(id) {
@@ -3264,28 +3281,45 @@
       const cov = this.coverage();
       const angryRate = report && report.visitors ? report.angry / report.visitors : 0;
       const cap = cov.lanes * this.policy.shifts + 1;
-      if (angryRate > 0.05 && cov.short === 0) {
-        const st = this.busiestStation();
-        if (st) this.helperPropose(`station-${st.id}`, '🏗️', `多買一台${st.name}？`, `昨天 ${report.angry} 位客人等到生氣，每個服務位都有人顧了：卡在設備（$${st.price.toLocaleString()}）`, { type: 'place', types: [st.id] });
-      }
-      if (angryRate > 0.05 && cov.short >= 2 && this.staff.length < cap && this.candidates.length) {
+      // ── 顧店：這些小幫手自己做，做了會跟你說 ──
+      const said = [];
+      const say = (t) => said.length < 3 && said.push(t);
+      // 人手：有幾班比服務位少、又有人等到生氣，補一個人（不會請超過服務位）
+      if (angryRate > 0.05 && cov.short >= 2 && this.staff.length < cap && this.cash > 30000 && this.candidates.length) {
         let bi = 0;
         this.candidates.forEach((c, i) => {
           if (c.skill - c.wage / 8 > this.candidates[bi].skill - this.candidates[bi].wage / 8) bi = i;
         });
         const c = this.candidates[bi];
-        this.helperPropose('hire', '🙋', `錄取${c.name}？`, `昨天 ${report.angry} 位客人等到生氣，有幾班人比服務位少。${c.name} 技能 ${Math.round(c.skill)}、時薪 $${c.wage}`, { type: 'hire', name: c.name });
+        if (this.hire(bi)) say(`有幾班的人比服務位少，昨天 ${report.angry} 位客人等到生氣，幫你錄取了${c.name}`);
       }
+      // 薪水跟上行情
       const low = this.staff.filter((e) => e.wage < this.marketWage);
-      if (low.length) this.helperPropose('wage', '💵', `把 ${low.length} 個人的時薪調到行情？`, `${low.map((e) => e.name).join('、')} 低於行情 $${this.marketWage}，心情會變差、慣老闆指數會漲`, { type: 'wage', ids: low.map((e) => e.id) });
+      for (const e of low) this.setWage(e, this.marketWage);
+      if (low.length) say(`物價漲了，把 ${low.map((e) => e.name).join('、')} 的時薪調到行情 $${this.marketWage}`);
+      // 心情不好的人：稱讚、請喝飲料
       const sad = this.staff.filter((e) => e.mood < 50);
-      if (sad.length) this.helperPropose('cheer', '😞', `稱讚${sad.length > 1 ? '大家' : sad[0].name}、請喝飲料？`, `${sad.map((e) => e.name).join('、')} 心情不太好，再低下去可能會離職`, { type: 'cheer', ids: sad.map((e) => e.id) });
+      for (const e of sad) {
+        this.praise(e);
+        this.treat(e);
+      }
+      if (sad.length) say(`${sad.map((e) => e.name).join('、')} 心情不太好，幫你稱讚了一下、請了飲料`);
+      // 太髒就請清潔公司
+      if (this.grime > 20 && this.cash > this.deepCleanCost + 30000) {
+        this.deepClean();
+        say('油垢太多了，幫你請清潔公司大掃除');
+      }
+      for (const t of said) this.helperSay(t);
+      // ── 建設、設定、價格、借錢：老闆的決定，只放建議卡 ──
+      if (angryRate > 0.05 && cov.short === 0) {
+        const st = this.busiestStation();
+        if (st) this.helperPropose(`station-${st.id}`, '🏗️', `多買一台${st.name}？`, `昨天 ${report.angry} 位客人等到生氣，每個服務位都有人顧了：卡在設備（$${st.price.toLocaleString()}）`, { type: 'place', types: [st.id] });
+      }
       if (!this.restSpots().length) this.helperPropose('rest', '☕', '買一張員工休息桌？', '沒有休息區，員工休息不到，心情和精力掉很快', { type: 'place', types: ['breaktable'] });
       if (this.isSummer && !this.cooling) this.helperPropose('cool', '❄️', '買冷氣或電風扇？', '夏天沒有冷氣，客人評價和員工心情都會掉', { type: 'place', types: ['aircon', 'fan'] });
       if (this.ind.products.some((p) => this.prices[p.id] < Math.round((p.price * this.idx.cpi) / 5) * 5 * 0.95)) this.helperPropose('priceSug', '💲', '把價格調回建議價？', '物價漲了，有些品項比建議價便宜很多，賣越多可能虧越多', { type: 'priceSug' });
       const lw = this.history[this.history.length - 1];
       if (this.weekday === 0 && lw && lw.profit - (lw.other || 0) - (lw.rewards || 0) < 0 && this.rating >= 4.2 && this.priceRatio() < 1.05) this.helperPropose('priceUp', '📈', '全部小漲 5%？', `上週本業虧錢，但客人很喜歡你們（${this.rating.toFixed(1)} ★），小漲應該不太會跑客人`, { type: 'priceUp' });
-      if (this.grime > 20) this.helperPropose('clean', '🧽', '請清潔公司大掃除？', `油垢很多了，客人會嫌、也可能被稽查（$${this.deepCleanCost.toLocaleString()}）`, { type: 'clean' });
       if (!this.policy.overtimePay || !this.policy.insurance || !this.policy.breaks) this.helperPropose('legal', '⚖️', '把加班費、勞健保、休息打開？', '沒開的話每天慣老闆指數都會漲，被勞檢還會罰錢', { type: 'legal' });
       if (this.cash < 30000 && this.loan < 600000) this.helperPropose('borrow', '🏦', '跟銀行借 $100,000？', `現金只剩 $${Math.round(this.cash).toLocaleString()}，月息 2%`, { type: 'borrow' });
     }
@@ -6552,6 +6586,7 @@
       this.demandMods.forEach((d) => (d.days -= 1));
       this.demandMods = this.demandMods.filter((d) => d.days > 0);
       this.lastDay = report;
+      if (this.policy.helper) this.helperDays = (this.helperDays || 0) + 1;
       if (this.policy.helper && this.staff.length) this.helperDaily(report);
       this.checkProgress(this.progressLegacy);
       this.progressLegacy = false;
@@ -6763,10 +6798,14 @@
     // 一年的總評：評價、慣老闆指數、員工心情、現金、分店、獎項
     victory() {
       const profit = (this.profitLog || this.history.map((h) => h.profit)).slice(-48).reduce((a, p) => a + p, 0);
+      const helpShare = Math.min(1, (this.helperDays || 0) / Math.max(1, this.day));
+      const helpCut = 1 - 0.45 * helpShare;
+      const helpNote = helpShare > 0.05 ? `（🤖 小幫手顧店 ${Math.round(helpShare * 100)}% 的日子，只算 ${Math.round(helpCut * 100)}%）` : '';
       const parts = [
         ['評價', Math.round(clamp((this.rating - 3) * 25, 0, 50)), `${this.rating.toFixed(1)} ★`],
-        ['不當慣老闆', Math.round(clamp((60 - this.jerk) / 2, 0, 30)), `慣老闆指數 ${Math.round(this.jerk)}`],
-        ['員工心情', Math.round(clamp((this.morale - 40) / 2, 0, 25)), `平均 ${Math.round(this.morale)}`],
+        // 小幫手開著的日子，顧店（不當慣老闆、員工心情）有一部分是它的功勞，不全算老闆的
+        ['不當慣老闆', Math.round(clamp((60 - this.jerk) / 2, 0, 30) * helpCut), `慣老闆指數 ${Math.round(this.jerk)}${helpNote}`],
+        ['員工心情', Math.round(clamp((this.morale - 40) / 2, 0, 25) * helpCut), `平均 ${Math.round(this.morale)}${helpNote}`],
         ['一年淨利', Math.round(clamp(profit / 40000, -10, 30)), `$${Math.round(profit).toLocaleString()}`],
         ['分店', Math.min(15, this.branches.length * 5), `${this.branches.length} 間`],
         ['獎項', this.awards.some((a) => a.medal === '🥇') ? 15 : this.awards.some((a) => a.reward) ? 8 : 0, this.awards.map((a) => a.medal).join(' ') || '—'],
@@ -6860,6 +6899,7 @@
         profitLog: this.profitLog || [],
         bestWeek: this.bestWeek || 0,
         jerkWarn: this.jerkWarn || 0,
+        helperDays: this.helperDays || 0,
         helperTips: this.helperTips || [],
         helperNo: this.helperNo || {},
         bestCoreWeek: this.bestCoreWeek || 0,
@@ -6939,6 +6979,7 @@
       // 舊存檔沒有精簡紀錄：從留下來的週報補
       s.profitLog = d.profitLog || (d.history || []).map((h) => Math.round(h.profit));
       s.jerkWarn = d.jerkWarn || 0;
+      s.helperDays = d.helperDays || 0;
       s.helperTips = d.helperTips || [];
       s.helperNo = d.helperNo || {};
       s.bestWeek = d.bestWeek ?? Math.max(0, ...(d.history || []).map((h) => Math.round(h.profit)));

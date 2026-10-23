@@ -466,8 +466,8 @@
 
   // 難度：patience 客人耐心、events 事件多寡、cash 開店資金、rival 對手搶客、inspect 稽查頻率、fines 罰款、drain 員工累的速度
   const DIFFICULTY = {
-    rookie: { name: '新手', desc: '🤖 小幫手隨時提醒、給建議，多兩個員工，客人超有耐心', patience: 2.1, events: 0.35, cash: 2, rival: 0.35, inspect: 0.3, fines: 0.3, drain: 0.7, wage: 0.95, helper: true, extraStaff: 2, karen: 0.5 },
-    easy: { name: '輕鬆', desc: '資金多、客人有耐心、事件少；🤖 小幫手預設打開（只給建議，決定你來下）', patience: 1.6, events: 0.5, cash: 1.6, rival: 0.55, inspect: 0.5, fines: 0.5, drain: 0.8, wage: 0.95, helper: true, extraStaff: 1 },
+    rookie: { name: '新手', desc: '🤖 小幫手幫你顧店，多兩個員工，客人超有耐心', patience: 2.1, events: 0.35, cash: 2, rival: 0.35, inspect: 0.3, fines: 0.3, drain: 0.7, wage: 0.95, helper: true, extraStaff: 2, karen: 0.5 },
+    easy: { name: '輕鬆', desc: '資金多、客人有耐心、事件少；🤖 小幫手預設打開（幫你顧店，建設和設定你決定）', patience: 1.6, events: 0.5, cash: 1.6, rival: 0.55, inspect: 0.5, fines: 0.5, drain: 0.8, wage: 0.95, helper: true, extraStaff: 1 },
     normal: { name: '一般', desc: '有挑戰，但做對事情就能穩穩經營', patience: 1.25, events: 0.85, cash: 1.2, rival: 0.85, inspect: 1, fines: 1, drain: 0.92, wage: 1 },
     hell: { name: '地獄', desc: '事件多、客人急、員工容易累', patience: 0.75, events: 1.6, cash: 1, rival: 1.2, inspect: 1.4, fines: 1.2, drain: 1.2, wage: 1.05 },
   };
