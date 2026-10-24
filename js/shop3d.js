@@ -4176,7 +4176,14 @@
           el.style.height = `${(maxY - minY) * 2.2}px`;
           el.style.transform = `translate(${minX}px, ${maxY - (maxY - minY) * 2.2}px)`;
           el.dataset.label = o.def.name;
-        } else {
+        } else if (h.kind === 'pet') {
+          // 指著店寵：在牠身上標名字（鸚鵡站在高高的架子上）
+          const v = this.petViews && this.petViews.get(h.pet.id);
+          el.style.width = '';
+          el.style.height = '';
+          el.dataset.label = `${(root.BossFun.PETS[h.pet.kind] || {}).icon || '🐾'} ${h.pet.name}`;
+          if (v) this.place(el, v.g.position.x, h.pet.kind === 'parrot' ? 1.45 : 0.4, v.g.position.z, '-50%', '-50%');
+        } else if (h.staff || h.customer) {
           const a = h.staff || h.customer;
           el.style.width = '';
           el.style.height = '';
