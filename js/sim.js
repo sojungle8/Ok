@@ -4074,7 +4074,8 @@
       const n = this.hours.shifts;
       const idx = this.roster.get(e.id);
       const len = this.hours.span / n;
-      const start = this.hours.open + idx * len - (idx === 0 ? 30 : 0);
+      // 第一班提早半小時來準備；後面的班提早 15 分鐘來交接（不然換班那幾分鐘櫃台沒人）
+      const start = this.hours.open + idx * len - (idx === 0 ? 30 : 15);
       let end = this.hours.open + (idx + 1) * len;
       if (e.earlyDay === this.day && e.earlyEnd != null) end = Math.min(end, e.earlyEnd);
       return { idx, start, end, length: end - start };
