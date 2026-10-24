@@ -2027,7 +2027,13 @@
     makeCandidate(forceTrait) {
       const used = new Set([...this.staff.map((e) => e.name), ...(this.candidates || []).map((c) => c.name)]);
       const pool = NAMES.filter(([n]) => !used.has(n));
-      const [name, gender] = pool[Math.floor(this.rng() * pool.length)] || ['阿明', 'm'];
+      let [name, gender] = pool[Math.floor(this.rng() * pool.length)] || NAMES[Math.floor(this.rng() * NAMES.length)];
+      // 名字都用過了（人請很多）：加上「二號、三號…」，不會出現兩個一模一樣的阿明
+      if (used.has(name)) {
+        const base = name;
+        const cn = ['二', '三', '四', '五', '六', '七', '八', '九', '十'];
+        for (let k = 0; used.has(name); k++) name = `${base}${cn[k] || k + 2}號`;
+      }
       const traitIds = Object.keys(TRAITS);
       // Lv.11 以後，老手比較常來應徵
       const traits = [forceTrait || (this.level >= 11 && this.rng() < 0.25 ? 'veteran' : traitIds[Math.floor(this.rng() * traitIds.length)])];
@@ -2108,8 +2114,9 @@
 
     hire(i) {
       const c = this.candidates[i];
-      if (!c) return null;
       const fee = 1500;
+      // 連介紹費都付不出來就請不了人
+      if (!c || this.cash < fee) return null;
       this.cash -= fee;
       this.ledger.other -= fee;
       const e = this.addEmployee(c);

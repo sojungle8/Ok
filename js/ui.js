@@ -3738,6 +3738,7 @@
       case 'hire': {
         const e2 = s.hire(Number(btn.dataset.i));
         if (e2) renderDrawer();
+        else toast('現金不夠付介紹費（$1,500），請不了人', 'bad');
         break;
       }
       case 'toggle': {
