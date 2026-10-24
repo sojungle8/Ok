@@ -7121,6 +7121,10 @@
 
     static load(json, opts) {
       const d = JSON.parse(json);
+      // 編號接著存檔裡最大的往下編：不然讀檔後新的東西會跟存檔裡的寵物、員工撞號
+      let mx = 0;
+      for (const m of String(json).matchAll(/"id":(\d+)/g)) mx = Math.max(mx, Number(m[1]));
+      if (mx >= uid) uid = mx + 1;
       const s = new Sim(d.ind, { ...opts, shopName: d.shopName, mode: d.mode, spot: d.spot });
       s.objects = [];
       s.setLot(d.lotIdx);

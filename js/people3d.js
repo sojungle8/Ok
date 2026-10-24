@@ -10,6 +10,7 @@
     let g = geoCache.get(k);
     if (!g) {
       g = new THREE[type](...args);
+      g.userData.shared = true;
       geoCache.set(k, g);
     }
     return g;
@@ -501,10 +502,19 @@
   }
 
   const blobGeo = new THREE.CircleGeometry(0.26, 16);
+  blobGeo.userData.shared = true;
   const blobMat = new THREE.MeshBasicMaterial({ color: '#000000', transparent: true, opacity: 0.22, depthWrite: false });
 
   People.vcBasic = vcBasic;
   People.blobGeo = blobGeo;
+  // 人離開畫面時呼叫：每個人自己的網格（合併出來的身體、光頭的頭…）都要釋放，共用的不動
+  People.dispose = (group, person) => {
+    group.traverse((o) => {
+      if (o.geometry && !o.geometry.userData.shared) o.geometry.dispose();
+    });
+    if (person && person.faceTex) person.faceTex.dispose();
+    if (person && person.faceMat) person.faceMat.dispose();
+  };
   People.blobMat = blobMat;
   root.BossPeople = People;
 })(typeof window !== 'undefined' ? window : globalThis);

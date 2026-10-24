@@ -622,6 +622,18 @@ T('城市：鄰居會帶來事件；地點會存進存檔', () => {
   ok(s2.spot === 'mrt', '讀檔之後地點不見了');
 });
 
+T('存檔：讀檔後新的東西不會跟存檔裡的寵物、員工撞號', () => {
+  const s = mk('drinks', { cash: 1e6 });
+  s.adoptPet('parrot');
+  days(s, 2);
+  const json = s.serialize();
+  const s2 = Sim.load(json, {});
+  days(s2, 1);
+  const pid = new Set(s2.pets.map((p) => p.id));
+  const clash = [...s2.objects, ...s2.staff].filter((o) => pid.has(o.id));
+  ok(!clash.length, `撞號：${clash.map((o) => (o.def ? o.def.id : o.name) + o.id).join(',')}`);
+});
+
 // ───── 存檔 ─────
 T('存檔：營業中存、讀回來時間、現金、今天營收、帳本都一樣，不會重叫早上的貨', () => {
   const s = mk('breakfast');

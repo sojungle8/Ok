@@ -5314,3 +5314,20 @@ body.in-city .combo-badge { display: none; }
   body.in-place .boss-hud .ibar { display: none; }
   body.in-place .boss-hud button { margin: 0; }
 }
+
+/* 遊戲出錯時的提示：可以複製錯誤訊息給製作者 */
+.crash-note {
+  position: fixed;
+  left: 50%;
+  top: 70px;
+  transform: translateX(-50%);
+  width: min(460px, calc(100% - 24px));
+  z-index: 100;
+  padding: 10px 12px;
+  display: grid;
+  gap: 6px;
+  border: 2px solid var(--bad);
+}
+.crash-note small { color: var(--muted); }
+.crash-note textarea { width: 100%; font-size: 0.72rem; font-family: ui-monospace, monospace; resize: none; }
+.crash-note div { display: flex; gap: 8px; justify-content: flex-end; }

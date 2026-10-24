@@ -20,12 +20,12 @@
   const geoCache = new Map();
   const boxGeo = (w, h, d) => {
     const k = `b${w},${h},${d}`;
-    if (!geoCache.has(k)) geoCache.set(k, new THREE.BoxGeometry(w, h, d));
+    if (!geoCache.has(k)) geoCache.set(k, Object.assign(new THREE.BoxGeometry(w, h, d), { userData: { shared: true } }));
     return geoCache.get(k);
   };
   const cylGeo = (rt, rb, h, seg = 16) => {
     const k = `c${rt},${rb},${h},${seg}`;
-    if (!geoCache.has(k)) geoCache.set(k, new THREE.CylinderGeometry(rt, rb, h, seg));
+    if (!geoCache.has(k)) geoCache.set(k, Object.assign(new THREE.CylinderGeometry(rt, rb, h, seg), { userData: { shared: true } }));
     return geoCache.get(k);
   };
 
@@ -1662,6 +1662,7 @@
     let g = petGeoCache.get(k);
     if (!g) {
       g = new THREE[type](...args);
+      g.userData.shared = true;
       petGeoCache.set(k, g);
     }
     return g;
@@ -2995,12 +2996,8 @@
       for (const [id, v] of this.agents) {
         if (!seen.has(id)) {
           this.world.remove(v.root);
-          v.root.traverse((o) => {
-            // 合併出來的網格是每個人獨有的，要釋放；共用的幾何不能動
-            if (o.geometry && (o.material === People.vcMat || o.material === People.vcBasic)) o.geometry.dispose();
-          });
-          if (v.p.faceTex) v.p.faceTex.dispose();
-          if (v.p.faceMat) v.p.faceMat.dispose();
+          // 每個人自己的網格（合併出來的身體、光頭的頭、機車…）都釋放；共用的幾何不動
+          People.dispose(v.root, v.p);
           this.agents.delete(id);
         }
       }
@@ -3489,10 +3486,15 @@
         this.world.add(this.rivalCrowd);
       }
       if (this.rivalCrowd.children.length === n) return;
-      while (this.rivalCrowd.children.length > n) this.rivalCrowd.remove(this.rivalCrowd.children[this.rivalCrowd.children.length - 1]);
+      while (this.rivalCrowd.children.length > n) {
+        const g = this.rivalCrowd.children[this.rivalCrowd.children.length - 1];
+        this.rivalCrowd.remove(g);
+        People.dispose(g, g.userData.person);
+      }
       while (this.rivalCrowd.children.length < n) {
         const i = this.rivalCrowd.children.length;
         const p = People.make(window.BossLooks.randomLook(Math.random));
+        p.group.userData.person = p;
         p.group.position.set(-OUT_W + 0.6 + (i % 4) * 0.8, 0, s.H + 0.45 + Math.floor(i / 4) * 0.5);
         p.group.rotation.y = Math.PI;
         this.rivalCrowd.add(p.group);
@@ -3633,9 +3635,18 @@
     dropIncident(key) {
       const it = this.inc && this.inc[key];
       if (!it) return;
-      for (const v of it.cars || []) this.world.remove(v.g);
-      for (const p of it.people || []) this.world.remove(p.group);
-      for (const m of it.props || []) this.world.remove(m);
+      for (const v of it.cars || []) {
+        this.world.remove(v.g);
+        People.dispose(v.g);
+      }
+      for (const p of it.people || []) {
+        this.world.remove(p.group);
+        People.dispose(p.group, p);
+      }
+      for (const m of it.props || []) {
+        this.world.remove(m);
+        People.dispose(m);
+      }
       this.inc[key] = null;
     }
 

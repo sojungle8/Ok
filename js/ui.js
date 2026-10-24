@@ -619,7 +619,39 @@
     if (st.target) document.querySelectorAll(st.target).forEach((n) => !n.classList.contains('drawer-x') && n.classList.add('tut-glow'));
   }
 
+  // 主迴圈外面包一層：哪一幀出錯都不會讓整個遊戲停住，錯誤訊息顯示在畫面上，可以複製給製作者
   function loop(now) {
+    try {
+      frame(now);
+    } catch (err) {
+      reportError(err);
+      if (ui.sim) ui.raf = requestAnimationFrame(loop);
+    }
+  }
+
+  const seenErrors = new Set();
+  function reportError(err) {
+    const msg = String((err && err.message) || err);
+    const where = ((err && err.stack) || '').split('\n').filter((l) => /js\//.test(l)).slice(0, 3).map((l) => l.trim().replace(/^at /, '').replace(/\(?(file|https?):.*\/js\//, '(')).join(' ← ');
+    const s = ui.sim;
+    const info = `${msg}｜${where}｜第 ${s ? s.day : '-'} 天 ${s ? s.clockLabel : ''}｜${s ? s.ind.id : ''}｜寵物：${s ? (s.pets || []).map((p) => p.kind).join(',') || '無' : '-'}`;
+    if (seenErrors.has(msg)) return;
+    seenErrors.add(msg);
+    console.error(err);
+    let el = document.getElementById('crash-note');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'crash-note';
+      el.className = 'crash-note card';
+      document.body.appendChild(el);
+    }
+    el.innerHTML = `<b>⚠️ 遊戲遇到一個錯誤，已經自動跳過，可以繼續玩</b><small>把下面這段複製給製作者，可以更快修好：</small><textarea readonly rows="3">${esc(info)}</textarea><div><button data-action="crash-copy">📋 複製</button><button data-action="crash-close">關閉</button></div>`;
+    el.hidden = false;
+  }
+  window.addEventListener('error', (e) => e.error && reportError(e.error));
+  window.addEventListener('unhandledrejection', (e) => reportError(e.reason));
+
+  function frame(now) {
     const dt = Math.min(0.1, (now - ui.last) / 1000);
     ui.last = now;
     const sim = ui.sim;
@@ -3327,6 +3359,24 @@
           renderDialog();
         }
         break;
+      case 'crash-copy': {
+        const t = document.querySelector('#crash-note textarea');
+        if (t) {
+          t.select();
+          try {
+            navigator.clipboard ? navigator.clipboard.writeText(t.value) : document.execCommand('copy');
+            toast('📋 已複製');
+          } catch (e) {
+            toast('請長按文字框自己複製');
+          }
+        }
+        break;
+      }
+      case 'crash-close': {
+        const el = document.getElementById('crash-note');
+        if (el) el.hidden = true;
+        break;
+      }
       case 'city-close':
         closeCity();
         break;
