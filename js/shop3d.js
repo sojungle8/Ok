@@ -100,6 +100,15 @@
     ['大通電器行', '#1f7a5c'], ['金好運彩券', '#d4a017'], ['仁愛藥局', '#2a9d8f'], ['剪不斷髮廊', '#6c5ce7'],
   ];
 
+  const SPOT_NEIGHBORS = {
+    nightmarket: [['夜市雞排王', '#d35400'], ['射氣球遊戲', '#8e44ad'], ['阿嬤古早味冰', '#16a085'], ['大腸包小腸', '#c0392b']],
+    school: [['小天才補習班', '#2980b9'], ['安親班', '#27ae60'], ['文具大王', '#e67e22'], ['書局', '#8e44ad']],
+    alley: [['巷口洗衣店', '#7f8c8d'], ['社區活動中心', '#16a085'], ['柑仔店', '#c0392b'], ['機車行', '#2c3e50']],
+    office: [['影印輸出', '#34495e'], ['便利咖啡', '#6f4e37'], ['商務簡餐', '#c0392b'], ['銀行 ATM', '#1f6fb2']],
+    mrt: [['捷運出口', '#0070bd'], ['連鎖藥妝', '#00b894'], ['手機殼專賣', '#e84393'], ['公車站', '#2d3436']],
+    temple: [['香舖金紙', '#c0392b'], ['算命館', '#8e44ad'], ['素食麵館', '#27ae60'], ['佛具店', '#d4a017']],
+  };
+
   // ───── 設備與家具模型（區域座標：+z 是正面，x 0～w-1 是佔的格子）─────
   // 小工具：球、甜甜圈、文字貼圖面板
   function S(g, r, color, x, y, z, sy = 1, opts) {
@@ -1646,6 +1655,18 @@
   const staffRingMat = new THREE.MeshBasicMaterial({ color: '#2fbf71', transparent: true, opacity: 0.85, depthWrite: false });
 
   // 寵物模型：kind 是 cat／dog／parrot／turtle；pup 是客人帶的小狗；carrier 是貓籠
+  // 寵物、客人帶的小狗和貓籠：同樣大小的幾何只建一次（客人一直來來去去，不共用的話顯示記憶體會越吃越多）
+  const petGeoCache = new Map();
+  function petGeo(type, ...args) {
+    const k = type + args.map((v) => (typeof v === 'number' ? v.toFixed(4) : v)).join(',');
+    let g = petGeoCache.get(k);
+    if (!g) {
+      g = new THREE[type](...args);
+      petGeoCache.set(k, g);
+    }
+    return g;
+  }
+
   function petModel(kind, seed = 0) {
     const g = new THREE.Group();
     const add = (geo, color, x, y, z, sx = 1, sy = 1, sz = 1) => {
@@ -1656,14 +1677,14 @@
       g.add(m);
       return m;
     };
-    const sph = (r) => new THREE.SphereGeometry(r, 12, 10);
+    const sph = (r) => petGeo('SphereGeometry', r, 12, 10);
     if (kind === 'cat') {
       const fur = ['#e8933a', '#3a3a3a', '#f3efe8', '#9a8572'][seed % 4];
       add(sph(0.2), fur, 0, 0.14, 0, 1, 0.7, 1.4);
       add(sph(0.13), fur, 0, 0.24, 0.26);
-      add(new THREE.ConeGeometry(0.045, 0.09, 6), fur, -0.07, 0.36, 0.26);
-      add(new THREE.ConeGeometry(0.045, 0.09, 6), fur, 0.07, 0.36, 0.26);
-      const tail = add(new THREE.CylinderGeometry(0.03, 0.025, 0.36, 6), fur, 0.12, 0.12, -0.3);
+      add(petGeo('ConeGeometry', 0.045, 0.09, 6), fur, -0.07, 0.36, 0.26);
+      add(petGeo('ConeGeometry', 0.045, 0.09, 6), fur, 0.07, 0.36, 0.26);
+      const tail = add(petGeo('CylinderGeometry', 0.03, 0.025, 0.36, 6), fur, 0.12, 0.12, -0.3);
       tail.rotation.set(1.2, 0, 0.5);
     } else if (kind === 'dog' || kind === 'pup') {
       const k = kind === 'pup' ? 0.6 : 1;
@@ -1671,16 +1692,16 @@
       add(sph(0.2 * k), fur, 0, 0.3 * k, 0, 1, 0.8, 1.5);
       add(sph(0.15 * k), fur, 0, 0.48 * k, 0.28 * k);
       add(sph(0.06 * k), '#f3efe8', 0, 0.44 * k, 0.4 * k);
-      add(new THREE.ConeGeometry(0.05 * k, 0.1 * k, 6), fur, -0.08 * k, 0.62 * k, 0.26 * k);
-      add(new THREE.ConeGeometry(0.05 * k, 0.1 * k, 6), fur, 0.08 * k, 0.62 * k, 0.26 * k);
-      for (const [x, z] of [[-0.09, 0.15], [0.09, 0.15], [-0.09, -0.15], [0.09, -0.15]]) add(new THREE.CylinderGeometry(0.035 * k, 0.035 * k, 0.2 * k, 6), fur, x * k, 0.1 * k, z * k);
-      const tail = add(new THREE.CylinderGeometry(0.03 * k, 0.02 * k, 0.18 * k, 6), fur, 0, 0.4 * k, -0.3 * k);
+      add(petGeo('ConeGeometry', 0.05 * k, 0.1 * k, 6), fur, -0.08 * k, 0.62 * k, 0.26 * k);
+      add(petGeo('ConeGeometry', 0.05 * k, 0.1 * k, 6), fur, 0.08 * k, 0.62 * k, 0.26 * k);
+      for (const [x, z] of [[-0.09, 0.15], [0.09, 0.15], [-0.09, -0.15], [0.09, -0.15]]) add(petGeo('CylinderGeometry', 0.035 * k, 0.035 * k, 0.2 * k, 6), fur, x * k, 0.1 * k, z * k);
+      const tail = add(petGeo('CylinderGeometry', 0.03 * k, 0.02 * k, 0.18 * k, 6), fur, 0, 0.4 * k, -0.3 * k);
       tail.rotation.x = -0.8;
       g.userData.tail = tail;
     } else if (kind === 'parrot') {
-      add(new THREE.CylinderGeometry(0.025, 0.025, 1.3, 6), '#6b4a32', 0, 0.65, 0);
-      add(new THREE.CylinderGeometry(0.15, 0.18, 0.04, 10), '#6b4a32', 0, 0.02, 0);
-      const perch = add(new THREE.CylinderGeometry(0.02, 0.02, 0.4, 6), '#6b4a32', 0, 1.3, 0);
+      add(petGeo('CylinderGeometry', 0.025, 0.025, 1.3, 6), '#6b4a32', 0, 0.65, 0);
+      add(petGeo('CylinderGeometry', 0.15, 0.18, 0.04, 10), '#6b4a32', 0, 0.02, 0);
+      const perch = add(petGeo('CylinderGeometry', 0.02, 0.02, 0.4, 6), '#6b4a32', 0, 1.3, 0);
       perch.rotation.z = Math.PI / 2;
       const bird = new THREE.Group();
       const body = new THREE.Mesh(sph(0.09), mat('#2ecc71'));
@@ -1688,10 +1709,10 @@
       body.position.y = 0.1;
       const head = new THREE.Mesh(sph(0.07), mat('#27ae60'));
       head.position.set(0, 0.24, 0.02);
-      const beak = new THREE.Mesh(new THREE.ConeGeometry(0.025, 0.06, 6), mat('#f1c40f'));
+      const beak = new THREE.Mesh(petGeo('ConeGeometry', 0.025, 0.06, 6), mat('#f1c40f'));
       beak.rotation.x = Math.PI / 2;
       beak.position.set(0, 0.23, 0.09);
-      const tail = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.16, 0.02), mat('#e74c3c'));
+      const tail = new THREE.Mesh(petGeo('BoxGeometry', 0.05, 0.16, 0.02), mat('#e74c3c'));
       tail.position.set(0, 0.0, -0.06);
       bird.add(body, head, beak, tail);
       bird.position.y = 1.32;
@@ -1702,15 +1723,17 @@
       add(sph(0.06), '#8fb06a', 0, 0.07, 0.2);
       for (const [x, z] of [[-0.12, 0.1], [0.12, 0.1], [-0.12, -0.1], [0.12, -0.1]]) add(sph(0.04), '#8fb06a', x, 0.03, z);
     } else if (kind === 'carrier') {
-      add(new THREE.BoxGeometry(0.28, 0.22, 0.36), '#c97b2c', 0, 0.35, 0);
-      add(new THREE.BoxGeometry(0.2, 0.12, 0.02), '#2b2b30', 0, 0.36, 0.185);
+      add(petGeo('BoxGeometry', 0.28, 0.22, 0.36), '#c97b2c', 0, 0.35, 0);
+      add(petGeo('BoxGeometry', 0.2, 0.12, 0.02), '#2b2b30', 0, 0.36, 0.185);
     }
     return g;
   }
 
+  const umbrellaMats = {};
   function umbrellaModel(color) {
     const g = new THREE.Group();
-    const canopy = new THREE.Mesh(new THREE.ConeGeometry(0.42, 0.22, 10, 1, true), new THREE.MeshStandardMaterial({ color, side: THREE.DoubleSide, roughness: 0.6 }));
+    // 傘面的幾何和顏色材質共用（下雨天客人很多）
+    const canopy = new THREE.Mesh(petGeo('ConeGeometry', 0.42, 0.22, 10, 1, true), umbrellaMats[color] || (umbrellaMats[color] = new THREE.MeshStandardMaterial({ color, side: THREE.DoubleSide, roughness: 0.6 })));
     canopy.position.y = 1.62;
     canopy.castShadow = true;
     g.add(canopy);
@@ -2341,7 +2364,9 @@
       this.buildFrontSigns(g);
 
       // 隔壁店家
-      const pick = (i) => NEIGHBORS[(i + ind.id.length) % NEIGHBORS.length];
+      // 隔壁是誰：照開店地點（夜市旁就是攤販、學校旁是補習班、廟口是香舖）
+      const local = SPOT_NEIGHBORS[this.sim.spot];
+      const pick = (i) => (local ? local[i % local.length] : NEIGHBORS[(i + ind.id.length) % NEIGHBORS.length]);
       this.neighborPick = pick(0);
       this.rivalKey = this.rivalState();
       this.buildLeftNeighbor();
@@ -2975,6 +3000,7 @@
             if (o.geometry && (o.material === People.vcMat || o.material === People.vcBasic)) o.geometry.dispose();
           });
           if (v.p.faceTex) v.p.faceTex.dispose();
+          if (v.p.faceMat) v.p.faceMat.dispose();
           this.agents.delete(id);
         }
       }

@@ -3,6 +3,17 @@
   const THREE = root.THREE;
   if (!THREE) return;
   const cache = new Map();
+  // 共用幾何：同樣大小的東西只建一次（不然每個客人、每次拿東西都多一份，手機的顯示記憶體會越吃越多）
+  const geoCache = new Map();
+  const cg = (type, ...args) => {
+    const k = type + args.join(',');
+    let g = geoCache.get(k);
+    if (!g) {
+      g = new THREE[type](...args);
+      geoCache.set(k, g);
+    }
+    return g;
+  };
   const mat = (color, opts = {}) => {
     const key = color + JSON.stringify(opts);
     if (!cache.has(key)) cache.set(key, new THREE.MeshStandardMaterial({ color, roughness: 0.75, metalness: 0.05, ...opts }));
@@ -254,7 +265,8 @@
       faceCanvas.width = faceCanvas.height = 128;
       const faceTex = new THREE.CanvasTexture(faceCanvas);
       faceTex.encoding = THREE.sRGBEncoding;
-      const face = new THREE.Mesh(new THREE.PlaneGeometry(0.28, 0.28), new THREE.MeshBasicMaterial({ map: faceTex, transparent: true }));
+      const faceMat = new THREE.MeshBasicMaterial({ map: faceTex, transparent: true });
+      const face = new THREE.Mesh(cg('PlaneGeometry', 0.28, 0.28), faceMat);
       face.position.set(0, -0.035, 0.176);
       head.add(face);
       if (look.glasses) {
@@ -288,7 +300,7 @@
       blob.position.y = 0.012;
       blob.renderOrder = -1;
       group.add(blob);
-      const person = { group, legL, legR, armL, armR, head, blob, faceCanvas, faceTex, mood: null, boss, phase: Math.random() * 6, carry, female: look.gender === 'f' };
+      const person = { group, legL, legR, armL, armR, head, blob, faceCanvas, faceTex, faceMat, mood: null, boss, phase: Math.random() * 6, carry, female: look.gender === 'f' };
       People.setMood(person, boss ? 'smug' : 'neutral');
       return person;
     },
@@ -425,32 +437,32 @@
       while (c.children.length) c.remove(c.children[0]);
       c.visible = !!kind;
       if (kind === 'cup') {
-        const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.04, 0.16, 10), mat('#f3e3c3'));
+        const cup = new THREE.Mesh(cg('CylinderGeometry', 0.05, 0.04, 0.16, 10), mat('#f3e3c3'));
         cup.position.y = -0.04;
-        const lid = new THREE.Mesh(new THREE.CylinderGeometry(0.052, 0.052, 0.02, 10), mat('#ffffff'));
+        const lid = new THREE.Mesh(cg('CylinderGeometry', 0.052, 0.052, 0.02, 10), mat('#ffffff'));
         lid.position.y = 0.05;
-        const straw = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.12, 6), mat('#e0478a'));
+        const straw = new THREE.Mesh(cg('CylinderGeometry', 0.008, 0.008, 0.12, 6), mat('#e0478a'));
         straw.position.y = 0.1;
         c.add(cup, lid, straw);
       } else if (kind === 'bag') {
-        const bag = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.18, 0.08), mat('#f7f7f2'));
+        const bag = new THREE.Mesh(cg('BoxGeometry', 0.16, 0.18, 0.08), mat('#f7f7f2'));
         bag.position.y = -0.1;
         c.add(bag);
       } else if (kind === 'mop') {
-        const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.85, 6), mat('#c9a36b'));
+        const stick = new THREE.Mesh(cg('CylinderGeometry', 0.012, 0.012, 0.85, 6), mat('#c9a36b'));
         stick.position.set(0, -0.12, 0.12);
         stick.rotation.x = 0.5;
-        const head = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.05, 0.09), mat('#5aa9e6'));
+        const head = new THREE.Mesh(cg('BoxGeometry', 0.22, 0.05, 0.09), mat('#5aa9e6'));
         head.position.set(0, -0.48, 0.34);
         c.add(stick, head);
       } else if (kind === 'crate') {
-        const box = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.22, 0.24), mat('#c89b5e'));
+        const box = new THREE.Mesh(cg('BoxGeometry', 0.3, 0.22, 0.24), mat('#c89b5e'));
         box.position.set(-0.2, 0.02, 0.12);
-        const tape = new THREE.Mesh(new THREE.BoxGeometry(0.31, 0.03, 0.05), mat('#8a6a3e'));
+        const tape = new THREE.Mesh(cg('BoxGeometry', 0.31, 0.03, 0.05), mat('#8a6a3e'));
         tape.position.set(-0.2, 0.135, 0.12);
         c.add(box, tape);
       } else if (kind === 'box') {
-        const box = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.08, 0.14), mat('#f2e0b8'));
+        const box = new THREE.Mesh(cg('BoxGeometry', 0.18, 0.08, 0.14), mat('#f2e0b8'));
         box.position.y = -0.04;
         c.add(box);
       }
