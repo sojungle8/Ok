@@ -188,13 +188,15 @@
     const fit = (sp.fit && sp.fit[indId]) || 1;
     const people = sp.traffic * fit;
     const value = people - 0.45 * (sp.rent - 1);
-    const stars = Math.max(1, Math.min(5, Math.round((value - 0.62) / 0.11)));
+    // 有實測的星等就用實測的（AI 試玩一年的結果），沒有才用估的
+    const measured = C.STARS && C.STARS[indId] && C.STARS[indId][id];
+    const stars = measured || Math.max(1, Math.min(5, Math.round((value - 0.62) / 0.11)));
     return { fit, people, rent: sp.rent, stars };
   }
   function bestSpot(indId) {
     const C = window.BossCity;
     if (!C) return undefined;
-    return Object.keys(C.SPOTS).sort((a, b) => spotRating(b, indId).people - 0.45 * spotRating(b, indId).rent - (spotRating(a, indId).people - 0.45 * spotRating(a, indId).rent))[0];
+    return Object.keys(C.SPOTS).sort((a, b) => spotRating(b, indId).stars - spotRating(a, indId).stars || spotRating(a, indId).rent - spotRating(b, indId).rent)[0];
   }
   // 小地圖（SVG）：街區、河、地標；pins＝要標出來的點 [{x,y,icon,label,cls,action,id}]
   function cityMiniMap(pins, opts = {}) {
@@ -240,7 +242,7 @@
             return `<button class="spot-card ${id === cur ? 'selected' : ''}" data-action="set" data-key="spot" data-value="${id}">
               <b>${sp.icon} ${sp.name}<em>${'★'.repeat(r.stars)}${'☆'.repeat(5 - r.stars)}</em></b>
               <small>${sp.desc}</small>
-              <span class="spot-meta">人潮 ${bars(r.people, 0.75, 1.45)}・房租 ${bars(r.rent, 0.7, 1.5)}・${r.fit > 1.04 ? '👍 很適合這行' : r.fit < 0.96 ? '👎 不太適合這行' : '適合度普通'}・隔壁：${sp.near}</span>
+              <span class="spot-meta">人潮 ${bars(r.people, 0.75, 1.45)}・房租 ${bars(r.rent, 0.7, 1.5)}・${r.stars >= 4 ? '👍 很適合這行' : r.stars <= 2 ? '👎 不太適合這行' : '適合度普通'}・隔壁：${sp.near}</span>
             </button>`;
           })
           .join('')}
@@ -494,6 +496,7 @@
     };
     if (ui.place) ui.place.destroy();
     ui.place = null;
+    document.body.classList.remove('in-place');
     if (ui.city) closeCity();
     ui.view = new window.BossShop3D(document.getElementById('view'), sim, {
       onClick: onViewClick,
@@ -801,7 +804,7 @@
     else if (mode === 'train') ok = s.trainVisit(id);
     if (!ok) return toast(s.boss.away ? '老闆已經在外面了' : '錢不夠', 'bad');
     if (!ui.bossMode && mode === 'scene') setBossMode(true);
-    toast(mode === 'scene' ? '🛵 出發！到了會直接走進去（可以按「回到店裡」先看店，老闆照樣騎過去）' : '🛵 出發！老闆不在的時候店裡照常營業', 'helper');
+    toast(mode === 'scene' ? '🛵 出發！到了會自己走進去' : '🛵 出發！店裡照常營業', 'helper');
     renderCityPanel();
     renderBossHud();
   }
@@ -816,7 +819,8 @@
     ui.view.overlay.hidden = true;
     ui.keys.clear();
     closeDialog();
-    toast(isTouch ? '🚶 到了！走到攤位或人旁邊，按右下角的按鈕互動；走到綠色圈圈就騎車回店' : '🚶 到了！走到攤位或人旁邊按 E 互動；走到綠色圈圈按 E 騎車回店');
+    toast(isTouch ? '🚶 到了！靠近攤位按右下角按鈕；綠圈＝騎車回店' : '🚶 到了！靠近攤位按 E；走到綠圈按 E 騎車回店');
+    document.body.classList.add('in-place');
     renderBossHud();
   }
 
@@ -935,6 +939,7 @@
     ui.view.overlay.hidden = true;
     ui.keys.clear();
     closeDialog();
+    document.body.classList.add('in-place');
     toast(isTouch ? '🚶 走到攤位或人旁邊，按右下角的按鈕互動；走到綠色圈圈回店裡' : '🚶 走到攤位或人旁邊按 E 互動；走到綠色圈圈按 E 回店裡（店裡照常營業）');
     renderBossHud();
     return true;
@@ -958,6 +963,7 @@
     const r = s.leavePlace();
     if (ui.place) ui.place.destroy();
     ui.place = null;
+    document.body.classList.remove('in-place');
     if (ui.city) closeCity();
     if (!ui.view) return;
     ui.view.overlay.hidden = false;
@@ -3052,6 +3058,7 @@
     cancelAnimationFrame(ui.raf);
     if (ui.place) ui.place.destroy();
     ui.place = null;
+    document.body.classList.remove('in-place');
     if (ui.city) closeCity();
     if (ui.view) ui.view.destroy();
     ui.view = null;

@@ -800,7 +800,7 @@ body.in-game::before {
   right: max(10px, env(safe-area-inset-right, 0px));
   bottom: 10px;
   display: grid;
-  grid-template-columns: repeat(3, 36px);
+  grid-template-columns: repeat(4, 36px);
   gap: 4px;
   z-index: 2;
 }
@@ -5255,7 +5255,8 @@ kbd {
 body.in-city .cam-buttons button:not([data-action="city-open"]),
 body.in-city #boss-toggle,
 body.in-city #quest-chip,
-body.in-city #boss-hud { display: none; }
+body.in-city #boss-hud,
+body.in-city .combo-badge { display: none; }
 .city-overlay { pointer-events: none; }
 .city-tag {
   position: absolute;
@@ -5294,3 +5295,22 @@ body.in-city #boss-hud { display: none; }
 .city-dest > small { color: var(--muted); font-size: 0.78rem; }
 .city-btns { display: grid; gap: 6px; }
 .city-btns button { min-height: 40px; }
+
+/* 手機：在夜市、廟這些小場景裡，上面只留說明卡，其他東西讓開 */
+@media (max-width: 640px) {
+  body.in-place #quest-chip { display: none; }
+  body.in-place .toasts { top: 96px; }
+  body.in-place .boss-hud {
+    top: auto;
+    bottom: 10px;
+    right: auto;
+    left: 50%;
+    transform: translateX(-50%);
+    width: auto;
+    padding: 4px;
+  }
+  body.in-place .boss-hud > b,
+  body.in-place .boss-hud > small,
+  body.in-place .boss-hud .ibar { display: none; }
+  body.in-place .boss-hud button { margin: 0; }
+}

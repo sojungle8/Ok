@@ -322,10 +322,39 @@
         const off = 0.3;
         this.placeBike(ax + (cx - ax) * k + Math.cos(dir) * off, az + (cz - az) * k - Math.sin(dir) * off, dir);
         if (this.rider) People.walk(this.rider, false, dt, 1);
-        this.routeShown = pts;
+        this.showRoute(pts);
+        // 鏡頭跟著機車（玩家自己拖過畫面就不跟）
+        if (!this.userMoved) Object.assign(this.camT, { x: this.bike.position.x, z: this.bike.position.z, zoom: Math.max(this.camT.zoom, 1.5) });
       }
+      if (!pts) this.showRoute(null);
       this.arrow.position.y = 2.6 + Math.sin(now / 250) * 0.2;
       this.arrow.rotation.y += dt * 2;
+    }
+
+    showRoute(pts) {
+      const key = pts ? pts.map((p) => p.join(',')).join(';') : '';
+      if (key === this.routeKey) return;
+      this.routeKey = key;
+      if (this.routeGroup) {
+        this.root.remove(this.routeGroup);
+        this.routeGroup.children.forEach((m) => m.geometry.dispose());
+      }
+      this.routeGroup = null;
+      if (!pts) return;
+      const g = new THREE.Group();
+      const mat = this.routeMat || (this.routeMat = new THREE.MeshBasicMaterial({ color: '#ff7a3d', transparent: true, opacity: 0.85 }));
+      for (let i = 1; i < pts.length; i++) {
+        const [ax, az] = pts[i - 1];
+        const [bx, bz] = pts[i];
+        const len = Math.hypot(bx - ax, bz - az);
+        if (len < 0.01) continue;
+        const m = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.03, len + 0.35), mat);
+        m.position.set((ax + bx) / 2, 0.06, (az + bz) / 2);
+        m.rotation.y = Math.atan2(bx - ax, bz - az);
+        g.add(m);
+      }
+      this.root.add(g);
+      this.routeGroup = g;
     }
 
     // ───── 路上的車 ─────
@@ -447,6 +476,7 @@
         const rz = -Math.sin(az);
         const fx = -Math.sin(az);
         const fz = -Math.cos(az);
+        if (Math.abs(dx) + Math.abs(dy) > 2) this.userMoved = true;
         this.camT.x = this.cam.x -= (dx * rx - (dy * fx) / this.cam.pitch) * wpp;
         this.camT.z = this.cam.z -= (dx * rz - (dy * fz) / this.cam.pitch) * wpp;
         this.clamp();

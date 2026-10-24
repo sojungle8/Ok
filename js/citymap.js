@@ -50,7 +50,7 @@
       traffic: 1.15, rent: 1.35, weekend: 1.15,
       hours: { 7: 0.7, 8: 0.7, 9: 0.75, 10: 0.8, 11: 0.85, 17: 1.25, 18: 1.35, 19: 1.4, 20: 1.4, 21: 1.35, 22: 1.25 },
       mix: { student: 1.2, family: 1.2, elderly: 0.8, office: 0.8 },
-      fit: { breakfast: 0.85, noodle: 1.1, drinks: 1.15, barber: 0.85, scooter: 0.9, store: 1.05 },
+      fit: { breakfast: 0.88, noodle: 1.1, drinks: 1.15, barber: 0.95, scooter: 0.9, store: 1.1 },
       grime: 1.15,
       near: '夜市攤販',
     },
@@ -60,7 +60,7 @@
       traffic: 1.05, rent: 1.0, weekend: 0.8,
       hours: { 6: 1.3, 7: 1.5, 8: 1.1, 12: 1.1, 16: 1.4, 17: 1.4 },
       mix: { student: 1.6, office: 0.7, elderly: 0.9, family: 1.05 },
-      fit: { breakfast: 1.15, noodle: 0.95, drinks: 1.15, barber: 1.0, scooter: 1.0, store: 1.05 },
+      fit: { breakfast: 1.15, noodle: 0.95, drinks: 1.15, barber: 1.0, scooter: 1.0, store: 1.18 },
       breakMonths: [1, 2, 7, 8],
       near: '國小和補習班',
     },
@@ -70,7 +70,7 @@
       traffic: 0.85, rent: 0.72, weekend: 1.05,
       hours: {},
       mix: { elderly: 1.35, family: 1.25, student: 0.85, office: 0.7 },
-      fit: { breakfast: 1.0, noodle: 1.0, drinks: 0.9, barber: 1.15, scooter: 1.1, store: 0.95 },
+      fit: { breakfast: 1.08, noodle: 1.0, drinks: 1.05, barber: 1.25, scooter: 1.3, store: 1.05 },
       loyal: 1.06,
       near: '社區住戶',
     },
@@ -80,7 +80,7 @@
       traffic: 1.1, rent: 1.25, weekend: 0.55,
       hours: { 7: 1.35, 8: 1.4, 11: 1.3, 12: 1.5, 13: 1.25, 18: 1.15 },
       mix: { office: 1.7, student: 0.6, elderly: 0.6, family: 0.8 },
-      fit: { breakfast: 1.05, noodle: 1.1, drinks: 1.0, barber: 0.95, scooter: 0.9, store: 1.05 },
+      fit: { breakfast: 1.05, noodle: 1.1, drinks: 1.0, barber: 1.05, scooter: 0.9, store: 1.12 },
       near: '辦公大樓',
     },
     mrt: {
@@ -89,7 +89,7 @@
       traffic: 1.3, rent: 1.5, weekend: 0.95,
       hours: { 7: 1.3, 8: 1.35, 17: 1.3, 18: 1.3 },
       mix: { office: 1.3, student: 1.15, elderly: 0.8, family: 0.95 },
-      fit: { breakfast: 1.1, noodle: 1.05, drinks: 1.05, barber: 0.95, scooter: 0.95, store: 1.15 },
+      fit: { breakfast: 1.1, noodle: 1.05, drinks: 1.05, barber: 0.95, scooter: 0.75, store: 1.25 },
       near: '捷運出口',
     },
     temple: {
@@ -98,10 +98,21 @@
       traffic: 0.95, rent: 0.85, weekend: 1.1,
       hours: { 6: 1.2, 7: 1.2, 9: 1.15, 10: 1.15 },
       mix: { elderly: 1.5, family: 1.1, office: 0.7, student: 0.85 },
-      fit: { breakfast: 0.95, noodle: 1.0, drinks: 0.9, barber: 1.05, scooter: 1.1, store: 0.95 },
+      fit: { breakfast: 1.12, noodle: 1.0, drinks: 1.0, barber: 1.05, scooter: 1.15, store: 1.05 },
       near: '廟和香舖',
     },
   };
+  // 開店畫面的星等：照 AI 試玩一年（一般難度、兩個種子）本店淨利跟「一般街邊」比的結果
+  // ★★★★★ 多賺三成五以上、★★★★ 多賺一成五、★★★ 差不多、★★ 少賺一點、★ 少賺一成五以上
+  const STARS = {
+    breakfast: { nightmarket: 1, school: 5, alley: 3, office: 5, mrt: 5, temple: 2 },
+    noodle: { nightmarket: 4, school: 3, alley: 2, office: 4, mrt: 4, temple: 3 },
+    drinks: { nightmarket: 5, school: 4, alley: 2, office: 3, mrt: 5, temple: 3 },
+    barber: { nightmarket: 2, school: 3, alley: 4, office: 3, mrt: 2, temple: 3 },
+    scooter: { nightmarket: 3, school: 2, alley: 3, office: 3, mrt: 1, temple: 3 },
+    store: { nightmarket: 2, school: 3, alley: 2, office: 3, mrt: 5, temple: 4 },
+  };
+
   // 舊存檔沒有選地點：當成一般街道，什麼都不加減
   const LEGACY = { x: 4, y: 5, name: '街邊', icon: '🏪', desc: '', traffic: 1, rent: 1, weekend: 1, hours: {}, mix: {}, fit: {}, near: '' };
 
@@ -214,5 +225,5 @@
   }
   const placeAt = (id) => LANDMARKS[id] || null;
 
-  root.BossCity = { NEIGHBOR_EVENTS, W, H, ROWS, RIVER_X, BRIDGES, typeAt, LANDMARKS, SPOTS, LEGACY, spotOf, spotMult, spotMix, route, rideMinutes, placeAt, MIN_PER_BLOCK };
+  root.BossCity = { STARS, NEIGHBOR_EVENTS, W, H, ROWS, RIVER_X, BRIDGES, typeAt, LANDMARKS, SPOTS, LEGACY, spotOf, spotMult, spotMix, route, rideMinutes, placeAt, MIN_PER_BLOCK };
 })(typeof window !== 'undefined' ? window : globalThis);
