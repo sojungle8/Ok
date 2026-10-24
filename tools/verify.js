@@ -1,7 +1,7 @@
 // 功能逐項驗證：每個玩法都實際跑一次，檢查結果對不對
 // 用法：node tools/verify.js            （全部）
 //       node tools/verify.js 授權 存檔   （只跑名稱含這些字的）
-for (const f of ['data', 'fun', 'weird', 'trends26', 'activities', 'city', 'plots', 'career', 'progress', 'slash', 'sidebiz', 'backroom', 'pets', 'life', 'portraits', 'industries', 'sim']) require(`../js/${f}.js`);
+for (const f of ['data', 'fun', 'weird', 'trends26', 'activities', 'city', 'citymap', 'plots', 'career', 'progress', 'slash', 'sidebiz', 'backroom', 'pets', 'life', 'portraits', 'industries', 'sim']) require(`../js/${f}.js`);
 const { Sim, CATALOG } = globalThis.BossSim;
 const Fun = globalThis.BossFun;
 const I = globalThis.BossIndustries;
@@ -541,6 +541,85 @@ T('小幫手：會顧店（薪水、心情、放太久的小事），但不會�
   s.activeEvents.push(p);
   s.helperEvents();
   ok(s.activeEvents.includes(p), '小幫手替老闆決定了人生大事');
+});
+
+// ───── 🗺️ 城市 ─────
+T('城市：路線沿著馬路走，過河一定要走橋；越遠騎越久', () => {
+  const C = globalThis.BossCity;
+  const r = C.route({ x: 1, y: 0 }, { x: 3, y: 0 });
+  // 跨河（路口 x 2→3）的那一步一定在橋上
+  for (let i = 1; i < r.length; i++) if (r[i][1] === r[i - 1][1] && Math.min(r[i][0], r[i - 1][0]) === C.RIVER_X) ok(C.BRIDGES.includes(r[i][1]), `在 y=${r[i][1]} 直接游泳過河`);
+  ok(C.rideMinutes({ x: 4, y: 6 }, { x: 4, y: 5 }) < C.rideMinutes({ x: 4, y: 6 }, { x: 8, y: 0 }), '遠的地方沒有比較久');
+});
+T('城市：開店地點會改變房租、人潮和客群', () => {
+  const C = globalThis.BossCity;
+  const a = new Sim('drinks', { spot: 'alley', rng: mulberry(3) });
+  const m = new Sim('drinks', { spot: 'mrt', rng: mulberry(3) });
+  ok(a.spot === 'alley' && m.spot === 'mrt', '地點沒記住');
+  ok(m.spotInfo.rent > a.spotInfo.rent, '捷運站口房租沒有比巷弄貴');
+  const o = new Sim('noodle', { spot: 'office' });
+  o.minute = 12 * 60;
+  o.day = 1; // 平日中午
+  const sat = C.spotMult('office', 'noodle', 12, 5, 3);
+  ok(o.spotNow > sat, '辦公區週末沒有比較冷清');
+  ok(C.spotMix('school', 'student', 7) < C.spotMix('school', 'student', 4), '學校旁暑假學生沒有變少');
+  const legacy = new Sim('drinks', {});
+  ok(legacy.spot === 'legacy' && legacy.spotNow === 1 && legacy.spotInfo.rent === 1, '沒選地點的舊存檔被改了平衡');
+});
+T('城市：出門時間＝騎過去＋待一下＋騎回來；路上的事會寫進回來的摘要', () => {
+  const near = new Sim('drinks', { spot: 'nightmarket', rng: mulberry(5) });
+  const far = new Sim('drinks', { spot: 'alley', rng: mulberry(5) });
+  for (const s of [near, far]) {
+    s.cash = 1e6;
+    s.minute = 14 * 60;
+    ok(s.goOut('market'), '出不了門');
+  }
+  ok(far.boss.away.until - far.minute > near.boss.away.until - near.minute, '住得遠的去夜市沒有比較久');
+});
+T('城市：騎去要逛的地方，到了才走進去；逛完要騎回來', () => {
+  const s = mk('drinks', { events: false });
+  s.spot = 'alley';
+  let arrived = null;
+  s.cb.arrived = (id) => (arrived = id);
+  toOpen(s, 60);
+  const go = s.rideTo('temple', 'scene');
+  ok(go && s.boss.away.kind === 'ride', '沒有出發');
+  ok(!arrived, '還沒騎到就進去了');
+  s.tick(go.mins + 1);
+  ok(arrived === 'temple' && s.boss.away && s.boss.away.scene, '騎到了沒有進場景');
+  s.leavePlace();
+  ok(s.boss.away && s.boss.away.kind === 'rideBack', '逛完直接瞬移回店裡');
+  s.tick(go.mins + 1);
+  ok(!s.boss.away, '騎回來之後還在外面');
+});
+T('城市：騎去分店巡店會提升士氣；搭高鐵去外縣市巡店要好幾個小時', () => {
+  const s = mk('noodle', { all: true, cash: 2e7, xp: 300000, events: false });
+  days(s, 1);
+  s.openBranch('ximen', 'medium');
+  s.openBranch('fengjia', 'medium');
+  const b = s.branches.find((x) => x.site === 'ximen');
+  b.morale = 50;
+  const done = [];
+  s.cb.tripDone = (r) => done.push(r);
+  toOpen(s, 30);
+  ok(s.rideTo('ximen', 'branch'), '不能去巡店');
+  s.tick(120);
+  ok(b.morale > 50 && done.length, `巡店沒效果（士氣 ${b.morale}）`);
+  s.tick(60);
+  ok(!s.boss.away, '巡完沒回來');
+  ok(s.trainVisit('fengjia'), '不能搭高鐵');
+  ok(s.boss.away.until - s.minute >= 120, '去台中太快了');
+});
+T('城市：鄰居會帶來事件；地點會存進存檔', () => {
+  const s = mk('drinks', { events: false });
+  s.spot = 'mrt';
+  const got = [];
+  s.cb.notify = (t) => /捷運|演唱會/.test(t) && got.push(t);
+  days(s, 120);
+  ok(got.length >= 1, '四個月都沒有任何鄰居的事');
+  const d = JSON.parse(JSON.stringify(s.serialize ? s.serialize() : s.toJSON()));
+  const s2 = Sim.load(d, {});
+  ok(s2.spot === 'mrt', '讀檔之後地點不見了');
 });
 
 // ───── 存檔 ─────

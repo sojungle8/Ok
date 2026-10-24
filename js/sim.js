@@ -4,6 +4,7 @@
   const { DECOR_THEMES, SIDE_BIZ, SIDE_CLASH, fillWords, applyNames, FOOD_IND, INDUSTRIES, CATALOG, LOTS, NAMES, TRAITS, LEVELS, DISTRICTS, DISTRICT_INFO, CUSTOMER_TYPES, DIFFICULTY, FLOORS, WALLS, SIGNS, BRANCH_SITES, BRANCH_SIZES, TOURIST_PREF } = root.BossIndustries;
   const { EVENTS, IGNORE, VIOLATIONS } = root.BossData;
   const Looks = root.BossLooks;
+  const City = root.BossCity;
   const Fun = root.BossFun || { KARENS: [], TRENDS: [], POST_HOOKS: [], POST_BODIES: [], POST_ENDINGS: [], COMMENTS: {}, HEADLINES: [], STAFF_QUIPS: [], FUNNY_REVIEWS: { good: [], bad: [] } };
 
   // 週報只保留最近半年（遊戲時間）
@@ -69,6 +70,8 @@
       this.rng = opts.rng || Math.random;
       this.cb = opts.callbacks || {};
       this.shopName = opts.shopName || ind.shopName;
+      // 🗺️ 開店的地點（城市地圖上選的）；沒選就是一般街邊，不加減
+      this.spot = City && City.SPOTS[opts.spot] ? opts.spot : 'legacy';
       this.mode = DIFFICULTY[opts.mode] ? opts.mode : 'normal';
       this.diff = DIFFICULTY[this.mode];
 
@@ -1987,6 +1990,7 @@
         if (t.id === 'student' && summerBreak && h < 11) w *= 0.4;
         if (t.id === 'student' && this.festival && this.festival.id === 'school') w *= 1.5;
         w *= (this.ind.mix && this.ind.mix[t.id]) || 1;
+        if (City) w *= City.spotMix(this.spot, t.id, this.monthOfYear);
         if (this.collabs.some((c) => c.types.includes(t.id))) w *= 1.25;
         const th = this.themeInfo;
         if (th && th.types[t.id]) w *= th.types[t.id];
@@ -2348,6 +2352,58 @@
     }
 
     // 出門：老闆離開一段時間，回來時結算
+    // 🏘️ 鄰居帶來的事：照開店的地點，偶爾會發生（一週最多一件）；廟口初一十五固定人多
+    planNeighbors() {
+      if (!City || !this.openToday) return;
+      const sp = this.spotInfo;
+      if (this.spot === 'temple' && this.day % 15 === 0) {
+        this.demandMods.push({ mult: 1.25, days: 1 });
+        this.notify('🙏 今天是初一（十五），來廟裡拜拜的人特別多', 'good');
+      }
+      if (this.day < (this.neighborNext ?? 5)) return;
+      const brk = sp.breakMonths && sp.breakMonths.includes(this.monthOfYear);
+      for (const e of City.NEIGHBOR_EVENTS[this.spot] || []) {
+        if ((e.noBreak && brk) || this.rng() >= e.p) continue;
+        if (e.mult) this.demandMods.push({ mult: e.mult, days: e.days });
+        if (e.grime) this.grime += e.grime;
+        this.notify(e.text + (e.mult ? (e.mult > 1 ? `（客人 +${Math.round((e.mult - 1) * 100)}%，${e.days} 天）` : `（客人 -${Math.round((1 - e.mult) * 100)}%，${e.days} 天）`) : ''), e.mult && e.mult < 1 ? 'bad' : e.mult ? 'good' : 'bad');
+        this.neighborNext = this.day + 7;
+        this.neighborLog = [{ day: this.day, text: e.text }, ...(this.neighborLog || [])].slice(0, 8);
+        break;
+      }
+    }
+
+    // 🗺️ 店在城市地圖上的位置
+    get homeXY() {
+      const sp = this.spotInfo;
+      return { x: sp.x ?? 4, y: sp.y ?? 5 };
+    }
+
+    // 騎車到某個地方要多久：照實際的路算，再看天氣、尖峰、臨檢（有車開車快一點）
+    rideInfo(destId) {
+      const to = City && City.placeAt(destId);
+      if (!to) return { mins: 10, notes: [] };
+      let mins = City.rideMinutes(this.homeXY, to) * (this.owner.car ? 0.75 : 1);
+      const notes = [];
+      if (this.weather && (this.weather.id === 'rain' || this.weather.id === 'typhoon')) {
+        mins *= 1.25;
+        notes.push('🌧️ 下雨騎車，雨衣穿了又脫，慢了一點');
+      }
+      if ([7, 8, 17, 18].includes(this.hour)) {
+        mins *= 1.3;
+        notes.push('🚗 下班尖峰塞車，機車在車陣裡鑽來鑽去');
+      }
+      const cp = this.streetState && this.streetState.checkpoint;
+      if (cp && this.minute >= cp.from && this.minute <= cp.to) {
+        mins += 6;
+        notes.push('👮 巷口臨檢，被攔下來看了駕照才放行');
+      } else if (this.rng() < 0.05) {
+        mins += 5;
+        notes.push('🚧 前面路口在修路，繞了一圈');
+      }
+      return { mins: Math.max(2, Math.round(mins)), notes };
+    }
+
     goOut(placeId) {
       const pl = (Fun.PLACES || []).find((p) => p.id === placeId);
       const b = this.boss;
@@ -2355,21 +2411,111 @@
       this.bossLeaveLane();
       this.cash -= pl.cost;
       this.ledger.other -= pl.cost;
-      b.away = { id: pl.id, until: this.minute + pl.minutes * (this.owner.car ? 0.7 : 1) };
+      // 時間＝騎過去＋在那裡待的時間＋騎回來（路越遠，店裡越久沒老闆）
+      const go = this.rideInfo(pl.id);
+      const stay = Math.max(15, Math.round(pl.minutes * 0.6));
+      b.away = { id: pl.id, start: this.minute, until: this.minute + stay + go.mins * 2, ride: go.mins, roadNotes: go.notes };
       b.ride = false;
-      this.notify(`${pl.icon} 老闆出門去${pl.name}了（約 ${pl.minutes} 分鐘）`);
+      this.notify(`${pl.icon} 老闆騎車去${pl.name}了（單程約 ${go.mins} 分鐘，來回加逛逛約 ${stay + go.mins * 2} 分鐘）`);
       return true;
+    }
+
+    // 騎車去一個要走進去逛的地方（夜市、廟…）或去分店巡店：路上的時間是真的會過的
+    rideTo(destId, then) {
+      const b = this.boss;
+      if (b.away) return false;
+      const go = this.rideInfo(destId);
+      this.bossLeaveLane();
+      b.away = { kind: 'ride', to: destId, then, until: this.minute + go.mins, ride: go.mins, roadNotes: go.notes };
+      b.ride = false;
+      return go;
+    }
+
+    // 🚄 搭高鐵去外縣市的分店巡店：先騎到板橋站，搭車、巡店、再搭回來（要好幾個小時）
+    trainMinutes(siteId) {
+      const site = BRANCH_SITES.find((x) => x.id === siteId);
+      return { 台中: 60, 台南: 105, 高雄: 115, 新竹: 35, 桃園: 25, 花蓮: 130, 宜蘭: 70 }[site && site.city] || 60;
+    }
+    trainVisit(siteId) {
+      const b = this.boss;
+      if (b.away || !this.branches.some((x) => x.site === siteId)) return false;
+      const go = this.rideInfo('hsr');
+      const train = this.trainMinutes(siteId);
+      this.bossLeaveLane();
+      b.away = { kind: 'train', site: siteId, start: this.minute, until: this.minute + go.mins * 2 + train * 2 + 40, ride: go.mins, roadNotes: go.notes };
+      b.ride = false;
+      const site = BRANCH_SITES.find((x) => x.id === siteId);
+      this.notify(`🚄 老闆搭高鐵去${site.city}${site.name}巡店了（來回約 ${Math.round((go.mins * 2 + train * 2 + 40) / 6) / 10} 小時）`);
+      return true;
+    }
+
+    // 🏙️ 到分店巡店：店長和員工看到老闆親自來，士氣會好一點；順便看看上週的帳
+    visitBranch(siteId) {
+      const i = this.branches.findIndex((x) => x.site === siteId);
+      const br = this.branches[i];
+      if (!br) return null;
+      const r = { place: { icon: '🏙️', name: `${br.district}店` }, lines: [], chips: [] };
+      if (br.visitDay === this.day) r.lines.push('今天已經來過了，大家客氣地跟你點點頭。');
+      else {
+        br.visitDay = this.day;
+        const up = br.morale < 60 ? 8 : 5;
+        br.morale = clamp(br.morale + up, 0, 100);
+        r.lines.push(br.manager ? `${br.manager.name}帶你看了一圈，說最近${br.morale >= 70 ? '大家都很拚' : '人手有點吃緊'}。` : '這間店沒有店長，員工看到老闆來有點緊張。');
+        r.lines.push(`上週這間店淨利 $${Math.round(br.last || 0).toLocaleString()}。`);
+        r.chips.push(`😊 ${br.district}店士氣 +${up}`);
+        this.boss.energy = clamp(this.boss.energy - 8, 0, 100);
+      }
+      return r;
     }
 
     finishTrip() {
       const b = this.boss;
+      // 🛵 騎到目的地了：走進去逛，或開始巡店（巡完騎回來）
+      if (b.away.kind === 'ride') {
+        const A = b.away;
+        b.away = null;
+        if (A.then === 'scene') {
+          if (this.enterPlace(A.to)) {
+            b.away.ride = A.ride;
+            b.away.roadNotes = A.roadNotes;
+            if (this.cb.arrived) this.cb.arrived(A.to);
+          }
+          return null;
+        }
+        if (A.then === 'branch') {
+          const r = this.visitBranch(A.to);
+          b.away = { kind: 'rideBack', from: City.placeAt(A.to), until: this.minute + 20 + A.ride, ride: A.ride };
+          if (r) {
+            r.lines.unshift(...(A.roadNotes || []));
+            if (this.cb.tripDone) this.cb.tripDone(r);
+          }
+          return r;
+        }
+        return null;
+      }
+      if (b.away.kind === 'train') {
+        const A = b.away;
+        b.away = null;
+        const r = this.visitBranch(A.site);
+        if (r) {
+          r.lines.unshift('🚄 搭高鐵來回，在車上順便看了這週的報表。', ...(A.roadNotes || []));
+          if (this.cb.tripDone) this.cb.tripDone(r);
+        }
+        return r;
+      }
+      if (b.away.kind === 'rideBack') {
+        b.away = null;
+        this.notify('🛵 老闆回到店裡了');
+        return null;
+      }
       if (b.away.kind === 'life') return this.resolveLifeAway();
       if (b.away.kind === 'scheme') return this.resolveScheme();
       if (b.away.kind === 'collab') return this.resolveCollab();
       const pl = (Fun.PLACES || []).find((p) => p.id === b.away.id);
+      const road = b.away.roadNotes || [];
       b.away = null;
       const pick = (arr) => arr[Math.floor(this.rng() * arr.length)];
-      const r = { place: pl, lines: [], chips: [] };
+      const r = { place: pl, lines: [...road], chips: [] };
       if (pl.lines.length) r.lines.push(pick(pl.lines));
       if (pl.id === 'market') {
         b.energy = clamp(b.energy + 30, 0, 100);
@@ -2685,10 +2831,11 @@
       const b = this.boss;
       const A = b.away;
       if (!A || !A.scene) return null;
-      b.away = null;
+      // 騎車來的就要騎回去：路上的時間老闆不在店裡
+      b.away = A.ride ? { kind: 'rideBack', from: City && City.placeAt(A.id), until: this.minute + A.ride, ride: A.ride } : null;
       const names = { market: ['🏮', '夜市'], temple: ['🙏', '廟裡'], club: ['🪩', '夜店'], wholesale: ['📦', this.w('{w:supplier}')], rival: ['🏪', this.rival ? this.rival.name : '隔壁'] };
       const [icon, name] = names[A.id] || ['🚶', '外面'];
-      const r = { place: { icon, name }, lines: [], chips: [] };
+      const r = { place: { icon, name }, lines: [...(A.roadNotes || [])], chips: [] };
       if (A.id === 'temple' && A.throws) {
         if (A.holy >= 3) {
           this.demandMods.push({ mult: 1.15, days: 5 });
@@ -3932,6 +4079,14 @@
     }
 
     // ───── 客人 ─────
+    // 🗺️ 地點：資料、這個時段的人潮倍率
+    get spotInfo() {
+      return City ? City.spotOf(this.spot) : { traffic: 1, rent: 1, hours: {}, mix: {}, fit: {} };
+    }
+    get spotNow() {
+      return City ? City.spotMult(this.spot, this.ind.id, this.hour, this.weekday, this.monthOfYear) : 1;
+    }
+
     attractiveness() {
       const rating = this.reviews.length >= 5 ? this.rating : 3.8;
       const ratingF = clamp(0.55 + 0.15 * (rating - 2), 0.4, 1.1);
@@ -3947,7 +4102,7 @@
       const heat = this.isSummer && !this.cooling ? 0.9 : 1;
       const mods = this.demandMods.reduce((m, d) => m * d.mult, 1);
       const cleanF = 0.82 + 0.18 * (this.cleanliness / 100);
-      const loyal = this.loyalty ? 1.04 : 1;
+      const loyal = (this.loyalty ? 1.04 : 1) * (this.spotInfo.loyal || 1);
       // 菜單越豐富，越多人想進來看看
       const variety = 1 + Math.max(0, this.availableProducts().filter((p) => !p.side).length - this.ind.products.filter((p) => !p.rd && !p.side).length) * 0.035;
       const raw = (this.level >= 30 ? 1.03 : 1) * ratingF * priceF * beautyF * lotF * summer * heat * mods * this.festivalMult() * cleanF * loyal * variety * this.socialBoost * this.petMult * (this.copiedDish ? 1.04 : 1) * this.collabMult * this.rivalPull();
@@ -3988,6 +4143,7 @@
             if (weekend) w *= t.weekend;
             if (!neutral) {
               w *= (this.ind.mix && this.ind.mix[t.id]) || 1;
+              if (City) w *= City.spotMix(this.spot, t.id, this.monthOfYear);
               if (th && th.types[t.id]) w *= th.types[t.id];
               if (this.collabs.some((c) => c.types.includes(t.id))) w *= 1.25;
             }
@@ -5277,7 +5433,7 @@
 
       // 來客
       if (this.isOpen) {
-        const base = (this.ind.baseArrivals * this.ind.demand[this.hour] * this.attractiveness()) / 60;
+        const base = (this.ind.baseArrivals * this.ind.demand[this.hour] * this.attractiveness() * this.spotNow) / 60;
         if (this.rng() < base * this.weatherMult('walk') * this.streetMult('walk') * dt) this.spawnCustomer();
         // 外送平台的訂單：外送員騎車來取餐
         if (this.policy.delivery && this.ind.delivery && this.rng() < base * 0.22 * (this.flags.has('riderFriendly') ? 1.1 : 1) * this.weatherMult('delivery') * this.streetMult('rider') * dt) this.spawnCustomer({ rider: true });
@@ -6000,6 +6156,7 @@
       // 客訴：機率跟昨天的人潮、新手、尖峰有多亂有關；處理完會隨機冷卻幾天，同一種題材十天內不重複
       this.planCases();
       this.planStreet();
+      this.planNeighbors();
       if (this.rivalNews && this.rival) {
         this.rivalNews = false;
         this.pendingEvents.push({ ev: rivalEvent(this), at: this.hours.open + 40, where: 'door' });
@@ -6506,7 +6663,7 @@
       // 最近 7 天的用量：自動進貨看最近幾天的平均和上週同一天，不會被一天下雨帶著跑
       this.usageLog = [...(this.usageLog || []), { ...this.lastUsage }].slice(-7);
       // 清潔：油垢慢慢累積；打烊打掃會把地上的髒污清掉
-      if (this.openToday) this.grime += 0.5 + report.served / 500;
+      if (this.openToday) this.grime += (0.5 + report.served / 500) * (this.spotInfo.grime || 1);
       if (this.policy.closingClean) {
         this.grime -= 0.5;
         for (const e of this.staff) if (e.task && e.task.type === 'clean') e.task = null;
@@ -6522,7 +6679,7 @@
       report.holiday = !!(this.festival && this.festival.holiday && report.wages > 0);
 
       // 房租、水電
-      const rent = Math.round((this.ind.rent * this.lot.rentMult * this.costMult.rent) / 30);
+      const rent = Math.round((this.ind.rent * this.lot.rentMult * this.costMult.rent * (this.spotInfo.rent || 1)) / 30);
       const kw = this.objects.reduce((s, o) => s + (o.def.kw || 0), 0);
       const coolKw = this.isSummer ? 0 : this.objects.filter((o) => o.def.cool).length * 2.2;
       const hours = this.openToday ? this.hours.span / 60 : 0;
@@ -6873,6 +7030,7 @@
         v: 1,
         ind: this.ind.id,
         shopName: this.shopName,
+        spot: this.spot,
         mode: this.mode,
         lotIdx: this.lotIdx,
         objects: this.objects.map((o) => [o.type, o.x, o.z, o.rot, o.bought ?? this.day]),
@@ -6899,6 +7057,8 @@
         profitLog: this.profitLog || [],
         bestWeek: this.bestWeek || 0,
         jerkWarn: this.jerkWarn || 0,
+        neighborNext: this.neighborNext,
+        neighborLog: this.neighborLog || [],
         helperDays: this.helperDays || 0,
         helperTips: this.helperTips || [],
         helperNo: this.helperNo || {},
@@ -6961,7 +7121,7 @@
 
     static load(json, opts) {
       const d = JSON.parse(json);
-      const s = new Sim(d.ind, { ...opts, shopName: d.shopName, mode: d.mode });
+      const s = new Sim(d.ind, { ...opts, shopName: d.shopName, mode: d.mode, spot: d.spot });
       s.objects = [];
       s.setLot(d.lotIdx);
       for (const [t, x, z, r, b] of d.objects) {
@@ -6979,6 +7139,8 @@
       // 舊存檔沒有精簡紀錄：從留下來的週報補
       s.profitLog = d.profitLog || (d.history || []).map((h) => Math.round(h.profit));
       s.jerkWarn = d.jerkWarn || 0;
+      s.neighborNext = d.neighborNext;
+      s.neighborLog = d.neighborLog || [];
       s.helperDays = d.helperDays || 0;
       s.helperTips = d.helperTips || [];
       s.helperNo = d.helperNo || {};

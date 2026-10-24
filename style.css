@@ -5211,3 +5211,86 @@ kbd {
   }
   .inbox-item.helper b { font-size: 0.82rem; }
 }
+
+/* ───── 🗺️ 開店選地點 ───── */
+.spot-pick {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: 12px;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+.spot-map { display: grid; gap: 6px; align-content: start; }
+.spot-map small { color: var(--muted); font-size: 0.72rem; }
+.city-svg { width: 100%; height: auto; display: block; }
+.city-svg .city-lm { font-size: 15px; pointer-events: none; }
+.city-svg .river-label { font-size: 9px; fill: #3b6f99; letter-spacing: 2px; }
+.city-svg .city-pin-g { cursor: pointer; }
+.city-svg .city-pin-g circle { fill: #fff; stroke: var(--accent, #e0582b); stroke-width: 2; opacity: 0.92; }
+.city-svg .city-pin-g text { font-size: 15px; }
+.city-svg .city-pin-g .pin-label { font-size: 9px; font-weight: 700; fill: #3a2d22; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
+.city-svg .city-pin-g.on circle { fill: var(--accent, #e0582b); stroke: #fff; stroke-width: 3; }
+.city-svg .city-route { fill: none; stroke: #e0582b; stroke-width: 4; stroke-dasharray: 6 4; stroke-linecap: round; }
+.spot-list { display: grid; gap: 6px; }
+.spot-card {
+  display: grid;
+  gap: 2px;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: inherit;
+}
+.spot-card.selected { border-color: var(--accent, #e0582b); box-shadow: 0 0 0 2px var(--accent-soft, rgba(224, 88, 43, 0.2)); }
+.spot-card b { display: flex; justify-content: space-between; gap: 8px; font-size: 0.9rem; }
+.spot-card b em { font-style: normal; color: #e0a020; letter-spacing: -1px; }
+.spot-card small { color: var(--muted); font-size: 0.75rem; }
+.spot-card .spot-meta { font-size: 0.72rem; color: var(--ink, inherit); opacity: 0.85; }
+@media (max-width: 700px) {
+  .spot-pick { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ───── 🗺️ 3D 城市 ───── */
+body.in-city .cam-buttons button:not([data-action="city-open"]),
+body.in-city #boss-toggle,
+body.in-city #quest-chip,
+body.in-city #boss-hud { display: none; }
+.city-overlay { pointer-events: none; }
+.city-tag {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: auto;
+  white-space: nowrap;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 4px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: rgba(255, 255, 255, 0.92);
+  color: #3a2d22;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+}
+.city-tag.home { background: var(--accent, #e0582b); color: #fff; border-color: #fff; font-size: 0.85rem; }
+.city-tag.branch { background: #fff3e6; border-color: var(--accent, #e0582b); }
+.city-tag.hsr { background: #eef1ff; }
+.city-tag.rival { background: #e9e9ee; color: #555; }
+.city-tag.picked { outline: 3px solid #f2c14e; transform-origin: center bottom; }
+.city-panel {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  width: min(560px, calc(100% - 24px));
+  padding: 10px 12px;
+  display: grid;
+  gap: 6px;
+  z-index: 6;
+}
+.city-head { display: flex; align-items: center; gap: 8px; }
+.city-head small { flex: 1; color: var(--muted); font-size: 0.75rem; }
+.city-dest { display: grid; gap: 4px; }
+.city-dest > small { color: var(--muted); font-size: 0.78rem; }
+.city-btns { display: grid; gap: 6px; }
+.city-btns button { min-height: 40px; }

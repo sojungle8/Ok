@@ -1,7 +1,7 @@
 // AI 玩家：照一般玩家會做的事去經營，試著撐滿一年破關
 // 只用遊戲裡玩家按得到的操作（招人、排班、調薪、進貨、打掃、買設備、選事件、發文、開分店……）
 // 用法：node tools/playtest.js [難度] [產業] [隨機種子]
-for (const f of ['data', 'fun', 'weird', 'trends26', 'activities', 'city', 'plots', 'career', 'progress', 'slash', 'sidebiz', 'backroom', 'pets', 'life', 'portraits', 'industries', 'sim']) require(`../js/${f}.js`);
+for (const f of ['data', 'fun', 'weird', 'trends26', 'activities', 'city', 'citymap', 'plots', 'career', 'progress', 'slash', 'sidebiz', 'backroom', 'pets', 'life', 'portraits', 'industries', 'sim']) require(`../js/${f}.js`);
 const { Sim, CATALOG, catalogById } = globalThis.BossSim;
 const Fun = globalThis.BossFun;
 
@@ -262,7 +262,7 @@ function daily(r) {
 
 function play() {
   const rng = mulberry(seed * 7919 + mode.length * 131 + indId.length);
-  s = new Sim(indId, { mode, rng, shopName: '測試小店' });
+  s = new Sim(indId, { mode, rng, shopName: '測試小店', spot: process.env.SPOT });
   if (!long) s.allFeatures = true; // AI 試玩：玩法全開
   const weekly = [];
   s.cb = {

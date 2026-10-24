@@ -179,6 +179,75 @@
   }
 
   // ───── 開始畫面 ─────
+  // ───── 🗺️ 城市地圖（雙北）：開店選地點、出門看路 ─────
+  const CITY_COLORS = { R: '#e9dfcf', O: '#c9d3e0', C: '#f0d7b8', P: '#bfdcae', S: '#f3e3a3', I: '#d2cbc2', W: '#9cc8e8', T: '#e8b9a6', M: '#f2b8a2', H: '#cfc6e8' };
+  // 這個地點對這個產業好不好：人潮（含適合度）、房租，給個綜合星等
+  function spotRating(id, indId) {
+    const C = window.BossCity;
+    const sp = C.SPOTS[id];
+    const fit = (sp.fit && sp.fit[indId]) || 1;
+    const people = sp.traffic * fit;
+    const value = people - 0.45 * (sp.rent - 1);
+    const stars = Math.max(1, Math.min(5, Math.round((value - 0.62) / 0.11)));
+    return { fit, people, rent: sp.rent, stars };
+  }
+  function bestSpot(indId) {
+    const C = window.BossCity;
+    if (!C) return undefined;
+    return Object.keys(C.SPOTS).sort((a, b) => spotRating(b, indId).people - 0.45 * spotRating(b, indId).rent - (spotRating(a, indId).people - 0.45 * spotRating(a, indId).rent))[0];
+  }
+  // 小地圖（SVG）：街區、河、地標；pins＝要標出來的點 [{x,y,icon,label,cls,action,id}]
+  function cityMiniMap(pins, opts = {}) {
+    const C = window.BossCity;
+    if (!C) return '';
+    const S = 40;
+    const G = 6;
+    let out = `<svg class="city-svg" viewBox="${-G} ${-G} ${C.W * S + G} ${C.H * S + G + 14}" role="img" aria-label="城市地圖">`;
+    out += `<rect x="${-G}" y="${-G}" width="${C.W * S + G}" height="${C.H * S + G}" fill="#8f8a84" rx="8"/>`;
+    for (let y = 0; y < C.H; y++)
+      for (let x = 0; x < C.W; x++) {
+        const t = C.typeAt(x, y);
+        out += `<rect x="${x * S}" y="${y * S}" width="${S - G}" height="${S - G}" rx="4" fill="${CITY_COLORS[t] || '#ddd'}"/>`;
+      }
+    // 淡水河：整條連起來；橋畫成路面
+    out += `<rect x="${C.RIVER_X * S - G}" y="${-G}" width="${S + G}" height="${C.H * S + G}" fill="${CITY_COLORS.W}"/>`;
+    for (const by of C.BRIDGES) out += `<rect x="${C.RIVER_X * S - G}" y="${by * S - G}" width="${S + G}" height="${G}" fill="#8f8a84"/>`;
+    out += `<text x="${C.RIVER_X * S + S / 2 - G / 2}" y="${C.H * S * 0.5}" class="river-label" writing-mode="tb">淡水河</text>`;
+    if (opts.route) out += `<polyline points="${opts.route.map(([ix, iy]) => `${ix * S - G / 2},${iy * S - G / 2}`).join(' ')}" class="city-route"/>`;
+    for (const [id, L] of Object.entries(C.LANDMARKS)) {
+      if (opts.hideSites && L.site) continue;
+      out += `<text x="${L.x * S + (S - G) / 2}" y="${L.y * S + (S - G) / 2 + 6}" class="city-lm" text-anchor="middle">${L.icon}</text>`;
+    }
+    for (const p of pins) {
+      const cx = p.x * S + (S - G) / 2;
+      const cy = p.y * S + (S - G) / 2;
+      out += `<g class="city-pin-g ${p.cls || ''}" ${p.action ? `data-action="${p.action}" data-key="${p.key || ''}" data-value="${p.id}" data-id="${p.id}"` : ''}><circle cx="${cx}" cy="${cy}" r="15"/><text x="${cx}" y="${cy + 6}" text-anchor="middle">${p.icon}</text>${p.label ? `<text x="${cx}" y="${cy + 30}" text-anchor="middle" class="pin-label">${p.label}</text>` : ''}</g>`;
+    }
+    return out + '</svg>';
+  }
+  function spotPicker(st) {
+    const C = window.BossCity;
+    if (!C) return '';
+    const cur = st.spot || bestSpot(st.industry);
+    const bars = (v, lo, hi) => '▮'.repeat(Math.max(1, Math.min(5, Math.round(((v - lo) / (hi - lo)) * 4 + 1)))).padEnd(5, '▯');
+    const pins = Object.entries(C.SPOTS).map(([id, sp]) => ({ x: sp.x, y: sp.y, icon: '🏪', label: sp.name, cls: id === cur ? 'on' : '', action: 'set', key: 'spot', id }));
+    return `<div class="spot-pick card">
+      <div class="spot-map">${cityMiniMap(pins, { hideSites: false })}<small>雙北：🏮夜市・📦批發市場・🙏廟・🏦銀行・🚄高鐵站…出門時照實際的路騎過去，越遠越久</small></div>
+      <div class="spot-list">
+        ${Object.entries(C.SPOTS)
+          .map(([id, sp]) => {
+            const r = spotRating(id, st.industry);
+            return `<button class="spot-card ${id === cur ? 'selected' : ''}" data-action="set" data-key="spot" data-value="${id}">
+              <b>${sp.icon} ${sp.name}<em>${'★'.repeat(r.stars)}${'☆'.repeat(5 - r.stars)}</em></b>
+              <small>${sp.desc}</small>
+              <span class="spot-meta">人潮 ${bars(r.people, 0.75, 1.45)}・房租 ${bars(r.rent, 0.7, 1.5)}・${r.fit > 1.04 ? '👍 很適合這行' : r.fit < 0.96 ? '👎 不太適合這行' : '適合度普通'}・隔壁：${sp.near}</span>
+            </button>`;
+          })
+          .join('')}
+      </div>
+    </div>`;
+  }
+
   function renderStart() {
     document.body.className = '';
     const st = ui.settings;
@@ -228,6 +297,9 @@
             </button>`
           ).join('')}
         </div>
+
+        <h2 class="section-title">選開店地點</h2>
+        ${spotPicker(st)}
 
         <section class="card setup">
           <div class="setup-row">
@@ -308,7 +380,9 @@
             <button data-action="zoom" data-dir="-1" title="縮小">－</button>
             <button data-action="cam-reset" title="鏡頭回到預設（雙擊地板可以拉近）">⌖</button>
             <button data-action="cam-back" title="一鍵看後場（再按一次回到原本視角）">🚪</button>
+            <button data-action="city-open" title="看整座城市（M）">🗺️</button>
           </div>
+          <div class="city-panel card" id="city-panel" hidden></div>
         </div>
         <section class="drawer card" id="drawer" hidden></section>
         <nav class="toolbar" id="toolbar">
@@ -368,6 +442,8 @@
         toast(sim.w(`👑 ${m.name} 幫你處理了「${r.event.title}」：${r.choice.label}`), (r.delta && r.delta.jerk > 0) || (r.choice.effects && r.choice.effects.jerk > 0) ? 'bad' : '');
         renderInbox();
       },
+      // 騎到要走進去逛的地方了
+      arrived: (id) => arrivePlace(id),
       tripDone: (r) => {
         ui.dialog = { type: 'trip', result: r };
         renderDialog();
@@ -418,12 +494,13 @@
     };
     if (ui.place) ui.place.destroy();
     ui.place = null;
+    if (ui.city) closeCity();
     ui.view = new window.BossShop3D(document.getElementById('view'), sim, {
       onClick: onViewClick,
       onHover: (t) => {
         ui.hover = t;
       },
-      dragLocked: () => !!ui.build || !!ui.place,
+      dragLocked: () => !!ui.build || !!ui.place || !!ui.city,
       // 車流、鴿子跟著遊戲速度走，暫停時也停
       timeScale: () => (ui.dialog || ui.panelPause || ui.speed === 0 ? 0 : Math.min(2.5, ui.speed / 2)),
       peek: () => ui.tab === 'build' || !!ui.build,
@@ -579,7 +656,10 @@
     if (now - (ui.lastDraw || 0) >= 1000 / (idle ? 12 : v.fpsCap) - 3) {
       const ddt = Math.min(0.1, (now - (ui.lastDraw || now)) / 1000);
       ui.lastDraw = now;
-      if (ui.place) {
+      if (ui.city) {
+        ui.city.update(ddt, now);
+        ui.city.render();
+      } else if (ui.place) {
         ui.place.update(ddt, now);
         ui.place.render();
       } else v.render(now);
@@ -591,6 +671,7 @@
       if (ui.inspect) renderInspector();
       renderInbox();
       if (ui.tut) renderTutorial();
+      if (ui.city) renderCityPanel();
       renderQuestChip();
       updateMusic();
     }
@@ -600,6 +681,143 @@
       refreshDrawerLive();
     }
     ui.raf = requestAnimationFrame(loop);
+  }
+
+  // ───── 🗺️ 城市：從店裡拉遠看整座城市，點地標騎車過去 ─────
+  function openCity() {
+    const s = ui.sim;
+    if (!window.BossCity3D || !ui.view || ui.place || ui.city) return false;
+    closeDialog();
+    if (ui.tab) openTab(ui.tab);
+    closeInspector();
+    ui.city = new window.BossCity3D(ui.view, s, { gender: ui.settings.gender });
+    ui.view.overlay.hidden = true;
+    ui.cityPick = null;
+    document.body.classList.add('in-city');
+    renderCityPanel();
+    return true;
+  }
+
+  function closeCity() {
+    if (!ui.city) return;
+    ui.city.destroy();
+    ui.city = null;
+    document.body.classList.remove('in-city');
+    const p = document.getElementById('city-panel');
+    if (p) p.hidden = true;
+    if (ui.view) {
+      ui.view.overlay.hidden = false;
+      ui.view.updateCamera();
+      ui.view.renderer.shadowMap.needsUpdate = true;
+    }
+  }
+
+  // 目的地是什麼：可以走進去逛的場景、出門一趟的地方、分店、高鐵站、對手的店
+  function cityTarget(id) {
+    const s = ui.sim;
+    const C = window.BossCity;
+    const L = C.LANDMARKS[id];
+    const pl = window.BossFun.PLACES.find((p) => p.id === id);
+    const scene = window.BossPlace3D && window.BossPlace3D.SCENES.includes(id);
+    if (id === 'home') return { title: `🏪 ${s.shopName}`, desc: `${s.spotInfo.name || '街邊'}・${s.spotInfo.desc || ''}${(s.neighborLog || []).length ? `<br>🏘️ 最近鄰居的事：第 ${s.neighborLog[0].day} 天 ${s.neighborLog[0].text}` : ''}`, kind: 'home' };
+    if (id === 'rival') return { title: `🏪 ${s.rival ? s.rival.name : '對手'}`, desc: '就在你家斜對面，走過去就到了。', kind: 'scene', mins: 1 };
+    if (id === 'hsr') return { title: '🚄 板橋高鐵站', desc: '搭高鐵去外縣市的分店巡店。', kind: 'hsr' };
+    if (L && L.site) {
+      const b = s.branches.find((x) => x.site === id);
+      return { title: `🏙️ ${L.name}分店`, desc: b ? `上週淨利 ${money(Math.round(b.last || 0))}・士氣 ${Math.round(b.morale)}${b.manager ? `・店長 ${b.manager.name}` : '・沒有店長'}` : '', kind: 'branch' };
+    }
+    if (pl && pl.hub) return { title: `${pl.icon} ${pl.name}`, desc: pl.desc, kind: 'hub', hub: pl.hub };
+    if (pl) return { title: `${pl.icon} ${s.w(pl.name)}`, desc: s.w(pl.desc), kind: scene ? 'scene' : 'trip', cost: scene ? (id === 'club' ? 500 : 0) : pl.cost, stay: Math.max(15, Math.round(pl.minutes * 0.6)) };
+    return { title: L ? `${L.icon} ${L.name}` : id, desc: '', kind: 'none' };
+  }
+
+  function renderCityPanel() {
+    const el = document.getElementById('city-panel');
+    if (!el) return;
+    const s = ui.sim;
+    if (!ui.city) {
+      el.hidden = true;
+      return;
+    }
+    el.hidden = false;
+    const b = s.boss;
+    const head = `<div class="city-head"><b>🗺️ 雙北</b><small>${s.clockLabel}・${b.away ? bossAwayText() : '老闆在店裡'}</small><button class="primary" data-action="city-close">🏪 回到店裡</button></div>`;
+    const id = ui.cityPick;
+    if (!id) {
+      const html = `${head}<p class="calc">點地圖上的地點看看要不要去。路越遠騎越久，老闆不在的時候店裡照常營業。拖曳移動、兩指或滾輪縮放。</p>`;
+      if (el.dataset.html !== html) {
+        morph(el, html);
+        el.dataset.html = html;
+      }
+      return;
+    }
+    const t = cityTarget(id);
+    const go = id === 'home' || id === 'rival' ? null : s.rideInfo(id);
+    let btns = '';
+    const busy = !!b.away;
+    if (t.kind === 'scene') btns = `<button class="primary" data-action="city-go" data-id="${id}" data-mode="scene" ${busy || s.cash < (t.cost || 0) ? 'disabled' : ''}>🛵 騎過去逛（單程 ${go ? go.mins : 1} 分鐘${t.cost ? `・入場 ${money(t.cost)}` : ''}）</button>`;
+    else if (t.kind === 'trip') btns = `<button class="primary" data-action="city-go" data-id="${id}" data-mode="trip" ${busy || s.cash < (t.cost || 0) ? 'disabled' : ''}>🛵 出發（單程 ${go.mins} 分鐘＋待 ${t.stay} 分鐘${t.cost ? `・${money(t.cost)}` : ''}）</button>`;
+    else if (t.kind === 'branch') btns = `<button class="primary" data-action="city-go" data-id="${id}" data-mode="branch" ${busy ? 'disabled' : ''}>🛵 騎去巡店（單程 ${go.mins} 分鐘，士氣會變好）</button>`;
+    else if (t.kind === 'hub') btns = `<button class="primary" data-action="open-hub" data-id="${t.hub}">📞 打電話過去談</button>`;
+    else if (t.kind === 'hsr') {
+      const far = s.branches.filter((x) => !window.BossCity.LANDMARKS[x.site]);
+      btns = far.length
+        ? far.map((x) => `<button data-action="city-go" data-id="${x.site}" data-mode="train" ${busy ? 'disabled' : ''}>🚄 ${s.siteOf(x).city}${x.district}店（來回約 ${Math.round((go.mins * 2 + s.trainMinutes(x.site) * 2 + 40) / 6) / 10} 小時）</button>`).join('')
+        : '<p class="calc">外縣市還沒有分店。開了以後可以從這裡搭高鐵去巡店。</p>';
+    } else if (t.kind === 'home') btns = '<button data-action="city-close">🏪 回到店裡</button>';
+    const road = go && go.notes.length ? `<p class="calc">${go.notes.join('・')}</p>` : '';
+    const html = `${head}<div class="city-dest"><b>${t.title}</b><small>${t.desc}</small>${road}<div class="city-btns">${btns}</div></div>`;
+    if (el.dataset.html !== html) {
+      morph(el, html);
+      el.dataset.html = html;
+    }
+  }
+
+  function bossAwayText() {
+    const s = ui.sim;
+    const A = s.boss.away;
+    if (!A) return '';
+    const left = Math.max(0, Math.round(A.until - s.minute));
+    const C = window.BossCity;
+    const name = (id) => (C && C.LANDMARKS[id] ? C.LANDMARKS[id].name : (window.BossFun.PLACES.find((p) => p.id === id) || {}).name || '');
+    if (A.kind === 'ride') return `🛵 騎車去${s.w(name(A.to))}・還要 ${left} 分鐘`;
+    if (A.kind === 'rideBack') return `🛵 騎車回店裡・還要 ${left} 分鐘`;
+    if (A.kind === 'train') return `🚄 搭高鐵巡店中・還要 ${left} 分鐘`;
+    if (A.scene) return '🚶 在外面逛';
+    return `出門中・還要 ${left} 分鐘`;
+  }
+
+  function cityGo(id, mode) {
+    const s = ui.sim;
+    let ok = false;
+    if (mode === 'scene') {
+      if (id === 'rival') {
+        closeCity();
+        return enterPlace('rival');
+      }
+      ok = s.rideTo(id, 'scene');
+    } else if (mode === 'trip') ok = s.goOut(id);
+    else if (mode === 'branch') ok = s.rideTo(id, 'branch');
+    else if (mode === 'train') ok = s.trainVisit(id);
+    if (!ok) return toast(s.boss.away ? '老闆已經在外面了' : '錢不夠', 'bad');
+    if (!ui.bossMode && mode === 'scene') setBossMode(true);
+    toast(mode === 'scene' ? '🛵 出發！到了會直接走進去（可以按「回到店裡」先看店，老闆照樣騎過去）' : '🛵 出發！老闆不在的時候店裡照常營業', 'helper');
+    renderCityPanel();
+    renderBossHud();
+  }
+
+  // 騎到要走進去逛的地方了：切到那個場景
+  function arrivePlace(id) {
+    if (ui.city) closeCity();
+    if (!ui.bossMode) setBossMode(true);
+    closeInspector();
+    ui.place = new window.BossPlace3D(ui.view, ui.sim, id, { gender: ui.settings.gender, touch: isTouch });
+    if (ui.place.intro) ui.place.showLog(ui.place.intro);
+    ui.view.overlay.hidden = true;
+    ui.keys.clear();
+    closeDialog();
+    toast(isTouch ? '🚶 到了！走到攤位或人旁邊，按右下角的按鈕互動；走到綠色圈圈就騎車回店' : '🚶 到了！走到攤位或人旁邊按 E 互動；走到綠色圈圈按 E 騎車回店');
+    renderBossHud();
   }
 
   // ───── 老闆下場：自己操控角色 ─────
@@ -740,6 +958,7 @@
     const r = s.leavePlace();
     if (ui.place) ui.place.destroy();
     ui.place = null;
+    if (ui.city) closeCity();
     if (!ui.view) return;
     ui.view.overlay.hidden = false;
     ui.view.updateCamera();
@@ -758,7 +977,7 @@
     const b = s.boss;
     el.hidden = !ui.bossMode;
     if (!ui.bossMode) return;
-    const st = b.away && b.away.scene ? `🚶 在外面逛・店裡照常營業（${s.clockLabel}）` : b.away ? `${(window.BossFun.PLACES.find((p) => p.id === b.away.id) || {}).icon || ''} 出門中・還要 ${Math.max(0, Math.round(b.away.until - s.minute))} 分鐘` : b.lane ? '🧑‍🍳 親自顧櫃台中' : b.ride ? '🛵 騎機車中' : '🚶 巡店中';
+    const st = b.away && b.away.scene ? `🚶 在外面逛・店裡照常營業（${s.clockLabel}）` : b.away ? bossAwayText() : b.lane ? '🧑‍🍳 親自顧櫃台中' : b.ride ? '🛵 騎機車中' : '🚶 巡店中';
     const html = `<b>👑 老闆</b><small>${st}</small><div class="ibar"><span>體力</span><div class="bar"><div class="bar-fill energy" style="width:${Math.round(b.energy)}%"></div></div><b>${Math.round(b.energy)}</b></div>${b.away && b.away.scene ? '<button data-action="place-leave">🚪 回店裡</button>' : `<button data-action="boss-city" ${b.away ? 'disabled' : ''}>🗺️ 出門</button>`}`;
     if (el.dataset.html !== html) {
       morph(el, html);
@@ -856,8 +1075,10 @@
         }
         break;
       case 'boss-city':
-        ui.dialog = { type: 'city' };
-        renderDialog();
+        if (!openCity()) {
+          ui.dialog = { type: 'city' };
+          renderDialog();
+        }
         break;
     }
   }
@@ -2831,6 +3052,7 @@
     cancelAnimationFrame(ui.raf);
     if (ui.place) ui.place.destroy();
     ui.place = null;
+    if (ui.city) closeCity();
     if (ui.view) ui.view.destroy();
     ui.view = null;
     ui.sim = null;
@@ -2871,7 +3093,7 @@
       case 'start': {
         keepName();
         const ind = INDUSTRIES.find((i) => i.id === ui.settings.industry);
-        startGame(new Sim(ind.id, { shopName: ui.settings.shopName.trim() || ind.shopName, mode: ui.settings.mode }), ui.settings.slot);
+        startGame(new Sim(ind.id, { shopName: ui.settings.shopName.trim() || ind.shopName, mode: ui.settings.mode, spot: ui.settings.spot || bestSpot(ind.id) }), ui.settings.slot);
         save();
         break;
       }
@@ -3091,9 +3313,26 @@
         break;
       }
       case 'boss-city':
-        if (!ui.bossMode) setBossMode(true);
-        ui.dialog = { type: 'city' };
-        renderDialog();
+      case 'city-open':
+        if (!openCity()) {
+          if (!ui.bossMode) setBossMode(true);
+          ui.dialog = { type: 'city' };
+          renderDialog();
+        }
+        break;
+      case 'city-close':
+        closeCity();
+        break;
+      case 'city-pick':
+        ui.cityPick = btn.dataset.id;
+        if (ui.city) {
+          ui.city.picked = ui.cityPick;
+          ui.city.focus(ui.cityPick);
+        }
+        renderCityPanel();
+        break;
+      case 'city-go':
+        cityGo(btn.dataset.id, btn.dataset.mode);
         break;
       case 'open-hub':
         ui.dialog = { type: btn.dataset.id };

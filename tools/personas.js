@@ -2,7 +2,7 @@
 // 看每種玩法會走到哪裡、多久、失敗前有沒有警告、前幾天訊息量多不多
 // 用法：node tools/personas.js <persona> <難度> <產業> [種子]
 //   persona：idle（開了店就不管）、helper（小幫手說什麼就做什麼）、hint（只照💡提示做，事件隨便選）、jerk（壓薪、不保勞健保、選最省錢的）、spend（看到就買、能開分店就開）
-for (const f of ['data', 'fun', 'weird', 'trends26', 'activities', 'city', 'plots', 'career', 'progress', 'slash', 'sidebiz', 'backroom', 'pets', 'life', 'portraits', 'industries', 'sim']) require(`../js/${f}.js`);
+for (const f of ['data', 'fun', 'weird', 'trends26', 'activities', 'city', 'citymap', 'plots', 'career', 'progress', 'slash', 'sidebiz', 'backroom', 'pets', 'life', 'portraits', 'industries', 'sim']) require(`../js/${f}.js`);
 const { Sim, CATALOG, catalogById } = globalThis.BossSim;
 const I = globalThis.BossIndustries;
 

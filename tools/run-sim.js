@@ -6,6 +6,7 @@ require('../js/weird.js');
 require('../js/trends26.js');
 require('../js/activities.js');
 require('../js/city.js');
+require('../js/citymap.js');
 require('../js/plots.js');
 require('../js/career.js');
 require('../js/progress.js');
