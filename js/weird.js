@@ -643,6 +643,85 @@
 
   Data.EVENTS.push(...W);
   Fun.WEIRD_EVENTS = W;
+
+  // 🌙 深夜事件：只有營業到半夜或通宵才會遇到（金額寫月單位，實際會砍半）
+  Fun.NIGHT_EVENTS = [
+    {
+      where: 'door',
+      make: () => ({
+        id: 'night_drunk',
+        icon: '🍺',
+        title: '半夜來了一個喝醉的客人',
+        text: '凌晨一點多，一個滿身酒味的大哥晃進店裡，講話很大聲，一直說要找老闆聊天，還把東西碰倒了。值大夜的員工一臉求救地看著監視器。',
+        speaker: { look: 'caller', name: '喝醉的大哥' },
+        choices: [
+          { label: '請員工好好說，倒杯溫水、幫他叫車', effects: { morale: 1, review: [4, '半夜店員很有耐心處理醉客'] }, result: '大哥喝完水安靜下來，還硬要付車錢給員工當小費。員工說：「還好你有教我們怎麼處理。」', tip: '遇到醉客：保持距離、語氣平穩、不要跟他爭；他若動手或砸東西就直接報警（110），員工安全優先。' },
+          { label: '直接報警請他離開', effects: { cash: -400, review: [3, '凌晨店門口有警車'] }, result: '警察十分鐘就到，把大哥勸走了。被碰倒的貨架你自己賠了。' },
+          { label: '叫員工自己想辦法，別吵我睡覺', effects: { morale: -4, jerk: 1, cash: -1000, review: [2, '大夜店員一個人被醉客鬧，店家都不管'] }, result: '員工一個人跟醉客周旋了半小時，打破一排飲料。隔天他問你：「大夜是不是應該兩個人？」' },
+        ],
+        ignore: { effects: { morale: -3, cash: -800 }, result: '員工自己處理，弄得一團亂。' },
+      }),
+    },
+    {
+      where: 'door',
+      ok: (s) => s.ind.id === 'store' || s.ind.id === 'drinks' || s.rng() < 0.5,
+      make: (s) => {
+        const safe = s.flags && s.flags.has('nightsafe');
+        return {
+          id: 'night_robbery',
+          icon: '🔪',
+          title: safe ? '凌晨有人想搶劫，但警民連線響了' : '凌晨有人持刀搶劫',
+          text: safe
+            ? '凌晨三點，一個戴安全帽的人衝進來，亮出美工刀要收銀機的錢。員工照你教的按下警民連線，人還沒拿到錢就聽到警笛，轉身跑了。'
+            : '凌晨三點，一個戴安全帽的人衝進來，亮出美工刀要收銀機的錢。值大夜的員工只有一個人，嚇到手在發抖。',
+          speaker: { look: 'caller', name: '值大夜的員工' },
+          choices: safe
+            ? [
+                { label: '把監視器畫面交給警察，慰問員工', effects: { morale: 2, followers: 80, review: [5, '這家店半夜有搶匪，店員超冷靜'] }, result: '搶匪隔天就被抓到了。員工說：「那顆按鈕真的有用。」' },
+                { label: '叫員工繼續上班，沒事就好', effects: { morale: -2 }, result: '員工繼續顧到早上，但交班時臉色很差。' },
+              ]
+            : [
+                { label: '照 SOP：錢給他、不抵抗、事後報警，並裝警民連線', effects: { cash: -16000, morale: 1, flag: 'nightsafe', review: [4, '超商被搶，老闆第一句話是問店員有沒有受傷'] }, result: '收銀機裡的錢被拿走了，你另外花錢裝了監視器警民連線。員工說：「還好你說不要跟他拚。」', tip: '遇到搶劫：不抵抗、不追趕，記住特徵，等對方離開再報警。收銀機只放少量現金、裝警民連線和清楚的監視器，是最實際的預防。' },
+                { label: '錢給他、報警就好，不額外花錢', effects: { cash: -6000, morale: -2, review: [3, '這家店半夜被搶，大夜只有一個人'] }, result: '搶匪拿走收銀機的錢。員工問你下次會不會又是他一個人，你沒回答。' },
+                { label: '電話裡叫員工跟他拚，錢不能給', effects: { cash: -4000, morale: -10, jerk: 3, staff: -1, review: [1, '老闆叫店員跟搶匪拚命，太扯了'] }, result: '員工被劃傷手臂送醫，錢還是被拿走。他出院後就沒有再回來上班了。' },
+              ],
+          ignore: { effects: safe ? { morale: -1 } : { cash: -6000, morale: -4 }, result: safe ? '警察處理完了。' : '員工自己報了警，錢已經被拿走了。' },
+        };
+      },
+    },
+    {
+      where: 'door',
+      make: () => ({
+        id: 'night_regular',
+        icon: '🚕',
+        title: '計程車司機們發現你的店半夜有開',
+        text: '凌晨兩點，幾個計程車司機在門口停車抽菸，聊到附近半夜有開的店很少。帶頭的大哥問：「你們會一直開嗎？會的話我叫車隊的人都來。」',
+        speaker: { look: 'caller', name: '計程車大哥' },
+        choices: [
+          { label: '「會！大哥要的我們都留一份」', effects: { demand: { mult: 1.08, months: 2 }, morale: 1, review: [5, '半夜收車都來這家，店員很親切'] }, result: '接下來幾週，凌晨常常有黃色的車停在門口。大夜班的員工說「至少不無聊了」。' },
+          { label: '送他們一人一杯熱的，交個朋友', effects: { cash: -600, demand: { mult: 1.12, months: 2 }, followers: 30, review: [5, '半夜老闆請司機喝東西，好有人情味'] }, result: '大哥在司機群組裡大推你的店，連白天都有司機繞過來。' },
+          { label: '「看生意啦，不一定」', effects: {}, result: '大哥點點頭，之後偶爾才來。' },
+        ],
+        ignore: { effects: {}, result: '司機們抽完菸就走了。' },
+      }),
+    },
+    {
+      where: 'door',
+      make: (s) => ({
+        id: 'night_students',
+        icon: '📚',
+        title: '一群熬夜念書的考生想在店裡待到天亮',
+        text: '期末考週，附近的學生半夜沒地方念書，一群人抱著筆電和講義擠在你店門口，問能不能在裡面坐到天亮。他們每個人都只買了一點點東西。',
+        speaker: { look: 'caller', name: '熬夜的學生' },
+        choices: [
+          { label: '可以！再幫他們留插座', effects: { morale: 1, followers: 200, demand: { mult: 1.05, months: 1 }, review: [5, '考試週半夜可以在這裡念書，老闆超好'] }, result: '學生們在 Dcard 發文「凌晨念書聖地」，考完試還帶朋友來吃。只是座位整晚都被占著。' },
+          { label: '可以坐，但一個人要低消一份', effects: { cash: 800, review: [4, '半夜可以念書，有低消但合理'] }, result: '學生們乖乖點了東西，念到天亮。' },
+          { label: '「不行，這裡不是自習室」', effects: { review: [2, '半夜想坐一下都被趕'] }, result: '學生們抱著講義走了，有人在群組裡抱怨。' },
+        ],
+        ignore: { effects: { review: [3, '店員不知道能不能坐，很尷尬'] }, result: '員工不知道怎麼辦，學生們站了一會兒就走了。' },
+      }),
+    },
+  ];
 })(typeof window !== 'undefined' ? window : globalThis);
 
 // 一般客訴：不是每個抱怨的客人都是奧客
@@ -712,6 +791,85 @@
       ignore: { effects: { review: [2, '反映問題沒人理，算了'] }, result: '客人等不到人處理，碎念著走了。' },
     };
   };
+
+  // 🌙 深夜事件：只有營業到半夜或通宵才會遇到（金額寫月單位，實際會砍半）
+  Fun.NIGHT_EVENTS = [
+    {
+      where: 'door',
+      make: () => ({
+        id: 'night_drunk',
+        icon: '🍺',
+        title: '半夜來了一個喝醉的客人',
+        text: '凌晨一點多，一個滿身酒味的大哥晃進店裡，講話很大聲，一直說要找老闆聊天，還把東西碰倒了。值大夜的員工一臉求救地看著監視器。',
+        speaker: { look: 'caller', name: '喝醉的大哥' },
+        choices: [
+          { label: '請員工好好說，倒杯溫水、幫他叫車', effects: { morale: 1, review: [4, '半夜店員很有耐心處理醉客'] }, result: '大哥喝完水安靜下來，還硬要付車錢給員工當小費。員工說：「還好你有教我們怎麼處理。」', tip: '遇到醉客：保持距離、語氣平穩、不要跟他爭；他若動手或砸東西就直接報警（110），員工安全優先。' },
+          { label: '直接報警請他離開', effects: { cash: -400, review: [3, '凌晨店門口有警車'] }, result: '警察十分鐘就到，把大哥勸走了。被碰倒的貨架你自己賠了。' },
+          { label: '叫員工自己想辦法，別吵我睡覺', effects: { morale: -4, jerk: 1, cash: -1000, review: [2, '大夜店員一個人被醉客鬧，店家都不管'] }, result: '員工一個人跟醉客周旋了半小時，打破一排飲料。隔天他問你：「大夜是不是應該兩個人？」' },
+        ],
+        ignore: { effects: { morale: -3, cash: -800 }, result: '員工自己處理，弄得一團亂。' },
+      }),
+    },
+    {
+      where: 'door',
+      ok: (s) => s.ind.id === 'store' || s.ind.id === 'drinks' || s.rng() < 0.5,
+      make: (s) => {
+        const safe = s.flags && s.flags.has('nightsafe');
+        return {
+          id: 'night_robbery',
+          icon: '🔪',
+          title: safe ? '凌晨有人想搶劫，但警民連線響了' : '凌晨有人持刀搶劫',
+          text: safe
+            ? '凌晨三點，一個戴安全帽的人衝進來，亮出美工刀要收銀機的錢。員工照你教的按下警民連線，人還沒拿到錢就聽到警笛，轉身跑了。'
+            : '凌晨三點，一個戴安全帽的人衝進來，亮出美工刀要收銀機的錢。值大夜的員工只有一個人，嚇到手在發抖。',
+          speaker: { look: 'caller', name: '值大夜的員工' },
+          choices: safe
+            ? [
+                { label: '把監視器畫面交給警察，慰問員工', effects: { morale: 2, followers: 80, review: [5, '這家店半夜有搶匪，店員超冷靜'] }, result: '搶匪隔天就被抓到了。員工說：「那顆按鈕真的有用。」' },
+                { label: '叫員工繼續上班，沒事就好', effects: { morale: -2 }, result: '員工繼續顧到早上，但交班時臉色很差。' },
+              ]
+            : [
+                { label: '照 SOP：錢給他、不抵抗、事後報警，並裝警民連線', effects: { cash: -16000, morale: 1, flag: 'nightsafe', review: [4, '超商被搶，老闆第一句話是問店員有沒有受傷'] }, result: '收銀機裡的錢被拿走了，你另外花錢裝了監視器警民連線。員工說：「還好你說不要跟他拚。」', tip: '遇到搶劫：不抵抗、不追趕，記住特徵，等對方離開再報警。收銀機只放少量現金、裝警民連線和清楚的監視器，是最實際的預防。' },
+                { label: '錢給他、報警就好，不額外花錢', effects: { cash: -6000, morale: -2, review: [3, '這家店半夜被搶，大夜只有一個人'] }, result: '搶匪拿走收銀機的錢。員工問你下次會不會又是他一個人，你沒回答。' },
+                { label: '電話裡叫員工跟他拚，錢不能給', effects: { cash: -4000, morale: -10, jerk: 3, staff: -1, review: [1, '老闆叫店員跟搶匪拚命，太扯了'] }, result: '員工被劃傷手臂送醫，錢還是被拿走。他出院後就沒有再回來上班了。' },
+              ],
+          ignore: { effects: safe ? { morale: -1 } : { cash: -6000, morale: -4 }, result: safe ? '警察處理完了。' : '員工自己報了警，錢已經被拿走了。' },
+        };
+      },
+    },
+    {
+      where: 'door',
+      make: () => ({
+        id: 'night_regular',
+        icon: '🚕',
+        title: '計程車司機們發現你的店半夜有開',
+        text: '凌晨兩點，幾個計程車司機在門口停車抽菸，聊到附近半夜有開的店很少。帶頭的大哥問：「你們會一直開嗎？會的話我叫車隊的人都來。」',
+        speaker: { look: 'caller', name: '計程車大哥' },
+        choices: [
+          { label: '「會！大哥要的我們都留一份」', effects: { demand: { mult: 1.08, months: 2 }, morale: 1, review: [5, '半夜收車都來這家，店員很親切'] }, result: '接下來幾週，凌晨常常有黃色的車停在門口。大夜班的員工說「至少不無聊了」。' },
+          { label: '送他們一人一杯熱的，交個朋友', effects: { cash: -600, demand: { mult: 1.12, months: 2 }, followers: 30, review: [5, '半夜老闆請司機喝東西，好有人情味'] }, result: '大哥在司機群組裡大推你的店，連白天都有司機繞過來。' },
+          { label: '「看生意啦，不一定」', effects: {}, result: '大哥點點頭，之後偶爾才來。' },
+        ],
+        ignore: { effects: {}, result: '司機們抽完菸就走了。' },
+      }),
+    },
+    {
+      where: 'door',
+      make: (s) => ({
+        id: 'night_students',
+        icon: '📚',
+        title: '一群熬夜念書的考生想在店裡待到天亮',
+        text: '期末考週，附近的學生半夜沒地方念書，一群人抱著筆電和講義擠在你店門口，問能不能在裡面坐到天亮。他們每個人都只買了一點點東西。',
+        speaker: { look: 'caller', name: '熬夜的學生' },
+        choices: [
+          { label: '可以！再幫他們留插座', effects: { morale: 1, followers: 200, demand: { mult: 1.05, months: 1 }, review: [5, '考試週半夜可以在這裡念書，老闆超好'] }, result: '學生們在 Dcard 發文「凌晨念書聖地」，考完試還帶朋友來吃。只是座位整晚都被占著。' },
+          { label: '可以坐，但一個人要低消一份', effects: { cash: 800, review: [4, '半夜可以念書，有低消但合理'] }, result: '學生們乖乖點了東西，念到天亮。' },
+          { label: '「不行，這裡不是自習室」', effects: { review: [2, '半夜想坐一下都被趕'] }, result: '學生們抱著講義走了，有人在群組裡抱怨。' },
+        ],
+        ignore: { effects: { review: [3, '店員不知道能不能坐，很尷尬'] }, result: '員工不知道怎麼辦，學生們站了一會兒就走了。' },
+      }),
+    },
+  ];
 })(typeof window !== 'undefined' ? window : globalThis);
 
 // 🧾 時事客訴（虛構情境）：同一個題材有三種真相——店裡真的出錯、客人誤會、無理要求
@@ -865,6 +1023,85 @@
       sim.notify('😒 聽說上次那位客人在社團分享「怎麼跟這家店拗到東西」……', 'bad');
     },
   };
+
+  // 🌙 深夜事件：只有營業到半夜或通宵才會遇到（金額寫月單位，實際會砍半）
+  Fun.NIGHT_EVENTS = [
+    {
+      where: 'door',
+      make: () => ({
+        id: 'night_drunk',
+        icon: '🍺',
+        title: '半夜來了一個喝醉的客人',
+        text: '凌晨一點多，一個滿身酒味的大哥晃進店裡，講話很大聲，一直說要找老闆聊天，還把東西碰倒了。值大夜的員工一臉求救地看著監視器。',
+        speaker: { look: 'caller', name: '喝醉的大哥' },
+        choices: [
+          { label: '請員工好好說，倒杯溫水、幫他叫車', effects: { morale: 1, review: [4, '半夜店員很有耐心處理醉客'] }, result: '大哥喝完水安靜下來，還硬要付車錢給員工當小費。員工說：「還好你有教我們怎麼處理。」', tip: '遇到醉客：保持距離、語氣平穩、不要跟他爭；他若動手或砸東西就直接報警（110），員工安全優先。' },
+          { label: '直接報警請他離開', effects: { cash: -400, review: [3, '凌晨店門口有警車'] }, result: '警察十分鐘就到，把大哥勸走了。被碰倒的貨架你自己賠了。' },
+          { label: '叫員工自己想辦法，別吵我睡覺', effects: { morale: -4, jerk: 1, cash: -1000, review: [2, '大夜店員一個人被醉客鬧，店家都不管'] }, result: '員工一個人跟醉客周旋了半小時，打破一排飲料。隔天他問你：「大夜是不是應該兩個人？」' },
+        ],
+        ignore: { effects: { morale: -3, cash: -800 }, result: '員工自己處理，弄得一團亂。' },
+      }),
+    },
+    {
+      where: 'door',
+      ok: (s) => s.ind.id === 'store' || s.ind.id === 'drinks' || s.rng() < 0.5,
+      make: (s) => {
+        const safe = s.flags && s.flags.has('nightsafe');
+        return {
+          id: 'night_robbery',
+          icon: '🔪',
+          title: safe ? '凌晨有人想搶劫，但警民連線響了' : '凌晨有人持刀搶劫',
+          text: safe
+            ? '凌晨三點，一個戴安全帽的人衝進來，亮出美工刀要收銀機的錢。員工照你教的按下警民連線，人還沒拿到錢就聽到警笛，轉身跑了。'
+            : '凌晨三點，一個戴安全帽的人衝進來，亮出美工刀要收銀機的錢。值大夜的員工只有一個人，嚇到手在發抖。',
+          speaker: { look: 'caller', name: '值大夜的員工' },
+          choices: safe
+            ? [
+                { label: '把監視器畫面交給警察，慰問員工', effects: { morale: 2, followers: 80, review: [5, '這家店半夜有搶匪，店員超冷靜'] }, result: '搶匪隔天就被抓到了。員工說：「那顆按鈕真的有用。」' },
+                { label: '叫員工繼續上班，沒事就好', effects: { morale: -2 }, result: '員工繼續顧到早上，但交班時臉色很差。' },
+              ]
+            : [
+                { label: '照 SOP：錢給他、不抵抗、事後報警，並裝警民連線', effects: { cash: -16000, morale: 1, flag: 'nightsafe', review: [4, '超商被搶，老闆第一句話是問店員有沒有受傷'] }, result: '收銀機裡的錢被拿走了，你另外花錢裝了監視器警民連線。員工說：「還好你說不要跟他拚。」', tip: '遇到搶劫：不抵抗、不追趕，記住特徵，等對方離開再報警。收銀機只放少量現金、裝警民連線和清楚的監視器，是最實際的預防。' },
+                { label: '錢給他、報警就好，不額外花錢', effects: { cash: -6000, morale: -2, review: [3, '這家店半夜被搶，大夜只有一個人'] }, result: '搶匪拿走收銀機的錢。員工問你下次會不會又是他一個人，你沒回答。' },
+                { label: '電話裡叫員工跟他拚，錢不能給', effects: { cash: -4000, morale: -10, jerk: 3, staff: -1, review: [1, '老闆叫店員跟搶匪拚命，太扯了'] }, result: '員工被劃傷手臂送醫，錢還是被拿走。他出院後就沒有再回來上班了。' },
+              ],
+          ignore: { effects: safe ? { morale: -1 } : { cash: -6000, morale: -4 }, result: safe ? '警察處理完了。' : '員工自己報了警，錢已經被拿走了。' },
+        };
+      },
+    },
+    {
+      where: 'door',
+      make: () => ({
+        id: 'night_regular',
+        icon: '🚕',
+        title: '計程車司機們發現你的店半夜有開',
+        text: '凌晨兩點，幾個計程車司機在門口停車抽菸，聊到附近半夜有開的店很少。帶頭的大哥問：「你們會一直開嗎？會的話我叫車隊的人都來。」',
+        speaker: { look: 'caller', name: '計程車大哥' },
+        choices: [
+          { label: '「會！大哥要的我們都留一份」', effects: { demand: { mult: 1.08, months: 2 }, morale: 1, review: [5, '半夜收車都來這家，店員很親切'] }, result: '接下來幾週，凌晨常常有黃色的車停在門口。大夜班的員工說「至少不無聊了」。' },
+          { label: '送他們一人一杯熱的，交個朋友', effects: { cash: -600, demand: { mult: 1.12, months: 2 }, followers: 30, review: [5, '半夜老闆請司機喝東西，好有人情味'] }, result: '大哥在司機群組裡大推你的店，連白天都有司機繞過來。' },
+          { label: '「看生意啦，不一定」', effects: {}, result: '大哥點點頭，之後偶爾才來。' },
+        ],
+        ignore: { effects: {}, result: '司機們抽完菸就走了。' },
+      }),
+    },
+    {
+      where: 'door',
+      make: (s) => ({
+        id: 'night_students',
+        icon: '📚',
+        title: '一群熬夜念書的考生想在店裡待到天亮',
+        text: '期末考週，附近的學生半夜沒地方念書，一群人抱著筆電和講義擠在你店門口，問能不能在裡面坐到天亮。他們每個人都只買了一點點東西。',
+        speaker: { look: 'caller', name: '熬夜的學生' },
+        choices: [
+          { label: '可以！再幫他們留插座', effects: { morale: 1, followers: 200, demand: { mult: 1.05, months: 1 }, review: [5, '考試週半夜可以在這裡念書，老闆超好'] }, result: '學生們在 Dcard 發文「凌晨念書聖地」，考完試還帶朋友來吃。只是座位整晚都被占著。' },
+          { label: '可以坐，但一個人要低消一份', effects: { cash: 800, review: [4, '半夜可以念書，有低消但合理'] }, result: '學生們乖乖點了東西，念到天亮。' },
+          { label: '「不行，這裡不是自習室」', effects: { review: [2, '半夜想坐一下都被趕'] }, result: '學生們抱著講義走了，有人在群組裡抱怨。' },
+        ],
+        ignore: { effects: { review: [3, '店員不知道能不能坐，很尷尬'] }, result: '員工不知道怎麼辦，學生們站了一會兒就走了。' },
+      }),
+    },
+  ];
 })(typeof window !== 'undefined' ? window : globalThis);
 
 // 🚓 街頭時事：毒駕追逐撞倒騎樓機車、清晨騎樓有人倒地抽搐（疑似喪屍煙彈）
@@ -901,4 +1138,83 @@
       ignore: { effects: { review: [3, '店門口出事，店家沒有出來'] }, result: '警察後來自己來調閱監視器。' },
     }),
   };
+
+  // 🌙 深夜事件：只有營業到半夜或通宵才會遇到（金額寫月單位，實際會砍半）
+  Fun.NIGHT_EVENTS = [
+    {
+      where: 'door',
+      make: () => ({
+        id: 'night_drunk',
+        icon: '🍺',
+        title: '半夜來了一個喝醉的客人',
+        text: '凌晨一點多，一個滿身酒味的大哥晃進店裡，講話很大聲，一直說要找老闆聊天，還把東西碰倒了。值大夜的員工一臉求救地看著監視器。',
+        speaker: { look: 'caller', name: '喝醉的大哥' },
+        choices: [
+          { label: '請員工好好說，倒杯溫水、幫他叫車', effects: { morale: 1, review: [4, '半夜店員很有耐心處理醉客'] }, result: '大哥喝完水安靜下來，還硬要付車錢給員工當小費。員工說：「還好你有教我們怎麼處理。」', tip: '遇到醉客：保持距離、語氣平穩、不要跟他爭；他若動手或砸東西就直接報警（110），員工安全優先。' },
+          { label: '直接報警請他離開', effects: { cash: -400, review: [3, '凌晨店門口有警車'] }, result: '警察十分鐘就到，把大哥勸走了。被碰倒的貨架你自己賠了。' },
+          { label: '叫員工自己想辦法，別吵我睡覺', effects: { morale: -4, jerk: 1, cash: -1000, review: [2, '大夜店員一個人被醉客鬧，店家都不管'] }, result: '員工一個人跟醉客周旋了半小時，打破一排飲料。隔天他問你：「大夜是不是應該兩個人？」' },
+        ],
+        ignore: { effects: { morale: -3, cash: -800 }, result: '員工自己處理，弄得一團亂。' },
+      }),
+    },
+    {
+      where: 'door',
+      ok: (s) => s.ind.id === 'store' || s.ind.id === 'drinks' || s.rng() < 0.5,
+      make: (s) => {
+        const safe = s.flags && s.flags.has('nightsafe');
+        return {
+          id: 'night_robbery',
+          icon: '🔪',
+          title: safe ? '凌晨有人想搶劫，但警民連線響了' : '凌晨有人持刀搶劫',
+          text: safe
+            ? '凌晨三點，一個戴安全帽的人衝進來，亮出美工刀要收銀機的錢。員工照你教的按下警民連線，人還沒拿到錢就聽到警笛，轉身跑了。'
+            : '凌晨三點，一個戴安全帽的人衝進來，亮出美工刀要收銀機的錢。值大夜的員工只有一個人，嚇到手在發抖。',
+          speaker: { look: 'caller', name: '值大夜的員工' },
+          choices: safe
+            ? [
+                { label: '把監視器畫面交給警察，慰問員工', effects: { morale: 2, followers: 80, review: [5, '這家店半夜有搶匪，店員超冷靜'] }, result: '搶匪隔天就被抓到了。員工說：「那顆按鈕真的有用。」' },
+                { label: '叫員工繼續上班，沒事就好', effects: { morale: -2 }, result: '員工繼續顧到早上，但交班時臉色很差。' },
+              ]
+            : [
+                { label: '照 SOP：錢給他、不抵抗、事後報警，並裝警民連線', effects: { cash: -16000, morale: 1, flag: 'nightsafe', review: [4, '超商被搶，老闆第一句話是問店員有沒有受傷'] }, result: '收銀機裡的錢被拿走了，你另外花錢裝了監視器警民連線。員工說：「還好你說不要跟他拚。」', tip: '遇到搶劫：不抵抗、不追趕，記住特徵，等對方離開再報警。收銀機只放少量現金、裝警民連線和清楚的監視器，是最實際的預防。' },
+                { label: '錢給他、報警就好，不額外花錢', effects: { cash: -6000, morale: -2, review: [3, '這家店半夜被搶，大夜只有一個人'] }, result: '搶匪拿走收銀機的錢。員工問你下次會不會又是他一個人，你沒回答。' },
+                { label: '電話裡叫員工跟他拚，錢不能給', effects: { cash: -4000, morale: -10, jerk: 3, staff: -1, review: [1, '老闆叫店員跟搶匪拚命，太扯了'] }, result: '員工被劃傷手臂送醫，錢還是被拿走。他出院後就沒有再回來上班了。' },
+              ],
+          ignore: { effects: safe ? { morale: -1 } : { cash: -6000, morale: -4 }, result: safe ? '警察處理完了。' : '員工自己報了警，錢已經被拿走了。' },
+        };
+      },
+    },
+    {
+      where: 'door',
+      make: () => ({
+        id: 'night_regular',
+        icon: '🚕',
+        title: '計程車司機們發現你的店半夜有開',
+        text: '凌晨兩點，幾個計程車司機在門口停車抽菸，聊到附近半夜有開的店很少。帶頭的大哥問：「你們會一直開嗎？會的話我叫車隊的人都來。」',
+        speaker: { look: 'caller', name: '計程車大哥' },
+        choices: [
+          { label: '「會！大哥要的我們都留一份」', effects: { demand: { mult: 1.08, months: 2 }, morale: 1, review: [5, '半夜收車都來這家，店員很親切'] }, result: '接下來幾週，凌晨常常有黃色的車停在門口。大夜班的員工說「至少不無聊了」。' },
+          { label: '送他們一人一杯熱的，交個朋友', effects: { cash: -600, demand: { mult: 1.12, months: 2 }, followers: 30, review: [5, '半夜老闆請司機喝東西，好有人情味'] }, result: '大哥在司機群組裡大推你的店，連白天都有司機繞過來。' },
+          { label: '「看生意啦，不一定」', effects: {}, result: '大哥點點頭，之後偶爾才來。' },
+        ],
+        ignore: { effects: {}, result: '司機們抽完菸就走了。' },
+      }),
+    },
+    {
+      where: 'door',
+      make: (s) => ({
+        id: 'night_students',
+        icon: '📚',
+        title: '一群熬夜念書的考生想在店裡待到天亮',
+        text: '期末考週，附近的學生半夜沒地方念書，一群人抱著筆電和講義擠在你店門口，問能不能在裡面坐到天亮。他們每個人都只買了一點點東西。',
+        speaker: { look: 'caller', name: '熬夜的學生' },
+        choices: [
+          { label: '可以！再幫他們留插座', effects: { morale: 1, followers: 200, demand: { mult: 1.05, months: 1 }, review: [5, '考試週半夜可以在這裡念書，老闆超好'] }, result: '學生們在 Dcard 發文「凌晨念書聖地」，考完試還帶朋友來吃。只是座位整晚都被占著。' },
+          { label: '可以坐，但一個人要低消一份', effects: { cash: 800, review: [4, '半夜可以念書，有低消但合理'] }, result: '學生們乖乖點了東西，念到天亮。' },
+          { label: '「不行，這裡不是自習室」', effects: { review: [2, '半夜想坐一下都被趕'] }, result: '學生們抱著講義走了，有人在群組裡抱怨。' },
+        ],
+        ignore: { effects: { review: [3, '店員不知道能不能坐，很尷尬'] }, result: '員工不知道怎麼辦，學生們站了一會兒就走了。' },
+      }),
+    },
+  ];
 })(typeof window !== 'undefined' ? window : globalThis);

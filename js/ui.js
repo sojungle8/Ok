@@ -662,8 +662,10 @@
     if (!blocked && ui.speed > 0 && !sim.over) {
       // 打烊、沒人在店裡時自動快轉
       const empty = !sim.isOpen && !sim.customers.length && !sim.staff.some((e) => e.state !== 'off') && !sim.activeEvents.length;
-      const mult = empty ? 150 : ui.speed;
+      const late = !empty && sim.offHours;
+      const mult = empty ? 150 : late ? ui.speed * 3 : ui.speed;
       ui.nightSkip = empty;
+      ui.lateFast = late;
       sim.tick(dt * mult);
     }
     feedbackLoop(sim);
@@ -1181,7 +1183,7 @@
     txt('clean', `🧽 ${cl}`);
     f('clean').classList.toggle('neg', cl < 60);
     // 時間狀態和店的狀態分開寫，不會暫停了還寫「營業中」讓人以為時間在跑
-    const clock = ui.dialog ? '⏸ 暫停' : ui.panelPause ? '⏸ 看面板暫停' : ui.speed === 0 ? '⏸ 已暫停' : ui.nightSkip ? '⏩ 打烊快轉' : { 2: '▶ 正常速度', 5: '▶▶ 快轉', 12: '▶▶▶ 超快' }[ui.speed] || '▶';
+    const clock = ui.dialog ? '⏸ 暫停' : ui.panelPause ? '⏸ 看面板暫停' : ui.speed === 0 ? '⏸ 已暫停' : ui.nightSkip ? '⏩ 打烊快轉' : ui.lateFast ? '🌙 延長營業 ×3' : { 2: '▶ 正常速度', 5: '▶▶ 快轉', 12: '▶▶▶ 超快' }[ui.speed] || '▶';
     const shop = s.shutDay === s.day ? '🌀 今天停業' : s.isOpen ? '營業中' : s.openToday ? '休息中' : '今天公休';
     txt('status', `${clock}・${shop}`);
     f('clockbox').classList.toggle('open', s.isOpen);

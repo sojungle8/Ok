@@ -234,6 +234,12 @@
       const span = close > open ? close - open : close + DAY - open;
       this.hours = { open, close: open + span, span, shifts };
     }
+    // 延長營業的時段（這個行業平常沒開的時間）：客人少，畫面上時間走快一點，通宵一天才不會拖很久
+    get offHours() {
+      if (!this.isOpen || this.activeEvents.length) return false;
+      const m = ((Math.floor(this.minute) % DAY) + DAY) % DAY;
+      return m < this.ind.open || m >= this.ind.close;
+    }
     get openToday() {
       return this.policy.closedDay !== this.weekday && this.shutDay !== this.day;
     }
@@ -2359,6 +2365,24 @@
     }
 
     // 出門：老闆離開一段時間，回來時結算
+    // 🌙 半夜還開著：偶爾會有半夜才有的事（醉漢、搶劫、夜貓子常客、熬夜考生）
+    planNight() {
+      if (!this.openToday || !Fun.NIGHT_EVENTS) return;
+      // 今天營業時間裡，00:30～05:00 這一段（跨夜營業也算）
+      const win = [];
+      for (const base of [0, DAY]) {
+        const a = Math.max(this.hours.open, base + 30);
+        const b = Math.min(this.hours.close, base + 300);
+        if (b - a >= 60) win.push([a, b]);
+      }
+      if (!win.length || this.rng() >= 0.3 * this.diff.events) return;
+      const pool = Fun.NIGHT_EVENTS.filter((e) => !e.ok || e.ok(this));
+      if (!pool.length) return;
+      const E = pool[Math.floor(this.rng() * pool.length)];
+      const [a, b] = win[0];
+      this.pendingEvents.push({ ev: E.make ? E.make(this) : E, at: a + this.rng() * (b - a), where: E.where || 'door' });
+    }
+
     // 🏘️ 鄰居帶來的事：照開店的地點，偶爾會發生（一週最多一件）；廟口初一十五固定人多
     planNeighbors() {
       if (!City || !this.openToday) return;
@@ -5527,7 +5551,8 @@
     }
 
     get dayStart() {
-      return this.hours.open - 60;
+      // 通宵營業沒有「開門前一小時」，一天就從開門那一刻算起，才不會每天少開一小時
+      return this.hours.span >= DAY ? this.hours.open : this.hours.open - 60;
     }
 
     moveAgent(a, speed, dt) {
@@ -5787,6 +5812,7 @@
           e.energy = clamp(e.energy - drain * dt, 0, 100);
           e.hunger = clamp(e.hunger - 0.14 * dt * (e.traits.includes('foodie') ? TRAITS.foodie.hunger : 1), 0, 100);
           e.minutesToday += dt;
+          if (night) e.nightToday = (e.nightToday || 0) + dt;
         }
         this.updateMood(e, dt);
 
@@ -6164,6 +6190,7 @@
       // 客訴：機率跟昨天的人潮、新手、尖峰有多亂有關；處理完會隨機冷卻幾天，同一種題材十天內不重複
       this.planCases();
       this.planStreet();
+      this.planNight();
       this.planNeighbors();
       if (this.rivalNews && this.rival) {
         this.rivalNews = false;
@@ -6629,6 +6656,13 @@
           if (this.policy.overtimePay) pay += Math.min(2, ot) * e.wage * 1.34 + Math.max(0, ot - 2) * e.wage * 1.67;
           else unpaidOT += ot;
           report.ot += ot;
+        }
+        // 🌙 大夜津貼：22:00～06:00 上班的時數，時薪多兩成
+        if (e.nightToday) {
+          const nightPay = (e.nightToday / 60) * e.wage * 0.2;
+          pay += nightPay;
+          report.nightPay = (report.nightPay || 0) + nightPay;
+          e.nightToday = 0;
         }
         // 打烊後最後一班留下來打掃半小時（照算薪水）
         if (this.policy.closingClean && this.roster && this.roster.get(e.id) === lastShift) pay += 0.5 * e.wage;
