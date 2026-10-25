@@ -2588,6 +2588,7 @@
       this._evFilled = false;
       this.evCars = [];
       this.evSlots = [];
+      this.evAisle = null;
       if (evHome) {
         this.buildEVBay(this.neighbors.right, evHome);
         // 看不見的點擊範圍：點充電區任何地方都能打開管理面板
@@ -3765,7 +3766,8 @@
       const st = this.evHomeStation();
       return st ? `${st.fast},${st.slow}` : '';
     }
-    // 柏油地、停車格、雨棚、充電樁（快充深綠、慢充藍）、招牌柱；停車格位置存起來給車子停
+    // 充電停車場：中間一條車道（從馬路直直開進去），兩邊各一排停車格；車頭朝裡停，充電樁在車頭外側角落
+    // 店面深度 6～7 放得下 4 格、8～9 放得下 6 格；樁比格子多的話，多的不畫（生意照算）
     buildEVBay(group, st) {
       const s = this.sim;
       const W = s.W;
@@ -3776,43 +3778,48 @@
       asphalt.position.set(x0 + OUT_W / 2, 0.006, H / 2);
       asphalt.receiveShadow = true;
       group.add(asphalt);
-      // 後面一道矮牆、旁邊的綠籬
-      B(group, OUT_W, 0.5, 0.15, '#cfc8bd', x0 + OUT_W / 2, 0, 0.075);
-      B(group, 0.25, 0.45, H - 0.4, '#5f9e6e', x0 + OUT_W - 0.12, 0, H / 2 - 0.2);
-      const rows = H >= 6.5 ? [{ z: 1.45, cz: 0.3 }, { z: 4.1, cz: 2.92 }] : [{ z: 1.45, cz: 0.3 }];
-      const per = 4;
-      const kinds = [];
-      for (let i = 0; i < st.fast; i++) kinds.push('fast');
-      for (let i = 0; i < st.slow; i++) kinds.push('slow');
+      B(group, OUT_W, 0.5, 0.15, '#cfc8bd', x0 + OUT_W / 2, 0, 0.075); // 後面一道矮牆
       const white = basic('#e9e6df');
-      rows.forEach((row, ri) => {
-        for (let i = 0; i < per; i++) {
-          const kind = kinds[ri * per + i];
-          const x = x0 + 0.5 + i * 0.98;
-          // 停車格線（左右兩條）＋地上的綠色電動車標記
-          for (const dx of [-0.48, 0.48]) B(group, 0.04, 0.012, 2.0, white, x + dx, 0, row.z);
-          if (!kind) continue;
-          const mark = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.9), basic('#2e8b57', { transparent: true, opacity: 0.55 }));
+      // 車道中線箭頭
+      for (let z = H - 0.6; z > 1; z -= 1.3) B(group, 0.06, 0.012, 0.5, basic('#d8d3c8'), x0 + OUT_W / 2, 0, z);
+      const pitch = 2.6;
+      const rows = [];
+      for (let z = 1.45; z + 1.2 <= H - 0.25; z += pitch) rows.push(z);
+      // 格子不夠的時候，快充、慢充照比例分（兩種都有的話至少各一格）
+      const n = Math.min(rows.length * 2, st.fast + st.slow);
+      let nf = st.fast + st.slow > n ? Math.round((n * st.fast) / (st.fast + st.slow)) : st.fast;
+      if (st.fast && !nf) nf = 1;
+      if (st.slow && nf >= n && n > 1) nf = n - 1;
+      const kinds = [];
+      for (let i = 0; i < nf; i++) kinds.push('fast');
+      for (let i = nf; i < n; i++) kinds.push('slow');
+      const cols = [{ x: x0 + 0.66, post: x0 + 0.12 }, { x: x0 + OUT_W - 0.66, post: x0 + OUT_W - 0.12 }];
+      let k = 0;
+      rows.forEach((z) => {
+        cols.forEach((c) => {
+          const kind = kinds[k++];
+          // 停車格框線（前、後、內側）
+          const inner = c.x + (c.x < x0 + OUT_W / 2 ? 0.5 : -0.5);
+          B(group, 0.04, 0.012, pitch - 0.2, white, inner, 0, z);
+          B(group, 1.0, 0.012, 0.04, white, c.x, 0, z + pitch / 2 - 0.1);
+          if (!kind) return;
+          const mark = new THREE.Mesh(new THREE.PlaneGeometry(0.55, 1.1), basic('#2e8b57', { transparent: true, opacity: 0.5 }));
           mark.rotation.x = -Math.PI / 2;
-          mark.position.set(x, 0.014, row.z + 0.3);
+          mark.position.set(c.x, 0.014, z + 0.2);
           group.add(mark);
-          // 充電樁
+          // 充電樁：在車頭那一端的外側角落，不擋車
           const fast = kind === 'fast';
-          B(group, 0.3, fast ? 1.0 : 0.7, 0.2, fast ? '#1f8f5f' : '#3b7dd8', x, 0, row.cz);
-          B(group, 0.22, 0.16, 0.02, basic(fast ? '#bff5d6' : '#cfe3ff'), x, fast ? 0.7 : 0.45, row.cz + 0.11);
-          B(group, 0.32, 0.05, 0.22, '#e9ecef', x, fast ? 1.0 : 0.7, row.cz);
-          this.evSlots.push({ x, z: row.z, kind, car: null });
-        }
+          const pz = z - 1.05;
+          B(group, 0.18, fast ? 1.0 : 0.7, 0.26, fast ? '#1f8f5f' : '#3b7dd8', c.post, 0, pz);
+          B(group, 0.02, 0.16, 0.18, basic(fast ? '#bff5d6' : '#cfe3ff'), c.post + (c.x > c.post ? 0.1 : -0.1), fast ? 0.7 : 0.45, pz);
+          B(group, 0.2, 0.04, 0.28, '#e9ecef', c.post, fast ? 1.0 : 0.7, pz);
+          this.evSlots.push({ x: c.x, z, kind, car: null });
+        });
       });
-      // 雨棚：只蓋在充電樁那一排上面（從上面看得到停著充電的車）
-      const roofY = 1.45;
-      B(group, OUT_W - 0.2, 0.08, 0.75, '#f4f6f5', x0 + OUT_W / 2, roofY, 0.42);
-      B(group, OUT_W - 0.2, 0.1, 0.05, '#2ecc71', x0 + OUT_W / 2, roofY - 0.02, 0.82);
-      for (const dx of [0.12, OUT_W - 0.32]) B(group, 0.08, roofY, 0.08, '#c8cdd0', x0 + dx, 0, 0.75);
-      // 招牌柱：路邊看得到
-      B(group, 0.18, 2.2, 0.18, '#2ecc71', x0 + OUT_W - 0.3, 0, H - 0.35);
+      // 招牌柱：入口旁邊
+      B(group, 0.14, 2.2, 0.14, '#2ecc71', x0 + OUT_W - 0.1, 0, H - 0.12);
       const sign = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.5), new THREE.MeshBasicMaterial({ map: this.evSignTex(), transparent: true }));
-      sign.position.set(x0 + OUT_W - 0.3, 2.35, H - 0.24);
+      sign.position.set(x0 + OUT_W - 0.4, 2.35, H - 0.04);
       group.add(sign);
     }
     evSignTex() {
@@ -3834,103 +3841,177 @@
       this._evSign = new THREE.CanvasTexture(c);
       return this._evSign;
     }
-    // 車子：照模擬排好的時間從馬路開進來、停進充電格、充完倒出來開走
+    // 一台充電的車：牌子、車款、電池（照規格）、進來的電量、要充到多少
+    evMakeCar(kind, brand, slot) {
+      const F = window.BossFun || {};
+      const g = new THREE.Group();
+      this.buildEV(g, brand);
+      g.traverse((o) => {
+        if (o.isMesh) o.castShadow = false;
+      });
+      const ev = g.userData.ev;
+      const spec = (F.EV_SPECS && (F.EV_SPECS[ev.brand === 'dsl' ? ev.model : ev.brand] || F.EV_SPECS.m3)) || { kwh: 65, dc: 150 };
+      const fast = kind === 'fast';
+      const soc = fast ? 0.1 + Math.random() * 0.25 : 0.2 + Math.random() * 0.35;
+      const target = fast ? (Math.random() < 0.8 ? 0.8 : 0.9) : Math.random() < 0.6 ? 1 : 0.9;
+      const car = { g, slot, kind, battery: spec.kwh, dc: spec.dc, soc, soc0: soc, target, kwh: 0, kw: 0, path: [], back: false, state: 'queue', last: this.sim.minute };
+      g.userData.pick = { kind: 'evcar', car };
+      this.evCarGroup.add(g);
+      return car;
+    }
+    // 車子動作：排隊 → 開進車道 → 斜著停進格子 → 充電（照電池模擬）→ 倒車退出車道 → 開走
+    // 車道一次只讓一台車進出，其他車在入口前排隊，不會撞在一起
     updateEVBay(dt) {
       if (!this.evBayOn || !this.evCarGroup) return;
       const s = this.sim;
+      const F = window.BossFun || {};
       const ts = this.opts.timeScale ? this.opts.timeScale() : 1;
       const H = s.H;
       const lane = H + 1.7;
-      // 剛打開（或剛蓋好）：照現在的使用率，先停幾台正在充電的車，不會一打開都是空的
+      const aisleX = s.W + OUT_W / 2;
+      // 剛打開：照現在的使用率先停幾台正在充電的車
       if (!this._evFilled) {
         this._evFilled = true;
         const st = this.evHomeStation();
         if (st && s.chargePlan && !st.plan) s.chargePlan(st);
         const hr = Math.floor((((s.minute % 1440) + 1440) % 1440) / 60);
         for (const sl of this.evSlots) {
-          if (!sl.kind || !st || !st.plan || sl.car) continue;
-          const dwell = sl.kind === 'fast' ? 35 : 195;
+          if (!sl.kind || !st || !st.plan) continue;
+          const dwell = sl.kind === 'fast' ? 28 : 330;
           const share = s.chargeCurve ? s.chargeCurve(sl.kind, st.lot)[hr] * 24 : 1;
           const occ = Math.min(0.85, ((st.plan[sl.kind] || 0) * dwell * share) / (1440 * Math.max(1, st[sl.kind])));
           if (Math.random() >= occ) continue;
-          const brands = (window.BossFun && window.BossFun.EV_BRANDS) || [];
+          const brands = F.EV_BRANDS || [];
           let r = Math.random();
           const b = brands.find((x) => (r -= x.share) < 0);
-          const g = new THREE.Group();
-          this.buildEV(g, b && b.id);
-          g.position.set(sl.x, 0, sl.z);
-          g.rotation.y = Math.PI / 2;
-          this.evCarGroup.add(g);
-          const left = Math.random() * dwell;
-          const car = { g, slot: sl, kind: sl.kind, start: s.minute - (dwell - left), until: s.minute + left, path: [], back: false, state: 'park' };
-          g.userData.pick = { kind: 'evcar', car };
+          const car = this.evMakeCar(sl.kind, b && b.id, sl);
+          car.soc = car.soc0 + Math.random() * (car.target - car.soc0) * 0.9;
+          car.kwh = (car.soc - car.soc0) * car.battery;
+          car.state = 'park';
+          car.g.position.set(sl.x, 0, sl.z);
+          car.g.rotation.y = Math.PI / 2;
           sl.car = car;
           this.evCars.push(car);
         }
       }
+      // 新來的車：先排進隊伍（有空格才來；沒空格就算這台去別家充了）
       for (const v of s.evVisits || []) {
         if (v.taken || v.at > s.minute) continue;
         v.taken = true;
-        if (s.minute - v.at > v.stay) continue; // 早就充完走了（例如剛讀檔）
-        const slot = this.evSlots.find((sl) => sl.kind === v.kind && !sl.car) || this.evSlots.find((sl) => sl.kind && !sl.car);
+        const slot = this.evSlots.find((sl) => sl.kind === v.kind && !sl.car);
         if (!slot) continue;
-        const g = new THREE.Group();
-        this.buildEV(g, v.brand);
-        g.traverse((o) => {
-          if (o.isMesh) o.castShadow = false;
-        });
-        const sx = slot.x - 7; // 從店門口的馬路開過來，幾秒就轉進充電格
-        g.position.set(sx, 0, lane);
-        this.evCarGroup.add(g);
-        const car = { g, slot, kind: slot.kind, start: v.at, until: v.at + v.stay, path: [[slot.x, lane], [slot.x, slot.z]], back: false, state: 'in' };
-        g.userData.pick = { kind: 'evcar', car };
+        const car = this.evMakeCar(v.kind, v.brand, slot);
         slot.car = car;
+        // 接在隊伍最後面出現，不會跟前面的車疊在一起
+        let back = aisleX - 6;
+        for (const c of this.evCars) if (c !== car && (c.state === 'queue' || c.state === 'in') && Math.abs(c.g.position.z - lane) < 0.3) back = Math.min(back, c.g.position.x - 2.6);
+        car.g.position.set(back, 0, lane);
+        car.g.rotation.y = 0;
         this.evCars.push(car);
       }
-      const spd = 4.5 * dt * Math.max(0.6, Math.min(3, ts));
-      this.evCars = this.evCars.filter((c) => {
-        if (c.state === 'park') {
-          if (s.minute < c.until) return true;
-          // 充完了：倒車出來，再往前開走
-          c.state = 'out';
-          c.back = true;
-          c.path = [[c.slot.x, lane]];
-          c.slot.car = null;
-        }
+      const spd = 3.2 * dt * Math.max(0.6, Math.min(3, ts));
+      const move = (c) => {
         const tgt = c.path[0];
-        if (!tgt) {
-          if (c.state === 'in') {
-            c.state = 'park';
-            return true;
-          }
-          if (c.back) {
-            c.back = false;
-            c.path = [[s.W * 1.5 + 18, lane]];
-            return true;
-          }
-          this.evCarGroup.remove(c.g);
-          return false;
-        }
+        if (!tgt) return true;
         const p = c.g.position;
         const dx = tgt[0] - p.x;
         const dz = tgt[1] - p.z;
         const d = Math.hypot(dx, dz);
-        if (d <= spd) {
+        const step = spd * (tgt[2] || 1);
+        if (d <= step) {
           p.x = tgt[0];
           p.z = tgt[1];
           c.path.shift();
         } else {
-          p.x += (dx / d) * spd;
-          p.z += (dz / d) * spd;
+          p.x += (dx / d) * step;
+          p.z += (dz / d) * step;
         }
-        // 車頭朝行進方向（倒車時車頭朝反方向）
-        if (d > 0.01) {
-          const fx = c.back ? -dx : dx;
-          const fz = c.back ? -dz : dz;
-          c.g.rotation.y = Math.atan2(-fz, fx);
+        if (d > 0.02) {
+          // 車頭朝行進方向（倒車時朝反方向），慢慢轉過去
+          const want = Math.atan2(-(c.back ? -dz : dz), c.back ? -dx : dx);
+          let diff = want - c.g.rotation.y;
+          while (diff > Math.PI) diff -= Math.PI * 2;
+          while (diff < -Math.PI) diff += Math.PI * 2;
+          c.g.rotation.y += diff * Math.min(1, dt * 8);
+        }
+        return !c.path.length;
+      };
+      // 入口前排隊的位置
+      let queueN = 0;
+      this.evCars = this.evCars.filter((c) => {
+        if (c.state === 'queue') {
+          if (!this.evAisle) {
+            // 輪到我：沿馬路開到入口、右轉進車道、開到格子前、斜著停進去
+            this.evAisle = c;
+            c.state = 'in';
+            c.path = [[aisleX - 0.6, lane], [aisleX, lane - 0.8], [aisleX, c.slot.z + 1.5], [c.slot.x, c.slot.z + 0.25, 0.6], [c.slot.x, c.slot.z, 0.4]];
+          } else {
+            let qx = aisleX - 2.6 - queueN * 2.5;
+            queueN++;
+            // 前面還有車在路上（正要轉進去）：跟它保持一個車身的距離
+            for (const o of this.evCars) if (o !== c && o.state === 'in' && Math.abs(o.g.position.z - lane) < 0.3 && o.g.position.x > c.g.position.x) qx = Math.min(qx, o.g.position.x - 2.6);
+            c.path = [[Math.max(c.g.position.x, qx), lane]];
+            move(c);
+            return true;
+          }
+        }
+        if (c.state === 'in') {
+          if (move(c)) {
+            c.state = 'park';
+            c.g.rotation.y = Math.PI / 2;
+            c.last = s.minute;
+            if (this.evAisle === c) this.evAisle = null;
+          }
+          return true;
+        }
+        if (c.state === 'park') {
+          // 充電：照現在電量的充電功率，一分鐘一分鐘加上去
+          const dm = Math.max(0, s.minute - c.last);
+          c.last = s.minute;
+          c.kw = F.evChargeKw ? F.evChargeKw(c.kind, c.soc, c.dc) : 0;
+          if (dm > 0 && c.soc < c.target) {
+            let left = dm;
+            while (left > 0 && c.soc < c.target) {
+              const m = Math.min(1, left);
+              const kw = F.evChargeKw(c.kind, c.soc, c.dc);
+              c.soc = Math.min(c.target, c.soc + (kw * m) / 60 / c.battery);
+              c.kwh += (kw * m) / 60;
+              left -= m;
+            }
+          }
+          if (c.soc >= c.target - 1e-6) {
+            c.kw = 0;
+            if (this.evAisle) return true; // 充飽了，等車道空出來再倒車
+            this.evAisle = c;
+            c.state = 'out';
+            c.back = true;
+            c.slot.car = null;
+            c.path = [[c.slot.x, c.slot.z + 0.25, 0.4], [aisleX, c.slot.z + 1.5, 0.6], [aisleX, lane - 0.8], [aisleX + 0.2, lane]];
+          }
+          return true;
+        }
+        if (c.state === 'out') {
+          if (move(c)) {
+            if (c.back) {
+              // 倒到馬路上了：車道讓給下一台，往前開走
+              c.back = false;
+              if (this.evAisle === c) this.evAisle = null;
+              c.state = 'leave';
+              c.path = [[s.W * 1.5 + 18, lane]];
+            }
+          }
+          return true;
+        }
+        if (c.state === 'leave') {
+          if (move(c)) {
+            this.evCarGroup.remove(c.g);
+            return false;
+          }
+          return true;
         }
         return true;
       });
+      if (this.evAisle && !this.evCars.includes(this.evAisle)) this.evAisle = null;
     }
 
     // ───── 街景：車流、鴿子、時鐘 ─────

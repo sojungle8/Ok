@@ -51,6 +51,29 @@
   };
   Fun.evLogoSvg = (id) => Fun.EV_LOGOS[id] || Fun.EV_LOGOS.dsl;
 
+  // 電池容量（度）和最大直流快充功率（kW）：照各車款公開規格的大概數字
+  // 車款：電斯拉各款；其他牌子用牌子的代表車
+  Fun.EV_SPECS = {
+    m3: { kwh: 60, dc: 170 }, my: { kwh: 75, dc: 250 }, ms: { kwh: 100, dc: 250 }, mx: { kwh: 100, dc: 250 }, ct: { kwh: 123, dc: 325 }, rd: { kwh: 200, dc: 250 }, cab: { kwh: 50, dc: 150 },
+    byd: { kwh: 60, dc: 110 }, n7: { kwh: 78, dc: 150 }, ioniq: { kwh: 77, dc: 240 }, kia: { kwh: 77, dc: 240 }, bnw: { kwh: 84, dc: 205 }, eq: { kwh: 90, dc: 170 }, vw: { kwh: 77, dc: 135 }, vol: { kwh: 69, dc: 153 }, mg: { kwh: 64, dc: 140 }, tay: { kwh: 93, dc: 270 },
+  };
+  // 充電功率：快充在電量 50% 以前全速，50～80% 慢慢降，80% 以後只剩涓流（電池保護）；慢充交流 7kW 幾乎固定，最後 5% 變慢
+  Fun.evChargeKw = (kind, soc, carDc) => {
+    if (kind === 'slow') return soc < 0.95 ? 7 : 3.5;
+    const p = Math.min(120, carDc || 120);
+    const f = soc < 0.5 ? 1 : soc < 0.8 ? 1 - ((soc - 0.5) / 0.3) * 0.6 : Math.max(0.08, 0.4 - ((soc - 0.8) / 0.2) * 0.32);
+    return p * f;
+  };
+  // 從現在的電量充到目標要幾分鐘（每分鐘算一次）
+  Fun.evChargeMinutes = (kind, soc, target, battery, carDc) => {
+    let m = 0;
+    while (soc < target && m < 900) {
+      soc += Fun.evChargeKw(kind, soc, carDc) / 60 / battery;
+      m++;
+    }
+    return m;
+  };
+
   // 來充電的電動車：各品牌（虛構諧音）和大概的比例
   Fun.EV_BRANDS = [
     { id: 'dsl', name: '電斯拉', icon: '🚙', share: 0.38, color: '#e8e8ea' },
@@ -70,8 +93,9 @@
   // 快充 DC 120kW：一次約充 30 度、一台一天最多約 20 台次；慢充 AC 7kW：一次約 18 度、一台一天最多約 4 台次
   // 契約容量基本電費：每 kW 每月約 $236 → 每週約 $55；快充站最大的固定成本就是這個
   Fun.CHARGE = {
-    fast: { name: '⚡ 快充樁（120kW）', cost: 300000, kwh: 30, cap: 20, kw: 120, price: 11, elec: 4.2, upkeep: 800, max: 4 },
-    slow: { name: '🔌 慢充樁（7kW）', cost: 45000, kwh: 18, cap: 4, kw: 7, price: 8, elec: 2.2, upkeep: 100, park: 60, max: 8 },
+    // 一次平均充的度數照下面的電池模擬：快充約 20%→80%（約 40 度、20～30 分鐘）、慢充約 35%→95%（約 35 度、5～6 小時）
+    fast: { name: '⚡ 快充樁（120kW）', cost: 300000, kwh: 40, cap: 20, kw: 120, price: 11, elec: 4.2, upkeep: 800, max: 4, base: 19 },
+    slow: { name: '🔌 慢充樁（7kW）', cost: 45000, kwh: 35, cap: 3, kw: 7, price: 8, elec: 2.2, upkeep: 100, park: 100, max: 8, base: 8 },
     basePerKw: 55,
     resale: 0.9, // 土地賣掉拿回九成；充電樁拆掉只剩三成
     gearResale: 0.3,

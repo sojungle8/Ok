@@ -4545,7 +4545,7 @@
         if (!n) continue;
         const price = kind === 'fast' ? st.priceFast : st.priceSlow;
         // 比行情便宜會多一些車；比行情貴，車主掉頭很快
-        const want = (kind === 'fast' ? 30 : 14) * L[kind] * pull * Math.pow(k.price / price, price > k.price ? 2.5 : 1.6) * (0.85 + this.rng() * 0.3);
+        const want = (k.base || (kind === 'fast' ? 19 : 8)) * L[kind] * pull * Math.pow(k.price / price, price > k.price ? 2.5 : 1.6) * (0.85 + this.rng() * 0.3);
         const cap = n * k.cap * (kind === 'fast' && st.flags.includes('idle') ? 1.15 : 1) * (st.flags.includes('lock') ? 1.05 : 1);
         plan[kind] = cap * (1 - Math.exp(-want / cap));
       }
@@ -4589,8 +4589,7 @@
             if (b) st.week.brands[b.id] = (st.week.brands[b.id] || 0) + 1;
             if (home) {
               // 店旁的站：畫面上一台一台開進來；有些車主下車走進店裡
-              const stay = kind === 'fast' ? 25 + this.rng() * 20 : 90 + this.rng() * 150;
-              (this.evVisits = this.evVisits || []).push({ kind, brand: b ? b.id : 'dsl', at: this.minute + this.rng() * 50, stay });
+              (this.evVisits = this.evVisits || []).push({ kind, brand: b ? b.id : 'dsl', at: this.minute + this.rng() * 50 });
               if (this.rng() < (kind === 'fast' ? 0.35 : 0.5) * (st.flags.includes('combo') ? 1.5 : 1)) {
                 (this.evWalkers = this.evWalkers || []).push(this.minute + 3 + this.rng() * 55);
                 d.walk = (d.walk || 0) + 1;

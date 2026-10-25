@@ -901,11 +901,20 @@
     return `${evLogo(ev.brand || 'dsl', 14)}${b ? b.name : ''} ${EV_MODEL_NAME[ev.model] || ''}`.trim();
   }
   function evCarState(car) {
-    const s = ui.sim;
-    if (car.state === 'in') return '🚗 開進來中';
-    if (car.state === 'out') return '👋 充飽了，開走中';
-    const pct = Math.max(0, Math.min(100, Math.round(((s.minute - car.start) / Math.max(1, car.until - car.start)) * 100)));
-    return `🔋 ${car.kind === 'fast' ? '快充' : '慢充'}中 ${pct}%・還要 ${Math.max(0, Math.round(car.until - s.minute))} 分鐘`;
+    if (car.state === 'queue') return '⏳ 在入口排隊，等車道空出來';
+    if (car.state === 'in') return '🚗 開進來停車中';
+    if (car.state === 'out' || car.state === 'leave') return `👋 充到 ${Math.round(car.soc * 100)}%，開走了`;
+    const pct = Math.round(car.soc * 100);
+    if (car.soc >= car.target - 1e-6) return `✅ 充到 ${pct}% 了，等車道空出來倒車`;
+    const mins = Fun.evChargeMinutes ? Fun.evChargeMinutes(car.kind, car.soc, car.target, car.battery, car.dc) : 0;
+    const eta = mins >= 60 ? `${Math.floor(mins / 60)} 小時 ${mins % 60} 分` : `${mins} 分鐘`;
+    return `🔋 ${pct}% → ${Math.round(car.target * 100)}%・${car.kw.toFixed(car.kw < 10 ? 1 : 0)} kW・還要 ${eta}`;
+  }
+  // 電池條
+  function evBatteryBar(car) {
+    const pct = Math.round((car.soc || 0) * 100);
+    const t = Math.round((car.target || 0) * 100);
+    return `<span class="ev-batt"><i style="width:${pct}%"></i><b style="left:${t}%"></b></span>`;
   }
   function evBayInspector(ref) {
     const s = ui.sim;
@@ -918,11 +927,12 @@
     if (car) {
       const k = K[car.kind] || K.fast;
       const price = car.kind === 'fast' ? st.priceFast : st.priceSlow;
-      carHtml = `<div class="ev-car-card"><b>👆 這台：${evCarLabel(car)}</b><small>${evCarState(car)}<br>這次大約充 ${k.kwh} 度，車主付 ${money(Math.round(k.kwh * price + (k.park || 0)))}${k.park ? '（含停車費）' : ''}</small></div>`;
+      const fee = car.kwh * price + (car.kwh > 0 ? k.park || 0 : 0);
+      carHtml = `<div class="ev-car-card"><b>👆 這台：${evCarLabel(car)}</b>${car.battery ? evBatteryBar(car) : ''}<small>${evCarState(car)}<br>電池 ${car.battery} 度・最大快充 ${car.dc} kW・這個${car.kind === 'fast' ? '快充樁 120' : '慢充樁 7'} kW<br>已經充 ${car.kwh.toFixed(1)} 度（${Math.round(car.soc0 * 100)}% 進來），目前要付 ${money(Math.round(fee))}${k.park ? '（含停車費）' : ''}</small></div>`;
     }
     const slots = (v.evSlots || [])
       .filter((sl) => sl.kind)
-      .map((sl, i) => `<li><span class="ev-slot ${sl.kind}">${sl.kind === 'fast' ? '⚡快充' : '🔌慢充'}</span>${sl.car ? `${evCarLabel(sl.car)}<small>${evCarState(sl.car)}</small>` : '<small>空著</small>'}</li>`)
+      .map((sl) => `<li><span class="ev-slot ${sl.kind}">${sl.kind === 'fast' ? '⚡快充' : '🔌慢充'}</span>${sl.car ? `${evCarLabel(sl.car)}${sl.car.state === 'park' ? evBatteryBar(sl.car) : ''}<small>${evCarState(sl.car)}</small>` : '<small>空著</small>'}</li>`)
       .join('');
     const more = st.fast + st.slow - (v.evSlots || []).filter((sl) => sl.kind).length;
     const td = st.today || {};
@@ -933,7 +943,7 @@
     return `
       <div class="insp-head">
         <div class="insp-icon">⚡</div>
-        <div><h3>店旁充電站</h3><small>${s.clockLabel}・快充 ${st.fast} 支・慢充 ${st.slow} 支・停著 ${(v.evCars || []).filter((c) => c.state === 'park').length} 台</small></div>
+        <div><h3>店旁充電站</h3><small>${s.clockLabel}・快充 ${st.fast} 支（120kW）・慢充 ${st.slow} 支（7kW）・停著 ${(v.evCars || []).filter((c) => c.state === 'park').length} 台${(v.evCars || []).some((c) => c.state === 'queue') ? `・排隊 ${(v.evCars || []).filter((c) => c.state === 'queue').length} 台` : ''}</small></div>
         <button class="x" data-action="close-insp" aria-label="關閉">✕</button>
       </div>
       ${carHtml}
