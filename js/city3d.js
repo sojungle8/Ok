@@ -412,7 +412,7 @@
       const E = root.BossEVGeo;
       const shape = (part, fallback) => {
         if (!E) return fallback;
-        const g = E.loftParts('m3', 10)[part].clone();
+        const g = E.loftParts('m3', 16)[part].clone();
         g.rotateY(-Math.PI / 2);
         g.scale(0.5, 0.5, 0.5);
         g.translate(0, 0.05, 0);
