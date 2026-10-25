@@ -407,22 +407,52 @@
 
     // ───── 路上的車 ─────
     makeCars() {
-      const n = 14;
+      const n = 18;
       const geo = new THREE.BoxGeometry(0.5, 0.35, 0.9);
       geo.translate(0, 0.3, 0);
       this.cars = new THREE.InstancedMesh(geo, new THREE.MeshLambertMaterial(), n);
+      // 車頂（電動車是黑玻璃）
+      const rgeo = new THREE.BoxGeometry(0.42, 0.2, 0.5);
+      rgeo.translate(0, 0.57, -0.05);
+      this.roofs = new THREE.InstancedMesh(rgeo, new THREE.MeshLambertMaterial(), n);
       this.carData = [];
       const r = rand(99);
       const c = new THREE.Color();
+      const brands = (window.BossFun && window.BossFun.EV_BRANDS) || [];
+      const evP = Math.min(0.6, 0.25 * (this.sim.evShare || 1));
       for (let i = 0; i < n; i++) {
         const horiz = r() < 0.5;
         const lane = horiz ? Math.floor(r() * (City.H + 1)) : Math.floor(r() * (City.W + 1));
         if (!horiz && (lane === City.RIVER_X + 1)) continue;
-        this.carData.push({ horiz, lane, t: r() * (horiz ? City.W : City.H) * P, v: (1.5 + r() * 1.5) * (r() < 0.5 ? 1 : -1) });
-        this.cars.setColorAt(this.carData.length - 1, c.set(['#f5f5f5', '#e74c3c', '#3d6fb6', '#f1c40f', '#2c3e50', '#16a085'][i % 6]));
+        // 汽油車 or 電動車（電斯拉最多；賽伯鐵牛又長又是不鏽鋼色、無人計程艙小小的）
+        let body = ['#f5f5f5', '#e74c3c', '#3d6fb6', '#f1c40f', '#2c3e50', '#16a085'][i % 6];
+        let roof = body;
+        let scale = [1, 1, 1];
+        if (r() < evP && brands.length) {
+          let k = r();
+          const b = brands.find((x) => (k -= x.share) < 0) || brands[0];
+          roof = '#1f2a33';
+          body = b.color;
+          if (b.id === 'dsl') {
+            const m = r();
+            body = ['#f2f2f2', '#1d1d1f', '#b3261e', '#2b4c8c', '#8a8d91'][Math.floor(r() * 5)];
+            if (m < 0.12) {
+              body = '#b8bcc0';
+              roof = '#b8bcc0';
+              scale = [1.1, 1.05, 1.25];
+            } else if (m < 0.2) {
+              body = '#d8c79a';
+              scale = [0.95, 1.1, 0.7];
+            }
+          }
+        }
+        this.carData.push({ horiz, lane, t: r() * (horiz ? City.W : City.H) * P, v: (1.5 + r() * 1.5) * (r() < 0.5 ? 1 : -1), scale });
+        this.cars.setColorAt(this.carData.length - 1, c.set(body));
+        this.roofs.setColorAt(this.carData.length - 1, c.set(roof));
       }
       this.cars.count = this.carData.length;
-      this.root.add(this.cars);
+      this.roofs.count = this.carData.length;
+      this.root.add(this.cars, this.roofs);
     }
 
     updateCars(dt) {
@@ -430,6 +460,7 @@
       const q = new THREE.Quaternion();
       const one = new THREE.Vector3(1, 1, 1);
       const spd = this.sim.speedHint || 1;
+      const sc = new THREE.Vector3();
       this.carData.forEach((c, i) => {
         const span = (c.horiz ? City.W : City.H) * P;
         c.t = (c.t + c.v * dt * spd + span) % span;
@@ -447,10 +478,12 @@
           z = c.t;
           q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), c.v > 0 ? 0 : Math.PI);
         }
-        m.compose(new THREE.Vector3(x, 0, z), q, one);
+        m.compose(new THREE.Vector3(x, 0, z), q, c.scale ? sc.set(...c.scale) : one);
         this.cars.setMatrixAt(i, m);
+        this.roofs.setMatrixAt(i, m);
       });
       this.cars.instanceMatrix.needsUpdate = true;
+      this.roofs.instanceMatrix.needsUpdate = true;
     }
 
     // ───── 標籤：地標、你的店、分店（點了選目的地） ─────

@@ -856,7 +856,7 @@
       .slice(0, 6)
       .map(([id, n]) => {
         const b = (Fun.EV_BRANDS || []).find((x) => x.id === id);
-        return b ? `${b.name} ${n}` : '';
+        return b ? `${evLogo(id, 14)}${b.name} ${n}` : '';
       })
       .filter(Boolean)
       .join('・');
@@ -2558,6 +2558,9 @@
       ${carDealer()}`;
   }
 
+  // 惡搞品牌標誌（SVG）
+  const evLogo = (id, px = 16) => (Fun.evLogoSvg ? `<img class="ev-logo" src="data:image/svg+xml;charset=utf-8,${encodeURIComponent(Fun.evLogoSvg(id))}" width="${px}" height="${px}" alt="">` : '');
+
   // 🚘 車行：一次開一台，換車時舊車打五五折折抵
   function carDealer() {
     const s = ui.sim;
@@ -2570,14 +2573,14 @@
         const mine = cur === c;
         const pay = c.cost - trade;
         const tags = [`出門 ${Math.round((1 - c.ride) * 100)}% 快`, `壓力每天 -${c.stress}`, `每週 ${money(c.weekly)}`, c.ev ? '⚡ 電動' : '⛽ 汽油'].join('・');
-        return `<button class="cat-item" data-action="car-buy" data-id="${id}" ${mine || o.wealth < pay ? 'disabled' : ''}><span class="cat-icon">${c.icon}</span><b>${c.brand} ${c.name}</b><span class="cat-price">${mine ? '正在開' : trade ? `補 ${money(Math.max(0, pay))}` : money(c.cost)}</span><small>${c.desc}<br>${tags}</small></button>`;
+        return `<button class="cat-item" data-action="car-buy" data-id="${id}" ${mine || o.wealth < pay ? 'disabled' : ''}><span class="cat-icon">${c.icon}</span><b>${c.brand === '電斯拉' ? evLogo('dsl') : ''}${c.brand} ${c.name}</b><span class="cat-price">${mine ? '正在開' : trade ? (pay >= 0 ? `補 ${money(pay)}` : `找回 ${money(-pay)}`) : money(c.cost)}</span><small>${c.desc}<br>${tags}</small></button>`;
       })
       .join('');
     const S = Fun.SEMI;
     const semi = S
-      ? `<button class="cat-item" data-action="${s.semi ? 'semi-sell' : 'semi-buy'}" ${!s.semi && (s.branches.length < 2 || s.cash < S.cost) ? 'disabled' : ''}><span class="cat-icon">${S.icon}</span><b>${S.brand} ${S.name}（公司）</b><span class="cat-price">${s.semi ? `賣掉 +${money(S.cost * 0.5)}` : money(S.cost)}</span><small>${S.desc}${s.branches.length < 2 && !s.semi ? '<br>🔒 要有 2 間以上分店' : ''}</small></button>`
+      ? `<button class="cat-item" data-action="${s.semi ? 'semi-sell' : 'semi-buy'}" ${!s.semi && (s.branches.length < 2 || s.cash < S.cost) ? 'disabled' : ''}><span class="cat-icon">${S.icon}</span><b>${evLogo('dsl')}${S.brand} ${S.name}（公司）</b><span class="cat-price">${s.semi ? `賣掉 +${money(S.cost * 0.5)}` : money(S.cost)}</span><small>${S.desc}${s.branches.length < 2 && !s.semi ? '<br>🔒 要有 2 間以上分店' : ''}</small></button>`
       : '';
-    return `<h3>🚘 車行 <small>${cur ? `現在開 ${cur.brand}${cur.name}・換車舊車折抵 ${money(trade)}` : '還沒有車，出門都騎機車'}</small></h3>
+    return `<h3>🚘 車行 ${evLogo('dsl', 22)}<small>${cur ? `現在開 ${cur.brand}${cur.name}・換車舊車折抵 ${money(trade)}` : '還沒有車，出門都騎機車'}</small></h3>
       <div class="catalog">${items}${semi}</div>
       ${cur ? `<p class="drawer-tip"><button data-action="car-sell">🔑 把車賣掉（拿回 ${money(trade)}）</button> 電動車在自己的充電站充電，每週車子的費用少一半。</p>` : '<p class="drawer-tip">用老闆個人的錢買。電動車在自己的充電站充電，每週車子的費用少一半。</p>'}`;
   }

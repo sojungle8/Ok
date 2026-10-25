@@ -5340,3 +5340,4 @@ body.in-city .combo-badge { display: none; }
 .crash-note textarea { width: 100%; font-size: 0.72rem; font-family: ui-monospace, monospace; resize: none; }
 .crash-note div { display: flex; gap: 8px; justify-content: flex-end; }
 .city-dest.ev { max-height: 52vh; overflow-y: auto; }
+.ev-logo { vertical-align: -3px; margin-right: 3px; display: inline-block; }

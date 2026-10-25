@@ -657,11 +657,11 @@ T('車行：用個人的錢買、換車舊車五五折、舊存檔的車照樣�
   const s = mk('noodle', { cash: 3e6 });
   ok(!s.buyCar('m3'), '沒錢還買得到');
   s.owner.wealth = 2e6;
-  ok(s.buyCar('m3') && s.owner.wealth === 400000, `買 Modal 3 後 ${s.owner.wealth}`);
+  ok(s.buyCar('m3') && s.owner.wealth === 300000, `買 Modal 3 後 ${s.owner.wealth}`);
   ok(s.carInfo === Fun.CARS.m3 && s.rideInfo('bank').mins <= Math.round(window_ride(s) * 0.75 + 1), '路程沒變短');
   s.owner.wealth = 4e6;
   const trade = s.carTradeIn();
-  ok(trade === 880000, `舊車折抵 ${trade}`);
+  ok(trade === 940000, `舊車折抵 ${trade}`);
   ok(s.buyCar('mx') && s.owner.wealth === 4e6 + trade - Fun.CARS.mx.cost, '換車金額不對');
   ok(s.social.followers >= 800, '鷹翼門沒有加粉絲');
   const old = mk('noodle');

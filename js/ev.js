@@ -1,5 +1,6 @@
 // 🚘 電動車：老闆可以買的車（虛構品牌「電斯拉」全車系＋國產代步車），以及充電站業務
-// 品牌、車名都是虛構的諧音，數字參考台灣實際行情（車價、電價、充電費率、契約容量基本電費）
+// 品牌、車名、標誌都是惡搞的諧音，車價照台灣實際行情的價差（Modal 3 約 170 萬、Modal Y 約 190 萬、S／X 三四百萬、皮卡要自己進口）
+// 電價、充電費率、契約容量基本電費也參考台灣行情
 (function (root) {
   const Fun = root.BossFun;
   if (!Fun) return;
@@ -9,16 +10,46 @@
   // ev：電動車（自己有充電站的話，充電幾乎不用錢）；fans：買的時候粉絲增加（老闆開好車會被拍）
   Fun.CARS = {
     gas: { icon: '🚗', brand: '國產', name: '汽油代步車', cost: 650000, ride: 0.75, stress: 1, weekly: 2000, desc: '最實在的選擇：出門快、好停車；油錢比較貴' },
-    m3: { icon: '🚙', brand: '電斯拉', name: 'Modal 3', cost: 1600000, ride: 0.75, stress: 1.5, weekly: 900, ev: true, desc: '入門電動轎車：充電比加油便宜很多，輔助駕駛讓通勤比較不累' },
-    my: { icon: '🚙', brand: '電斯拉', name: 'Modal Y', cost: 1850000, ride: 0.75, stress: 1.5, weekly: 1000, ev: true, haul: 0.03, family: true, desc: '電動休旅車：後車廂超大，去批發市場進貨多打 3% 折、不會扛到腰痛；有小孩的話親子感情慢慢變好' },
-    ms: { icon: '🏎️', brand: '電斯拉', name: 'Modal S', cost: 3600000, ride: 0.7, stress: 2, weekly: 1600, ev: true, fans: 300, show: true, desc: '旗艦轎車：又快又安靜；開出去會被拍，不過員工薪水太低的話他們會很有意見' },
-    mx: { icon: '🚐', brand: '電斯拉', name: 'Modal X', cost: 4100000, ride: 0.7, stress: 2, weekly: 1800, ev: true, fans: 800, show: true, family: true, desc: '鷹翼門休旅：門一打開大家都在拍，粉絲大增；有小孩的話親子感情慢慢變好；員工薪水太低的話他們會很有意見' },
-    ct: { icon: '🛻', brand: '電斯拉', name: '賽伯鐵牛', cost: 5200000, ride: 0.85, stress: 1, weekly: 2600, ev: true, fans: 1500, haul: 0.05, show: true, desc: '不鏽鋼電動皮卡：台灣沒有正式賣，要自己進口驗車；車太大巷子難鑽、出門慢一點，但載貨超強（進貨多打 5% 折），粉絲暴增' },
-    rd: { icon: '🏁', brand: '電斯拉', name: '路霸跑車', cost: 7000000, ride: 0.6, stress: 3, weekly: 3000, ev: true, fans: 1200, show: true, ticket: 0.15, desc: '電動超跑：出門最快、開起來最紓壓；但很容易超速被開罰單' },
-    cab: { icon: '🚖', brand: '電斯拉', name: '無人計程艙', cost: 1200000, ride: 0.85, stress: 1, weekly: 700, ev: true, robotaxi: true, desc: '沒有方向盤的雙人座：你不用的時候它會自己去載客賺錢（每週約 $4,000～8,000，平台抽兩成）；偶爾在路口卡住被拍上網' },
+    m3: { icon: '🚙', brand: '電斯拉', name: 'Modal 3', cost: 1700000, ride: 0.75, stress: 1.5, weekly: 900, ev: true, desc: '入門電動轎車：充電比加油便宜很多，輔助駕駛讓通勤比較不累' },
+    my: { icon: '🚙', brand: '電斯拉', name: 'Modal Y', cost: 1900000, ride: 0.75, stress: 1.5, weekly: 1000, ev: true, haul: 0.03, family: true, desc: '電動休旅車：後車廂超大，去批發市場進貨多打 3% 折、不會扛到腰痛；有小孩的話親子感情慢慢變好' },
+    ms: { icon: '🏎️', brand: '電斯拉', name: 'Modal S', cost: 3690000, ride: 0.7, stress: 2, weekly: 1600, ev: true, fans: 300, show: true, desc: '旗艦轎車：又快又安靜；開出去會被拍，不過員工薪水太低的話他們會很有意見' },
+    mx: { icon: '🚐', brand: '電斯拉', name: 'Modal X', cost: 4190000, ride: 0.7, stress: 2, weekly: 1800, ev: true, fans: 800, show: true, family: true, desc: '鷹翼門休旅：門一打開大家都在拍，粉絲大增；有小孩的話親子感情慢慢變好；員工薪水太低的話他們會很有意見' },
+    ct: { icon: '🛻', brand: '電斯拉', name: '賽伯鐵牛', cost: 6000000, ride: 0.85, stress: 1, weekly: 2600, ev: true, fans: 1500, haul: 0.05, show: true, desc: '不鏽鋼電動皮卡：台灣沒有正式賣，要自己進口驗車；車太大巷子難鑽、出門慢一點，但載貨超強（進貨多打 5% 折），粉絲暴增' },
+    rd: { icon: '🏁', brand: '電斯拉', name: '路霸跑車', cost: 7500000, ride: 0.6, stress: 3, weekly: 3000, ev: true, fans: 1200, show: true, ticket: 0.15, desc: '電動超跑：出門最快、開起來最紓壓；但很容易超速被開罰單' },
+    cab: { icon: '🚖', brand: '電斯拉', name: '無人計程艙', cost: 1000000, ride: 0.85, stress: 1, weekly: 700, ev: true, robotaxi: true, desc: '沒有方向盤的雙人座：你不用的時候它會自己去載客賺錢（每週約 $4,000～8,000，平台抽兩成）；偶爾在路口卡住被拍上網' },
   };
   // 公司用的車：電動聯結車（有 2 間以上分店才用得到）
-  Fun.SEMI = { icon: '🚛', brand: '電斯拉', name: '電動聯結車', cost: 2400000, weekly: 4000, materials: 0.03, desc: '公司自己的物流車：各店進貨成本 -3%；每週電費、司機、保養 $4,000（公司付）' };
+  Fun.SEMI = { icon: '🚛', brand: '電斯拉', name: '電動聯結車', cost: 8000000, weekly: 6000, materials: 0.05, desc: '公司自己的物流車（一台約 800 萬）：各店進貨成本 -5%；每週電費、司機、保養 $6,000（公司付）' };
+
+
+  // 惡搞的品牌標誌（SVG，40×40）：車頭、車行、充電站的品牌列表都用這個
+  const svg = (body) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="64" height="64">${body}</svg>`;
+  const txt = (t, size, fill, y = 25, extra = '') => `<text x="20" y="${y}" font-size="${size}" font-family="Arial, sans-serif" font-weight="bold" fill="${fill}" text-anchor="middle" ${extra}>${t}</text>`;
+  Fun.EV_LOGOS = {
+    // 電斯拉：上面一道弧，底下的直槓是一道閃電（不是 T！）
+    dsl: svg('<circle cx="20" cy="20" r="19" fill="#fff"/><path d="M5 11 Q20 3 35 11 L33 14 Q20 8 7 14 Z" fill="#d6202e"/><path d="M23 14 L14 25 L19.5 25 L16 36 L27 21.5 L21.5 21.5 L25 14 Z" fill="#d6202e"/>'),
+    // 必亞迪：橢圓裡寫 BYE
+    byd: svg('<ellipse cx="20" cy="20" rx="18.5" ry="11" fill="#fff" stroke="#c8102e" stroke-width="2.5"/>' + txt('BYE', 11, '#c8102e', 24)),
+    // 玉龍：玉綠色圓、一個「玉」
+    n7: svg('<circle cx="20" cy="20" r="18" fill="#2f8f7b"/>' + txt('玉', 20, '#fff', 27)),
+    // 現帶：斜斜的 X（不是 H）
+    ioniq: svg('<ellipse cx="20" cy="20" rx="18.5" ry="12" fill="#fff" stroke="#002c5f" stroke-width="2.5"/>' + txt('X', 17, '#002c5f', 26, 'font-style="italic" transform="skewX(-15) translate(5 0)"')),
+    // 豈亞：手寫風的 KIO
+    kia: svg('<rect x="1" y="9" width="38" height="22" rx="4" fill="#05141f"/>' + txt('KIO', 13, '#fff', 25, 'font-style="italic" letter-spacing="-1"')),
+    // BNW：藍白四格圓標，字是 BNW
+    bnw: svg('<circle cx="20" cy="20" r="19" fill="#111"/><circle cx="20" cy="20" r="11" fill="#fff"/><path d="M20 9 A11 11 0 0 1 31 20 L20 20 Z M20 31 A11 11 0 0 1 9 20 L20 20 Z" fill="#1c69d4"/>' + txt('BNW', 6.5, '#fff', 7.5)),
+    // 冰士：三叉星換成雪花
+    eq: svg('<circle cx="20" cy="20" r="18" fill="none" stroke="#9aa3ab" stroke-width="2.5"/><g stroke="#9aa3ab" stroke-width="2.5" stroke-linecap="round"><path d="M20 5 V35 M7 12.5 L33 27.5 M7 27.5 L33 12.5"/><path d="M16 8 L20 11 L24 8 M16 32 L20 29 L24 32"/></g>'),
+    // 福思：圓裡疊 F 和 S
+    vw: svg('<circle cx="20" cy="20" r="18.5" fill="#001e50"/><circle cx="20" cy="20" r="15.5" fill="none" stroke="#fff" stroke-width="2"/>' + txt('F', 12, '#fff', 19) + txt('S', 12, '#fff', 31)),
+    // 沃弗：圓圈加一個往右上的閃電箭頭
+    vol: svg('<circle cx="18" cy="22" r="13" fill="none" stroke="#1b365d" stroke-width="3.5"/><path d="M27 13 L35 5 M29 5 H35 V11" stroke="#1b365d" stroke-width="3.5" fill="none"/><rect x="4" y="18.5" width="28" height="7" fill="#1b365d"/>' + txt('WOLF', 6, '#fff', 24.3)),
+    // 明爵：八角形寫 MJ
+    mg: svg('<path d="M13 3 H27 L37 13 V27 L27 37 H13 L3 27 V13 Z" fill="#a6192e" stroke="#c9b37e" stroke-width="2"/>' + txt('MJ', 14, '#fff', 25)),
+    // 保時傑：盾牌裡一個「傑」
+    tay: svg('<path d="M6 4 H34 V20 Q34 32 20 37 Q6 32 6 20 Z" fill="#d5001c" stroke="#c9a64b" stroke-width="2.5"/><rect x="11" y="10" width="18" height="17" fill="#f2c94c"/>' + txt('傑', 14, '#111', 24)),
+  };
+  Fun.evLogoSvg = (id) => Fun.EV_LOGOS[id] || Fun.EV_LOGOS.dsl;
 
   // 來充電的電動車：各品牌（虛構諧音）和大概的比例
   Fun.EV_BRANDS = [
