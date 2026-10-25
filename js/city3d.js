@@ -408,12 +408,25 @@
     // ───── 路上的車 ─────
     makeCars() {
       const n = 18;
-      const geo = new THREE.BoxGeometry(0.5, 0.35, 0.9);
-      geo.translate(0, 0.3, 0);
+      // 車形：跟店門口一樣的圓潤轎車（複製一份縮小，城市關掉時可以安心丟掉）；沒有的話退回方塊
+      const E = root.BossEVGeo;
+      const shape = (part, fallback) => {
+        if (!E) return fallback;
+        const g = E.loftParts('m3', 10)[part].clone();
+        g.rotateY(-Math.PI / 2);
+        g.scale(0.5, 0.5, 0.5);
+        g.translate(0, 0.05, 0);
+        return g;
+      };
+      const box = (w, h, d, y, z = 0) => {
+        const g = new THREE.BoxGeometry(w, h, d);
+        g.translate(0, y, z);
+        return g;
+      };
+      const geo = shape('body', box(0.5, 0.35, 0.9, 0.3));
       this.cars = new THREE.InstancedMesh(geo, new THREE.MeshLambertMaterial(), n);
-      // 車頂（電動車是黑玻璃）
-      const rgeo = new THREE.BoxGeometry(0.42, 0.2, 0.5);
-      rgeo.translate(0, 0.57, -0.05);
+      // 車艙（電動車是黑玻璃，汽油車跟車身同色）
+      const rgeo = shape('glass', box(0.42, 0.2, 0.5, 0.57, -0.05));
       this.roofs = new THREE.InstancedMesh(rgeo, new THREE.MeshLambertMaterial(), n);
       this.carData = [];
       const r = rand(99);

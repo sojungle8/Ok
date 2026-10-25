@@ -105,6 +105,118 @@
     }
     return evGeoCache.get(key);
   }
+  // ⚡ 圓潤的電動車：沿著車長取一片一片的截面（每片有自己的寬、高、圓角），再連起來
+  // 從上面看車頭車尾會收窄、側面有弧度、車艙往上內縮，比較像真的車（賽伯鐵牛本來就是稜角，維持擠出的做法）
+  // 關鍵截面：[u（0 車頭 → 1 車尾）, 車底 y0, 腰線 y1, 車頂 y2（null＝這裡沒有車艙）, 車身半寬 hw, 車頂半寬 hr]
+  const LOFTS = {
+    // Modal 3：低趴轎跑、短車尾、車頭很低沒有水箱罩
+    m3: { L: 1.95, rad: 0.155, wheels: [0.19, 0.8], logo: 0.07,
+      k: [[0, 0.2, 0.25, null, 0.27], [0.04, 0.17, 0.31, null, 0.35], [0.12, 0.16, 0.35, null, 0.39], [0.26, 0.16, 0.385, null, 0.4], [0.33, 0.16, 0.4, 0.4, 0.4, 0.33], [0.45, 0.16, 0.42, 0.575, 0.4, 0.3], [0.56, 0.16, 0.43, 0.625, 0.4, 0.29], [0.7, 0.16, 0.44, 0.595, 0.4, 0.29], [0.82, 0.16, 0.45, 0.49, 0.39, 0.31], [0.87, 0.16, 0.455, 0.455, 0.38, 0.32], [0.95, 0.17, 0.44, null, 0.36], [1, 0.21, 0.39, null, 0.3]] },
+    // Modal Y：同一家族但高一截的跑旅，車尾斜背
+    my: { L: 2.0, rad: 0.17, wheels: [0.19, 0.8], logo: 0.07,
+      k: [[0, 0.21, 0.29, null, 0.28], [0.04, 0.18, 0.35, null, 0.37], [0.12, 0.17, 0.4, null, 0.41], [0.26, 0.17, 0.44, null, 0.42], [0.32, 0.17, 0.46, 0.46, 0.42, 0.35], [0.44, 0.17, 0.48, 0.67, 0.42, 0.32], [0.56, 0.17, 0.49, 0.735, 0.42, 0.31], [0.7, 0.17, 0.5, 0.71, 0.42, 0.31], [0.82, 0.17, 0.51, 0.6, 0.41, 0.32], [0.89, 0.17, 0.515, 0.515, 0.4, 0.33], [0.95, 0.18, 0.49, null, 0.38], [1, 0.22, 0.43, null, 0.31]] },
+    // Modal S：更長更低的掀背旗艦，車尾一路斜到底
+    ms: { L: 2.15, rad: 0.16, wheels: [0.18, 0.81], logo: 0.07,
+      k: [[0, 0.2, 0.25, null, 0.27], [0.04, 0.17, 0.31, null, 0.36], [0.12, 0.16, 0.35, null, 0.4], [0.27, 0.16, 0.385, null, 0.41], [0.33, 0.16, 0.4, 0.4, 0.41, 0.33], [0.45, 0.16, 0.42, 0.57, 0.41, 0.3], [0.56, 0.16, 0.43, 0.615, 0.41, 0.29], [0.72, 0.16, 0.44, 0.57, 0.41, 0.3], [0.86, 0.16, 0.45, 0.47, 0.4, 0.32], [0.9, 0.16, 0.45, 0.45, 0.39, 0.33], [0.96, 0.17, 0.43, null, 0.36], [1, 0.21, 0.38, null, 0.3]] },
+    // Modal X：大休旅，前擋超大一路延伸到頭頂，車頂圓弧
+    mx: { L: 2.2, rad: 0.18, wheels: [0.18, 0.81], logo: 0.065,
+      k: [[0, 0.22, 0.31, null, 0.29], [0.04, 0.19, 0.37, null, 0.39], [0.11, 0.18, 0.43, null, 0.43], [0.2, 0.18, 0.47, null, 0.44], [0.25, 0.18, 0.49, 0.49, 0.44, 0.37], [0.4, 0.18, 0.52, 0.73, 0.44, 0.33], [0.55, 0.18, 0.53, 0.79, 0.44, 0.32], [0.72, 0.18, 0.54, 0.76, 0.44, 0.32], [0.85, 0.18, 0.55, 0.62, 0.43, 0.33], [0.9, 0.18, 0.55, 0.55, 0.42, 0.34], [0.96, 0.19, 0.52, null, 0.4], [1, 0.23, 0.45, null, 0.32]] },
+    // 路霸跑車：超低的雙門跑車，長車頭、座艙在後半段
+    rd: { L: 1.9, rad: 0.15, wheels: [0.2, 0.79], logo: 0.07, color: '#c0261a',
+      k: [[0, 0.17, 0.2, null, 0.28], [0.05, 0.14, 0.25, null, 0.37], [0.15, 0.13, 0.29, null, 0.41], [0.35, 0.13, 0.32, null, 0.41], [0.42, 0.13, 0.33, 0.33, 0.41, 0.3], [0.52, 0.13, 0.34, 0.46, 0.41, 0.27], [0.62, 0.13, 0.35, 0.49, 0.41, 0.26], [0.74, 0.13, 0.36, 0.42, 0.41, 0.28], [0.8, 0.13, 0.36, 0.36, 0.41, 0.3], [0.94, 0.14, 0.34, null, 0.39], [1, 0.18, 0.3, null, 0.32]] },
+    // 無人計程艙：香檳金水滴形雙人座，大玻璃罩
+    cab: { L: 1.5, rad: 0.14, wheels: [0.2, 0.8], logo: 0.06, color: '#cdb67a',
+      k: [[0, 0.2, 0.26, null, 0.25], [0.05, 0.16, 0.32, null, 0.33], [0.12, 0.15, 0.36, 0.36, 0.36, 0.3], [0.25, 0.15, 0.37, 0.66, 0.37, 0.29], [0.4, 0.15, 0.38, 0.77, 0.37, 0.28], [0.58, 0.15, 0.39, 0.72, 0.37, 0.28], [0.78, 0.15, 0.4, 0.52, 0.36, 0.3], [0.88, 0.15, 0.4, 0.4, 0.35, 0.31], [0.96, 0.16, 0.37, null, 0.32], [1, 0.2, 0.32, null, 0.26]] },
+    // 其他牌子：比較直立的掀背車、方一點的休旅
+    hatch: { L: 1.85, rad: 0.15, wheels: [0.18, 0.8], logo: 0.07,
+      k: [[0, 0.2, 0.28, null, 0.29], [0.04, 0.17, 0.34, null, 0.36], [0.12, 0.16, 0.39, null, 0.39], [0.27, 0.16, 0.42, null, 0.39], [0.32, 0.16, 0.44, 0.44, 0.39, 0.33], [0.45, 0.16, 0.45, 0.64, 0.39, 0.31], [0.6, 0.16, 0.46, 0.665, 0.39, 0.3], [0.86, 0.16, 0.47, 0.65, 0.39, 0.3], [0.94, 0.16, 0.47, 0.5, 0.38, 0.32], [0.96, 0.16, 0.465, null, 0.37], [1, 0.2, 0.42, null, 0.32]] },
+    suv: { L: 2.0, rad: 0.17, wheels: [0.18, 0.81], logo: 0.065,
+      k: [[0, 0.22, 0.33, null, 0.31], [0.04, 0.19, 0.39, null, 0.39], [0.12, 0.18, 0.45, null, 0.42], [0.25, 0.18, 0.49, null, 0.42], [0.3, 0.18, 0.51, 0.51, 0.42, 0.36], [0.42, 0.18, 0.52, 0.73, 0.42, 0.34], [0.6, 0.18, 0.53, 0.765, 0.42, 0.33], [0.88, 0.18, 0.54, 0.75, 0.42, 0.33], [0.95, 0.18, 0.54, 0.58, 0.41, 0.35], [0.97, 0.18, 0.53, null, 0.4], [1, 0.22, 0.48, null, 0.35]] },
+  };
+  // 取某個位置的截面（關鍵截面之間用平滑曲線內插）
+  function loftAt(D, u) {
+    const k = D.k;
+    let i = 0;
+    while (i < k.length - 2 && u > k[i + 1][0]) i++;
+    const a = k[i];
+    const b = k[i + 1];
+    const t0 = Math.max(0, Math.min(1, (u - a[0]) / (b[0] - a[0] || 1)));
+    const t = t0 * t0 * (3 - 2 * t0);
+    const lerp = (x, y) => x + (y - x) * t;
+    const y1 = lerp(a[2], b[2]);
+    const hw = lerp(a[4], b[4]);
+    // 車艙：兩邊都有才有；只有一邊有就從腰線長出來或收回去
+    const cab = (p) => (p[3] == null ? { y2: null, hr: hw - 0.08 } : { y2: p[3], hr: p[5] });
+    const ca = cab(a);
+    const cb = cab(b);
+    let y2 = null;
+    if (ca.y2 != null && cb.y2 != null) y2 = lerp(ca.y2, cb.y2);
+    return { x: D.L / 2 - u * D.L, y0: lerp(a[1], b[1]), y1, y2: y2 == null ? y1 - 0.012 : y2, hw, hr: y2 == null ? hw - 0.08 : lerp(ca.hr, cb.hr) };
+  }
+  // 截面的半邊（從底部中間繞到頂部中間），再鏡射成一整圈
+  function bodyHalf(s) {
+    const { y0, y1, hw } = s;
+    const h = y1 - y0;
+    return [[0, y0], [hw * 0.78, y0], [hw * 0.96, y0 + h * 0.12], [hw, y0 + h * 0.32], [hw, y1 - h * 0.22], [hw * 0.97, y1 - h * 0.07], [hw * 0.86, y1], [hw * 0.45, y1 + 0.01], [0, y1 + 0.014]];
+  }
+  function cabinHalf(s) {
+    const { y1, y2, hw, hr } = s;
+    const h = Math.max(0.001, y2 - y1);
+    return [[0, y1 - 0.02], [hw - 0.06, y1 - 0.02], [hw - 0.06, y1 + 0.004], [hr, y2 - h * 0.28], [hr * 0.93, y2 - h * 0.07], [hr * 0.66, y2], [0, y2 + 0.006]];
+  }
+  function loftGeo(D, half, segs) {
+    const rings = [];
+    for (let i = 0; i <= segs; i++) {
+      const s = loftAt(D, i / segs);
+      const hp = half(s);
+      const ring = hp.map(([z, y]) => [s.x, y, z]);
+      for (let j = hp.length - 2; j >= 1; j--) ring.push([s.x, hp[j][1], -hp[j][0]]);
+      rings.push(ring);
+    }
+    const n = rings[0].length;
+    const pos = [];
+    const idx = [];
+    for (const r of rings) for (const p of r) pos.push(...p);
+    for (let i = 0; i < segs; i++)
+      for (let j = 0; j < n; j++) {
+        const a = i * n + j;
+        const b = i * n + ((j + 1) % n);
+        const c = (i + 1) * n + j;
+        const d = (i + 1) * n + ((j + 1) % n);
+        idx.push(a, b, c, b, d, c);
+      }
+    // 車頭、車尾封起來
+    for (const [ri, flip] of [[0, false], [segs, true]]) {
+      const r = rings[ri];
+      const cy = r.reduce((t, p) => t + p[1], 0) / n;
+      const ci = pos.length / 3;
+      pos.push(r[0][0], cy, 0);
+      for (let j = 0; j < n; j++) {
+        const a = ri * n + j;
+        const b = ri * n + ((j + 1) % n);
+        if (flip) idx.push(ci, a, b);
+        else idx.push(ci, b, a);
+      }
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    geo.setIndex(idx);
+    geo.computeVertexNormals();
+    geo.userData.shared = true;
+    return geo;
+  }
+  const loftCache = new Map();
+  function loftParts(model, segs = 22) {
+    const key = model + segs;
+    if (!loftCache.has(key)) {
+      const D = LOFTS[model];
+      loftCache.set(key, { body: loftGeo(D, bodyHalf, segs), glass: loftGeo(D, cabinHalf, segs) });
+    }
+    return loftCache.get(key);
+  }
+  // 城市地圖的小車也用同一個車形（低一點的精細度）
+  root.BossEVGeo = { LOFTS, loftAt, loftParts };
+
   // 標誌貼圖：SVG 畫成貼圖，每個牌子只做一次
   const logoMats = new Map();
   function evLogoMat(id) {
@@ -3624,51 +3736,76 @@
         const m = Math.random();
         model = m < 0.34 ? 'm3' : m < 0.68 ? 'my' : m < 0.76 ? 'ms' : m < 0.83 ? 'mx' : m < 0.89 ? 'ct' : m < 0.92 ? 'rd' : 'cab';
       }
-      const P = EV_PROFILES[model];
+      const D = LOFTS[model];
+      const P = D ? null : EV_PROFILES[model];
       const dslCol = ['#f2f2f2', '#1d1d1f', '#b3261e', '#2b4c8c', '#8a8d91'][Math.floor(Math.random() * 5)];
-      const col = P.color || (brand.id === 'dsl' ? dslCol : brand.color);
-      const paint = P.steel ? { roughness: 0.25, metalness: 0.8 } : { roughness: 0.3, metalness: 0.35 };
-      const add = (geo, m, y = 0) => {
+      const col = (D || P).color || (brand.id === 'dsl' ? dslCol : brand.color);
+      const steel = P && P.steel;
+      const paint = steel ? { roughness: 0.25, metalness: 0.8 } : { roughness: 0.3, metalness: 0.35 };
+      const glassMat = mat('#1b242c', { roughness: 0.12, metalness: 0.55 });
+      const add = (geo, m) => {
         const o = new THREE.Mesh(geo, m);
-        o.position.y = y;
         o.castShadow = true;
         g.add(o);
         return o;
       };
-      add(evGeo(model + 'b', P.body, P.w), mat(col, paint));
-      if (P.glass) add(evGeo(model + 'g', P.glass, P.gw || P.w - 0.14), mat('#1b242c', { roughness: 0.15, metalness: 0.5 }));
-      const L = P.L;
       const head = basic('#fff3c4');
       const tail = basic('#ff3b2f');
-      // 燈：電斯拉是細長頭燈；鐵牛、計程艙前後都是一整條燈條
-      if (P.bar) {
+      const wheel = (x, z, rad) => {
+        const w = C(g, rad, rad, 0.12, '#1d1d1d', x, 0, z, 12);
+        w.rotation.x = Math.PI / 2;
+        w.position.y = rad;
+        // 輪框：電動車常見的空力輪框（灰色圓盤）
+        const hub = C(g, rad * 0.62, rad * 0.62, 0.02, steel ? '#2b2b2e' : '#b9bec4', x, 0, z + Math.sign(z) * 0.065, 12);
+        hub.rotation.x = Math.PI / 2;
+        hub.position.y = rad;
+      };
+      const badge = (x, y, tilt) => {
+        const m = new THREE.Mesh(badgeGeo(), evLogoMat(brand.id));
+        m.position.set(x, y + 0.006, 0);
+        m.up.set(-1, 0, 0);
+        m.lookAt(x + Math.sin(tilt), y + Math.cos(tilt), 0);
+        g.add(m);
+      };
+      let L;
+      let plateY = 0.16;
+      if (D) {
+        // 圓潤車身＋整片玻璃車艙
+        const parts = loftParts(model);
+        add(parts.body, mat(col, paint));
+        add(parts.glass, glassMat);
+        L = D.L;
+        const f = loftAt(D, 0.035);
+        const r = loftAt(D, 0.975);
+        // 燈：電斯拉是細長的頭燈、車尾一整條燈；其他牌子是一般的燈
+        const hy = f.y0 + (f.y1 - f.y0) * 0.55;
+        for (const z of [-1, 1]) B(g, 0.05, 0.03, 0.15, head, f.x - 0.02, hy, z * (f.hw - 0.09));
+        const ty = r.y0 + (r.y1 - r.y0) * 0.55;
+        if (brand.id === 'dsl' || model === 'cab') B(g, 0.04, 0.035, r.hw * 2 - 0.12, tail, r.x + 0.01, ty, 0);
+        else for (const z of [-1, 1]) B(g, 0.04, 0.05, 0.14, tail, r.x + 0.01, ty, z * (r.hw - 0.09));
+        for (const u of D.wheels) {
+          const w = loftAt(D, u);
+          for (const z of [-1, 1]) wheel(w.x, z * (w.hw - 0.025), D.rad);
+        }
+        // 惡搞標誌：引擎蓋前緣，順著引擎蓋的斜度
+        const l1 = loftAt(D, D.logo);
+        const l2 = loftAt(D, D.logo + 0.05);
+        badge(l1.x, l1.y1 + 0.014, Math.atan2(l2.y1 - l1.y1, l1.x - l2.x));
+        plateY = loftAt(D, 0).y0 + 0.005;
+      } else {
+        // 賽伯鐵牛：不鏽鋼三角形，維持稜角分明的擠出車身
+        add(evGeo(model + 'b', P.body, P.w), mat(col, paint));
+        if (P.glass) add(evGeo(model + 'g', P.glass, P.gw || P.w - 0.14), glassMat);
+        L = P.L;
         B(g, 0.025, 0.03, P.w, head, P.bar[0], P.bar[1], 0);
         B(g, 0.025, 0.03, P.w, tail, P.bar[2], P.bar[3], 0);
-      } else {
-        for (const z of [-1, 1]) B(g, 0.03, 0.035, 0.16, head, L / 2 - 0.02, P.light, z * (P.w / 2 - 0.1));
-        B(g, 0.03, 0.04, brand.id === 'dsl' ? P.w - 0.1 : 0.16, tail, -L / 2 + 0.01, P.light + 0.04, brand.id === 'dsl' ? 0 : -(P.w / 2 - 0.1));
-        if (brand.id !== 'dsl') B(g, 0.03, 0.04, 0.16, tail, -L / 2 + 0.01, P.light + 0.04, P.w / 2 - 0.1);
+        for (const x of P.wheels) for (const z of [-1, 1]) wheel(x, z * (P.w / 2 - 0.02), P.rad);
+        badge(P.logo[0], P.logo[1], P.logo[2]);
       }
-      // 輪子：輪框是電動車常見的空力輪框（灰色圓盤）
-      for (const x of P.wheels) for (const z of [-1, 1]) {
-        const w = C(g, P.rad, P.rad, 0.12, '#1d1d1d', x, 0, z * (P.w / 2 - 0.02), 12);
-        w.rotation.x = Math.PI / 2;
-        w.position.y = P.rad;
-        const hub = C(g, P.rad * 0.62, P.rad * 0.62, 0.02, P.steel ? '#2b2b2e' : '#b9bec4', x, 0, z * (P.w / 2 + 0.05), 12);
-        hub.rotation.x = Math.PI / 2;
-        hub.position.y = P.rad;
-      }
-      // 惡搞標誌：貼在引擎蓋前緣，順著引擎蓋的斜度（從上面、前面都看得到）
-      const [lx, ly, tilt] = P.logo;
-      const badge = new THREE.Mesh(badgeGeo(), evLogoMat(brand.id));
-      badge.position.set(lx, ly + 0.006, 0);
-      badge.up.set(-1, 0, 0);
-      badge.lookAt(lx + Math.sin(tilt), ly + Math.cos(tilt), 0);
-      g.add(badge);
       // 綠框白底的電動車車牌（前後各一）
       for (const sx of [1, -1]) {
-        B(g, 0.02, 0.1, 0.28, '#22a35a', sx * (L / 2 + 0.02), 0.16, 0);
-        B(g, 0.022, 0.07, 0.23, '#ffffff', sx * (L / 2 + 0.026), 0.175, 0);
+        B(g, 0.02, 0.1, 0.28, '#22a35a', sx * (L / 2 + 0.012), plateY, 0);
+        B(g, 0.022, 0.07, 0.23, '#ffffff', sx * (L / 2 + 0.018), plateY + 0.015, 0);
       }
       g.userData.ev = { brand: brand.id, model };
       return L;
