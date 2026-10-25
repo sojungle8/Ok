@@ -871,7 +871,9 @@
         <div class="ev-row"><small>價格</small><button data-action="ev-price" data-id="${lot}" data-kind="${k}" data-v="-0.5">－</button><b>$${pr}</b><button data-action="ev-price" data-id="${lot}" data-kind="${k}" data-v="0.5">＋</button></div></div>`;
     };
     const near = L.home && w.days ? `<br>🚶 等充電的車主每天大約有 ${Math.round(((w.fast * 0.35 + w.slow * 0.5) / Math.max(1, w.days)) * (s.hours.span / 1440))} 位走進店裡` : '';
-    return `<b>⚡ ${L.name}充電站</b><small>${tag}：快充 ${w.fast} 次・慢充 ${w.slow} 次・${Math.round(w.kwh).toLocaleString()} 度<br>收入 ${money(w.rev)}－電費 ${money(w.elec)}－基本電費和保養 ${money(w.fixed)}＝<b class="${w.net < 0 ? 'neg' : 'pos'}">${money(w.net)}</b>・累計 ${money(st.total)}${near}${broken}<br>${brands ? `來充電的車：${brands}` : '還沒有車來充電：先裝充電樁'}<br>口碑 ${Math.round(st.rep * 100)}%・電動車普及 ${s.evShare.toFixed(2)} 倍${flags ? `<br>${flags}` : ''}</small>
+    const td = st.today || { fast: 0, slow: 0, net: 0 };
+    const nowLine = `🔴 今天到現在：快充 ${td.fast} 台・慢充 ${td.slow} 台・淨 <b class="${td.net < 0 ? 'neg' : 'pos'}">${money(Math.round(td.net))}</b>（每個小時結算，白天傍晚車最多）<br>`;
+    return `<b>⚡ ${L.name}充電站</b><small>${nowLine}${tag}：快充 ${w.fast} 次・慢充 ${w.slow} 次・${Math.round(w.kwh).toLocaleString()} 度<br>收入 ${money(w.rev)}－電費 ${money(w.elec)}－基本電費和保養 ${money(w.fixed)}＝<b class="${w.net < 0 ? 'neg' : 'pos'}">${money(w.net)}</b>・累計 ${money(st.total)}${near}${broken}<br>${brands ? `來充電的車：${brands}` : '還沒有車來充電：先裝充電樁'}<br>口碑 ${Math.round(st.rep * 100)}%・電動車普及 ${s.evShare.toFixed(2)} 倍${flags ? `<br>${flags}` : ''}</small>
       <div class="ev-grid">${kind('fast')}${kind('slow')}</div>
       <small>快充最大的固定成本是契約容量的基本電費（每支每週約 ${money(K.fast.kw * K.basePerKw)}），沒人充也要付；價格調太高車主會去別家。</small>
       <div class="city-btns"><button data-action="ev-sell" data-id="${lot}">${ui.evSellArm === lot ? `⚠️ 再按一次：賣掉拿回 ${money(st.land * K.resale + st.gear * K.gearResale)}` : '🏷️ 賣掉這塊地'}</button></div>`;

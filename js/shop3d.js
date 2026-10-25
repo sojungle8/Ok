@@ -2579,13 +2579,22 @@
       this.neighborPick = pick(0);
       this.rivalKey = this.rivalState();
       this.buildLeftNeighbor();
-      this.buildNeighbor(this.neighbors.right, W, 0, OUT_W, H, pick(3));
+      // 右邊：買了「店旁的空地」充電站就變成充電區，不然是隔壁店家
+      const evHome = this.evHomeStation();
+      this.evBayOn = !!evHome;
+      this.evCarGroup = new THREE.Group();
+      g.add(this.evCarGroup);
+      this.evCars = [];
+      this.evSlots = [];
+      if (evHome) this.buildEVBay(this.neighbors.right, evHome);
+      else this.buildNeighbor(this.neighbors.right, W, 0, OUT_W, H, pick(3));
 
       // 路邊停的機車
       const colors = ['#c0392b', '#ecf0f1', '#2c3e50', '#2980b9', '#f1c40f', '#7f8c8d'];
       for (let x = -OUT_W + 0.6, i = 0; x < W + OUT_W - 0.5; x += 0.75, i++) {
         if (x > d0 - 0.6 && x < d0 + 2.6) continue;
         if ((i * 7) % 5 === 0) continue;
+        if (this.evBayOn && x > W - 0.3) continue; // 充電區的出入口不停機車
         const sc = scooterModel(colors[i % colors.length]);
         sc.position.set(x, 0, H + 1.0);
         sc.rotation.y = Math.PI + 0.15;
@@ -2998,7 +3007,7 @@
         gr.scale.y = low ? (k === 'front' ? 0.22 : 0.12) : 1;
       }
       this.neighbors.left.visible = !near.includes('left');
-      this.neighbors.right.visible = !near.includes('right');
+      this.neighbors.right.visible = !near.includes('right') || this.evBayOn;
       // 從正面看的時候，招牌和柱子會擋住店裡：變透明、變矮
       const frontNear = near.includes('front');
       // 半透明的招牌疊在人身上反而更亂，正面看的時候直接收起來
@@ -3449,9 +3458,11 @@
     render(now) {
       const dt = Math.min(0.05, (now - this.lastNow) / 1000);
       this.lastNow = now;
-      if (this.sim.W !== this._lastW || (this.sim.styleVer || 0) !== this._styleVer) {
+      const evKey = this.evHomeKey();
+      if (this.sim.W !== this._lastW || (this.sim.styleVer || 0) !== this._styleVer || evKey !== this._evKey) {
         this._lastW = this.sim.W;
         this._styleVer = this.sim.styleVer || 0;
+        this._evKey = evKey;
         this.buildStatic();
       }
       this.easeCamera(dt);
@@ -3469,6 +3480,7 @@
       }
       this.updateRain(dt);
       this.updateStreetLife(dt, now);
+      this.updateEVBay(dt);
       this.updateRipples(dt);
       this.animateProps(now);
       this.renderer.render(this.world, this.camera);
@@ -3736,6 +3748,155 @@
       });
     }
 
+    // ───── ⚡ 店旁的充電區 ─────
+    evHomeStation() {
+      const C = window.BossCity;
+      return (this.sim.evStations || []).find((st) => C && C.LOTS[st.lot] && C.LOTS[st.lot].home) || null;
+    }
+    evHomeKey() {
+      const st = this.evHomeStation();
+      return st ? `${st.fast},${st.slow}` : '';
+    }
+    // 柏油地、停車格、雨棚、充電樁（快充深綠、慢充藍）、招牌柱；停車格位置存起來給車子停
+    buildEVBay(group, st) {
+      const s = this.sim;
+      const W = s.W;
+      const H = s.H;
+      const x0 = W;
+      const asphalt = new THREE.Mesh(new THREE.PlaneGeometry(OUT_W, H), mat('#4f5357', { roughness: 0.95 }));
+      asphalt.rotation.x = -Math.PI / 2;
+      asphalt.position.set(x0 + OUT_W / 2, 0.006, H / 2);
+      asphalt.receiveShadow = true;
+      group.add(asphalt);
+      // 後面一道矮牆、旁邊的綠籬
+      B(group, OUT_W, 0.5, 0.15, '#cfc8bd', x0 + OUT_W / 2, 0, 0.075);
+      B(group, 0.25, 0.45, H - 0.4, '#5f9e6e', x0 + OUT_W - 0.12, 0, H / 2 - 0.2);
+      const rows = H >= 6.5 ? [{ z: 1.45, cz: 0.3 }, { z: 4.1, cz: 2.92 }] : [{ z: 1.45, cz: 0.3 }];
+      const per = 4;
+      const kinds = [];
+      for (let i = 0; i < st.fast; i++) kinds.push('fast');
+      for (let i = 0; i < st.slow; i++) kinds.push('slow');
+      const white = basic('#e9e6df');
+      rows.forEach((row, ri) => {
+        for (let i = 0; i < per; i++) {
+          const kind = kinds[ri * per + i];
+          const x = x0 + 0.5 + i * 0.98;
+          // 停車格線（左右兩條）＋地上的綠色電動車標記
+          for (const dx of [-0.48, 0.48]) B(group, 0.04, 0.012, 2.0, white, x + dx, 0, row.z);
+          if (!kind) continue;
+          const mark = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.9), basic('#2e8b57', { transparent: true, opacity: 0.55 }));
+          mark.rotation.x = -Math.PI / 2;
+          mark.position.set(x, 0.014, row.z + 0.3);
+          group.add(mark);
+          // 充電樁
+          const fast = kind === 'fast';
+          B(group, 0.3, fast ? 1.0 : 0.7, 0.2, fast ? '#1f8f5f' : '#3b7dd8', x, 0, row.cz);
+          B(group, 0.22, 0.16, 0.02, basic(fast ? '#bff5d6' : '#cfe3ff'), x, fast ? 0.7 : 0.45, row.cz + 0.11);
+          B(group, 0.32, 0.05, 0.22, '#e9ecef', x, fast ? 1.0 : 0.7, row.cz);
+          this.evSlots.push({ x, z: row.z, kind, car: null });
+        }
+      });
+      // 雨棚：只蓋在充電樁那一排上面（從上面看得到停著充電的車）
+      const roofY = 1.45;
+      B(group, OUT_W - 0.2, 0.08, 0.75, '#f4f6f5', x0 + OUT_W / 2, roofY, 0.42);
+      B(group, OUT_W - 0.2, 0.1, 0.05, '#2ecc71', x0 + OUT_W / 2, roofY - 0.02, 0.82);
+      for (const dx of [0.12, OUT_W - 0.32]) B(group, 0.08, roofY, 0.08, '#c8cdd0', x0 + dx, 0, 0.75);
+      // 招牌柱：路邊看得到
+      B(group, 0.18, 2.2, 0.18, '#2ecc71', x0 + OUT_W - 0.3, 0, H - 0.35);
+      const sign = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.5), new THREE.MeshBasicMaterial({ map: this.evSignTex(), transparent: true }));
+      sign.position.set(x0 + OUT_W - 0.3, 2.35, H - 0.24);
+      group.add(sign);
+    }
+    evSignTex() {
+      if (this._evSign) return this._evSign;
+      const c = document.createElement('canvas');
+      c.width = 256;
+      c.height = 144;
+      const x = c.getContext('2d');
+      x.fillStyle = '#2ecc71';
+      x.fillRect(0, 0, 256, 144);
+      x.fillStyle = '#fff';
+      x.fillRect(8, 8, 240, 128);
+      x.fillStyle = '#1f8f5f';
+      x.font = 'bold 64px sans-serif';
+      x.textAlign = 'center';
+      x.fillText('⚡充電', 128, 88);
+      x.font = 'bold 26px sans-serif';
+      x.fillText('快充・慢充', 128, 124);
+      this._evSign = new THREE.CanvasTexture(c);
+      return this._evSign;
+    }
+    // 車子：照模擬排好的時間從馬路開進來、停進充電格、充完倒出來開走
+    updateEVBay(dt) {
+      if (!this.evBayOn || !this.evCarGroup) return;
+      const s = this.sim;
+      const ts = this.opts.timeScale ? this.opts.timeScale() : 1;
+      const H = s.H;
+      const lane = H + 1.7;
+      for (const v of s.evVisits || []) {
+        if (v.taken || v.at > s.minute) continue;
+        v.taken = true;
+        if (s.minute - v.at > v.stay) continue; // 早就充完走了（例如剛讀檔）
+        const slot = this.evSlots.find((sl) => sl.kind === v.kind && !sl.car) || this.evSlots.find((sl) => sl.kind && !sl.car);
+        if (!slot) continue;
+        const g = new THREE.Group();
+        this.buildEV(g, v.brand);
+        g.traverse((o) => {
+          if (o.isMesh) o.castShadow = false;
+        });
+        const sx = -OUT_W - 4;
+        g.position.set(sx, 0, lane);
+        this.evCarGroup.add(g);
+        const car = { g, slot, until: v.at + v.stay, path: [[slot.x, lane], [slot.x, slot.z]], back: false, state: 'in' };
+        slot.car = car;
+        this.evCars.push(car);
+      }
+      const spd = 4.5 * dt * Math.max(0.6, Math.min(3, ts));
+      this.evCars = this.evCars.filter((c) => {
+        if (c.state === 'park') {
+          if (s.minute < c.until) return true;
+          // 充完了：倒車出來，再往前開走
+          c.state = 'out';
+          c.back = true;
+          c.path = [[c.slot.x, lane]];
+          c.slot.car = null;
+        }
+        const tgt = c.path[0];
+        if (!tgt) {
+          if (c.state === 'in') {
+            c.state = 'park';
+            return true;
+          }
+          if (c.back) {
+            c.back = false;
+            c.path = [[s.W * 1.5 + 18, lane]];
+            return true;
+          }
+          this.evCarGroup.remove(c.g);
+          return false;
+        }
+        const p = c.g.position;
+        const dx = tgt[0] - p.x;
+        const dz = tgt[1] - p.z;
+        const d = Math.hypot(dx, dz);
+        if (d <= spd) {
+          p.x = tgt[0];
+          p.z = tgt[1];
+          c.path.shift();
+        } else {
+          p.x += (dx / d) * spd;
+          p.z += (dz / d) * spd;
+        }
+        // 車頭朝行進方向（倒車時車頭朝反方向）
+        if (d > 0.01) {
+          const fx = c.back ? -dx : dx;
+          const fz = c.back ? -dz : dz;
+          c.g.rotation.y = Math.atan2(-fz, fx);
+        }
+        return true;
+      });
+    }
+
     // ───── 街景：車流、鴿子、時鐘 ─────
     carWheels(g, L, rad) {
       for (const x of [-L / 2 + 0.4, L / 2 - 0.4]) for (const z of [-0.38, 0.38]) {
@@ -3746,11 +3907,11 @@
     }
 
     // ⚡ 路上的電動車：照真車的側面輪廓擠出來（車頭朝 +x），電斯拉各車款一看就認得；車頭貼惡搞標誌，掛綠框電動車車牌
-    buildEV(g) {
+    buildEV(g, want) {
       const F = window.BossFun || {};
       const brands = F.EV_BRANDS || [{ id: 'dsl', color: '#f2f2f2', share: 1 }];
       let r = Math.random();
-      const brand = brands.find((b) => (r -= b.share) < 0) || brands[0];
+      const brand = (want && brands.find((b) => b.id === want)) || brands.find((b) => (r -= b.share) < 0) || brands[0];
       let model = Math.random() < 0.5 ? 'hatch' : 'suv';
       if (brand.id === 'dsl') {
         const m = Math.random();

@@ -733,6 +733,23 @@ T('充電站事件：故障停用、補助入帳、電價調漲都會作用在�
   ok(Math.abs(st.elec - 1.1) < 1e-9, '電價沒漲');
 });
 
+
+T('充電站：買了當天就開始有車、每小時進帳；店旁的站車主會走進店', () => {
+  const s = mk('store', { cash: 5e6, events: false });
+  while (s.level < 6) s.xp += 50;
+  s.tick(300);
+  const st = s.buyLot('home');
+  s.addCharger('home', 'fast');
+  s.addCharger('home', 'fast');
+  const c0 = s.cash;
+  const day0 = s.day;
+  s.tick(8 * 60);
+  ok(s.day === day0, '測試跨日了');
+  ok(st.today.fast > 0, `買了 8 小時還沒有車：${st.today.fast}`);
+  ok(s.ledger.charging > 0 && s.cash > c0 - 1, `還沒進帳 ${s.ledger.charging}`);
+  ok((s.evVisits || []).length > 0, '店旁的站沒有排車子開進來');
+});
+
 // ───── 執行 ─────
 const want = process.argv.slice(2);
 let pass = 0;

@@ -4430,6 +4430,7 @@
       const K = Fun.CHARGE;
       const st = { lot: id, name: L.name, land: price, gear: 0, fast: 0, slow: 0, priceFast: K.fast.price, priceSlow: K.slow.price, rep: 1, elec: 1, broken: 0, brokenUntil: 0, flags: [], subsidy: false, opened: this.day, total: 0, week: null, last: null, today: null };
       st.week = this.chargeBlank();
+      st.today = this.chargeBlank();
       this.evStations.push(st);
       this.notify(`🅿️ 買下了「${L.name}」的土地（${money(price)}）。接下來裝充電樁就能開始營業。`, 'good');
       return st;
@@ -4445,6 +4446,7 @@
       this.ledger.other -= k.cost;
       st.gear += k.cost;
       st[kind] += 1;
+      this.chargePlan(st);
       this.notify(`${k.name}裝好了（${st.name}，現在 ${st[kind]} 支）`, 'good');
       return true;
     }
@@ -4455,6 +4457,7 @@
       const back = Math.round(k.cost * Fun.CHARGE.gearResale);
       st[kind] -= 1;
       st.gear = Math.max(0, st.gear - k.cost);
+      this.chargePlan(st);
       this.cash += back;
       this.ledger.other += back;
       return true;
@@ -4465,6 +4468,7 @@
       const key = kind === 'fast' ? 'priceFast' : 'priceSlow';
       const [lo, hi] = kind === 'fast' ? [7, 18] : [5, 12];
       st[key] = clamp(Math.round((st[key] + delta) * 2) / 2, lo, hi);
+      this.chargePlan(st);
       return true;
     }
     sellStation(lot) {
@@ -4481,54 +4485,110 @@
     get evShare() {
       return Math.min(2, 1 + this.day * 0.002);
     }
-    // 一天的充電生意（無人站，24 小時都有車來）
-    chargeDaily(report) {
-      if (!this.evStations || !this.evStations.length || !Fun.CHARGE) return;
+    // 充電的車一天裡哪個時段多：快充白天到傍晚多；慢充看地點（社區晚上回家充、辦公室早上停一整天）
+    chargeCurve(kind, lot) {
+      const C = (this._evCurves = this._evCurves || {});
+      const key = `${kind}:${lot}`;
+      if (!C[key]) {
+        const day = [0.2, 0.15, 0.1, 0.1, 0.1, 0.2, 0.5, 0.9, 1.1, 1.2, 1.3, 1.4, 1.5, 1.4, 1.3, 1.3, 1.4, 1.6, 1.7, 1.5, 1.2, 0.9, 0.6, 0.35];
+        const night = [0.5, 0.3, 0.2, 0.1, 0.1, 0.1, 0.2, 0.3, 0.4, 0.4, 0.4, 0.5, 0.6, 0.5, 0.5, 0.6, 0.9, 1.4, 2.0, 2.4, 2.4, 2.0, 1.5, 0.9];
+        const morning = [0.05, 0.05, 0.05, 0.05, 0.05, 0.1, 0.6, 2.2, 3.0, 2.2, 1.0, 0.6, 0.8, 0.8, 0.5, 0.4, 0.3, 0.3, 0.2, 0.15, 0.1, 0.1, 0.05, 0.05];
+        const w = kind === 'slow' && lot === 'community' ? night : kind === 'slow' && lot === 'office' ? morning : day;
+        const sum = w.reduce((t, x) => t + x, 0);
+        C[key] = w.map((x) => x / sum);
+      }
+      return C[key];
+    }
+    // 今天預計有多少台來充（天氣、口碑、價格、普及率、樁數都算進去）；買樁、改價格當下也會重算
+    chargePlan(st) {
       const K = Fun.CHARGE;
+      const L = City.LOTS[st.lot];
+      if (!L || !K) return;
       const weekend = this.weekday >= 5;
       const typhoon = this.weather && this.weather.id === 'typhoon';
+      const pull = st.rep * this.evShare * (L.home ? this.spotInfo.traffic || 1 : 1) * (L.weekend && weekend ? L.weekend : 1) * (st.flags.includes('nav') ? 1.15 : 1) * (typhoon ? 0.3 : 1);
+      const plan = { fast: 0, slow: 0, fixed: 0 };
+      for (const kind of ['fast', 'slow']) {
+        const k = K[kind];
+        let n = st[kind];
+        if (kind === 'fast' && st.broken && this.day < st.brokenUntil) n = Math.max(0, n - st.broken);
+        plan.fixed += (st[kind] * k.kw * K.basePerKw + st[kind] * k.upkeep) / 7; // 壞掉的樁基本電費照付
+        if (!n) continue;
+        const price = kind === 'fast' ? st.priceFast : st.priceSlow;
+        // 比行情便宜會多一些車；比行情貴，車主掉頭很快
+        const want = (kind === 'fast' ? 30 : 14) * L[kind] * pull * Math.pow(k.price / price, price > k.price ? 2.5 : 1.6) * (0.85 + this.rng() * 0.3);
+        const cap = n * k.cap * (kind === 'fast' && st.flags.includes('idle') ? 1.15 : 1) * (st.flags.includes('lock') ? 1.05 : 1);
+        plan[kind] = cap * (1 - Math.exp(-want / cap));
+      }
+      if (st.flags.includes('nav')) plan.fixed += 3000 / 7;
+      if (st.flags.includes('cam')) plan.fixed += 300 / 7;
+      st.plan = plan;
+      st.acc = st.acc || { fast: 0, slow: 0 };
+      if (!st.today) st.today = this.chargeBlank();
+    }
+    // 每過一個小時：這個小時來充電的車真的來了，錢也跟著進來（店旁的站還看得到車開進來）
+    chargeHour(hour) {
+      if (!this.evStations || !this.evStations.length || !Fun.CHARGE) return;
+      const K = Fun.CHARGE;
+      const brands = Fun.EV_BRANDS || [];
       let net = 0;
       for (const st of this.evStations) {
-        const L = City.LOTS[st.lot];
-        if (!L) continue;
-        const pull = st.rep * this.evShare * (L.home ? this.spotInfo.traffic || 1 : 1) * (L.weekend && weekend ? L.weekend : 1) * (st.flags.includes('nav') ? 1.15 : 1) * (typhoon ? 0.3 : 1);
-        const d = { fast: 0, slow: 0, kwh: 0, rev: 0, elec: 0, fixed: 0 };
+        if (!st.plan) this.chargePlan(st);
+        if (!st.plan) continue;
+        const d = st.today || (st.today = this.chargeBlank());
+        const home = City.LOTS[st.lot] && City.LOTS[st.lot].home;
+        let hNet = -st.plan.fixed / 24;
         for (const kind of ['fast', 'slow']) {
           const k = K[kind];
-          let n = st[kind];
-          if (kind === 'fast' && st.broken && this.day < st.brokenUntil) n = Math.max(0, n - st.broken);
-          d.fixed += (st[kind] * k.kw * K.basePerKw + st[kind] * k.upkeep) / 7; // 壞掉的樁基本電費照付
-          if (!n) continue;
+          st.acc[kind] += st.plan[kind] * this.chargeCurve(kind, st.lot)[hour];
+          const n = Math.floor(st.acc[kind]);
+          if (n <= 0) continue;
+          st.acc[kind] -= n;
           const price = kind === 'fast' ? st.priceFast : st.priceSlow;
-          // 比行情便宜會多一些車；比行情貴，車主掉頭很快，口碑也會慢慢變差
-          const want = (kind === 'fast' ? 30 : 14) * L[kind] * pull * Math.pow(k.price / price, price > k.price ? 2.5 : 1.6) * (0.85 + this.rng() * 0.3);
-          if (price >= k.price * 1.2) st.rep = Math.max(0.8, st.rep - 0.002);
-          const cap = n * k.cap * (kind === 'fast' && st.flags.includes('idle') ? 1.15 : 1) * (st.flags.includes('lock') ? 1.05 : 1);
-          const served = Math.round(cap * (1 - Math.exp(-want / cap)));
-          const kwh = served * k.kwh;
-          d[kind] = served;
+          const kwh = n * k.kwh;
+          const rev = kwh * price + n * (k.park || 0);
+          const elec = kwh * k.elec * st.elec;
+          d[kind] += n;
           d.kwh += kwh;
-          d.rev += kwh * price + served * (k.park || 0);
-          d.elec += kwh * k.elec * st.elec;
+          d.rev += rev;
+          d.elec += elec;
+          hNet += rev - elec;
+          for (let i = 0; i < n; i++) {
+            let r = this.rng();
+            const b = brands.find((x) => (r -= x.share) < 0) || brands[0];
+            if (b) st.week.brands[b.id] = (st.week.brands[b.id] || 0) + 1;
+            if (home) {
+              // 店旁的站：畫面上一台一台開進來；有些車主下車走進店裡
+              const stay = kind === 'fast' ? 25 + this.rng() * 20 : 90 + this.rng() * 150;
+              (this.evVisits = this.evVisits || []).push({ kind, brand: b ? b.id : 'dsl', at: this.minute + this.rng() * 50, stay });
+              if (this.rng() < (kind === 'fast' ? 0.35 : 0.5)) (this.evWalkers = this.evWalkers || []).push(this.minute + 3 + this.rng() * 55);
+            }
+          }
         }
-        if (st.flags.includes('nav')) d.fixed += 3000 / 7;
-        if (st.flags.includes('cam')) d.fixed += 300 / 7;
-        d.net = Math.round(d.rev - d.elec - d.fixed);
-        // 哪些牌子的車來充電
-        const brands = Fun.EV_BRANDS || [];
-        for (let i = 0; i < d.fast + d.slow; i++) {
-          let r = this.rng();
-          const b = brands.find((x) => (r -= x.share) < 0) || brands[0];
-          if (b) st.week.brands[b.id] = (st.week.brands[b.id] || 0) + 1;
-        }
-        st.today = d;
+        d.fixed += st.plan.fixed / 24;
+        d.net += hNet;
+        net += hNet;
+      }
+      if (this.evVisits && this.evVisits.length > 40) this.evVisits.splice(0, this.evVisits.length - 40);
+      if (this.evWalkers) this.evWalkers.sort((a, b) => a - b);
+      this.cash += net;
+      this.ledger.charging = (this.ledger.charging || 0) + net;
+    }
+    // 一天結束：今天的數字加進這週、累計，明天重新預估
+    chargeDaily(report) {
+      if (!this.evStations || !this.evStations.length) return;
+      let net = 0;
+      for (const st of this.evStations) {
+        const d = st.today || this.chargeBlank();
+        d.net = Math.round(d.net);
         for (const k of ['fast', 'slow', 'kwh', 'rev', 'elec', 'fixed', 'net']) st.week[k] += d[k];
         st.week.days += 1;
         st.total += d.net;
         net += d.net;
+        st.yesterday = d;
+        st.today = this.chargeBlank();
+        st.plan = null;
       }
-      this.cash += net;
-      this.ledger.charging = (this.ledger.charging || 0) + net;
       report.charging = net;
     }
     // 每週結算：這週的數字變成「上週」
@@ -4538,12 +4598,13 @@
         st.week = this.chargeBlank();
       }
     }
-    // 店旁充電站：等充電的車主走過來的機率（每分鐘）；快充等半小時、慢充等兩三個小時
+    // 店旁充電站：等充電的車主走過來的機率（每分鐘的平均，給畫面和提示用；實際是一台一台排進 evWalkers）
     chargeWalkRate() {
       let r = 0;
       for (const st of this.evStations || []) {
-        if (!City.LOTS[st.lot] || !City.LOTS[st.lot].home || !st.today) continue;
-        r += (st.today.fast * 0.35 + st.today.slow * 0.5) / DAY;
+        if (!City.LOTS[st.lot] || !City.LOTS[st.lot].home) continue;
+        if (!st.plan) this.chargePlan(st);
+        if (st.plan) r += (st.plan.fast * 0.35 + st.plan.slow * 0.5) / DAY;
       }
       return r;
     }
@@ -5725,7 +5786,10 @@
     step(dt) {
       const prevHour = Math.floor(this.minute / 60);
       this.minute += dt;
-      if (Math.floor(this.minute / 60) !== prevHour) this.socialTick();
+      if (Math.floor(this.minute / 60) !== prevHour) {
+        this.socialTick();
+        this.chargeHour((((prevHour % 24) + 24) % 24));
+      }
       if (this.gridDirty) this.rebuildGrid();
 
       // 換日
@@ -5746,8 +5810,10 @@
           if (this.rng() < (br / 60) * dt) this.spawnCustomer({ borrow: true });
         }
         // ⚡ 店旁的充電站：等充電的車主走過來買東西
-        const evWalk = this.chargeWalkRate();
-        if (evWalk > 0 && this.rng() < evWalk * dt) this.spawnCustomer();
+        while (this.evWalkers && this.evWalkers.length && this.evWalkers[0] <= this.minute) {
+          this.evWalkers.shift();
+          this.spawnCustomer();
+        }
         // 兼營業務：專門為這件事來的客人（不搶原本的生意）
         for (const p of this.sideProducts()) {
           const r = this.sideRate(p);
@@ -6384,6 +6450,7 @@
     // ───── 事件 ─────
     planDay() {
       this.today = this.emptyDay();
+      this.evWalkers = (this.evWalkers || []).filter((t) => t > this.minute);
       this.pendingEvents = [];
       this.rollWeather();
       this.makeRoster();
