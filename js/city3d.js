@@ -474,9 +474,33 @@
       const one = new THREE.Vector3(1, 1, 1);
       const spd = this.sim.speedHint || 1;
       const sc = new THREE.Vector3();
+      // 跟車：同一條路、同方向的車，追到前車就跟著前車的速度，不會穿過去
+      const groups = new Map();
+      for (const c of this.carData) {
+        const key = `${c.horiz ? 'h' : 'v'}${c.lane}${c.v > 0 ? '+' : '-'}`;
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(c);
+      }
+      for (const list of groups.values()) {
+        for (const c of list) {
+          const span = (c.horiz ? City.W : City.H) * P;
+          let gap = Infinity;
+          let lead = null;
+          for (const o of list) {
+            if (o === c) continue;
+            const d = (((o.t - c.t) * Math.sign(c.v)) % span + span) % span;
+            if (d < gap) {
+              gap = d;
+              lead = o;
+            }
+          }
+          const want = Math.abs(c.v);
+          c.cur = lead && gap < 1.4 ? Math.min(want, Math.abs(lead.cur ?? lead.v) * Math.max(0, (gap - 0.8) / 0.6)) : want;
+        }
+      }
       this.carData.forEach((c, i) => {
         const span = (c.horiz ? City.W : City.H) * P;
-        c.t = (c.t + c.v * dt * spd + span) % span;
+        c.t = (c.t + Math.sign(c.v) * (c.cur ?? Math.abs(c.v)) * dt * spd + span) % span;
         const side = c.v > 0 ? 0.3 : -0.3;
         let x;
         let z;

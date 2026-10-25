@@ -2118,7 +2118,7 @@
       this.camera.updateProjectionMatrix();
       this.sun.shadow.camera.left = -s.W - 4;
       this.sun.shadow.camera.right = s.W + 4;
-      this.sun.shadow.camera.top = s.H + 6;
+      this.sun.shadow.camera.top = s.H + 8;
       this.sun.shadow.camera.bottom = -s.H - 6;
       this.sun.shadow.camera.updateProjectionMatrix();
       this.applyCutaway();
@@ -2414,17 +2414,20 @@
       arcade.position.set(W / 2, 0.005, H + 0.5);
       arcade.receiveShadow = true;
       g.add(arcade);
-      // 馬路
-      const road = new THREE.Mesh(new THREE.PlaneGeometry(W + OUT_W * 2 + 30, 2.2), mat('#3e3e44', { roughness: 0.95 }));
+      // 馬路：雙向四線道（靠店這側兩條往右、對面兩條往左），中間雙黃線、同向車道之間白色虛線
+      const road = new THREE.Mesh(new THREE.PlaneGeometry(W + OUT_W * 2 + 30, 4.2), mat('#3e3e44', { roughness: 0.95 }));
       road.rotation.x = -Math.PI / 2;
-      road.position.set(W / 2, 0.003, H + 2.2);
+      road.position.set(W / 2, 0.003, H + 3.2);
       road.receiveShadow = true;
       g.add(road);
-      for (let x = -OUT_W - 10; x < W + OUT_W + 10; x += 1.6) {
-        const line = new THREE.Mesh(boxGeo(0.8, 0.01, 0.06), basic('#f2f2f2'));
-        line.position.set(x, 0.01, H + 2.4);
-        g.add(line);
+      for (let x = -OUT_W - 14; x < W + OUT_W + 26; x += 1.6) {
+        for (const z of [H + 2.1, H + 4.3]) {
+          const line = new THREE.Mesh(boxGeo(0.8, 0.01, 0.06), basic('#f2f2f2'));
+          line.position.set(x, 0.01, z);
+          g.add(line);
+        }
       }
+      for (const z of [H + 3.14, H + 3.26]) B(g, W + OUT_W * 2 + 40, 0.012, 0.05, basic('#f2c14e'), W / 2, 0, z);
       // 對面人行道、行道樹、斑馬線、公車站牌：讓街景不要空空的
       const far = new THREE.Mesh(
         new THREE.PlaneGeometry(W + OUT_W * 2 + 30, 1.4),
@@ -2441,10 +2444,10 @@
         })
       );
       far.rotation.x = -Math.PI / 2;
-      far.position.set(W / 2, 0.006, H + 4.0);
+      far.position.set(W / 2, 0.006, H + 6.0);
       far.receiveShadow = true;
       g.add(far);
-      B(g, W + OUT_W * 2 + 30, 0.08, 0.12, '#9a9289', W / 2, 0, H + 3.3);
+      B(g, W + OUT_W * 2 + 30, 0.08, 0.12, '#9a9289', W / 2, 0, H + 5.3);
       const leaf = ['#4f9a5a', '#5aa865', '#438a50'];
       // 行道樹放自己的群組：鏡頭轉到街上那一側時藏起來，才不會擋住店
       this.trees = new THREE.Group();
@@ -2452,25 +2455,25 @@
       let k = 0;
       for (let x = -OUT_W - 6; x < W + OUT_W + 8; x += 3.6) {
         k++;
-        B(this.trees, 0.6, 0.06, 0.6, '#6b5a48', x, 0, H + 4.0);
-        C(this.trees, 0.06, 0.08, 1.4, '#7a5a3c', x, 0, H + 4.0, 7);
+        B(this.trees, 0.6, 0.06, 0.6, '#6b5a48', x, 0, H + 6.0);
+        C(this.trees, 0.06, 0.08, 1.4, '#7a5a3c', x, 0, H + 6.0, 7);
         const top = new THREE.Mesh(new THREE.IcosahedronGeometry(0.62, 0), mat(leaf[k % 3], { roughness: 0.9, flatShading: true }));
-        top.position.set(x, 1.75, H + 4.0);
+        top.position.set(x, 1.75, H + 6.0);
         top.scale.y = 0.85;
         top.castShadow = true;
         this.trees.add(top);
         const top2 = new THREE.Mesh(new THREE.IcosahedronGeometry(0.42, 0), mat(leaf[(k + 1) % 3], { roughness: 0.9, flatShading: true }));
-        top2.position.set(x + 0.25, 2.2, H + 3.9);
+        top2.position.set(x + 0.25, 2.2, H + 5.9);
         top2.castShadow = true;
         this.trees.add(top2);
       }
-      for (let i = 0; i < 6; i++) {
+      for (let i = 0; i < 11; i++) {
         const zebra = new THREE.Mesh(boxGeo(0.7, 0.01, 0.28), basic('#ededed'));
-        zebra.position.set(W + OUT_W + 1.4, 0.011, H + 1.45 + i * 0.36);
+        zebra.position.set(-OUT_W - 4.4, 0.011, H + 1.4 + i * 0.36);
         g.add(zebra);
       }
-      C(g, 0.035, 0.035, 2.1, '#6a6f75', -OUT_W - 2.2, 0, H + 3.6, 6);
-      B(g, 0.5, 0.36, 0.04, '#1f6fb2', -OUT_W - 2.2, 1.7, H + 3.6);
+      C(g, 0.035, 0.035, 2.1, '#6a6f75', -OUT_W - 2.2, 0, H + 5.6, 6);
+      B(g, 0.5, 0.36, 0.04, '#1f6fb2', -OUT_W - 2.2, 1.7, H + 5.6);
       const redLine = new THREE.Mesh(boxGeo(W + OUT_W * 2 + 30, 0.012, 0.06), basic('#d23c33'));
       redLine.position.set(W / 2, 0.012, H + 1.15);
       g.add(redLine);
@@ -3874,8 +3877,11 @@
       const F = window.BossFun || {};
       const ts = this.opts.timeScale ? this.opts.timeScale() : 1;
       const H = s.H;
-      const lane = H + 1.7;
+      const lane = this.roadLanes()[0].z; // 靠店的外側車道
       const aisleX = s.W + 3.0; // 第一區的車道（排隊在它左邊）
+      const obs = this.roadObstacles();
+      // 路上這台車前面（往右）有沒有別的車擋著
+      const blockedAhead = (c, room) => obs.some((o) => o.ev !== c && o !== c && Math.abs(o.z - lane) < 0.6 && o.x > c.g.position.x && o.x - c.g.position.x < room + (o.L || 2) / 2);
       // 剛打開：照現在的使用率先停幾台正在充電的車
       if (!this._evFilled) {
         this._evFilled = true;
@@ -3904,14 +3910,18 @@
       // 新來的車：先排進隊伍（有空格才來；沒空格就算這台去別家充了）
       for (const v of s.evVisits || []) {
         if (v.taken || v.at > s.minute) continue;
-        v.taken = true;
         const slot = this.evSlots.find((sl) => sl.kind === v.kind && !sl.car);
-        if (!slot) continue;
+        if (!slot) {
+          v.taken = true;
+          continue;
+        }
+        // 接在隊伍最後面出現；那裡剛好有車經過就晚一點再出現，不會疊在一起
+        let back = aisleX - 6;
+        for (const c of this.evCars) if ((c.state === 'queue' || c.state === 'in') && Math.abs(c.g.position.z - lane) < 0.3) back = Math.min(back, c.g.position.x - 2.6);
+        if (!this.laneFree(0, back, 2.1, 1.0, 2.5, null, obs)) continue;
+        v.taken = true;
         const car = this.evMakeCar(v.kind, v.brand, slot);
         slot.car = car;
-        // 接在隊伍最後面出現，不會跟前面的車疊在一起
-        let back = aisleX - 6;
-        for (const c of this.evCars) if (c !== car && (c.state === 'queue' || c.state === 'in') && Math.abs(c.g.position.z - lane) < 0.3) back = Math.min(back, c.g.position.x - 2.6);
         car.g.position.set(back, 0, lane);
         car.g.rotation.y = 0;
         this.evCars.push(car);
@@ -3961,11 +3971,13 @@
             // 前面還有車在路上（正要轉進去）：跟它保持一個車身的距離
             for (const o of this.evCars) if (o !== c && o.state === 'in' && Math.abs(o.g.position.z - lane) < 0.3 && o.g.position.x > c.g.position.x) qx = Math.min(qx, o.g.position.x - 2.6);
             c.path = [[Math.max(c.g.position.x, qx), lane]];
-            move(c);
+            if (!blockedAhead(c, 2.3)) move(c);
             return true;
           }
         }
         if (c.state === 'in') {
+          // 還在馬路上的時候，前面有車就等一下
+          if (c.g.position.z > lane - 0.3 && c.path.length > 3 && blockedAhead(c, 1.6)) return true;
           if (move(c)) {
             if (c.backIn) {
               // 開過頭了：換倒車檔退進去
@@ -4007,21 +4019,25 @@
             // 車頭本來就朝車道：直接往前開出來、轉向馬路
             const sl = c.slot;
             c.back = false;
-            c.path = [[sl.ax + sl.side * 0.35, sl.z + 0.2, 0.45], [sl.ax, Math.min(sl.z + 1.0, lane - 1.2), 0.5], [sl.ax, lane - 0.8], [sl.ax + 0.6, lane]];
+            c.path = [[sl.ax + sl.side * 0.35, sl.z + 0.2, 0.45], [sl.ax, Math.min(sl.z + 1.0, lane - 1.2), 0.5], [sl.ax, lane - 0.9], [sl.ax + 0.6, lane, 1, 'merge']];
             c.exitPath = null;
           }
           return true;
         }
         if (c.state === 'out') {
+          // 要切上馬路之前：外側車道前後要有空檔才出去
+          if (c.path[0] && c.path[0][3] === 'merge' && !this.laneFree(0, c.slot.ax + 0.6, 2.1, 1.2, 3.2, c, obs)) return true;
           if (move(c)) {
             if (c.back && c.exitPath) {
               c.back = false;
               c.path = c.exitPath;
             } else {
-              // 開上馬路：車道讓給下一台，往右開走
+              // 開上馬路：車道讓給下一台，之後交給一般車流（會跟車、會換車道）
               if (this.evAisle === c) this.evAisle = null;
-              c.state = 'leave';
-              c.path = [[s.W * 1.5 + 22, lane]];
+              this.trafficGroup.add(c.g);
+              this.cars.push({ g: c.g, dir: 1, lane: 0, x: c.g.position.x, z: c.g.position.z, v: 1.2, vmax: 4.2 + Math.random(), L: 2.1, fromEV: true });
+              c.state = 'gone';
+              return false;
             }
           }
           return true;
@@ -4205,17 +4221,117 @@
       beam.rotation.x = -Math.PI / 2;
       beam.position.set(L / 2 + 1.2, 0.02, 0);
       g.add(beam);
+      // 挑一條車道從畫面外開進來；那裡被佔住就不出車（下一輪再試），不會一出來就疊在別台車上
+      const lanes = this.roadLanes();
       const dir = Math.random() < 0.5 ? 1 : -1;
-      g.rotation.y = dir > 0 ? 0 : Math.PI;
-      const H = s.H;
-      const z = dir > 0 ? H + 1.7 : H + 2.85;
-      const x = dir > 0 ? -s.W * 0.5 - 18 : s.W * 1.5 + 18;
-      g.position.set(x, 0, z);
+      const opts = lanes.map((ln, i) => i).filter((i) => lanes[i].dir === dir);
+      // 公車、貨車多半走外側（慢車道）
+      const lane = type === 'car' ? opts[Math.floor(Math.random() * opts.length)] : dir > 0 ? 0 : 3;
+      const x = dir > 0 ? -s.W * 0.5 - 18 : s.W * 1.5 + 22;
       g.traverse((o) => {
         if (o.isMesh) o.castShadow = false;
       });
+      const car = { g, dir, lane, x, z: lanes[lane].z, v: 0, vmax: (type === 'bus' ? 3 : type === 'truck' ? 3.6 : 4.2) + Math.random() * 2, L };
+      car.v = car.vmax;
+      if (!this.laneFree(lane, x, L, 3, 3)) return null;
+      g.position.set(x, 0, car.z);
+      g.rotation.y = dir > 0 ? 0 : Math.PI;
       this.trafficGroup.add(g);
-      return { g, dir, speed: (type === 'bus' ? 3 : 4) + Math.random() * 2.5, L };
+      return car;
+    }
+
+    // ───── 🚗 交通：雙向四線道、跟車、塞住就換車道，誰都不會穿過誰 ─────
+    roadLanes() {
+      const H = this.sim.H;
+      return [
+        { z: H + 1.6, dir: 1 }, // 靠店的外側車道（電動車在這條排隊、進出）
+        { z: H + 2.6, dir: 1 },
+        { z: H + 3.8, dir: -1 },
+        { z: H + 4.8, dir: -1 }, // 對面的外側車道
+      ];
+    }
+    // 路上所有會擋路的東西：車流、追逐的車、救護車、臨檢警車、在路上排隊或進出的充電車
+    roadObstacles() {
+      const out = [];
+      for (const c of this.cars) out.push(c);
+      for (const key of ['collapse', 'check']) {
+        const it = this.inc && this.inc[key];
+        if (it) for (const v of it.cars || []) if (!v.traffic) out.push({ x: v.g.position.x, z: v.g.position.z, L: v.L || 2, v: 0 });
+      }
+      const H = this.sim.H;
+      for (const c of this.evCars || []) {
+        const p = c.g.position;
+        if (p.z < H + 1.05) continue;
+        const along = Math.abs(Math.cos(c.g.rotation.y)) > 0.6; // 車身順著馬路
+        out.push({ x: p.x, z: p.z, L: along ? 2.1 : 1.0, v: c.state === 'queue' ? 0 : 1.5, ev: c });
+      }
+      return out;
+    }
+    // 這條車道在 x 附近前後有沒有空位（ahead／behind 是額外要留的距離）
+    laneFree(lane, x, L, ahead, behind, except, obs) {
+      const ln = this.roadLanes()[lane];
+      for (const o of obs || this.roadObstacles()) {
+        if (o === except || (except && o.ev === except)) continue;
+        if (Math.abs(o.z - ln.z) > 0.65) continue;
+        const d = (o.x - x) * ln.dir;
+        const need = (L + (o.L || 2)) / 2;
+        if (d > -(need + behind) && d < need + ahead) return false;
+      }
+      return true;
+    }
+    // 每一幀：照前車距離決定速度，前面慢或停住就看旁邊同向車道有沒有空檔切過去
+    trafficStep(k) {
+      if (!k) return;
+      const lanes = this.roadLanes();
+      const obs = this.roadObstacles();
+      for (const c of this.cars) {
+        const ln = lanes[c.lane];
+        // 前車：同一條車道（或正切進來的）在前方最近的那台
+        let lead = null;
+        let gap = Infinity;
+        for (const o of obs) {
+          // 同一條車道的；正在換車道的話，車身還壓到的舊車道也要看
+          if (o === c || (Math.abs(o.z - ln.z) > 0.6 && Math.abs(o.z - c.z) > 0.82)) continue;
+          const d = (o.x - c.x) * c.dir;
+          if (d <= 0) continue;
+          const g2 = d - (c.L + (o.L || 2)) / 2;
+          if (g2 < gap) {
+            gap = g2;
+            lead = o;
+          }
+        }
+        const minGap = c.aggr ? 0.35 : 0.7;
+        const brake = (c.v * c.v) / (2 * 10); // 用現在的速度煞到停要多遠
+        // 想換到某條車道（例如被攔下來的車要靠邊）
+        if (c.wantLane != null && c.wantLane !== c.lane && Math.abs(c.z - ln.z) < 0.15 && this.laneFree(c.wantLane, c.x, c.L, 1.2 + brake, 1.5, c, obs)) c.lane = c.wantLane;
+        // 前面卡住就換車道
+        else if (lead && gap < (c.aggr ? 6 : 3.2) && (lead.v || 0) < c.vmax * 0.8 && Math.abs(c.z - ln.z) < 0.15 && c.wantLane == null) {
+          const other = lanes.findIndex((l, i) => i !== c.lane && l.dir === c.dir);
+          if (other >= 0 && this.laneFree(other, c.x, c.L, (c.aggr ? 1.0 : 1.6) + brake, c.aggr ? 1.2 : 2.2, c, obs)) c.lane = other;
+        }
+        let vt = c.vmax;
+        // 跟車：保證在前車後面煞得住（v² = 2ad，煞車能力 14 比這裡用的 10 大，有餘裕）
+        if (lead) vt = gap <= minGap ? 0 : Math.min(c.vmax, (lead.v || 0) + Math.sqrt(2 * 10 * (gap - minGap)) * (c.aggr ? 1 : 0.8));
+        if (c.stopAt != null) {
+          // 照煞車距離減速（v² = 2ad），快到了就停住
+          const d = (c.stopAt - c.x) * c.dir;
+          vt = d <= 0.05 ? 0 : Math.min(vt, Math.sqrt(2 * 6 * d));
+        }
+        const acc = c.aggr ? 7 : 3.5;
+        c.v += Math.max(-14 * k, Math.min(acc * k, vt - c.v));
+        if (c.v < 0) c.v = 0;
+        c.x += c.dir * c.v * k;
+        // 換車道：橫向慢慢移過去，車頭跟著偏一點
+        const tz = lanes[c.lane].z;
+        const dzMax = 1.4 * k * Math.max(0.4, Math.min(1, c.v / 3));
+        const dz = Math.max(-dzMax, Math.min(dzMax, tz - c.z));
+        c.z += dz;
+        const lat = k > 0 ? dz / k : 0;
+        if (c.v > 0.2 || Math.abs(lat) > 0.01) c.g.rotation.y = Math.atan2(-lat, c.dir * Math.max(0.5, c.v));
+        const wob = c.weave ? Math.sin((this.lastNow || 0) / 140) * 0.12 : 0;
+        c.g.position.set(c.x, 0, c.z + wob);
+        if (c.weave) c.g.rotation.y += Math.cos((this.lastNow || 0) / 140) * 0.12;
+      }
     }
 
     // ───── 🚓 街頭時事的畫面：毒駕追逐、臨檢、騎樓倒地的人和救護車 ─────
@@ -4275,6 +4391,7 @@
     dropIncident(key) {
       const it = this.inc && this.inc[key];
       if (!it) return;
+      this.cars = this.cars.filter((c) => !(it.cars || []).includes(c));
       for (const v of it.cars || []) {
         this.world.remove(v.g);
         People.dispose(v.g);
@@ -4299,13 +4416,19 @@
       const run = ts > 0 ? dt : 0;
       // 毒駕追逐：蛇行的車在前、警車在後；有時候在店門口被攔下來
       const ch = this.inc.chase;
-      if (S.chase && (!ch || ch.id !== S.chase.id)) {
+      // 同一場追逐只演一次（演完、開出畫面就結束，不會重播）
+      if (S.chase && S.chase.id !== this.inc.chaseDone && (!ch || ch.id !== S.chase.id)) {
+        this.inc.chaseDone = S.chase.id;
         this.dropIncident('chase');
+        // 嫌疑車和警車也走交通系統：嫌疑車開很快、鑽車縫（跟車距離短、很會換道），警車跟在後面
         const sus = this.makeVehicle('car');
         const pol = this.makeVehicle('police');
-        const x0 = -s.W * 0.5 - 16;
-        sus.g.position.set(x0, 0, H + 1.7);
-        pol.g.position.set(x0 - 3.2, 0, H + 1.7);
+        const x0 = -s.W * 0.5 - 18;
+        const lane = this.laneFree(1, x0, 2, 2, 2) ? 1 : 0;
+        Object.assign(sus, { traffic: true, inc: 'chase', x: x0, lane, z: this.roadLanes()[lane].z, dir: 1, v: 9, vmax: 11, aggr: true, weave: true });
+        Object.assign(pol, { traffic: true, inc: 'chase', x: x0 - 3.6, lane, z: this.roadLanes()[lane].z, dir: 1, v: 9, vmax: 11.5, aggr: true });
+        for (const v of [sus, pol]) v.g.position.set(v.x, 0, v.z);
+        this.cars.push(sus, pol);
         this.inc.chase = { id: S.chase.id, arrest: S.chase.arrest, cars: [sus, pol], people: [], phase: 'drive', t: 0 };
       }
       const c = this.inc.chase;
@@ -4314,29 +4437,32 @@
         c.t += run;
         this.flashLights(pol, now);
         if (c.phase === 'drive') {
-          const v = 12 * run;
-          sus.g.position.x += v;
-          pol.g.position.x += v;
-          // 蛇行
-          sus.g.position.z = H + 1.7 + Math.sin(c.t * 7) * 0.35;
-          sus.g.rotation.y = -Math.cos(c.t * 7) * 0.25;
+          // 警車盡量跟著嫌疑車換到同一條車道
+          pol.wantLane = Math.abs(pol.x - sus.x) < 8 ? sus.lane : null;
           const stopX = s.W / 2 + 2.5;
-          if (c.arrest && sus.g.position.x >= stopX) {
+          if (c.arrest && sus.x >= stopX - 6 && sus.stopAt == null) {
+            // 被逼到靠店這側的外側車道，在店門口停下來
+            sus.weave = false;
+            sus.wantLane = 0;
+            pol.wantLane = 0;
+            sus.stopAt = stopX + 1.2;
+            pol.stopAt = stopX - 1.6;
+          }
+          // 停下來了（外側車道被佔住的話就停在內側車道），警察下車
+          if (c.arrest && sus.stopAt != null && sus.v < 0.05 && Math.abs(sus.x - sus.stopAt) < 0.8 && pol.v < 0.05) {
             c.phase = 'stop';
-            sus.g.rotation.y = -0.35;
-            sus.g.position.z = H + 1.5;
-            pol.g.position.x = stopX - 2.8;
-            // 兩位警察下車，把駕駛帶到警車旁邊
+            // 兩位警察下車，把駕駛帶到騎樓
             const o1 = this.makeOfficer();
             const o2 = this.makeOfficer();
             const d = People.make({ ...window.BossLooks.randomLook(Math.random), shirt: '#555b66' });
             this.world.add(d.group);
-            o1.group.position.set(stopX - 0.6, 0, H + 0.95);
-            o2.group.position.set(stopX + 0.6, 0, H + 0.95);
-            d.group.position.set(stopX, 0, H + 0.95);
+            const px = sus.x - 1.2;
+            o1.group.position.set(px - 0.6, 0, H + 0.95);
+            o2.group.position.set(px + 0.6, 0, H + 0.95);
+            d.group.position.set(px, 0, H + 0.95);
             for (const p of [o1, o2, d]) p.group.scale.setScalar(1.25);
             c.people = [o1, o2, d];
-          } else if (sus.g.position.x > s.W * 1.5 + 18) this.dropIncident('chase');
+          } else if (!this.cars.includes(sus) && !this.cars.includes(pol)) this.dropIncident('chase');
         } else if (c.phase === 'stop') {
           const [o1, o2, d] = c.people;
           // 駕駛被壓著、手舉起來；警察一個在講無線電
@@ -4348,16 +4474,22 @@
           o2.group.rotation.y = -Math.PI / 2;
           o2.armL.rotation.x = -0.6 + Math.sin(now / 180) * 0.2;
           if (!(S.arrestUntil > s.minute)) {
-            for (const p of c.people) this.world.remove(p.group);
+            for (const p of c.people) {
+              this.world.remove(p.group);
+              People.dispose(p.group, p);
+            }
             c.people = [];
             c.phase = 'leave';
+            // 拖吊走、警車開走：回到一般車流的速度
+            for (const v of [sus, pol]) {
+              v.stopAt = null;
+              v.wantLane = null;
+              v.aggr = false;
+              v.vmax = 4.5;
+            }
           }
         } else if (c.phase === 'leave') {
-          const v = 7 * run;
-          pol.g.position.x += v;
-          sus.g.position.x += v * 0.6;
-          sus.g.rotation.y *= 0.95;
-          if (pol.g.position.x > s.W * 1.5 + 18) this.dropIncident('chase');
+          if (!this.cars.includes(sus) && !this.cars.includes(pol)) this.dropIncident('chase');
         }
       }
       // 臨檢：路口停一台警車、擺三角錐，警察揮指揮棒
@@ -4365,18 +4497,19 @@
       const checking = C2 && s.minute >= C2.from && s.minute <= C2.to;
       if (checking && !this.inc.check) {
         const pol = this.makeVehicle('police');
+        // 警車停在對向外側車道，三角錐把那條車道收起來，往左的車要切到內側車道才過得去
         const x = s.W - 0.5;
-        pol.g.position.set(x, 0, H + 3.05);
+        pol.g.position.set(x, 0, H + 4.8);
         pol.g.rotation.y = Math.PI;
         const props = [];
         for (let i = 0; i < 3; i++) {
           const cone = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.38, 10), mat('#ff7a1a'));
-          cone.position.set(x - 2.2 + i * 0.7, 0.19, H + 2.35);
+          cone.position.set(x + 1.6 + i * 0.9, 0.19, H + 4.45 + i * 0.12);
           this.world.add(cone);
           props.push(cone);
         }
         const o = this.makeOfficer();
-        o.group.position.set(x - 1.2, 0, H + 2.45);
+        o.group.position.set(x - 1.4, 0, H + 4.4);
         o.group.scale.setScalar(1.25);
         o.group.rotation.y = -Math.PI / 2;
         // 指揮棒（發光）
@@ -4415,7 +4548,7 @@
         if (amb && !this.inc.collapse.cars.length) {
           const v = this.makeVehicle('ambulance');
           v.lights[1].userData.white = true;
-          v.g.position.set(p.group.position.x + 0.5, 0, H + 1.7);
+          v.g.position.set(p.group.position.x + 0.5, 0, H + 1.6);
           this.inc.collapse.cars.push(v);
         }
         if (this.inc.collapse.cars[0]) this.flashLights(this.inc.collapse.cars[0], now);
@@ -4463,7 +4596,7 @@
       const spots = [
         () => [-OUT_W + Math.random() * (OUT_W - 0.5), s.H + 0.35 + Math.random() * 0.5],
         () => [s.W + 0.5 + Math.random() * (OUT_W - 0.8), s.H + 0.35 + Math.random() * 0.5],
-        () => [-OUT_W + Math.random() * (s.W + OUT_W * 2), s.H + 3.55 + Math.random() * 0.8],
+        () => [-OUT_W + Math.random() * (s.W + OUT_W * 2), s.H + 5.55 + Math.random() * 0.8],
       ];
       const [x, z] = spots[Math.floor(Math.random() * spots.length)]();
       p.g.position.set(x, 0, z);
@@ -4522,17 +4655,20 @@
       const rush = (h >= 7 && h <= 9) || (h >= 17 && h <= 19) ? 1.8 : h >= 23 || h < 6 ? 0.25 : 1;
       const cap = this.quality === 'low' ? 2 : this.quality === 'medium' ? 4 : 6;
       this.trafficT -= k * rush;
-      if (this.trafficT <= 0 && this.cars.length < cap) {
-        this.cars.push(this.makeCar());
-        this.trafficT = 1.2 + Math.random() * 3.5;
+      if (this.trafficT <= 0 && this.cars.filter((c) => !c.inc && !c.fromEV).length < cap * 1.5) {
+        const nc = this.makeCar();
+        if (nc) this.cars.push(nc);
+        this.trafficT = nc ? 0.8 + Math.random() * 2.6 : 0.3;
       }
-      const night = this.nightK || 0;
       if (this.glowMat) this.trafficGroup.visible = true;
-      for (const c of this.cars) c.g.position.x += c.dir * c.speed * k;
-      const lim = s.W * 1.5 + 22;
+      this.trafficStep(k);
+      const lim = s.W * 1.5 + 26;
       this.cars = this.cars.filter((c) => {
-        const out = c.dir > 0 ? c.g.position.x > lim : c.g.position.x < -s.W * 0.5 - 22;
-        if (out) this.trafficGroup.remove(c.g);
+        const out = c.dir > 0 ? c.x > lim : c.x < -s.W * 0.5 - 24;
+        if (out) {
+          if (c.g.parent) c.g.parent.remove(c.g);
+          if (c.inc || c.fromEV) People.dispose(c.g);
+        }
         return !out;
       });
       this.updateIncidents(dt, now, ts);
