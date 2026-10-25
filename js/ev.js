@@ -75,12 +75,20 @@
     basePerKw: 55,
     resale: 0.9, // 土地賣掉拿回九成；充電樁拆掉只剩三成
     gearResale: 0.3,
+    // 充電站的設定：一次性的設備（once）或可以隨時開關的經營方式
+    options: {
+      lock: { icon: '🔒', name: '地鎖＋紅線', cost: 30000, once: true, desc: '汽油車停不進來（不會再有占位事件），充電格周轉 +5%' },
+      cam: { icon: '📹', name: '監視器警報', cost: 10000, once: true, desc: '充電線不會再被偷；每週電費 $300' },
+      idle: { icon: '⏱️', name: '超時佔位費', desc: '充飽不開走就收錢：快充周轉 +15%，但有些車主嫌麻煩（來車 -3%）' },
+      nav: { icon: '🗺️', name: '上架電斯拉導航', desc: '每週 $3,000：車上導航會推薦你的站，來車 +15%' },
+      combo: { icon: '🧾', name: '店內消費折充電費', home: true, desc: '在店裡消費，充電打九五折：走進店裡的車主多一半，充電收入少 5%' },
+    },
   };
 
   // 充電站事件（每週大約四分之一的機率發生一件）；金額以月為單位寫，實際會砍半
   Fun.CHARGE_EVENTS = [
     {
-      ok: (s, st) => st.fast + st.slow >= 1,
+      ok: (s, st) => st.fast + st.slow >= 1 && !st.flags.includes('lock'),
       make: (s, st) => ({
         id: 'ev_ice',
         icon: '⛽',
@@ -109,7 +117,7 @@
       }),
     },
     {
-      ok: (s, st) => st.fast + st.slow >= 1,
+      ok: (s, st) => st.fast + st.slow >= 1 && !st.flags.includes('cam'),
       make: (s, st) => ({
         id: 'ev_cable',
         icon: '🪚',

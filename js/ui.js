@@ -737,6 +737,7 @@
 
   // 城市上的東西變了（買地、裝充電樁）：重蓋城市，鏡頭和選取的地點不變
   function refreshCity() {
+    if (ui.inspect) renderInspector();
     if (!ui.city) return renderDrawer();
     const cam = { ...ui.city.cam };
     const camT = { ...ui.city.camT };
@@ -876,7 +877,72 @@
     return `<b>⚡ ${L.name}充電站</b><small>${nowLine}${tag}：快充 ${w.fast} 次・慢充 ${w.slow} 次・${Math.round(w.kwh).toLocaleString()} 度<br>收入 ${money(w.rev)}－電費 ${money(w.elec)}－基本電費和保養 ${money(w.fixed)}＝<b class="${w.net < 0 ? 'neg' : 'pos'}">${money(w.net)}</b>・累計 ${money(st.total)}${near}${broken}<br>${brands ? `來充電的車：${brands}` : '還沒有車來充電：先裝充電樁'}<br>口碑 ${Math.round(st.rep * 100)}%・電動車普及 ${s.evShare.toFixed(2)} 倍${flags ? `<br>${flags}` : ''}</small>
       <div class="ev-grid">${kind('fast')}${kind('slow')}</div>
       <small>快充最大的固定成本是契約容量的基本電費（每支每週約 ${money(K.fast.kw * K.basePerKw)}），沒人充也要付；價格調太高車主會去別家。</small>
+      <h4 class="ev-sub">設定</h4>
+      <div class="ev-opts">${Object.entries(K.options || {})
+        .filter(([, o]) => !o.home || L.home)
+        .map(([id, o]) => {
+          const on = st.flags.includes(id);
+          const btn = o.once
+            ? `<button data-action="ev-opt" data-id="${lot}" data-opt="${id}" ${on || s.cash < o.cost ? 'disabled' : ''}>${on ? '✅ 已裝' : `安裝 ${money(o.cost)}`}</button>`
+            : `<button class="toggle ${on ? 'on' : 'off'} neutral" data-action="ev-opt" data-id="${lot}" data-opt="${id}" data-on="${on ? '' : '1'}"><span class="knob"></span><span>${on ? '開' : '關'}</span></button>`;
+          return `<div class="ev-opt"><div><b>${o.icon} ${o.name}</b><small>${o.desc}</small></div>${btn}</div>`;
+        })
+        .join('')}</div>
+      ${st.broken && s.day < st.brokenUntil ? `<div class="city-btns"><button data-action="ev-fix" data-id="${lot}" ${s.cash < 20000 ? 'disabled' : ''}>🔧 叫廠商今天來修（$20,000）</button></div>` : ''}
       <div class="city-btns"><button data-action="ev-sell" data-id="${lot}">${ui.evSellArm === lot ? `⚠️ 再按一次：賣掉拿回 ${money(st.land * K.resale + st.gear * K.gearResale)}` : '🏷️ 賣掉這塊地'}</button></div>`;
+  }
+
+  // ⚡ 在店面點充電區：這台車、每一格的狀況、今天每小時來幾台，加上所有設定
+  const EV_MODEL_NAME = { m3: 'Modal 3', my: 'Modal Y', ms: 'Modal S', mx: 'Modal X', ct: '賽伯鐵牛', rd: '路霸跑車', cab: '無人計程艙', hatch: '掀背車', suv: '休旅車' };
+  function evCarLabel(car) {
+    const ev = (car && car.g && car.g.userData.ev) || {};
+    const b = (Fun.EV_BRANDS || []).find((x) => x.id === ev.brand);
+    // 牌子＋車款（電斯拉是 Modal 3／Y…，其他牌子是掀背車／休旅車）
+    return `${evLogo(ev.brand || 'dsl', 14)}${b ? b.name : ''} ${EV_MODEL_NAME[ev.model] || ''}`.trim();
+  }
+  function evCarState(car) {
+    const s = ui.sim;
+    if (car.state === 'in') return '🚗 開進來中';
+    if (car.state === 'out') return '👋 充飽了，開走中';
+    const pct = Math.max(0, Math.min(100, Math.round(((s.minute - car.start) / Math.max(1, car.until - car.start)) * 100)));
+    return `🔋 ${car.kind === 'fast' ? '快充' : '慢充'}中 ${pct}%・還要 ${Math.max(0, Math.round(car.until - s.minute))} 分鐘`;
+  }
+  function evBayInspector(ref) {
+    const s = ui.sim;
+    const v = ui.view;
+    const st = (s.evStations || []).find((x) => window.BossCity.LOTS[x.lot] && window.BossCity.LOTS[x.lot].home);
+    if (!st || !v) return '';
+    const K = Fun.CHARGE;
+    const car = ref && ref.car && v.evCars && v.evCars.includes(ref.car) ? ref.car : null;
+    let carHtml = '';
+    if (car) {
+      const k = K[car.kind] || K.fast;
+      const price = car.kind === 'fast' ? st.priceFast : st.priceSlow;
+      carHtml = `<div class="ev-car-card"><b>👆 這台：${evCarLabel(car)}</b><small>${evCarState(car)}<br>這次大約充 ${k.kwh} 度，車主付 ${money(Math.round(k.kwh * price + (k.park || 0)))}${k.park ? '（含停車費）' : ''}</small></div>`;
+    }
+    const slots = (v.evSlots || [])
+      .filter((sl) => sl.kind)
+      .map((sl, i) => `<li><span class="ev-slot ${sl.kind}">${sl.kind === 'fast' ? '⚡快充' : '🔌慢充'}</span>${sl.car ? `${evCarLabel(sl.car)}<small>${evCarState(sl.car)}</small>` : '<small>空著</small>'}</li>`)
+      .join('');
+    const more = st.fast + st.slow - (v.evSlots || []).filter((sl) => sl.kind).length;
+    const td = st.today || {};
+    const hrs = td.hours || [];
+    const top = Math.max(1, ...hrs);
+    const nowH = Math.floor((((s.minute % 1440) + 1440) % 1440) / 60);
+    const bars = Array.from({ length: 24 }, (_, h) => `<i class="${h === nowH ? 'now' : ''}" style="height:${Math.round(((hrs[h] || 0) / top) * 100)}%" title="${h}點 ${hrs[h] || 0} 台"></i>`).join('');
+    return `
+      <div class="insp-head">
+        <div class="insp-icon">⚡</div>
+        <div><h3>店旁充電站</h3><small>${s.clockLabel}・快充 ${st.fast} 支・慢充 ${st.slow} 支・停著 ${(v.evCars || []).filter((c) => c.state === 'park').length} 台</small></div>
+        <button class="x" data-action="close-insp" aria-label="關閉">✕</button>
+      </div>
+      ${carHtml}
+      <h4 class="ev-sub">停車格</h4>
+      <ul class="ev-slots">${slots || '<li><small>還沒裝充電樁</small></li>'}</ul>
+      ${more > 0 ? `<small class="muted">另外 ${more} 支樁畫面上沒畫出來，一樣有生意</small>` : ''}
+      <h4 class="ev-sub">今天每小時來幾台 <small>（走進店裡 ${td.walk || 0} 位）</small></h4>
+      <div class="ev-hours">${bars}</div><div class="ev-hours-axis"><span>0</span><span>6</span><span>12</span><span>18</span><span>24</span></div>
+      <div class="ev-lot">${lotPanel(st.lot)}</div>`;
   }
 
   function bossAwayText() {
@@ -1408,6 +1474,7 @@
     if (hit.kind === 'customer') return inspect('customer', hit.customer);
     if (hit.kind === 'object') return inspect('object', hit.obj);
     if (hit.kind === 'pet') return inspect('pet', hit.pet);
+    if (hit.kind === 'evbay' || hit.kind === 'evcar') return inspect('evbay', { id: 'evbay', car: hit.car || null });
     closeInspector();
   }
 
@@ -1586,6 +1653,9 @@
           ${d.wall ? '' : '<button data-action="rot-obj">↻ 轉向</button>'}
           <button data-action="sell-obj" class="warn">💰 賣掉（${money(d.price * 0.5)}）</button>
         </div>`;
+    } else if (kind === 'evbay') {
+      html = evBayInspector(ref);
+      if (!html) return closeInspector();
     }
     if (el.dataset.html !== html) {
       const key = `${kind}-${ref.id}`;
@@ -3564,12 +3634,23 @@
           refreshCity();
         }
         break;
+      case 'ev-opt':
+        if (s.setChargeOption(btn.dataset.id, btn.dataset.opt, !!btn.dataset.on)) window.BossAudio.play('place');
+        renderCityPanel();
+        if (ui.inspect) renderInspector();
+        break;
+      case 'ev-fix':
+        if (s.repairCharger(btn.dataset.id)) window.BossAudio.play('place');
+        renderCityPanel();
+        if (ui.inspect) renderInspector();
+        break;
       case 'ev-remove':
         if (s.removeCharger(btn.dataset.id, btn.dataset.kind)) refreshCity();
         break;
       case 'ev-price':
         s.setChargePrice(btn.dataset.id, btn.dataset.kind, Number(btn.dataset.v));
         renderCityPanel();
+        if (ui.inspect) renderInspector();
         break;
       case 'ev-sell':
         // 按兩次才賣（第一次先提醒）

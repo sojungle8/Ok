@@ -5341,3 +5341,24 @@ body.in-city .combo-badge { display: none; }
 .crash-note div { display: flex; gap: 8px; justify-content: flex-end; }
 .city-dest.ev { max-height: 52vh; overflow-y: auto; }
 .ev-logo { vertical-align: -3px; margin-right: 3px; display: inline-block; }
+/* ⚡ 店旁充電站面板 */
+.ev-sub { margin: 10px 0 4px; font-size: 0.85rem; }
+.ev-sub small { color: var(--muted); font-weight: normal; }
+.ev-car-card { background: var(--accent-soft, #fff3e6); border-radius: 10px; padding: 6px 8px; margin: 6px 0; }
+.ev-car-card b, .ev-car-card small { display: block; }
+.ev-slots { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.ev-slots li { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 0.8rem; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 4px 6px; }
+.ev-slots li small { color: var(--muted); width: 100%; }
+.ev-slot { font-size: 0.7rem; padding: 1px 6px; border-radius: 6px; color: #fff; background: #3b7dd8; }
+.ev-slot.fast { background: #1f8f5f; }
+.ev-hours { display: flex; align-items: flex-end; gap: 2px; height: 46px; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 4px; }
+.ev-hours i { flex: 1; background: #2ecc71; border-radius: 2px 2px 0 0; min-height: 1px; }
+.ev-hours i.now { background: var(--accent, #e0582b); }
+.ev-hours-axis { display: flex; justify-content: space-between; font-size: 0.65rem; color: var(--muted); padding: 0 4px; }
+.ev-lot { margin-top: 8px; border-top: 1px dashed var(--line); padding-top: 6px; }
+.ev-lot > b, .ev-lot > small { display: block; }
+.ev-opts { display: grid; gap: 6px; }
+.ev-opt { display: flex; gap: 8px; align-items: center; justify-content: space-between; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
+.ev-opt b { display: block; font-size: 0.82rem; }
+.ev-opt small { display: block; color: var(--muted); font-size: 0.72rem; }
+.ev-opt button { flex-shrink: 0; }

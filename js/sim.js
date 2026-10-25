@@ -4471,6 +4471,35 @@
       this.chargePlan(st);
       return true;
     }
+    // 充電站設定：一次性設備要付錢；經營方式可以隨時開關
+    setChargeOption(lot, id, on) {
+      const st = this.stationAt(lot);
+      const O = Fun.CHARGE && Fun.CHARGE.options && Fun.CHARGE.options[id];
+      if (!st || !O) return false;
+      if (O.home && !(City.LOTS[lot] && City.LOTS[lot].home)) return false;
+      const has = st.flags.includes(id);
+      if (O.once) {
+        if (has || this.cash < O.cost) return false;
+        this.cash -= O.cost;
+        this.ledger.other -= O.cost;
+        st.flags.push(id);
+      } else if (on && !has) st.flags.push(id);
+      else if (!on && has) st.flags = st.flags.filter((f) => f !== id);
+      else return false;
+      this.chargePlan(st);
+      return true;
+    }
+    // 修好故障的快充（叫廠商來，$20,000）
+    repairCharger(lot) {
+      const st = this.stationAt(lot);
+      if (!st || !st.broken || this.day >= st.brokenUntil || this.cash < 20000) return false;
+      this.cash -= 20000;
+      this.ledger.other -= 20000;
+      st.broken = 0;
+      st.brokenUntil = 0;
+      this.chargePlan(st);
+      return true;
+    }
     sellStation(lot) {
       const st = this.stationAt(lot);
       if (!st) return false;
@@ -4506,7 +4535,7 @@
       if (!L || !K) return;
       const weekend = this.weekday >= 5;
       const typhoon = this.weather && this.weather.id === 'typhoon';
-      const pull = st.rep * this.evShare * (L.home ? this.spotInfo.traffic || 1 : 1) * (L.weekend && weekend ? L.weekend : 1) * (st.flags.includes('nav') ? 1.15 : 1) * (typhoon ? 0.3 : 1);
+      const pull = st.rep * this.evShare * (L.home ? this.spotInfo.traffic || 1 : 1) * (L.weekend && weekend ? L.weekend : 1) * (st.flags.includes('nav') ? 1.15 : 1) * (st.flags.includes('idle') ? 0.97 : 1) * (typhoon ? 0.3 : 1);
       const plan = { fast: 0, slow: 0, fixed: 0 };
       for (const kind of ['fast', 'slow']) {
         const k = K[kind];
@@ -4546,9 +4575,10 @@
           st.acc[kind] -= n;
           const price = kind === 'fast' ? st.priceFast : st.priceSlow;
           const kwh = n * k.kwh;
-          const rev = kwh * price + n * (k.park || 0);
+          const rev = (kwh * price + n * (k.park || 0)) * (home && st.flags.includes('combo') ? 0.95 : 1);
           const elec = kwh * k.elec * st.elec;
           d[kind] += n;
+          (d.hours || (d.hours = new Array(24).fill(0)))[hour] += n;
           d.kwh += kwh;
           d.rev += rev;
           d.elec += elec;
@@ -4561,7 +4591,10 @@
               // 店旁的站：畫面上一台一台開進來；有些車主下車走進店裡
               const stay = kind === 'fast' ? 25 + this.rng() * 20 : 90 + this.rng() * 150;
               (this.evVisits = this.evVisits || []).push({ kind, brand: b ? b.id : 'dsl', at: this.minute + this.rng() * 50, stay });
-              if (this.rng() < (kind === 'fast' ? 0.35 : 0.5)) (this.evWalkers = this.evWalkers || []).push(this.minute + 3 + this.rng() * 55);
+              if (this.rng() < (kind === 'fast' ? 0.35 : 0.5) * (st.flags.includes('combo') ? 1.5 : 1)) {
+                (this.evWalkers = this.evWalkers || []).push(this.minute + 3 + this.rng() * 55);
+                d.walk = (d.walk || 0) + 1;
+              }
             }
           }
         }
@@ -4623,7 +4656,10 @@
     applyChargeFx(p, fx) {
       const st = this.stationAt(p && p.stLot) || (this.evStations || [])[0];
       if (!st) return;
-      if (fx.evFlag && !st.flags.includes(fx.evFlag)) st.flags.push(fx.evFlag);
+      if (fx.evFlag && !st.flags.includes(fx.evFlag)) {
+        st.flags.push(fx.evFlag);
+        this.chargePlan(st);
+      }
       if (fx.evRep) st.rep = clamp(st.rep + fx.evRep, 0.6, 1.3);
       if (fx.evFix) {
         st.broken = 0;

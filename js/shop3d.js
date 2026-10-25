@@ -2362,6 +2362,7 @@
       for (const a of this.agents.values()) if (a.pickable) targets.push(a.p.group);
       for (const m of this.objMeshes.values()) targets.push(m.group);
       for (const v of (this.petViews || new Map()).values()) targets.push(v.g);
+      if (this.evBayOn && this.evCarGroup) targets.push(this.evCarGroup);
       const hits = rc.intersectObjects(targets, true);
       const found = [];
       for (const h of hits) {
@@ -2370,7 +2371,7 @@
         if (o) found.push(o.userData.pick);
       }
       // 人比家具優先（員工會走動，比較難點到）
-      const pri = { staff: 0, customer: 1, pet: 2, object: 3 };
+      const pri = { staff: 0, customer: 1, pet: 2, evcar: 3, object: 4, evbay: 5 };
       found.sort((a, b) => pri[a.kind] - pri[b.kind]);
       if (found.length) return found[0];
       const t = this.pickTile(clientX, clientY);
@@ -2587,8 +2588,14 @@
       this._evFilled = false;
       this.evCars = [];
       this.evSlots = [];
-      if (evHome) this.buildEVBay(this.neighbors.right, evHome);
-      else this.buildNeighbor(this.neighbors.right, W, 0, OUT_W, H, pick(3));
+      if (evHome) {
+        this.buildEVBay(this.neighbors.right, evHome);
+        // 看不見的點擊範圍：點充電區任何地方都能打開管理面板
+        const hit = new THREE.Mesh(new THREE.BoxGeometry(OUT_W, 1.6, H), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
+        hit.position.set(W + OUT_W / 2, 0.8, H / 2);
+        hit.userData.pick = { kind: 'evbay' };
+        this.evCarGroup.add(hit);
+      } else this.buildNeighbor(this.neighbors.right, W, 0, OUT_W, H, pick(3));
 
       // 路邊停的機車
       const colors = ['#c0392b', '#ecf0f1', '#2c3e50', '#2980b9', '#f1c40f', '#7f8c8d'];
@@ -3854,7 +3861,9 @@
           g.position.set(sl.x, 0, sl.z);
           g.rotation.y = Math.PI / 2;
           this.evCarGroup.add(g);
-          const car = { g, slot: sl, until: s.minute + Math.random() * dwell, path: [], back: false, state: 'park' };
+          const left = Math.random() * dwell;
+          const car = { g, slot: sl, kind: sl.kind, start: s.minute - (dwell - left), until: s.minute + left, path: [], back: false, state: 'park' };
+          g.userData.pick = { kind: 'evcar', car };
           sl.car = car;
           this.evCars.push(car);
         }
@@ -3873,7 +3882,8 @@
         const sx = slot.x - 7; // 從店門口的馬路開過來，幾秒就轉進充電格
         g.position.set(sx, 0, lane);
         this.evCarGroup.add(g);
-        const car = { g, slot, until: v.at + v.stay, path: [[slot.x, lane], [slot.x, slot.z]], back: false, state: 'in' };
+        const car = { g, slot, kind: slot.kind, start: v.at, until: v.at + v.stay, path: [[slot.x, lane], [slot.x, slot.z]], back: false, state: 'in' };
+        g.userData.pick = { kind: 'evcar', car };
         slot.car = car;
         this.evCars.push(car);
       }

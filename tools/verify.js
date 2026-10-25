@@ -750,6 +750,26 @@ T('充電站：買了當天就開始有車、每小時進帳；店旁的站車�
   ok((s.evVisits || []).length > 0, '店旁的站沒有排車子開進來');
 });
 
+
+T('充電站設定：地鎖監視器一次付錢、經營方式可以開關、修理故障、店內折扣只限店旁', () => {
+  const s = mk('store', { cash: 5e6, events: false });
+  while (s.level < 6) s.xp += 50;
+  const st = s.buyLot('home');
+  s.addCharger('home', 'fast');
+  const c0 = s.cash;
+  ok(s.setChargeOption('home', 'lock') && s.cash === c0 - 30000, '地鎖沒扣錢');
+  ok(!s.setChargeOption('home', 'lock'), '地鎖可以裝兩次');
+  ok(!Fun.CHARGE_EVENTS[0].ok(s, st), '裝了地鎖還會有汽油車占位');
+  const f0 = st.plan.fast;
+  ok(s.setChargeOption('home', 'nav', true) && st.plan.fast > f0, '上架導航來車沒變多');
+  ok(s.setChargeOption('home', 'nav', false) && !st.flags.includes('nav'), '關不掉導航');
+  st.broken = 1;
+  st.brokenUntil = s.day + 10;
+  ok(s.repairCharger('home') && !st.broken, '修不好');
+  s.buyLot('community');
+  ok(!s.setChargeOption('community', 'combo', true), '老社區的站也能店內折扣');
+});
+
 // ───── 執行 ─────
 const want = process.argv.slice(2);
 let pass = 0;
