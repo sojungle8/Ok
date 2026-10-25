@@ -1,7 +1,7 @@
 // AI 玩家：照一般玩家會做的事去經營，試著撐滿一年破關
 // 只用遊戲裡玩家按得到的操作（招人、排班、調薪、進貨、打掃、買設備、選事件、發文、開分店……）
 // 用法：node tools/playtest.js [難度] [產業] [隨機種子]
-for (const f of ['data', 'fun', 'weird', 'trends26', 'activities', 'city', 'citymap', 'plots', 'career', 'progress', 'slash', 'sidebiz', 'backroom', 'pets', 'life', 'portraits', 'industries', 'sim']) require(`../js/${f}.js`);
+for (const f of ['data', 'fun', 'weird', 'trends26', 'activities', 'city', 'citymap', 'plots', 'career', 'progress', 'slash', 'sidebiz', 'backroom', 'pets', 'life', 'ev', 'portraits', 'industries', 'sim']) require(`../js/${f}.js`);
 const { Sim, CATALOG, catalogById } = globalThis.BossSim;
 const Fun = globalThis.BossFun;
 
@@ -189,6 +189,13 @@ function daily(r) {
   if (!o.house && o.wealth > 3500000) s.lifeSpend('house');
   if (o.wealth > 2000000 && o.parentTrips < 1) s.lifeSpend('parents');
   if (!o.filial && o.wealth > 500000) s.lifeSpend('filial');
+  // 電動車：有錢買一台；Lv.6 以後公司錢夠就在交流道口開快充站
+  if (!o.car && o.wealth > 2500000 && Fun.CARS) s.buyCar('m3');
+  if (s.chargeUnlocked && !s.evStations.length && s.cash > 2500000 && s.level >= 6) {
+    s.buyLot('interchange');
+    s.addCharger('interchange', 'fast');
+    s.addCharger('interchange', 'fast');
+  }
   // 寵物：生意穩了養一隻；每天陪玩，生病就看醫生
   if (!basic && !s.pets.length && s.level >= 4 && s.cash > 250000) s.adoptPet(s.isFood ? 'turtle' : 'cat');
   for (const p of s.pets) {
@@ -295,6 +302,7 @@ for (const w of [0, 3, 7, 11, 15, 23, 31, 39, 47]) {
   console.log(`  第${String(r.week).padStart(2)}週 淨利${String(Math.round(r.profit)).padStart(8)} ★${r.rating.toFixed(2)} 慣老闆${String(Math.round(r.jerk)).padStart(3)} 心情${String(Math.round(r.morale)).padStart(3)} 清潔${String(r.clean).padStart(3)}${r.rival ? ` 對手${r.rival.closed ? '收攤' : r.rival.strength.toFixed(2)}` : ''}`);
 }
 console.log(`  結果：${s.over ? `❌ ${s.ending.title}（第 ${s.day} 天）` : s.wonYear ? `✅ 破關 ${s.victoryInfo.medal} ${s.victoryInfo.title}（${s.victoryInfo.score} 分）` : '⏳ 還沒結束'}`);
+if (s.evStations && s.evStations.length) console.log(`  ⚡ 充電站：${s.evStations.map((st) => `${st.name} 快${st.fast} 累計 $${Math.round(st.total).toLocaleString()}（開站第 ${st.opened} 天）`).join("、")}・🚗 ${s.carInfo ? s.carInfo.name : "沒車"}`);
 console.log(`  現金 $${Math.round(s.cash).toLocaleString()}・借款 $${s.loan.toLocaleString()}・員工 ${s.staff.length} 人・Lv.${s.level}・分店 ${s.branches.length}・成就 ${s.achievements.size}`);
 if (s.victoryInfo) console.log(`  評分：${s.victoryInfo.parts.map(([k, p, t]) => `${k} ${p}（${t}）`).join('、')}`);
 console.log(`  老闆：壓力 ${Math.round(s.owner.stress)}・健康 ${Math.round(s.owner.health)}・個人財富 $${Math.round(s.owner.wealth).toLocaleString()}・度假 ${s.owner.trips} 次・里程碑 ${s.owner.milestones.join(',')}・${Fun.lifeVerdict(s).title}`);

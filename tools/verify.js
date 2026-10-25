@@ -1,7 +1,7 @@
 // 功能逐項驗證：每個玩法都實際跑一次，檢查結果對不對
 // 用法：node tools/verify.js            （全部）
 //       node tools/verify.js 授權 存檔   （只跑名稱含這些字的）
-for (const f of ['data', 'fun', 'weird', 'trends26', 'activities', 'city', 'citymap', 'plots', 'career', 'progress', 'slash', 'sidebiz', 'backroom', 'pets', 'life', 'portraits', 'industries', 'sim']) require(`../js/${f}.js`);
+for (const f of ['data', 'fun', 'weird', 'trends26', 'activities', 'city', 'citymap', 'plots', 'career', 'progress', 'slash', 'sidebiz', 'backroom', 'pets', 'life', 'ev', 'portraits', 'industries', 'sim']) require(`../js/${f}.js`);
 const { Sim, CATALOG } = globalThis.BossSim;
 const Fun = globalThis.BossFun;
 const I = globalThis.BossIndustries;
@@ -649,6 +649,88 @@ T('存檔：紀錄只留最近半年（週報）', () => {
   ok(s.history.length <= 26 && s.profitLog.length <= 52, `週報 ${s.history.length}、精簡紀錄 ${s.profitLog.length}`);
   const t = Sim.load(s.serialize(), {});
   ok(t.history.length === s.history.length && t.bestWeek === s.bestWeek, '讀檔後紀錄不一樣');
+});
+
+
+// ───── 電動車、充電站 ─────
+T('車行：用個人的錢買、換車舊車五五折、舊存檔的車照樣有效', () => {
+  const s = mk('noodle', { cash: 3e6 });
+  ok(!s.buyCar('m3'), '沒錢還買得到');
+  s.owner.wealth = 2e6;
+  ok(s.buyCar('m3') && s.owner.wealth === 400000, `買 Modal 3 後 ${s.owner.wealth}`);
+  ok(s.carInfo === Fun.CARS.m3 && s.rideInfo('bank').mins <= Math.round(window_ride(s) * 0.75 + 1), '路程沒變短');
+  s.owner.wealth = 4e6;
+  const trade = s.carTradeIn();
+  ok(trade === 880000, `舊車折抵 ${trade}`);
+  ok(s.buyCar('mx') && s.owner.wealth === 4e6 + trade - Fun.CARS.mx.cost, '換車金額不對');
+  ok(s.social.followers >= 800, '鷹翼門沒有加粉絲');
+  const old = mk('noodle');
+  old.owner.car = true;
+  ok(old.carInfo === Fun.CARS.gas, '舊存檔的 car:true 讀不到');
+});
+function window_ride(s) {
+  const City = globalThis.BossCity;
+  return City.rideMinutes(s.homeXY, City.placeAt('bank'));
+}
+
+T('充電站：Lv.6 才能買地；裝樁後每天有收入、基本電費照付、帳本有記', () => {
+  const s = mk('store', { cash: 5e6, events: false });
+  ok(!s.buyLot('interchange'), 'Lv.1 就能買地');
+  while (s.level < 6) s.xp += 50;
+  const cash0 = s.cash;
+  const st = s.buyLot('interchange');
+  ok(st && s.cash === cash0 - 800000, '地價沒扣對');
+  days(s, 1);
+  ok(st.week.net === 0 && st.week.fast === 0, '沒有樁不應該有收支');
+  s.addCharger('interchange', 'fast');
+  s.addCharger('interchange', 'fast');
+  days(s, 14);
+  ok(st.last && st.last.fast > 50, `一週快充只有 ${st.last && st.last.fast} 次`);
+  ok((st.last.fixed / st.last.days) * 7 >= 2 * 120 * 55, `基本電費 ${st.last.fixed}（${st.last.days} 天）`);
+  ok(Object.keys(st.last.brands).length >= 4, '來充電的品牌太少');
+  const L = s.history[s.history.length - 1];
+  ok(Math.round(L.charging) === Math.round(st.last.net) || Math.abs(L.charging - st.last.net) < 2, `帳本 ${L.charging} vs 站 ${st.last.net}`);
+});
+
+T('充電站：漲價車變少、店旁的站會帶客人進店、存讀檔保留', () => {
+  const run = (price, lot) => {
+    const s = mk('store', { cash: 5e6, events: false, seed: 3 });
+    while (s.level < 6) s.xp += 50;
+    s.buyLot(lot);
+    s.addCharger(lot, 'fast');
+    s.addCharger(lot, 'slow');
+    s.setChargePrice(lot, 'fast', price);
+    days(s, 7);
+    return s;
+  };
+  const cheap = run(0, 'interchange').stationAt('interchange').last.fast;
+  const dear = run(5, 'interchange').stationAt('interchange').last.fast;
+  ok(dear < cheap * 0.75, `漲價後 ${dear} vs ${cheap}`);
+  const h = run(0, 'home');
+  ok(h.chargeWalkRate() > 0, '店旁的站沒有帶客人');
+  ok(run(0, 'community').chargeWalkRate() === 0, '遠的站也會帶客人');
+  const back = Sim.load(h.serialize(), {});
+  ok(back.evStations.length === 1 && back.stationAt('home').fast === 1, '存讀檔後充電站不見了');
+});
+
+T('充電站事件：故障停用、補助入帳、電價調漲都會作用在那一站', () => {
+  const s = mk('store', { cash: 5e6, events: false });
+  while (s.level < 6) s.xp += 50;
+  const st = s.buyLot('office');
+  s.addCharger('office', 'fast');
+  s.addCharger('office', 'slow');
+  for (const E of Fun.CHARGE_EVENTS) {
+    const ev = E.make(s, st);
+    ok(ev.choices.length >= 2 && ev.ignore, `${ev.id} 選項不完整`);
+  }
+  const p = { stLot: 'office', where: 'phone', ev: { id: 'x', choices: [], ignore: { effects: {} } } };
+  s.applyChargeFx(p, { evBroken: 14 });
+  ok(st.broken === 1 && st.brokenUntil === s.day + 14, '故障沒有記');
+  const c0 = s.cash;
+  s.applyChargeFx(p, { evSubsidy: true });
+  ok(s.cash - c0 === 60000 + 8000 && st.subsidy, '補助金額不對');
+  s.applyChargeFx(p, { evElec: 0.1 });
+  ok(Math.abs(st.elec - 1.1) < 1e-9, '電價沒漲');
 });
 
 // ───── 執行 ─────

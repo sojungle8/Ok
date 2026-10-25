@@ -97,6 +97,7 @@
       river.position.set(rx + P / 2, 0.01, H / 2);
       this.root.add(river);
       for (const by of City.BRIDGES) this.box(rx + P / 2, 0.02, by * P, P + 0.4, 0.12, ROAD, '#8d8780');
+      this.homeStation = (s.evStations || []).some((x) => City.LOTS[x.lot] && City.LOTS[x.lot].home);
       // 每個街區
       const r = rand(1234);
       for (let y = 0; y < City.H; y++)
@@ -107,7 +108,9 @@
           const oz = bx0(y);
           // 人行道（街區底座）
           this.box(ox + BLOCK / 2, 0, oz + BLOCK / 2, BLOCK, 0.12, BLOCK, t === 'P' ? '#a7cf8e' : '#cbc3b8');
-          this.fillBlock(t, ox, oz, r, x, y);
+          const st = this.stationOn(x, y);
+          if (st) this.drawStation(st, ox + BLOCK / 2, oz + BLOCK / 2, 3.4);
+          else this.fillBlock(t, ox, oz, r, x, y);
         }
       // 斑馬線：每個路口畫兩條白線
       for (let iy = 0; iy <= City.H; iy++)
@@ -121,6 +124,8 @@
       this.box(hx, 0.12, hz + 0.9, 1.6, 1.4, 1.2, s.style && s.style.sign ? s.style.sign : s.ind.signColor || '#e0582b');
       this.box(hx, 1.52, hz + 0.9, 1.75, 0.18, 1.35, '#ffffff');
       if (s.rival && !s.rival.closed) this.box(hx + 1.4, 0.12, hz - 0.8, 1.2, 1.2, 1.1, '#5a5f6e');
+      const homeSt = (s.evStations || []).find((x) => City.LOTS[x.lot] && City.LOTS[x.lot].home);
+      if (homeSt) this.drawStation(homeSt, hx + 1.4, hz + 1.05, 1.1);
       for (const b of s.branches || []) {
         const L = City.LANDMARKS[b.site];
         if (!L) continue;
@@ -130,26 +135,69 @@
       this.commit();
     }
 
+    // ⚡ 充電站：買下的地（不是店旁那塊）整個街區變成充電廣場
+    stationOn(bx, by) {
+      return (this.sim.evStations || []).find((st) => {
+        const L = City.LOTS[st.lot];
+        return L && !L.home && L.x === bx && L.y === by;
+      });
+    }
+    // 柏油地、停車格、雨棚、充電樁、停著充電的車（越忙車越多）
+    drawStation(st, cx, cz, size) {
+      const k = size / 3.4;
+      this.box(cx, 0.12, cz, size, 0.02, size, '#55595e');
+      const n = Math.max(1, Math.min(6, st.fast + st.slow));
+      const gap = size / (n + 1);
+      // 雨棚：白色頂、綠色邊
+      this.box(cx, 1.15 * k + 0.12, cz - 0.35 * k, size * 0.92, 0.12 * k, 1.1 * k, '#f4f6f5');
+      this.box(cx, 1.12 * k + 0.12, cz - 0.35 * k + 0.56 * k, size * 0.92, 0.1 * k, 0.05, '#2ecc71');
+      for (const sx of [-1, 1]) this.box(cx + sx * size * 0.42, 0.12, cz - 0.35 * k, 0.08, 1.15 * k, 0.08, '#c8cdd0');
+      const fast = Math.min(st.fast, n);
+      const busy = st.today ? Math.min(1, (st.today.fast + st.today.slow) / Math.max(1, st.fast * 20 + st.slow * 4) + 0.15) : 0;
+      const colors = (window.BossFun.EV_BRANDS || []).map((b) => b.color);
+      let seed = st.opened || 1;
+      const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+      for (let i = 0; i < n; i++) {
+        const x = cx - size / 2 + gap * (i + 1);
+        const isFast = i < fast;
+        this.box(x, 0.12, cz - 0.6 * k, 0.2 * k, (isFast ? 0.75 : 0.5) * k, 0.16 * k, isFast ? '#1f8f5f' : '#3b7dd8');
+        this.box(x, 0.12, cz + 0.25 * k, 0.04, 0.01, 1.0 * k, '#ffffff'); // 停車格線
+        // 有車在充電
+        if (rnd() < busy) {
+          const c = colors[Math.floor(rnd() * colors.length)] || '#cccccc';
+          this.box(x + gap / 2 - 0.02, 0.12, cz + 0.2 * k, Math.min(0.55, gap * 0.7), 0.28 * k, 0.95 * k, c);
+          this.box(x + gap / 2 - 0.02, 0.4 * k + 0.12, cz + 0.22 * k, Math.min(0.45, gap * 0.55), 0.18 * k, 0.5 * k, '#2c3e50');
+        }
+      }
+      // 招牌柱
+      this.box(cx + size / 2 - 0.25, 0.12, cz + size / 2 - 0.25, 0.25, 1.9 * k, 0.25, '#2ecc71');
+      this.box(cx + size / 2 - 0.25, 1.9 * k + 0.12, cz + size / 2 - 0.25, 0.5, 0.4, 0.12, '#ffffff');
+    }
+
     // 街區裡面：照種類蓋房子
     fillBlock(t, ox, oz, r, bx, by) {
       const B = BLOCK;
       const pick = (arr) => arr[Math.floor(r() * arr.length)];
       if (t === 'R' || t === 'C') {
         // 透天厝、公寓沿著四邊排；商店街一樓有彩色招牌
+        // 店旁有充電站：店那一個街區東南角的房子拆掉，讓出位置（從鏡頭這邊看得到）
+        const clear = this.homeStation && bx === this.sim.homeXY.x && by === this.sim.homeXY.y;
         for (let i = 0; i < 4; i++) {
           for (const side of [0, 1]) {
+            // 拆掉的房子照樣抽亂數，其他街區才不會因為買了地就整個變樣
+            const put = clear && side === 1 && i >= 2 ? () => {} : (...a) => this.box(...a);
             const w = B / 4 - 0.12;
             const h = t === 'C' ? 1.6 + r() * 1.6 : 1.3 + r() * 2.2;
             const x = ox + 0.06 + w / 2 + i * (B / 4);
             const z = side ? oz + B - 0.75 : oz + 0.75;
-            this.box(x, 0.12, z, w, h, 1.3, pick(HOUSE));
-            if (t === 'C') this.box(x, 0.5, side ? z + 0.68 : z - 0.68, w * 0.9, 0.35, 0.06, pick(SHOP));
+            put(x, 0.12, z, w, h, 1.3, pick(HOUSE));
+            if (t === 'C') put(x, 0.5, side ? z + 0.68 : z - 0.68, w * 0.9, 0.35, 0.06, pick(SHOP));
             // 頂樓：台灣特色的鐵皮加蓋（藍、綠、紅）和水塔
-            if (r() < 0.55) this.box(x, 0.12 + h, z, w * 0.85, 0.4, 0.9, pick(ROOF));
-            else if (r() < 0.5) this.box(x, 0.12 + h, z, w * 0.35, 0.45, 0.35, '#d0d4d6');
+            if (r() < 0.55) put(x, 0.12 + h, z, w * 0.85, 0.4, 0.9, pick(ROOF));
+            else if (r() < 0.5) put(x, 0.12 + h, z, w * 0.35, 0.45, 0.35, '#d0d4d6');
           }
         }
-        if (r() < 0.6) this.trees.push([ox + B / 2, oz + B / 2, 0.9]);
+        if (r() < 0.6 && !clear) this.trees.push([ox + B / 2, oz + B / 2, 0.9]);
       } else if (t === 'O') {
         const n = r() < 0.5 ? 1 : 2;
         for (let i = 0; i < n; i++) {
@@ -427,6 +475,14 @@
         add(id, x, z, `${L.icon} ${L.site ? `${L.name}分店` : L.name}`, L.site ? 'branch' : id === 'hsr' ? 'hsr' : '');
       }
       if (s.rival && !s.rival.closed) add('rival', hx + 1.4, hz - 0.8, `🏪 ${s.rival.name}`, 'rival');
+      // ⚡ 充電站的地：買了的顯示站名，還沒買的顯示「待售」（等級到了才顯示）
+      if (s.chargeUnlocked)
+        for (const [id, L] of Object.entries(City.LOTS || {})) {
+          const st = s.evStations.find((x) => x.lot === id);
+          const [x, z] = L.home ? [hx + 1.4, hz + 1.05] : blockCenter(L.x, L.y);
+          const [lx, lz] = L.home ? [hx + 1.4, hz + 1.05] : [x, z];
+          add(`lot:${id}`, lx, lz, st ? `⚡ ${L.name}充電站` : `🏷️ 待售：${L.name}`, st ? 'lot owned' : 'lot');
+        }
     }
 
     updateOverlay() {
@@ -506,7 +562,7 @@
     }
 
     focus(id) {
-      const L = id === 'home' ? { ...this.sim.homeXY } : City.LANDMARKS[id];
+      const L = id === 'home' ? { ...this.sim.homeXY } : id.startsWith('lot:') ? City.lotXY(id.slice(4), this.sim.homeXY) : City.LANDMARKS[id];
       if (!L) return;
       const [x, z] = blockCenter(L.x, L.y);
       Object.assign(this.camT, { x, z, zoom: Math.max(this.camT.zoom, 1.6) });

@@ -17,6 +17,7 @@
   const OUT_W = 4; // 店面左右兩側的騎樓寬度
   const STREET = 3; // 店門外：騎樓、路邊、馬路
   const MIN_WAGE = 196;
+  const money = (n) => `$${Math.round(n).toLocaleString()}`;
   const JERK_LIMIT = 100;
   const WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日'];
 
@@ -122,6 +123,8 @@
       this.history = [];
       this.activeEvents = [];
       this.pendingEvents = [];
+      this.evStations = []; // ⚡ 充電站
+      this.semi = false; // 🚛 公司的電動聯結車
       this.usedEvents = new Set();
       this.achievements = new Set();
       this.xp = 0;
@@ -2414,7 +2417,7 @@
     rideInfo(destId) {
       const to = City && City.placeAt(destId);
       if (!to) return { mins: 10, notes: [] };
-      let mins = City.rideMinutes(this.homeXY, to) * (this.owner.car ? 0.75 : 1);
+      let mins = City.rideMinutes(this.homeXY, to) * (this.carInfo ? this.carInfo.ride : 1);
       const notes = [];
       if (this.weather && (this.weather.id === 'rain' || this.weather.id === 'typhoon')) {
         mins *= 1.25;
@@ -2667,14 +2670,15 @@
         if (!g) return null;
         const need = Math.max(0, this.par[g.id] - this.stock[g.id]);
         if (!need) return done(`${g.name}倉庫還是滿的，阿伯說：「買那麼多要放哪？」`);
-        const cost = Math.round(need * this.unitCost(g) * (A.did.haggle === 'ok' ? 0.8 : 0.85));
+        const haul = (this.carInfo && this.carInfo.haul) || 0;
+        const cost = Math.round(need * this.unitCost(g) * ((A.did.haggle === 'ok' ? 0.8 : 0.85) - haul));
         if (this.cash < cost) return broke();
         this.cash -= cost;
         this.ledger.materials += cost;
         A.spent += cost;
         this.stock[g.id] += need;
-        energy(-4, false);
-        r.text = `${g.icon} ${g.name}補了 ${need} 份，花 $${cost.toLocaleString()}（${A.did.haggle === 'ok' ? '八折' : '八五折'}）。你扛著箱子，腰發出了奇怪的聲音。`;
+        if (!haul) energy(-4, false);
+        r.text = `${g.icon} ${g.name}補了 ${need} 份，花 $${cost.toLocaleString()}（${A.did.haggle === 'ok' ? '八折' : '八五折'}${haul ? `，車子載得多再省 ${Math.round(haul * 100)}%` : ''}）。${haul ? '箱子直接丟進後車廂，腰一點都不痛。' : '你扛著箱子，腰發出了奇怪的聲音。'}`;
         r.chips.push(`📦 ${g.name}補滿`);
         A.did[id] = true;
       } else
@@ -4315,6 +4319,273 @@
       return true;
     }
 
+    // ───── 🚘 老闆的車 ─────
+    get carInfo() {
+      const c = this.owner.car;
+      if (!c || !Fun.CARS) return null;
+      return Fun.CARS[c === true ? 'gas' : c] || null;
+    }
+    carTradeIn() {
+      const c = this.carInfo;
+      return c ? Math.round((c.cost * 0.55) / 10000) * 10000 : 0;
+    }
+    buyCar(id) {
+      const C = Fun.CARS && Fun.CARS[id];
+      const o = this.owner;
+      const cur = this.carInfo;
+      if (!C || cur === C) return false;
+      const trade = this.carTradeIn();
+      if (o.wealth + trade < C.cost) return false;
+      o.wealth += trade - C.cost;
+      o.car = id;
+      o.carFans = o.carFans || [];
+      if (C.fans && !o.carFans.includes(id)) {
+        o.carFans.push(id);
+        this.social.followers += C.fans;
+      }
+      this.notify(`${C.icon} 老闆${cur ? `把${cur.name}賣掉（${money(trade)}），換了` : '買了'}一台${C.brand}${C.name}！${C.fans ? `被拍上網，粉絲 +${C.fans}` : ''}`, 'good');
+      // 開好車、員工卻領接近基本工資：大家心裡會不舒服
+      if (C.show && this.staff.length) {
+        const avg = this.staff.reduce((t, e) => t + e.wage, 0) / this.staff.length;
+        if (avg < MIN_WAGE * 1.12) {
+          for (const e of this.staff) e.mood = clamp(e.mood - 6, 0, 100);
+          this.jerk = clamp(this.jerk + 2, 0, JERK_LIMIT);
+          this.notify(`😒 員工在休息室小聲說：「老闆開 ${Math.round(C.cost / 10000)} 萬的車，我們領基本工資……」（士氣 -6）`, 'bad');
+        }
+      }
+      this.checkLifeMilestones && this.checkLifeMilestones();
+      return true;
+    }
+    sellCar() {
+      const c = this.carInfo;
+      if (!c) return false;
+      const v = this.carTradeIn();
+      this.owner.wealth += v;
+      this.owner.car = false;
+      this.notify(`🔑 ${c.name}賣掉了，拿回 ${money(v)}。之後出門又要騎機車了。`);
+      return true;
+    }
+    // 每週：油錢電費保養；無人計程艙載客的收入；超跑的罰單
+    carWeekly() {
+      const c = this.carInfo;
+      if (!c) return;
+      const own = c.ev && this.evStations && this.evStations.some((st) => st.fast + st.slow > 0);
+      this.payPersonal(Math.round(c.weekly * (own ? 0.5 : 1)), own ? '車子的保養（在自己的站充電）' : c.ev ? '車子的電費和保養' : '車子的油錢和保養');
+      if (c.robotaxi) {
+        const fare = Math.round((4000 + this.rng() * 4000) * 0.8);
+        this.owner.wealth += fare;
+        this.notify(`🚖 無人計程艙這週自己去載客，扣掉平台抽成賺了 ${money(fare)}`);
+        if (this.rng() < 0.12) {
+          const good = this.rng() < 0.5;
+          this.social.followers = Math.max(0, this.social.followers + (good ? 120 : -60));
+          this.notify(good ? '📹 有人拍到你的無人計程艙禮讓救護車，影片被分享好多次（粉絲 +120）' : '📹 你的無人計程艙在路口卡住不動，被拍上網嘲笑（粉絲 -60）', good ? 'good' : 'bad');
+        }
+      }
+      if (c.ticket && this.rng() < c.ticket) this.payPersonal(3600, '超速罰單');
+      if (this.semi) {
+        this.cash -= Fun.SEMI.weekly;
+        this.ledger.other -= Fun.SEMI.weekly;
+      }
+    }
+    buySemi() {
+      const S = Fun.SEMI;
+      if (!S || this.semi || this.branches.length < 2 || this.cash < S.cost) return false;
+      this.cash -= S.cost;
+      this.ledger.other -= S.cost;
+      this.semi = true;
+      this.costMult.materials = Math.max(0.6, (this.costMult.materials || 1) - S.materials);
+      this.notify(`${S.icon} 公司買了一台${S.brand}${S.name}，各店自己送貨，進貨成本 -${Math.round(S.materials * 100)}%`, 'good');
+      return true;
+    }
+    sellSemi() {
+      if (!this.semi) return false;
+      const v = Math.round(Fun.SEMI.cost * 0.5);
+      this.cash += v;
+      this.ledger.other += v;
+      this.semi = false;
+      this.costMult.materials = (this.costMult.materials || 1) + Fun.SEMI.materials;
+      this.notify(`🚛 聯結車賣掉了，拿回 ${money(v)}`);
+      return true;
+    }
+
+    // ───── ⚡ 充電站：在城市地圖上買地、裝快充／慢充，各牌電動車都會來充 ─────
+    get chargeUnlocked() {
+      return this.level >= 6 || (this.evStations && this.evStations.length > 0);
+    }
+    lotPrice(id) {
+      const L = City && City.LOTS && City.LOTS[id];
+      if (!L) return 0;
+      return L.home ? Math.round((L.price * (this.spotInfo.rent || 1)) / 10000) * 10000 : L.price;
+    }
+    stationAt(lot) {
+      return (this.evStations || []).find((st) => st.lot === lot) || null;
+    }
+    buyLot(id) {
+      const L = City && City.LOTS && City.LOTS[id];
+      if (!L || !this.chargeUnlocked || this.level < 6 || this.stationAt(id)) return null;
+      const price = this.lotPrice(id);
+      if (this.cash < price) return null;
+      this.cash -= price;
+      this.ledger.other -= price;
+      const K = Fun.CHARGE;
+      const st = { lot: id, name: L.name, land: price, gear: 0, fast: 0, slow: 0, priceFast: K.fast.price, priceSlow: K.slow.price, rep: 1, elec: 1, broken: 0, brokenUntil: 0, flags: [], subsidy: false, opened: this.day, total: 0, week: null, last: null, today: null };
+      st.week = this.chargeBlank();
+      this.evStations.push(st);
+      this.notify(`🅿️ 買下了「${L.name}」的土地（${money(price)}）。接下來裝充電樁就能開始營業。`, 'good');
+      return st;
+    }
+    chargeBlank() {
+      return { fast: 0, slow: 0, kwh: 0, rev: 0, elec: 0, fixed: 0, net: 0, walk: 0, brands: {}, days: 0 };
+    }
+    addCharger(lot, kind) {
+      const st = this.stationAt(lot);
+      const k = Fun.CHARGE[kind];
+      if (!st || !k || st[kind] >= k.max || this.cash < k.cost) return false;
+      this.cash -= k.cost;
+      this.ledger.other -= k.cost;
+      st.gear += k.cost;
+      st[kind] += 1;
+      this.notify(`${k.name}裝好了（${st.name}，現在 ${st[kind]} 支）`, 'good');
+      return true;
+    }
+    removeCharger(lot, kind) {
+      const st = this.stationAt(lot);
+      const k = Fun.CHARGE[kind];
+      if (!st || !k || st[kind] <= 0) return false;
+      const back = Math.round(k.cost * Fun.CHARGE.gearResale);
+      st[kind] -= 1;
+      st.gear = Math.max(0, st.gear - k.cost);
+      this.cash += back;
+      this.ledger.other += back;
+      return true;
+    }
+    setChargePrice(lot, kind, delta) {
+      const st = this.stationAt(lot);
+      if (!st) return false;
+      const key = kind === 'fast' ? 'priceFast' : 'priceSlow';
+      const [lo, hi] = kind === 'fast' ? [7, 18] : [5, 12];
+      st[key] = clamp(Math.round((st[key] + delta) * 2) / 2, lo, hi);
+      return true;
+    }
+    sellStation(lot) {
+      const st = this.stationAt(lot);
+      if (!st) return false;
+      const back = Math.round(st.land * Fun.CHARGE.resale + st.gear * Fun.CHARGE.gearResale);
+      this.cash += back;
+      this.ledger.other += back;
+      this.evStations = this.evStations.filter((x) => x !== st);
+      this.notify(`🏷️ 「${st.name}」連地帶樁賣掉了，拿回 ${money(back)}`);
+      return true;
+    }
+    // 電動車越來越多：大約一年半翻倍（上限兩倍）
+    get evShare() {
+      return Math.min(2, 1 + this.day * 0.002);
+    }
+    // 一天的充電生意（無人站，24 小時都有車來）
+    chargeDaily(report) {
+      if (!this.evStations || !this.evStations.length || !Fun.CHARGE) return;
+      const K = Fun.CHARGE;
+      const weekend = this.weekday >= 5;
+      const typhoon = this.weather && this.weather.id === 'typhoon';
+      let net = 0;
+      for (const st of this.evStations) {
+        const L = City.LOTS[st.lot];
+        if (!L) continue;
+        const pull = st.rep * this.evShare * (L.home ? this.spotInfo.traffic || 1 : 1) * (L.weekend && weekend ? L.weekend : 1) * (st.flags.includes('nav') ? 1.15 : 1) * (typhoon ? 0.3 : 1);
+        const d = { fast: 0, slow: 0, kwh: 0, rev: 0, elec: 0, fixed: 0 };
+        for (const kind of ['fast', 'slow']) {
+          const k = K[kind];
+          let n = st[kind];
+          if (kind === 'fast' && st.broken && this.day < st.brokenUntil) n = Math.max(0, n - st.broken);
+          d.fixed += (st[kind] * k.kw * K.basePerKw + st[kind] * k.upkeep) / 7; // 壞掉的樁基本電費照付
+          if (!n) continue;
+          const price = kind === 'fast' ? st.priceFast : st.priceSlow;
+          // 比行情便宜會多一些車；比行情貴，車主掉頭很快，口碑也會慢慢變差
+          const want = (kind === 'fast' ? 30 : 14) * L[kind] * pull * Math.pow(k.price / price, price > k.price ? 2.5 : 1.6) * (0.85 + this.rng() * 0.3);
+          if (price >= k.price * 1.2) st.rep = Math.max(0.8, st.rep - 0.002);
+          const cap = n * k.cap * (kind === 'fast' && st.flags.includes('idle') ? 1.15 : 1) * (st.flags.includes('lock') ? 1.05 : 1);
+          const served = Math.round(cap * (1 - Math.exp(-want / cap)));
+          const kwh = served * k.kwh;
+          d[kind] = served;
+          d.kwh += kwh;
+          d.rev += kwh * price + served * (k.park || 0);
+          d.elec += kwh * k.elec * st.elec;
+        }
+        if (st.flags.includes('nav')) d.fixed += 3000 / 7;
+        if (st.flags.includes('cam')) d.fixed += 300 / 7;
+        d.net = Math.round(d.rev - d.elec - d.fixed);
+        // 哪些牌子的車來充電
+        const brands = Fun.EV_BRANDS || [];
+        for (let i = 0; i < d.fast + d.slow; i++) {
+          let r = this.rng();
+          const b = brands.find((x) => (r -= x.share) < 0) || brands[0];
+          if (b) st.week.brands[b.id] = (st.week.brands[b.id] || 0) + 1;
+        }
+        st.today = d;
+        for (const k of ['fast', 'slow', 'kwh', 'rev', 'elec', 'fixed', 'net']) st.week[k] += d[k];
+        st.week.days += 1;
+        st.total += d.net;
+        net += d.net;
+      }
+      this.cash += net;
+      this.ledger.charging = (this.ledger.charging || 0) + net;
+      report.charging = net;
+    }
+    // 每週結算：這週的數字變成「上週」
+    chargeWeekly() {
+      for (const st of this.evStations || []) {
+        st.last = { ...st.week, rev: Math.round(st.week.rev), elec: Math.round(st.week.elec), fixed: Math.round(st.week.fixed) };
+        st.week = this.chargeBlank();
+      }
+    }
+    // 店旁充電站：等充電的車主走過來的機率（每分鐘）；快充等半小時、慢充等兩三個小時
+    chargeWalkRate() {
+      let r = 0;
+      for (const st of this.evStations || []) {
+        if (!City.LOTS[st.lot] || !City.LOTS[st.lot].home || !st.today) continue;
+        r += (st.today.fast * 0.35 + st.today.slow * 0.5) / DAY;
+      }
+      return r;
+    }
+    // 充電站的事件：每站每天約 4%（大約一週一次多一點的機會）
+    planCharge() {
+      if (!this.evStations || !this.evStations.length || !Fun.CHARGE_EVENTS) return;
+      for (const st of this.evStations) {
+        if (st.fast + st.slow === 0 || this.rng() >= 0.04) continue;
+        const pool = Fun.CHARGE_EVENTS.filter((e) => !e.ok || e.ok(this, st));
+        if (!pool.length) continue;
+        const E = pool[Math.floor(this.rng() * pool.length)];
+        this.pendingEvents.push({ ev: E.make(this, st), at: this.hours.open + 60 + this.rng() * Math.max(30, this.hours.span - 120), where: 'phone', stLot: st.lot });
+        break;
+      }
+    }
+    applyChargeFx(p, fx) {
+      const st = this.stationAt(p && p.stLot) || (this.evStations || [])[0];
+      if (!st) return;
+      if (fx.evFlag && !st.flags.includes(fx.evFlag)) st.flags.push(fx.evFlag);
+      if (fx.evRep) st.rep = clamp(st.rep + fx.evRep, 0.6, 1.3);
+      if (fx.evFix) {
+        st.broken = 0;
+        st.brokenUntil = 0;
+      }
+      if (fx.evBroken) {
+        st.broken = 1;
+        st.brokenUntil = this.day + fx.evBroken;
+      }
+      if (fx.evElec) for (const x of this.evStations) x.elec *= 1 + fx.evElec;
+      if (fx.evPrice) {
+        st.priceFast = Math.min(18, st.priceFast + fx.evPrice);
+        st.priceSlow = Math.min(12, st.priceSlow + fx.evPrice / 2);
+      }
+      if (fx.evSubsidy) {
+        const grant = st.fast * 60000 + st.slow * 8000;
+        st.subsidy = true;
+        this.cash += grant;
+        this.ledger.charging = (this.ledger.charging || 0) + grant;
+        this.notify(`🏛️ 充電樁補助入帳 ${money(grant)}`, 'good');
+      }
+    }
+
     // 老闆離開幾天（度假、陪家人、住院）：店交給員工
     lifeAway(days, what) {
       const b = this.boss;
@@ -4369,12 +4640,12 @@
       if ((t.revenue || 0) < (report.wages || 0)) d += 3;
       d += noMgr * 0.8 + (o.emba ? 0.6 : 0) + (o.kids && !o.familyTime ? 1 : 0);
       const authOn = this.feature('auth') && Object.entries(this.policy.auth || {}).some(([k, v]) => k !== 'budget' && v && v !== 'off');
-      d -= 3 + (authOn ? 1 : 0) + (o.gym ? 1 : 0) + (o.car ? 1 : 0) + (o.house ? 2 : 0) + (o.partner === 'married' ? 1 : 0) + (this.areaManager ? 1 : 0);
+      d -= 3 + (authOn ? 1 : 0) + (o.gym ? 1 : 0) + (this.carInfo ? this.carInfo.stress : 0) + (o.house ? 2 : 0) + (o.partner === 'married' ? 1 : 0) + (this.areaManager ? 1 : 0);
       if (this.boss.away) d -= 4;
       if (this.level >= 33) d -= 1;
       o.stress = clamp(o.stress + d, 0, 100);
       o.health = clamp(o.health + (o.stress > 80 ? -1.5 : o.stress > 60 ? -0.5 : o.stress < 40 ? 0.4 + (o.gym ? 0.3 : 0) : 0), 0, 100);
-      if (o.kids) o.familyBond = clamp(o.familyBond + (o.familyTime ? 0.5 : -0.4), 0, 100);
+      if (o.kids) o.familyBond = clamp(o.familyBond + (o.familyTime ? 0.5 : -0.4) + (this.carInfo && this.carInfo.family ? 0.2 : 0), 0, 100);
       if (o.stress >= 70 && !o.stressWarned) {
         o.stressWarned = true;
         this.notify('🌋 老闆的壓力已經很大了：多授權、找店長、排公休，或去度個假（到「成長 → 老闆的人生」）', 'bad');
@@ -4392,7 +4663,7 @@
     lifeWeekly() {
       const o = this.owner;
       if (o.house) this.payPersonal(9000, '房貸');
-      if (o.car) this.payPersonal(2000, '車子的油錢和保養');
+      this.carWeekly();
       if (o.nanny) this.payPersonal(8000, '保母費');
       if (o.filial && this.week % 4 === 0) this.payPersonal(10000, '孝親費');
       if (o.partnerRisk && o.partner === 'dating' && this.rng() < 0.15) {
@@ -5474,6 +5745,9 @@
           const br = (Fun.TOILET_BORROW[this.ind.id] || 0.5) * this.ind.demand[this.hour] * this.weatherMult('walk');
           if (this.rng() < (br / 60) * dt) this.spawnCustomer({ borrow: true });
         }
+        // ⚡ 店旁的充電站：等充電的車主走過來買東西
+        const evWalk = this.chargeWalkRate();
+        if (evWalk > 0 && this.rng() < evWalk * dt) this.spawnCustomer();
         // 兼營業務：專門為這件事來的客人（不搶原本的生意）
         for (const p of this.sideProducts()) {
           const r = this.sideRate(p);
@@ -6191,6 +6465,7 @@
       this.planCases();
       this.planStreet();
       this.planNight();
+      this.planCharge();
       this.planNeighbors();
       if (this.rivalNews && this.rival) {
         this.rivalNews = false;
@@ -6366,6 +6641,7 @@
       }
       if (fx.demand) this.demandMods.push({ mult: fx.demand.mult, days: fx.demand.months * 7 });
       if (fx.flag) this.flags.add(fx.flag);
+      if (fx.evFlag || fx.evRep || fx.evFix || fx.evBroken || fx.evElec || fx.evPrice || fx.evSubsidy) this.applyChargeFx(ev, fx);
       if (fx.branch && this.branches[fx.branch.i]) {
         const b = this.branches[fx.branch.i];
         const f = fx.branch;
@@ -6624,12 +6900,12 @@
 
     // ───── 每日、每週、每月 ─────
     emptyLedger() {
-      return { revenue: 0, materials: 0, wages: 0, labor: 0, health: 0, pension: 0, rent: 0, utilities: 0, interest: 0, tax: 0, fines: 0, cleaning: 0, welfare: 0, events: 0, branches: 0, group: 0, other: 0, rewards: 0, waste: 0 };
+      return { revenue: 0, materials: 0, wages: 0, labor: 0, health: 0, pension: 0, rent: 0, utilities: 0, interest: 0, tax: 0, fines: 0, cleaning: 0, welfare: 0, events: 0, branches: 0, group: 0, other: 0, rewards: 0, waste: 0, charging: 0 };
     }
 
     // 報廢（waste）只是記錄：那些食材進貨時已經付過錢了
     profitOf(L) {
-      return L.revenue - L.materials - L.wages - L.labor - L.health - L.pension - L.rent - L.utilities - L.interest - L.tax - L.fines - L.cleaning - (L.welfare || 0) + L.events + L.branches + (L.group || 0) + L.other + (L.rewards || 0);
+      return L.revenue - L.materials - L.wages - L.labor - L.health - L.pension - L.rent - L.utilities - L.interest - L.tax - L.fines - L.cleaning - (L.welfare || 0) + L.events + L.branches + (L.group || 0) + L.other + (L.rewards || 0) + (L.charging || 0);
     }
 
     emptyDay() {
@@ -6641,6 +6917,7 @@
       const lastShift = this.hours.shifts - 1;
       this.petDaily(report);
       this.lifeDaily(report);
+      this.chargeDaily(report);
       // 薪水：上班時數 × 時薪，超過八小時算加班
       let unpaidOT = 0;
       const worked = new Set(this.staff.filter((e) => e.minutesToday > 0));
@@ -6857,6 +7134,7 @@
         this.floodBikeIssue = true;
       }
       this.lifeWeekly();
+      this.chargeWeekly();
       const grp = this.groupWeekly();
       this.cash += grp;
       if (grp > 0) this.gainXp(grp / 60);
@@ -7123,6 +7401,8 @@
         sideDownUntil: this.sideDownUntil || {},
         sideHot: this.sideHot || null,
         kitchen: this.kitchen || null,
+        evStations: this.evStations || [],
+        semi: !!this.semi,
         seasonal: this.seasonal || null,
         seasonalCount: this.seasonalCount || 0,
         franchises: this.franchises || [],
@@ -7234,6 +7514,8 @@
       s.sideDownUntil = d.sideDownUntil || {};
       s.sideHot = d.sideHot || null;
       s.kitchen = d.kitchen || null;
+      s.evStations = d.evStations || [];
+      s.semi = !!d.semi;
       s.seasonal = d.seasonal || null;
       s.seasonalCount = d.seasonalCount || 0;
       s.franchises = d.franchises || [];

@@ -40,6 +40,17 @@
     xinzhuang: { x: 0, y: 1, name: '新莊老街', icon: '🏮', site: true },
   };
 
+  // ───── 充電站可以買的土地 ─────
+  // price：土地價格；fast／slow：快充、慢充的需求倍率；hours：哪些時段車比較多；near：在你的店旁邊（等充電的車主會走過來買東西）
+  // home 這塊地的位置跟著你的店
+  const LOTS = {
+    home: { name: '店旁的空地', icon: '🅿️', price: 600000, fast: 0.9, slow: 1.0, home: true, desc: '就在你的店旁邊：等充電的車主會走過來買東西（店要有開才會進來）。地價跟著你的地點走。' },
+    interchange: { x: 1, y: 0, name: '快速道路交流道口', icon: '🛣️', price: 800000, fast: 1.6, slow: 0.4, desc: '跑長途的車下交流道順便補電：快充需求最高，慢充幾乎沒人用。' },
+    office: { x: 8, y: 0, name: '辦公大樓停車場', icon: '🏢', price: 1200000, fast: 0.8, slow: 2.2, weekend: 0.5, desc: '上班族停一整天慢慢充：慢充需求高，週末很冷清。地很貴。' },
+    community: { x: 1, y: 6, name: '老社區旁空地', icon: '🏘️', price: 400000, fast: 0.4, slow: 1.5, desc: '公寓沒辦法裝充電樁的住戶晚上來充：慢充需求穩定，地便宜。' },
+  };
+  const lotXY = (id, home) => (LOTS[id] && LOTS[id].home ? home : LOTS[id] ? { x: LOTS[id].x, y: LOTS[id].y } : null);
+
   // ───── 開店地點 ─────
   // traffic：路過的人；rent：房租；mix：客群；hours：哪些時段特別多（或少）人；weekend：週末
   // fit：各產業適不適合（客人會不會因為「剛好路過」就進來）；near：隔壁鄰居（會發生的事）
@@ -225,5 +236,5 @@
   }
   const placeAt = (id) => LANDMARKS[id] || null;
 
-  root.BossCity = { STARS, NEIGHBOR_EVENTS, W, H, ROWS, RIVER_X, BRIDGES, typeAt, LANDMARKS, SPOTS, LEGACY, spotOf, spotMult, spotMix, route, rideMinutes, placeAt, MIN_PER_BLOCK };
+  root.BossCity = { LOTS, lotXY, STARS, NEIGHBOR_EVENTS, W, H, ROWS, RIVER_X, BRIDGES, typeAt, LANDMARKS, SPOTS, LEGACY, spotOf, spotMult, spotMix, route, rideMinutes, placeAt, MIN_PER_BLOCK };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -5277,6 +5277,14 @@ body.in-city .combo-badge { display: none; }
 .city-tag.branch { background: #fff3e6; border-color: var(--accent, #e0582b); }
 .city-tag.hsr { background: #eef1ff; }
 .city-tag.rival { background: #e9e9ee; color: #555; }
+.city-tag.lot { background: #f1f7f3; color: #2f6b4f; border-style: dashed; border-color: #2ecc71; font-size: 0.72rem; }
+.city-tag.lot.owned { background: #2ecc71; color: #fff; border-style: solid; border-color: #fff; }
+.ev-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin: 6px 0; }
+.ev-grid > div { background: var(--card, #fff); border: 1px solid var(--line, #e3ddd3); border-radius: 10px; padding: 6px 8px; }
+.ev-grid b { display: block; font-size: 0.82rem; }
+.ev-grid small { display: block; color: var(--muted, #7a7266); font-size: 0.72rem; }
+.ev-row { display: flex; align-items: center; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
+.ev-row button { padding: 2px 10px; min-width: 32px; }
 .city-tag.picked { outline: 3px solid #f2c14e; transform-origin: center bottom; }
 .city-panel {
   position: absolute;
@@ -5331,3 +5339,4 @@ body.in-city .combo-badge { display: none; }
 .crash-note small { color: var(--muted); }
 .crash-note textarea { width: 100%; font-size: 0.72rem; font-family: ui-monospace, monospace; resize: none; }
 .crash-note div { display: flex; gap: 8px; justify-content: flex-end; }
+.city-dest.ev { max-height: 52vh; overflow-y: auto; }

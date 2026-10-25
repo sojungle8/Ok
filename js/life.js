@@ -9,7 +9,6 @@
   // 老闆個人可以花錢的地方：每一項都會改變遊戲裡的數字
   Fun.LIFE_SPEND = {
     gym: { icon: '🏋️', name: '健身房年費', cost: 30000, once: 'gym', desc: '每天壓力 -1、健康慢慢變好；老闆下場體力比較好', ok: (s) => !s.owner.gym },
-    car: { icon: '🚗', name: '買一台車', cost: 650000, once: 'car', desc: '出門辦事時間 -30%、每天壓力 -1；每週油錢保養 $2,000', ok: (s) => !s.owner.car },
     house: { icon: '🏠', name: '買房子（頭期款）', cost: 2600000, once: 'house', desc: '每天壓力 -2、可以成家；之後每週房貸 $9,000（從老闆的錢扣，不夠就要動用公司的錢）', ok: (s) => !s.owner.house },
     trip: { icon: '✈️', name: '出國度假一週', cost: 90000, desc: '老闆離開 5 天：壓力歸零、健康 +10；店交給員工（授權制度、店長很重要）', ok: (s) => !s.boss.away },
     parents: { icon: '👴', name: '帶爸媽出國', cost: 160000, desc: '老闆離開 5 天、壓力 -50；爸媽很開心（之後家裡的事比較順）', ok: (s) => !s.boss.away && s.owner.parents !== 'gone' },

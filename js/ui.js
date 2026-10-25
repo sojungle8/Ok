@@ -735,6 +735,20 @@
     return true;
   }
 
+  // 城市上的東西變了（買地、裝充電樁）：重蓋城市，鏡頭和選取的地點不變
+  function refreshCity() {
+    if (!ui.city) return renderDrawer();
+    const cam = { ...ui.city.cam };
+    const camT = { ...ui.city.camT };
+    ui.city.destroy();
+    ui.city = new window.BossCity3D(ui.view, ui.sim, { gender: ui.settings.gender });
+    Object.assign(ui.city.cam, cam);
+    Object.assign(ui.city.camT, camT);
+    ui.city.userMoved = true;
+    ui.city.picked = ui.cityPick;
+    renderCityPanel();
+  }
+
   function closeCity() {
     if (!ui.city) return;
     ui.city.destroy();
@@ -781,7 +795,15 @@
     const head = `<div class="city-head"><b>🗺️ 雙北</b><small>${s.clockLabel}・${b.away ? bossAwayText() : '老闆在店裡'}</small><button class="primary" data-action="city-close">🏪 回到店裡</button></div>`;
     const id = ui.cityPick;
     if (!id) {
-      const html = `${head}<p class="calc">點地圖上的地點看看要不要去。路越遠騎越久，老闆不在的時候店裡照常營業。拖曳移動、兩指或滾輪縮放。</p>`;
+      const html = `${head}<p class="calc">點地圖上的地點看看要不要去。路越遠騎越久，老闆不在的時候店裡照常營業。拖曳移動、兩指或滾輪縮放。${s.chargeUnlocked ? '<br>🏷️ 綠色虛線框是可以買的地，可以開⚡充電站。' : ''}</p>`;
+      if (el.dataset.html !== html) {
+        morph(el, html);
+        el.dataset.html = html;
+      }
+      return;
+    }
+    if (id.startsWith('lot:')) {
+      const html = `${head}<div class="city-dest ev">${lotPanel(id.slice(4))}</div>`;
       if (el.dataset.html !== html) {
         morph(el, html);
         el.dataset.html = html;
@@ -808,6 +830,51 @@
       morph(el, html);
       el.dataset.html = html;
     }
+  }
+
+  // ⚡ 充電站的地：沒買→價格和適合什麼；買了→上週的生意、充電樁、價格
+  function lotPanel(lot) {
+    const s = ui.sim;
+    const C = window.BossCity;
+    const L = C.LOTS[lot];
+    const K = Fun.CHARGE;
+    if (!L || !K) return '';
+    const st = s.stationAt(lot);
+    const lvl = (n) => '●'.repeat(Math.max(1, Math.round(n * 2))) + '○'.repeat(Math.max(0, 4 - Math.round(n * 2)));
+    const fit = `快充需求 ${lvl(L.fast)}・慢充需求 ${lvl(L.slow)}${L.weekend ? '・週末少一半' : ''}`;
+    if (!st) {
+      const price = s.lotPrice(lot);
+      const lock = s.level < 6;
+      return `<b>${L.icon} ${L.name}（待售）</b><small>${L.desc}<br>${fit}<br>電動車越來越多：現在大約是開局的 ${s.evShare.toFixed(2)} 倍，之後還會一直增加。</small>
+        <div class="city-btns"><button class="primary" data-action="lot-buy" data-id="${lot}" ${lock || s.cash < price ? 'disabled' : ''}>${lock ? '🔒 Lv.6 開放充電站業務' : `🅿️ 買下這塊地 ${money(price)}`}</button></div>
+        <small>買地之後再裝充電樁：⚡ 快充一支 ${money(K.fast.cost)}（每度 $${K.fast.price}，契約容量基本電費每週約 ${money(K.fast.kw * K.basePerKw)}）、🔌 慢充一支 ${money(K.slow.cost)}（每度 $${K.slow.price}＋停車費）。各牌電動車都會來充。土地賣掉可以拿回九成。</small>`;
+    }
+    const w = st.last && st.last.days ? st.last : st.week;
+    const tag = st.last && st.last.days ? '上週' : `這週（${st.week.days} 天）`;
+    const brands = Object.entries(w.brands || {})
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6)
+      .map(([id, n]) => {
+        const b = (Fun.EV_BRANDS || []).find((x) => x.id === id);
+        return b ? `${b.name} ${n}` : '';
+      })
+      .filter(Boolean)
+      .join('・');
+    const broken = st.broken && s.day < st.brokenUntil ? `<br>🔧 有 ${st.broken} 支快充維修中（到第 ${st.brokenUntil} 天）` : '';
+    const flags = [st.flags.includes('lock') && '🔒 地鎖', st.flags.includes('cam') && '📹 監視器警報', st.flags.includes('nav') && '🗺️ 電斯拉導航上架', st.flags.includes('idle') && '⏱️ 佔位費規則'].filter(Boolean).join('・');
+    const kind = (k) => {
+      const d = K[k];
+      const n = st[k];
+      const pr = k === 'fast' ? st.priceFast : st.priceSlow;
+      return `<div><b>${d.name} × ${n}</b><small>每度 $${pr}・電費成本約 $${(d.elec * st.elec).toFixed(1)}${d.park ? `・停車費 $${d.park}／次` : ''}</small>
+        <div class="ev-row"><button data-action="ev-remove" data-id="${lot}" data-kind="${k}" ${n ? '' : 'disabled'} title="拆掉一支（拿回三成）">－</button><button data-action="ev-add" data-id="${lot}" data-kind="${k}" ${n >= d.max || s.cash < d.cost ? 'disabled' : ''}>＋ ${money(d.cost)}</button></div>
+        <div class="ev-row"><small>價格</small><button data-action="ev-price" data-id="${lot}" data-kind="${k}" data-v="-0.5">－</button><b>$${pr}</b><button data-action="ev-price" data-id="${lot}" data-kind="${k}" data-v="0.5">＋</button></div></div>`;
+    };
+    const near = L.home && w.days ? `<br>🚶 等充電的車主每天大約有 ${Math.round(((w.fast * 0.35 + w.slow * 0.5) / Math.max(1, w.days)) * (s.hours.span / 1440))} 位走進店裡` : '';
+    return `<b>⚡ ${L.name}充電站</b><small>${tag}：快充 ${w.fast} 次・慢充 ${w.slow} 次・${Math.round(w.kwh).toLocaleString()} 度<br>收入 ${money(w.rev)}－電費 ${money(w.elec)}－基本電費和保養 ${money(w.fixed)}＝<b class="${w.net < 0 ? 'neg' : 'pos'}">${money(w.net)}</b>・累計 ${money(st.total)}${near}${broken}<br>${brands ? `來充電的車：${brands}` : '還沒有車來充電：先裝充電樁'}<br>口碑 ${Math.round(st.rep * 100)}%・電動車普及 ${s.evShare.toFixed(2)} 倍${flags ? `<br>${flags}` : ''}</small>
+      <div class="ev-grid">${kind('fast')}${kind('slow')}</div>
+      <small>快充最大的固定成本是契約容量的基本電費（每支每週約 ${money(K.fast.kw * K.basePerKw)}），沒人充也要付；價格調太高車主會去別家。</small>
+      <div class="city-btns"><button data-action="ev-sell" data-id="${lot}">${ui.evSellArm === lot ? `⚠️ 再按一次：賣掉拿回 ${money(st.land * K.resale + st.gear * K.gearResale)}` : '🏷️ 賣掉這塊地'}</button></div>`;
   }
 
   function bossAwayText() {
@@ -2324,6 +2391,7 @@
       ['利息', -L.interest],
       ['事件', L.events],
       ['分店', L.branches || 0],
+      ['⚡ 充電站', L.charging || 0],
       ['加盟權利金、中央廚房', L.group || 0],
       ['成就獎金', L.rewards || 0],
       ['設備、研發與其他', L.other],
@@ -2469,7 +2537,8 @@
     const o = s.owner;
     const L = Fun.LIFE_SPEND || {};
     const fam = o.partner === 'married' ? `💍 已婚${o.kids ? `・👶 ${o.kids} 個孩子` : ''}` : o.partner === 'dating' ? '💕 交往中' : '單身';
-    const has = [o.house && '🏠 有房', o.car && '🚗 有車', o.gym && '🏋️ 健身中', o.filial && '🧧 每月孝親', o.emba && '🎓 EMBA'].filter(Boolean).join('・');
+    const car = s.carInfo;
+    const has = [o.house && '🏠 有房', car && `${car.icon} ${car.brand}${car.name}`, o.gym && '🏋️ 健身中', o.filial && '🧧 每月孝親', o.emba && '🎓 EMBA'].filter(Boolean).join('・');
     const v = Fun.lifeVerdict ? Fun.lifeVerdict(s) : null;
     return `<h3>🧑 老闆的人生 <small>${o.age} 歲・${fam}</small></h3>
       <div class="life-card">
@@ -2485,7 +2554,32 @@
           return `<button class="cat-item" data-action="life-spend" data-id="${id}" ${done || !x.ok(s) || o.wealth < x.cost ? 'disabled' : ''}><span class="cat-icon">${x.icon}</span><b>${x.name}</b><span class="cat-price">${done ? '已經有了' : money(x.cost)}</span><small>${x.desc}</small></button>`;
         })
         .join('')}</div>
-      <p class="drawer-tip">這些都要用「老闆個人財富」付（先領分紅）。個人的錢不夠付房貸、保母費時，會挪用公司的錢，員工會察覺。</p>`;
+      <p class="drawer-tip">這些都要用「老闆個人財富」付（先領分紅）。個人的錢不夠付房貸、保母費時，會挪用公司的錢，員工會察覺。</p>
+      ${carDealer()}`;
+  }
+
+  // 🚘 車行：一次開一台，換車時舊車打五五折折抵
+  function carDealer() {
+    const s = ui.sim;
+    const o = s.owner;
+    const C = Fun.CARS || {};
+    const cur = s.carInfo;
+    const trade = s.carTradeIn();
+    const items = Object.entries(C)
+      .map(([id, c]) => {
+        const mine = cur === c;
+        const pay = c.cost - trade;
+        const tags = [`出門 ${Math.round((1 - c.ride) * 100)}% 快`, `壓力每天 -${c.stress}`, `每週 ${money(c.weekly)}`, c.ev ? '⚡ 電動' : '⛽ 汽油'].join('・');
+        return `<button class="cat-item" data-action="car-buy" data-id="${id}" ${mine || o.wealth < pay ? 'disabled' : ''}><span class="cat-icon">${c.icon}</span><b>${c.brand} ${c.name}</b><span class="cat-price">${mine ? '正在開' : trade ? `補 ${money(Math.max(0, pay))}` : money(c.cost)}</span><small>${c.desc}<br>${tags}</small></button>`;
+      })
+      .join('');
+    const S = Fun.SEMI;
+    const semi = S
+      ? `<button class="cat-item" data-action="${s.semi ? 'semi-sell' : 'semi-buy'}" ${!s.semi && (s.branches.length < 2 || s.cash < S.cost) ? 'disabled' : ''}><span class="cat-icon">${S.icon}</span><b>${S.brand} ${S.name}（公司）</b><span class="cat-price">${s.semi ? `賣掉 +${money(S.cost * 0.5)}` : money(S.cost)}</span><small>${S.desc}${s.branches.length < 2 && !s.semi ? '<br>🔒 要有 2 間以上分店' : ''}</small></button>`
+      : '';
+    return `<h3>🚘 車行 <small>${cur ? `現在開 ${cur.brand}${cur.name}・換車舊車折抵 ${money(trade)}` : '還沒有車，出門都騎機車'}</small></h3>
+      <div class="catalog">${items}${semi}</div>
+      ${cur ? `<p class="drawer-tip"><button data-action="car-sell">🔑 把車賣掉（拿回 ${money(trade)}）</button> 電動車在自己的充電站充電，每週車子的費用少一半。</p>` : '<p class="drawer-tip">用老闆個人的錢買。電動車在自己的充電站充電，每週車子的費用少一半。</p>'}`;
   }
 
   function drawerReviews() {
@@ -3434,6 +3528,54 @@
         refreshStaffViews();
         break;
       }
+      case 'car-buy':
+        if (s.buyCar(btn.dataset.id)) {
+          window.BossAudio.play('level');
+          confetti(30);
+        }
+        renderDrawer();
+        break;
+      case 'car-sell':
+        s.sellCar();
+        renderDrawer();
+        break;
+      case 'semi-buy':
+        if (s.buySemi()) confetti(20);
+        renderDrawer();
+        break;
+      case 'semi-sell':
+        s.sellSemi();
+        renderDrawer();
+        break;
+      case 'lot-buy':
+        if (s.buyLot(btn.dataset.id)) {
+          window.BossAudio.play('level');
+          refreshCity();
+        }
+        break;
+      case 'ev-add':
+        if (s.addCharger(btn.dataset.id, btn.dataset.kind)) {
+          window.BossAudio.play('place');
+          refreshCity();
+        }
+        break;
+      case 'ev-remove':
+        if (s.removeCharger(btn.dataset.id, btn.dataset.kind)) refreshCity();
+        break;
+      case 'ev-price':
+        s.setChargePrice(btn.dataset.id, btn.dataset.kind, Number(btn.dataset.v));
+        renderCityPanel();
+        break;
+      case 'ev-sell':
+        // 按兩次才賣（第一次先提醒）
+        if (ui.evSellArm !== btn.dataset.id) {
+          ui.evSellArm = btn.dataset.id;
+          renderCityPanel();
+        } else if (s.sellStation(btn.dataset.id)) {
+          ui.evSellArm = null;
+          refreshCity();
+        }
+        break;
       case 'life-spend':
         if (s.lifeSpend(btn.dataset.id)) {
           window.BossAudio.play('level');
@@ -3969,6 +4111,7 @@
     const lot = LOTS.find((l) => l.lv === lv);
     if (lot) out.push(`🏗️ 擴建${lot.name}`);
     if (lv === 5) out.push('🏙️ 開分店');
+    if (lv === 6) out.push('⚡ 在城市地圖買地開充電站');
     if (Fun.LEVEL_PERKS && Fun.LEVEL_PERKS[lv]) out.push(`✨ ${Fun.LEVEL_PERKS[lv]}`);
     return out;
   }
