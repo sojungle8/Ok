@@ -2592,8 +2592,9 @@
       if (evHome) {
         this.buildEVBay(this.neighbors.right, evHome);
         // 看不見的點擊範圍：點充電區任何地方都能打開管理面板
-        const hit = new THREE.Mesh(new THREE.BoxGeometry(OUT_W, 1.6, H), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
-        hit.position.set(W + OUT_W / 2, 0.8, H / 2);
+        const bw = this.evBayW || OUT_W;
+        const hit = new THREE.Mesh(new THREE.BoxGeometry(bw, 1.6, H), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
+        hit.position.set(W + bw / 2, 0.8, H / 2);
         hit.userData.pick = { kind: 'evbay' };
         this.evCarGroup.add(hit);
       } else this.buildNeighbor(this.neighbors.right, W, 0, OUT_W, H, pick(3));
@@ -3766,60 +3767,66 @@
       const st = this.evHomeStation();
       return st ? `${st.fast},${st.slow}` : '';
     }
-    // 充電停車場：中間一條車道（從馬路直直開進去），兩邊各一排停車格；車頭朝裡停，充電樁在車頭外側角落
-    // 店面深度 6～7 放得下 4 格、8～9 放得下 6 格；樁比格子多的話，多的不畫（生意照算）
+    // 充電停車場：每一區中間一條車道（從馬路直直開進去），兩邊是橫向的停車格（車子轉 90 度停進去，車頭朝外）
+    // 充電樁在每一格車頭那端的外側；一區放不下全部的樁就往右邊多開一區，買幾支就畫幾支
+    evBayLayout(st) {
+      const H = this.sim.H;
+      const BW = 6.0; // 一區的寬度：充電樁＋停車格 2.25 ＋ 車道 1.5 ＋ 停車格＋充電樁 2.25
+      const zs = [];
+      for (let z = 0.65; z + 0.45 <= H - 0.2; z += 1.05) zs.push(z);
+      const per = zs.length * 2;
+      const total = st.fast + st.slow;
+      const mods = Math.max(1, Math.min(4, Math.ceil(total / per)));
+      return { BW, zs, per, mods };
+    }
     buildEVBay(group, st) {
       const s = this.sim;
       const W = s.W;
       const H = s.H;
       const x0 = W;
-      const asphalt = new THREE.Mesh(new THREE.PlaneGeometry(OUT_W, H), mat('#4f5357', { roughness: 0.95 }));
+      const { BW, zs, mods } = this.evBayLayout(st);
+      const width = BW * mods;
+      this.evBayW = width;
+      const asphalt = new THREE.Mesh(new THREE.PlaneGeometry(width, H), mat('#4f5357', { roughness: 0.95 }));
       asphalt.rotation.x = -Math.PI / 2;
-      asphalt.position.set(x0 + OUT_W / 2, 0.006, H / 2);
+      asphalt.position.set(x0 + width / 2, 0.006, H / 2);
       asphalt.receiveShadow = true;
       group.add(asphalt);
-      B(group, OUT_W, 0.5, 0.15, '#cfc8bd', x0 + OUT_W / 2, 0, 0.075); // 後面一道矮牆
+      B(group, width, 0.5, 0.15, '#cfc8bd', x0 + width / 2, 0, 0.075); // 後面一道矮牆
       const white = basic('#e9e6df');
-      // 車道中線箭頭
-      for (let z = H - 0.6; z > 1; z -= 1.3) B(group, 0.06, 0.012, 0.5, basic('#d8d3c8'), x0 + OUT_W / 2, 0, z);
-      const pitch = 2.6;
-      const rows = [];
-      for (let z = 1.45; z + 1.2 <= H - 0.25; z += pitch) rows.push(z);
-      // 格子不夠的時候，快充、慢充照比例分（兩種都有的話至少各一格）
-      const n = Math.min(rows.length * 2, st.fast + st.slow);
-      let nf = st.fast + st.slow > n ? Math.round((n * st.fast) / (st.fast + st.slow)) : st.fast;
-      if (st.fast && !nf) nf = 1;
-      if (st.slow && nf >= n && n > 1) nf = n - 1;
       const kinds = [];
-      for (let i = 0; i < nf; i++) kinds.push('fast');
-      for (let i = nf; i < n; i++) kinds.push('slow');
-      const cols = [{ x: x0 + 0.66, post: x0 + 0.12 }, { x: x0 + OUT_W - 0.66, post: x0 + OUT_W - 0.12 }];
+      for (let i = 0; i < st.fast; i++) kinds.push('fast');
+      for (let i = 0; i < st.slow; i++) kinds.push('slow');
       let k = 0;
-      rows.forEach((z) => {
-        cols.forEach((c) => {
-          const kind = kinds[k++];
-          // 停車格框線（前、後、內側）
-          const inner = c.x + (c.x < x0 + OUT_W / 2 ? 0.5 : -0.5);
-          B(group, 0.04, 0.012, pitch - 0.2, white, inner, 0, z);
-          B(group, 1.0, 0.012, 0.04, white, c.x, 0, z + pitch / 2 - 0.1);
-          if (!kind) return;
-          const mark = new THREE.Mesh(new THREE.PlaneGeometry(0.55, 1.1), basic('#2e8b57', { transparent: true, opacity: 0.5 }));
-          mark.rotation.x = -Math.PI / 2;
-          mark.position.set(c.x, 0.014, z + 0.2);
-          group.add(mark);
-          // 充電樁：在車頭那一端的外側角落，不擋車
-          const fast = kind === 'fast';
-          const pz = z - 1.05;
-          B(group, 0.18, fast ? 1.0 : 0.7, 0.26, fast ? '#1f8f5f' : '#3b7dd8', c.post, 0, pz);
-          B(group, 0.02, 0.16, 0.18, basic(fast ? '#bff5d6' : '#cfe3ff'), c.post + (c.x > c.post ? 0.1 : -0.1), fast ? 0.7 : 0.45, pz);
-          B(group, 0.2, 0.04, 0.28, '#e9ecef', c.post, fast ? 1.0 : 0.7, pz);
-          this.evSlots.push({ x: c.x, z, kind, car: null });
-        });
-      });
-      // 招牌柱：入口旁邊
-      B(group, 0.14, 2.2, 0.14, '#2ecc71', x0 + OUT_W - 0.1, 0, H - 0.12);
+      for (let m = 0; m < mods; m++) {
+        const ax = x0 + m * BW + BW / 2; // 這一區的車道中線
+        for (let z = H - 0.6; z > 0.8; z -= 1.3) B(group, 0.06, 0.012, 0.5, basic('#d8d3c8'), ax, 0, z);
+        for (const side of [-1, 1]) {
+          for (const z of zs) {
+            const kind = kinds[k];
+            if (kind) k++;
+            const cx = ax + side * 1.75; // 停好的車中心
+            // 停車格框線：兩格之間一條橫線
+            B(group, 2.0, 0.012, 0.04, white, cx, 0, z - 0.525);
+            if (!kind) continue;
+            const mark = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.5), basic('#2e8b57', { transparent: true, opacity: 0.5 }));
+            mark.rotation.x = -Math.PI / 2;
+            mark.position.set(cx + side * 0.15, 0.014, z);
+            group.add(mark);
+            // 充電樁：車頭那一端（外側）
+            const fast = kind === 'fast';
+            const px = ax + side * 2.9;
+            B(group, 0.22, fast ? 1.0 : 0.7, 0.2, fast ? '#1f8f5f' : '#3b7dd8', px, 0, z + 0.3);
+            B(group, 0.02, 0.16, 0.16, basic(fast ? '#bff5d6' : '#cfe3ff'), px - side * 0.12, fast ? 0.7 : 0.45, z + 0.3);
+            B(group, 0.24, 0.04, 0.22, '#e9ecef', px, fast ? 1.0 : 0.7, z + 0.3);
+            this.evSlots.push({ x: cx, z, side, ax, kind, car: null });
+          }
+        }
+      }
+      // 招牌柱：第一區入口旁邊
+      B(group, 0.14, 2.2, 0.14, '#2ecc71', x0 + 0.15, 0, H - 0.12);
       const sign = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.5), new THREE.MeshBasicMaterial({ map: this.evSignTex(), transparent: true }));
-      sign.position.set(x0 + OUT_W - 0.4, 2.35, H - 0.04);
+      sign.position.set(x0 + 0.6, 2.35, H - 0.04);
       group.add(sign);
     }
     evSignTex() {
@@ -3868,7 +3875,7 @@
       const ts = this.opts.timeScale ? this.opts.timeScale() : 1;
       const H = s.H;
       const lane = H + 1.7;
-      const aisleX = s.W + OUT_W / 2;
+      const aisleX = s.W + 3.0; // 第一區的車道（排隊在它左邊）
       // 剛打開：照現在的使用率先停幾台正在充電的車
       if (!this._evFilled) {
         this._evFilled = true;
@@ -3889,7 +3896,7 @@
           car.kwh = (car.soc - car.soc0) * car.battery;
           car.state = 'park';
           car.g.position.set(sl.x, 0, sl.z);
-          car.g.rotation.y = Math.PI / 2;
+          car.g.rotation.y = sl.side < 0 ? 0 : Math.PI; // 倒車入庫：車頭朝車道
           sl.car = car;
           this.evCars.push(car);
         }
@@ -3944,7 +3951,10 @@
             // 輪到我：沿馬路開到入口、右轉進車道、開到格子前、斜著停進去
             this.evAisle = c;
             c.state = 'in';
-            c.path = [[aisleX - 0.6, lane], [aisleX, lane - 0.8], [aisleX, c.slot.z + 1.5], [c.slot.x, c.slot.z + 0.25, 0.6], [c.slot.x, c.slot.z, 0.4]];
+            // 沿馬路開到那一區的入口 → 轉進車道 → 開過頭一點 → 倒車斜著退進格子（充電孔在車尾，跟真的充電站一樣）
+            const sl = c.slot;
+            c.path = [[sl.ax - 0.6, lane], [sl.ax, lane - 0.8], [sl.ax - sl.side * 0.15, sl.z - 1.0]];
+            c.backIn = [[sl.ax + sl.side * 0.7, sl.z - 0.12, 0.45], [sl.x, sl.z, 0.4]];
           } else {
             let qx = aisleX - 2.6 - queueN * 2.5;
             queueN++;
@@ -3957,8 +3967,16 @@
         }
         if (c.state === 'in') {
           if (move(c)) {
+            if (c.backIn) {
+              // 開過頭了：換倒車檔退進去
+              c.path = c.backIn;
+              c.backIn = null;
+              c.back = true;
+              return true;
+            }
+            c.back = false;
             c.state = 'park';
-            c.g.rotation.y = Math.PI / 2;
+            c.g.rotation.y = c.slot.side < 0 ? 0 : Math.PI; // 車頭朝車道
             c.last = s.minute;
             if (this.evAisle === c) this.evAisle = null;
           }
@@ -3986,18 +4004,24 @@
             c.state = 'out';
             c.back = true;
             c.slot.car = null;
-            c.path = [[c.slot.x, c.slot.z + 0.25, 0.4], [aisleX, c.slot.z + 1.5, 0.6], [aisleX, lane - 0.8], [aisleX + 0.2, lane]];
+            // 車頭本來就朝車道：直接往前開出來、轉向馬路
+            const sl = c.slot;
+            c.back = false;
+            c.path = [[sl.ax + sl.side * 0.35, sl.z + 0.2, 0.45], [sl.ax, Math.min(sl.z + 1.0, lane - 1.2), 0.5], [sl.ax, lane - 0.8], [sl.ax + 0.6, lane]];
+            c.exitPath = null;
           }
           return true;
         }
         if (c.state === 'out') {
           if (move(c)) {
-            if (c.back) {
-              // 倒到馬路上了：車道讓給下一台，往前開走
+            if (c.back && c.exitPath) {
               c.back = false;
+              c.path = c.exitPath;
+            } else {
+              // 開上馬路：車道讓給下一台，往右開走
               if (this.evAisle === c) this.evAisle = null;
               c.state = 'leave';
-              c.path = [[s.W * 1.5 + 18, lane]];
+              c.path = [[s.W * 1.5 + 22, lane]];
             }
           }
           return true;
