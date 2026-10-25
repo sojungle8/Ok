@@ -7582,6 +7582,11 @@
       s.sideHot = d.sideHot || null;
       s.kitchen = d.kitchen || null;
       s.evStations = d.evStations || [];
+      // 舊版存的 today 是「昨天打烊結算的數字」，不能當成今天
+      for (const st of s.evStations) if (!('plan' in st)) {
+        st.today = s.chargeBlank();
+        st.plan = null;
+      }
       s.semi = !!d.semi;
       s.seasonal = d.seasonal || null;
       s.seasonalCount = d.seasonalCount || 0;

@@ -2584,6 +2584,7 @@
       this.evBayOn = !!evHome;
       this.evCarGroup = new THREE.Group();
       g.add(this.evCarGroup);
+      this._evFilled = false;
       this.evCars = [];
       this.evSlots = [];
       if (evHome) this.buildEVBay(this.neighbors.right, evHome);
@@ -3833,6 +3834,31 @@
       const ts = this.opts.timeScale ? this.opts.timeScale() : 1;
       const H = s.H;
       const lane = H + 1.7;
+      // 剛打開（或剛蓋好）：照現在的使用率，先停幾台正在充電的車，不會一打開都是空的
+      if (!this._evFilled) {
+        this._evFilled = true;
+        const st = this.evHomeStation();
+        if (st && s.chargePlan && !st.plan) s.chargePlan(st);
+        const hr = Math.floor((((s.minute % 1440) + 1440) % 1440) / 60);
+        for (const sl of this.evSlots) {
+          if (!sl.kind || !st || !st.plan || sl.car) continue;
+          const dwell = sl.kind === 'fast' ? 35 : 195;
+          const share = s.chargeCurve ? s.chargeCurve(sl.kind, st.lot)[hr] * 24 : 1;
+          const occ = Math.min(0.85, ((st.plan[sl.kind] || 0) * dwell * share) / (1440 * Math.max(1, st[sl.kind])));
+          if (Math.random() >= occ) continue;
+          const brands = (window.BossFun && window.BossFun.EV_BRANDS) || [];
+          let r = Math.random();
+          const b = brands.find((x) => (r -= x.share) < 0);
+          const g = new THREE.Group();
+          this.buildEV(g, b && b.id);
+          g.position.set(sl.x, 0, sl.z);
+          g.rotation.y = Math.PI / 2;
+          this.evCarGroup.add(g);
+          const car = { g, slot: sl, until: s.minute + Math.random() * dwell, path: [], back: false, state: 'park' };
+          sl.car = car;
+          this.evCars.push(car);
+        }
+      }
       for (const v of s.evVisits || []) {
         if (v.taken || v.at > s.minute) continue;
         v.taken = true;
@@ -3844,7 +3870,7 @@
         g.traverse((o) => {
           if (o.isMesh) o.castShadow = false;
         });
-        const sx = -OUT_W - 4;
+        const sx = slot.x - 7; // 從店門口的馬路開過來，幾秒就轉進充電格
         g.position.set(sx, 0, lane);
         this.evCarGroup.add(g);
         const car = { g, slot, until: v.at + v.stay, path: [[slot.x, lane], [slot.x, slot.z]], back: false, state: 'in' };
