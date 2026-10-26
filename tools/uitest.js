@@ -41,11 +41,11 @@ require('fs').mkdirSync(OUT, { recursive: true });
     for (const t of tabs) {
       const openTab = async () => p.evaluate((t) => { const ui = window.BossDebug.ui; if (ui.tab !== t) document.querySelector(`#toolbar [data-tab="${t}"]`).click(); }, t);
       where = t; await openTab(); await p.waitForTimeout(150);
-      const subs = await p.evaluate(() => [...document.querySelectorAll('#drawer .drawer-tabs button')].map((e, i) => i));
+      const subs = await p.evaluate(() => [...document.querySelectorAll('#drawer .drawer-tabs button, #drawer .subtabs button')].map((e, i) => i));
       for (const si of subs.length ? subs : [-1]) {
-        if (si >= 0) await p.evaluate((si) => document.querySelectorAll('#drawer .drawer-tabs button')[si].click(), si);
+        if (si >= 0) await p.evaluate((si) => document.querySelectorAll('#drawer .drawer-tabs button, #drawer .subtabs button')[si].click(), si);
         await p.waitForTimeout(150);
-        const subName = si >= 0 ? await p.evaluate((si) => document.querySelectorAll('#drawer .drawer-tabs button')[si]?.textContent.trim().slice(0, 8), si) : '';
+        const subName = si >= 0 ? await p.evaluate((si) => document.querySelectorAll('#drawer .drawer-tabs button, #drawer .subtabs button')[si]?.textContent.trim().slice(0, 8), si) : '';
         where = `${t}/${subName}`;
         await p.screenshot({ path: `${OUT}/${tag}-${t}-${si}.png` });
         // 版面：手機不能有橫向捲動、抽屜不能超出螢幕
@@ -53,7 +53,7 @@ require('fs').mkdirSync(OUT, { recursive: true });
           const w = innerWidth; const bad = [];
           if (document.documentElement.scrollWidth > w + 2) bad.push(`整頁橫向溢出 ${document.documentElement.scrollWidth}>${w}`);
           const dr = document.querySelector('#drawer'); if (dr && !dr.hidden) { const r = dr.getBoundingClientRect(); if (r.right > w + 2 || r.left < -2) bad.push(`抽屜超出 ${Math.round(r.left)}~${Math.round(r.right)}`); }
-          for (const e of document.querySelectorAll('#drawer button, #drawer .card, #drawer table')) { const r = e.getBoundingClientRect(); if (r.width && r.right > w + 2) { bad.push(`元素超出：${(e.textContent || e.className).trim().slice(0, 20)}`); break; } }
+          for (const e of document.querySelectorAll('#drawer button, #drawer .card, #drawer table')) { if (e.closest('.subtabs')) continue; const r = e.getBoundingClientRect(); if (r.width && r.right > w + 2) { bad.push(`元素超出：${(e.textContent || e.className).trim().slice(0, 20)}`); break; } }
           // 文字擠成一條直線（寬度太小）
           for (const e of document.querySelectorAll('#drawer button')) { const r = e.getBoundingClientRect(); if (r.width && r.width < 24 && e.textContent.trim().length > 2) { bad.push(`按鈕被擠扁：${e.textContent.trim().slice(0, 12)}`); break; } }
           return bad;
@@ -77,7 +77,7 @@ require('fs').mkdirSync(OUT, { recursive: true });
           // 被帶去別的分頁或放置模式就回來
           await p.evaluate(() => { const ui = window.BossDebug.ui; if (ui.place && ui.place.cancel) ui.place.cancel(); });
           await openTab();
-          if (si >= 0) await p.evaluate((si) => { const e = document.querySelectorAll('#drawer .drawer-tabs button')[si]; if (e && !e.classList.contains('active')) e.click(); }, si);
+          if (si >= 0) await p.evaluate((si) => { const e = document.querySelectorAll('#drawer .drawer-tabs button, #drawer .subtabs button')[si]; if (e && !e.classList.contains('active')) e.click(); }, si);
         }
       }
       // 關掉抽屜

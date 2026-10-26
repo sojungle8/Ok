@@ -988,7 +988,7 @@ body.in-game::before {
   left: max(10px, env(safe-area-inset-left, 0px));
   right: max(10px, env(safe-area-inset-right, 0px));
   bottom: calc(64px + env(safe-area-inset-bottom, 0px));
-  max-height: min(46vh, 420px);
+  max-height: min(60vh, 560px);
   display: flex;
   flex-direction: column;
   z-index: 6;
@@ -5365,3 +5365,42 @@ body.in-city .combo-badge { display: none; }
 .ev-batt { position: relative; display: block; width: 100%; height: 8px; background: var(--line); border-radius: 4px; margin: 3px 0; overflow: visible; }
 .ev-batt i { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(90deg, #e67e22, #2ecc71 60%); border-radius: 4px; }
 .ev-batt b { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--text, #333); }
+
+/* ───── 抽屜：標題＋說明＋小分頁 ───── */
+.drawer-head { display: flex; flex-direction: column; gap: 8px; padding-right: 40px; margin-bottom: 6px; flex-shrink: 0; }
+.dh-title { display: flex; align-items: center; gap: 10px; }
+.dh-icon { flex-shrink: 0; width: 40px; height: 40px; display: grid; place-items: center; font-size: 1.45rem; background: var(--accent-soft); border-radius: 12px; }
+.dh-title b { display: block; font-family: var(--font-display); font-size: 1.15rem; line-height: 1.2; }
+.dh-title small { display: block; color: var(--muted); font-size: 0.76rem; line-height: 1.35; }
+.subtabs { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 4px 2px 4px; margin: 0 -2px; -webkit-overflow-scrolling: touch; }
+.subtabs::-webkit-scrollbar { display: none; }
+.subtabs button { position: relative; flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 70px; padding: 6px 10px 5px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); color: var(--text); cursor: pointer; transition: transform 0.12s, background 0.12s; }
+.subtabs button:hover { transform: translateY(-1px); border-color: var(--accent); }
+.subtabs button.active { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); box-shadow: 0 3px 10px rgba(217, 72, 43, 0.25); }
+.st-icon { font-size: 1.25rem; line-height: 1.2; }
+.st-name { font-size: 0.76rem; font-weight: 700; white-space: nowrap; }
+.st-badge { position: absolute; top: -5px; right: -5px; min-width: 18px; padding: 0 5px; border-radius: 999px; background: var(--bad); color: #fff; font-style: normal; font-size: 0.66rem; font-weight: 700; line-height: 18px; border: 2px solid var(--card); }
+.sub-desc { flex-shrink: 0; margin: 2px 0 8px; padding: 7px 10px; border-radius: 10px; background: var(--tip-bg); color: var(--text); font-size: 0.8rem; line-height: 1.45; }
+.sub-body { padding-right: 2px; }
+.sub-body > h3, .sub-body h3 { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--line); }
+.sub-body > h3:first-child, .sub-body > :first-child h3:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+.empty-card { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; padding: 18px 14px; border: 1px dashed var(--line); border-radius: 14px; background: var(--bg); }
+.empty-card > span { font-size: 2rem; }
+.empty-card small { color: var(--muted); max-width: 46ch; line-height: 1.5; }
+.ev-station-card { border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; margin-bottom: 10px; background: var(--card); }
+.ev-station-card > b { display: block; font-size: 1rem; margin-bottom: 2px; }
+.ev-station-card > small { display: block; color: var(--muted); font-size: 0.78rem; line-height: 1.5; }
+/* 寬螢幕：價格、庫存這種清單排成兩欄，比較不用一直往下捲 */
+@media (min-width: 900px) {
+  .sub-manage-menu .price-list, .sub-stock-goods .stock-list, .sub-goals-achieve .goal-list, .sub-goals-car .catalog { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+}
+@media (max-width: 700px) {
+  .dh-icon { width: 34px; height: 34px; font-size: 1.2rem; }
+  .dh-title b { font-size: 1.02rem; }
+  .subtabs button { min-width: 62px; padding: 5px 8px 4px; }
+  .st-name { font-size: 0.72rem; }
+  .sub-desc { font-size: 0.76rem; padding: 6px 8px; }
+}
+@media (max-width: 700px) {
+  .subtabs { -webkit-mask-image: linear-gradient(90deg, #000 88%, transparent); mask-image: linear-gradient(90deg, #000 88%, transparent); padding-right: 24px; }
+}

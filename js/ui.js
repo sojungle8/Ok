@@ -398,7 +398,7 @@
             ['reviews', '⭐', '評論'],
             ['goals', '🏙️', '成長'],
           ]
-            .map(([id, ic, label]) => `<button data-action="tab" data-tab="${id}"><span>${ic}</span>${label}</button>`)
+            .map(([id, ic, label]) => `<button data-action="tab" data-tab="${id}" title="${label}：${sim.w(TAB_META[id].desc)}"><span>${ic}</span>${label}</button>`)
             .join('')}
         </nav>
         <div id="dialog"></div>
@@ -1699,6 +1699,35 @@
   }
 
   // ───── 底部抽屜 ─────
+  // 每個分頁的名字和一句話說明：打開就知道這頁是做什麼的
+  const TAB_META = {
+    build: { icon: '🏗️', name: '建造', desc: '買設備、擺家具和裝潢、擴建後場、養店寵、換店面' },
+    staff: { icon: '👥', name: '員工', desc: '請人、排班、加薪、升遷，看每個人的心情和狀態' },
+    stock: { icon: '📦', name: '庫存', desc: '{w:supplies}進貨和店裡的清潔衛生' },
+    manage: { icon: '⚙️', name: '經營', desc: '{w:menu}價格、營業時間和排班、外送、稅務和貸款' },
+    ledger: { icon: '📊', name: '帳本', desc: '賺多少、花多少、物價怎麼變、發生過哪些事' },
+    social: { icon: '📱', name: '小編', desc: '經營社群：發文、看粉絲和網友留言' },
+    reviews: { icon: '⭐', name: '評論', desc: '客人給的星星和評論，低分的原因幫你分類好了' },
+    goals: { icon: '🏙️', name: '成長', desc: '等級、老闆人生、車行、對手、分店、集團、充電站、成就' },
+    quests: { icon: '📜', name: '章節任務', desc: '一章一章解鎖新玩法' },
+  };
+  function drawerHead(tab, extra = '') {
+    const m = TAB_META[tab];
+    if (!m) return '';
+    return `<div class="drawer-head"><div class="dh-title"><span class="dh-icon">${m.icon}</span><div><b>${m.name}</b><small>${m.desc}</small></div></div>${extra}</div>`;
+  }
+  // 有小分頁的抽屜：上面是分頁按鈕（圖示＋名字），選到的那頁下面有一句說明
+  function subDrawer(tab, items, render) {
+    const list = items.filter((it) => it.show !== false);
+    let cur = (ui.sub || {})[tab];
+    if (!list.some((it) => it.id === cur)) cur = list[0].id;
+    const it = list.find((x) => x.id === cur);
+    const tabs = `<div class="subtabs" role="tablist">${list
+      .map((x) => `<button role="tab" data-action="subtab" data-tab="${tab}" data-v="${x.id}" class="${x.id === cur ? 'active' : ''}" title="${esc(x.desc)}"><span class="st-icon">${x.icon}</span><span class="st-name">${x.name}</span>${x.badge ? `<em class="st-badge">${x.badge}</em>` : ''}</button>`)
+      .join('')}</div>`;
+    return `${drawerHead(tab, tabs)}<p class="sub-desc">${it.icon} ${it.desc}</p><div class="drawer-body sub-body sub-${tab}-${cur}">${render(cur)}</div>`;
+  }
+
   function openTab(tab) {
     ui.tab = ui.tab === tab ? null : tab;
     if (ui.tab !== 'build') endBuild();
@@ -1721,9 +1750,12 @@
     }
     el.hidden = false;
     const fn = { build: drawerBuild, staff: drawerStaff, stock: drawerStock, manage: drawerManage, ledger: drawerLedger, reviews: drawerReviews, goals: drawerGoals, social: drawerSocial, quests: drawerQuests }[ui.tab];
-    ui.drawerHtml = ui.sim.w(fn());
+    let body = fn();
+    // 沒有小分頁的頁面也加上標題和說明
+    if (!body.includes('class="drawer-head"')) body = drawerHead(ui.tab) + body;
+    ui.drawerHtml = ui.sim.w(body);
     const html = `<button class="x drawer-x" data-action="tab" data-tab="${ui.tab}" aria-label="關閉">✕</button>${ui.drawerHtml}`;
-    const key = `${ui.tab}-${ui.tab === 'build' ? ui.buildCat : ui.tab === 'staff' ? ui.staffTab : ''}`;
+    const key = `${ui.tab}-${ui.tab === 'build' ? ui.buildCat : ui.tab === 'staff' ? ui.staffTab : (ui.sub || {})[ui.tab] || ''}`;
     el.classList.toggle('tall', ui.tab === 'staff' || ui.tab === 'social');
     if (el.dataset.key === key) morph(el, html);
     else {
@@ -1739,7 +1771,9 @@
     if (!el || el.hidden || performance.now() - (ui.drawerTouched || 0) < 400) return;
     const fn = { staff: drawerStaff, ledger: drawerLedger, stock: drawerStock, social: drawerSocial, goals: drawerGoals }[ui.tab];
     if (!fn) return;
-    const html = ui.sim.w(fn());
+    let body = fn();
+    if (!body.includes('class="drawer-head"')) body = drawerHead(ui.tab) + body;
+    const html = ui.sim.w(body);
     if (html === ui.drawerHtml) return;
     renderDrawer();
   }
@@ -1753,13 +1787,25 @@
     if (CATALOG.some((d) => d.side && mine(d))) cats.splice(1, 0, 'side');
     const items = ui.buildCat === 'side' ? CATALOG.filter((d) => d.side && mine(d)) : CATALOG.filter((d) => (d.cat === ui.buildCat || (ui.buildCat === 'station' && d.cat === 'tool')) && !d.side && mine(d));
     const lotNext = LOTS[s.lotIdx + 1];
+    // 建造的分類：圖示＋名字，選到的那類下面有一句說明
+    const BUILD_INFO = {
+      station: ['🍳', '生財設備', '做生意的主要設備：一台設備就是一個服務位，客人排太久就多買一台'],
+      seat: ['🪑', '座位', '讓客人坐下來吃、等；座位不夠客人會站著或直接走'],
+      wait: ['🛋️', '等候區', '排隊的客人有地方坐，比較不會等到生氣'],
+      shop: ['🧺', '陳列', '貨架、冷藏櫃：擺越多，客人越容易順手多買'],
+      staff: ['☕', '員工區', '員工休息的桌椅、置物櫃：休息得到心情和精力才會回來'],
+      decor: ['🌿', '裝潢', '讓店變漂亮：評價和客人願意付的價格都會提高，同一種風格放多會成形'],
+      side: ['🧰', '兼營業務', '額外的生意（例如代收、咖啡）：多一種客人來，但員工要會做'],
+      back: ['🚪', '後場', '擴建儲藏室、休息室、辦公室、廁所'],
+      pets: ['🐾', '寵物', '養店寵、寵物友善：有人超愛，也有人會過敏'],
+      lot: ['🏬', '店面', '換更大的店面、裝修風格'],
+    };
+    const bcats = [...cats, 'back', 'pets', 'lot'];
+    const bcur = BUILD_INFO[ui.buildCat] ? ui.buildCat : bcats[0];
+    const binfo = BUILD_INFO[bcur] || ['🏗️', '', ''];
     return `
-      <div class="drawer-tabs">
-        ${cats.map((c) => `<button data-action="build-cat" data-cat="${c}" class="${ui.buildCat === c ? 'active' : ''}">${c === 'side' ? '🧰 兼營業務' : CAT_LABELS[c]}</button>`).join('')}
-        <button data-action="build-cat" data-cat="back" class="${ui.buildCat === 'back' ? 'active' : ''}">🚪 後場</button>
-        <button data-action="build-cat" data-cat="pets" class="${ui.buildCat === 'pets' ? 'active' : ''}">🐾 寵物</button>
-        <button data-action="build-cat" data-cat="lot" class="${ui.buildCat === 'lot' ? 'active' : ''}">店面與裝潢</button>
-      </div>
+      ${drawerHead('build', `<div class="subtabs">${bcats.map((c) => { const [ic, nm] = BUILD_INFO[c] || ['🏗️', CAT_LABELS[c] || c]; return `<button data-action="build-cat" data-cat="${c}" class="${ui.buildCat === c ? 'active' : ''}" title="${esc((BUILD_INFO[c] || [])[2] || '')}"><span class="st-icon">${ic}</span><span class="st-name">${nm}</span></button>`; }).join('')}</div>`)}
+      <p class="sub-desc">${binfo[0]} ${binfo[2]}</p>
       <div class="drawer-body">
         ${
           ui.buildCat === 'back'
@@ -1840,7 +1886,9 @@
     const s = ui.sim;
     const tab = ui.staffTab === 'lead' && !s.feature('career') ? 'overview' : ui.staffTab || 'overview';
     const tabs = [['overview', `👥 總覽（${s.staff.length}）`], ...(s.feature('career') ? [['lead', '👑 主管']] : []), ['activity', '🎉 活動'], ['schedule', '📅 排班與崗位'], ['hire', `🙋 應徵者（${s.candidates.length}）`]];
-    const head = `<div class="drawer-tabs">${tabs.map(([id, l]) => `<button data-action="staff-tab" data-v="${id}" class="${tab === id ? 'active' : ''}">${l}</button>`).join('')}</div>`;
+    // 員工的分頁：圖示＋名字（人數用小紅點標），選到的那頁下面有一句說明
+    const STAFF_INFO = { overview: '一眼看完所有人：心情、精力、在做什麼；點名字看詳細、加薪、聊天', lead: '升誰當主管、店長；主管的管理風格會影響整間店', activity: '聚餐、KTV、員工旅遊：花錢讓大家心情變好、感情變好', schedule: '誰上哪一班、負責哪個崗位；人手不夠的時段一看就知道', hire: '來應徵的人：看技能、個性和要求的時薪，決定要不要請' };
+    const head = drawerHead('staff', `<div class="subtabs">${tabs.map(([id, l]) => { const sp = l.indexOf(' '); const ic = l.slice(0, sp); const m = l.slice(sp + 1).match(/^(.*?)（(\d+)）$/); return `<button data-action="staff-tab" data-v="${id}" class="${tab === id ? 'active' : ''}" title="${STAFF_INFO[id] || ''}"><span class="st-icon">${ic}</span><span class="st-name">${m ? m[1] : l.slice(sp + 1)}</span>${m && m[2] !== '0' && id === 'hire' ? `<em class="st-badge">${m[2]}</em>` : ''}</button>`; }).join('')}</div>`) + `<p class="sub-desc">${STAFF_INFO[tab] || ''}</p>`;
     if (tab === 'schedule') return head + staffSchedule();
     if (tab === 'activity') return head + staffActivity();
     if (tab === 'hire') return head + staffHire();
@@ -2317,9 +2365,30 @@
     const s = ui.sim;
     const cl = Math.round(s.cleanliness);
     const h = s.hygiene.last;
-    return `
-      <div class="drawer-body two-col">
-        <div>
+    return subDrawer('stock', [
+      { id: 'goods', icon: '📦', name: '進貨庫存', desc: '每樣{w:supplies}每天補到多少、快沒了叫急件；打開自動進貨就不用天天顧', badge: s.ind.stock.filter((g) => s.stock[g.id] <= 0).length || '' },
+      { id: 'clean', icon: '🧽', name: '清潔衛生', desc: '店裡乾不乾淨、要不要大掃除；衛生稽查的結果也在這裡', badge: cl < 60 ? '!' : '' },
+    ], (sub) => (sub === 'clean' ? `
+          <h3>清潔與衛生 <small>店裡越乾淨，客人越願意進來</small></h3>
+          <div class="clean-card">
+            <div class="clean-big ${cl < 60 ? 'neg' : cl >= 80 ? 'pos' : ''}"><b>${cl}</b><small>乾淨程度</small></div>
+            <div class="clean-detail">
+              <div class="ibar"><span>髒污</span><div class="bar"><div class="bar-fill jerk" style="width:${Math.min(100, s.dirt.length * 4)}%"></div></div><b>${s.dirt.length}</b></div>
+              <div class="ibar"><span>油垢</span><div class="bar"><div class="bar-fill hunger" style="width:${Math.min(100, (s.grime / 45) * 100)}%"></div></div><b>${Math.round(s.grime)}</b></div>
+              <small class="muted">員工沒客人時會自己拖地、擦桌子；油垢只有大掃除清得掉。</small>
+            </div>
+          </div>
+          <div class="insp-actions">
+            <button data-action="rush-clean">🧹 叫大家先打掃</button>
+            <button data-action="deep-clean" ${s.cash < s.deepCleanCost ? 'disabled' : ''}>🧽 請清潔公司大掃除（${money(s.deepCleanCost)}）</button>
+          </div>
+          <div class="toggles">
+            ${toggle('closingClean', s.policy.closingClean, '打烊後最後一班留下來打掃半小時（照算薪水）', '打烊就走，地上的髒污留到明天', true)}
+            ${toggle('cleaner', s.policy.cleaner, '請外包清潔阿姨（每天 $900）', '沒有請清潔人員', true)}
+          </div>
+          <p class="calc">${h ? `上次${s.inspectorOrg}稽查（第 ${h.day} 天）：<b class="${h.fine || h.grade === '限期改善' ? 'neg' : 'pos'}">${h.grade}</b>（${h.clean} 分）${h.fine ? `，罰 ${money(h.fine)}` : ''}` : `${s.inspectorOrg}會不定期來稽查：80 分以上「優」，60 分以下會被要求限期改善，複查還是不及格就要罰錢。`}</p>
+          ${s.hygiene.warned ? '<div class="alert bad">⚠️ 收到限期改善通知，稽查員這幾天會回來複查！</div>' : ''}
+` : `
           <h3>{w:supplies}庫存 <small>每天開門前送貨；急件約 40 分鐘到，貴${s.level >= 18 ? '一成五' : '三成'}</small></h3>
           <div class="stock-list">
             ${s.ind.stock
@@ -2351,29 +2420,7 @@
           ${s.policy.autoStock && s.parNote && s.parNote.day === s.day ? `<p class="calc">📦 今天早上自動調整了：${esc(s.parNote.text)}</p>` : ''}
           ${s.lastDay && s.lastDay.waste ? `<p class="calc">昨晚報廢了 ${money(s.lastDay.waste)} 的{w:supplies}。</p>` : ''}
           ${s.lastDay && s.lastDay.soldOut ? `<p class="calc neg">昨天有 ${s.lastDay.soldOut} 位客人因為賣完了離開。</p>` : ''}
-        </div>
-        <div>
-          <h3>清潔與衛生 <small>店裡越乾淨，客人越願意進來</small></h3>
-          <div class="clean-card">
-            <div class="clean-big ${cl < 60 ? 'neg' : cl >= 80 ? 'pos' : ''}"><b>${cl}</b><small>乾淨程度</small></div>
-            <div class="clean-detail">
-              <div class="ibar"><span>髒污</span><div class="bar"><div class="bar-fill jerk" style="width:${Math.min(100, s.dirt.length * 4)}%"></div></div><b>${s.dirt.length}</b></div>
-              <div class="ibar"><span>油垢</span><div class="bar"><div class="bar-fill hunger" style="width:${Math.min(100, (s.grime / 45) * 100)}%"></div></div><b>${Math.round(s.grime)}</b></div>
-              <small class="muted">員工沒客人時會自己拖地、擦桌子；油垢只有大掃除清得掉。</small>
-            </div>
-          </div>
-          <div class="insp-actions">
-            <button data-action="rush-clean">🧹 叫大家先打掃</button>
-            <button data-action="deep-clean" ${s.cash < s.deepCleanCost ? 'disabled' : ''}>🧽 請清潔公司大掃除（${money(s.deepCleanCost)}）</button>
-          </div>
-          <div class="toggles">
-            ${toggle('closingClean', s.policy.closingClean, '打烊後最後一班留下來打掃半小時（照算薪水）', '打烊就走，地上的髒污留到明天', true)}
-            ${toggle('cleaner', s.policy.cleaner, '請外包清潔阿姨（每天 $900）', '沒有請清潔人員', true)}
-          </div>
-          <p class="calc">${h ? `上次${s.inspectorOrg}稽查（第 ${h.day} 天）：<b class="${h.fine || h.grade === '限期改善' ? 'neg' : 'pos'}">${h.grade}</b>（${h.clean} 分）${h.fine ? `，罰 ${money(h.fine)}` : ''}` : `${s.inspectorOrg}會不定期來稽查：80 分以上「優」，60 分以下會被要求限期改善，複查還是不及格就要罰錢。`}</p>
-          ${s.hygiene.warned ? '<div class="alert bad">⚠️ 收到限期改善通知，稽查員這幾天會回來複查！</div>' : ''}
-        </div>
-      </div>`;
+`));
   }
 
   function seasonalCard() {
@@ -2394,36 +2441,13 @@
     const sel = (key, v, list) => `<select data-action="policy" data-key="${key}">${list.map(([val, label]) => `<option value="${val}" ${String(v) === String(val) ? 'selected' : ''}>${label}</option>`).join('')}</select>`;
     const span = ((p.close > p.open ? p.close - p.open : p.close + 1440 - p.open) / 60).toFixed(1);
     const perShift = (span / p.shifts + (p.shifts ? 0.5 : 0)).toFixed(1);
-    return `
-      <div class="drawer-body two-col">
-        <div>
-          <h3>營業與排班 <small>改了明天生效</small></h3>
-          <div class="form-grid">
-            <label>開門 ${sel('open', p.open, times.slice(0, 48).map((m) => [m, hhmm(m)]))}</label>
-            <label>打烊 ${sel('close', p.close, times.slice(1).map((m) => [m, m === 1440 ? '24:00' : hhmm(m)]))}</label>
-            <label>一天幾班 ${sel('shifts', p.shifts, [[1, '一班'], [2, '兩班（早晚）'], [3, '三班（含大夜）']])}</label>
-            <label>公休日 ${sel('closedDay', p.closedDay, [[-1, '全年無休'], ...WEEKDAYS.map((d, i) => [i, `每週${d}`])])}</label>
-          </div>
-          <p class="calc">營業 ${span} 小時，每人一班約 <b class="${perShift > 8 ? 'neg' : ''}">${perShift} 小時</b>${perShift > 8 ? '（超過 8 小時要算加班）' : ''}</p>
-          <div class="toggles">
-            ${toggle('restDays', p.restDays === 'rotate', '員工輪休（每人每週休兩天）', '不排休：大家天天上班（違法，七休一）')}
-            ${toggle('overtimePay', p.overtimePay, '加班照算加班費', '加班不給加班費（違法）')}
-            ${toggle('breaks', p.breaks, '累了可以休息', '上班時間不准休息（違法）')}
-          </div>
-          ${
-            s.ind.delivery
-              ? `<h3>外送平台</h3>${toggle('delivery', p.delivery, '已加入外送平台：外送員會來取餐（平台抽成 30%）', '沒有加入外送平台')}
-                 <p class="drawer-tip">下雨天、寒流來的時候外送訂單特別多；但抽成高，而且會跟現場客人搶人手。</p>`
-              : ''
-          }
-          <h3>勞健保與稅</h3>
-          ${toggle('insurance', s.policy.insurance, `幫員工保勞健保、提繳勞退（雇主負擔約薪資的 ${Math.round((INS.labor + INS.health + INS.pension) * 100)}%）`, '不幫員工保勞健保（違法）')}
-          <p class="calc">勞保＋就保約 ${(INS.labor * 100).toFixed(1)}%・健保約 ${(INS.health * 100).toFixed(1)}%・勞退 ${(INS.pension * 100).toFixed(0)}%<br>營業稅：${s.taxStatus ? TAX_LABEL[s.taxStatus] : '第一週結算時由國稅局核定'}</p>
-          <h3>銀行</h3>
-          <p class="calc">借款 ${money(s.loan)}（月息 2%，上限 $600,000）</p>
-          <div class="insp-actions"><button data-action="borrow" ${s.loan >= 600000 ? 'disabled title="已經借到上限 $600,000"' : ''}>${s.loan >= 600000 ? '已借到上限' : `借 ${money(Math.min(100000, 600000 - s.loan))}`}</button><button data-action="repay" ${s.loan <= 0 ? 'disabled' : ''}>還 $100,000</button></div>
-        </div>
-        <div>
+    return subDrawer('manage', [
+      { id: 'menu', icon: '🍜', name: '{w:menu}價格', desc: '要賣哪些品項、每樣賣多少錢；比建議價貴太多客人會變少' },
+      { id: 'hours', icon: '🕒', name: '營業排班', desc: '幾點開門、一天幾班、公休日，還有加班費、休息、勞健保這些勞基法規定' },
+      { id: 'delivery', icon: '🛵', name: '外送平台', desc: '要不要加入外送平台：訂單變多，但抽成三成、會搶人手', show: !!s.ind.delivery },
+      { id: 'money', icon: '🏦', name: '稅務貸款', desc: '營業稅怎麼算、跟銀行借錢週轉' },
+    ], (sub) => {
+      if (sub === 'menu') return `
           <h3>{w:menu}與價格 <small>建議價會跟著物價漲</small></h3>
           <div class="price-list">
             ${s.ind.products
@@ -2448,8 +2472,33 @@
           </div>
           ${s.feature('seasonal') ? seasonalCard() : ''}
           <p class="drawer-tip">比建議價貴 10% 以上，客人會明顯變少，評價也會變差；學生和長輩對價格特別敏感，上班族比較不在意。${s.promoOn ? `<br>🎉 九折優惠到第 ${s.promo.until} 天。` : ''}</p>
-        </div>
-      </div>`;
+`;
+      if (sub === 'hours') return `
+          <h3>營業與排班 <small>改了明天生效</small></h3>
+          <div class="form-grid">
+            <label>開門 ${sel('open', p.open, times.slice(0, 48).map((m) => [m, hhmm(m)]))}</label>
+            <label>打烊 ${sel('close', p.close, times.slice(1).map((m) => [m, m === 1440 ? '24:00' : hhmm(m)]))}</label>
+            <label>一天幾班 ${sel('shifts', p.shifts, [[1, '一班'], [2, '兩班（早晚）'], [3, '三班（含大夜）']])}</label>
+            <label>公休日 ${sel('closedDay', p.closedDay, [[-1, '全年無休'], ...WEEKDAYS.map((d, i) => [i, `每週${d}`])])}</label>
+          </div>
+          <p class="calc">營業 ${span} 小時，每人一班約 <b class="${perShift > 8 ? 'neg' : ''}">${perShift} 小時</b>${perShift > 8 ? '（超過 8 小時要算加班）' : ''}</p>
+          <div class="toggles">
+            ${toggle('restDays', p.restDays === 'rotate', '員工輪休（每人每週休兩天）', '不排休：大家天天上班（違法，七休一）')}
+            ${toggle('overtimePay', p.overtimePay, '加班照算加班費', '加班不給加班費（違法）')}
+            ${toggle('breaks', p.breaks, '累了可以休息', '上班時間不准休息（違法）')}
+          </div>
+          <h3>勞健保 <small>沒保是違法的</small></h3>
+          ${toggle('insurance', s.policy.insurance, `幫員工保勞健保、提繳勞退（雇主負擔約薪資的 ${Math.round((INS.labor + INS.health + INS.pension) * 100)}%）`, '不幫員工保勞健保（違法）')}
+          <p class="calc">勞保＋就保約 ${(INS.labor * 100).toFixed(1)}%・健保約 ${(INS.health * 100).toFixed(1)}%・勞退 ${(INS.pension * 100).toFixed(0)}%<br>營業稅：${s.taxStatus ? TAX_LABEL[s.taxStatus] : '第一週結算時由國稅局核定'}</p>
+`;
+      if (sub === 'delivery') return `<h3>外送平台</h3>${toggle('delivery', p.delivery, '已加入外送平台：外送員會來取餐（平台抽成 30%）', '沒有加入外送平台')}
+                 <p class="drawer-tip">下雨天、寒流來的時候外送訂單特別多；但抽成高，而且會跟現場客人搶人手。</p>`;
+      return `
+          <h3>銀行</h3>
+          <p class="calc">借款 ${money(s.loan)}（月息 2%，上限 $600,000）</p>
+          <div class="insp-actions"><button data-action="borrow" ${s.loan >= 600000 ? 'disabled title="已經借到上限 $600,000"' : ''}>${s.loan >= 600000 ? '已借到上限' : `借 ${money(Math.min(100000, 600000 - s.loan))}`}</button><button data-action="repay" ${s.loan <= 0 ? 'disabled' : ''}>還 $100,000</button></div>
+`;
+    });
   }
 
   // neutral：關掉不是違法或壞事，不用標紅色
@@ -2487,23 +2536,20 @@
     const net = rows.reduce((a, [, v]) => a + v, 0);
     const hist = s.history.slice(-10);
     const maxAbs = Math.max(1, ...hist.map((h) => Math.abs(h.profit)));
-    return `
-      <div class="drawer-body two-col">
-        <div>
-          <h3>這週到目前為止 <small>第 ${s.week} 週</small></h3>
-          <table class="ledger">${rows.map(([k, v]) => `<tr><th>${k}</th><td class="${v < 0 ? 'neg' : 'pos'}">${signedMoney(v)}</td></tr>`).join('')}
-            <tr class="total"><th>合計</th><td class="${net < 0 ? 'neg' : 'pos'}">${signedMoney(net)}</td></tr>
-            ${s.branches.length ? `<tr><th>　其中本店</th><td class="${net - (L.branches || 0) < 0 ? 'neg' : 'pos'}">${signedMoney(net - (L.branches || 0))}</td></tr><tr><th>　其中分店（週末結算）</th><td>${L.branches ? signedMoney(L.branches) : s.lastBranchNet ? '上週 ' + signedMoney(s.lastBranchNet.net) : '還沒結算'}</td></tr>${!L.branches && s.lastBranchNet && s.lastBranchNet.areaPay ? `<tr><th>　　＝各分店合計</th><td>${signedMoney(s.lastBranchNet.stores)}</td></tr><tr><th>　　－區經理薪水</th><td class="neg">${signedMoney(-s.lastBranchNet.areaPay)}</td></tr>` : ''}` : ''}</table>
-          ${L.dividend || L.ownerLoan || L.capital ? `<p class="calc">💼 不算在損益裡的現金進出：${[L.capital ? `募資／上市進帳 ${money(L.capital)}` : '', L.dividend ? `老闆領分紅 ${money(L.dividend)}` : '', L.ownerLoan ? `公司代墊老闆私人開銷 ${money(L.ownerLoan)}` : ''].filter(Boolean).join('・')}</p>` : ''}
-          ${L.waste ? `<p class="calc">{w:supplies}進貨裡有 ${money(L.waste)} 是過期報廢掉的。</p>` : ''}
-          <p class="calc">🧾 ${s.taxStatus ? TAX_LABEL[s.taxStatus] : '營業稅在週末結算'}；營業稅每週結算一次。</p>
+    return subDrawer('ledger', [
+      { id: 'week', icon: '💰', name: '本週收支', desc: '這一週賺多少、花在哪裡（薪水、房租、進貨、稅…），每週日結算' },
+      { id: 'trend', icon: '📈', name: '趨勢與今天', desc: '最近十週的淨利走勢，還有昨天、今天的來客和營收' },
+      { id: 'econ', icon: '💹', name: '物價新聞', desc: '物價、油價、電價、行情時薪怎麼變，會影響成本和該付多少薪水' },
+      { id: 'log', icon: '📜', name: '事件紀錄', desc: '最近處理過的事件：誰處理的、選了什麼、結果怎樣' },
+    ], (sub) => {
+      if (sub === 'trend') return `
+          <h3>每週淨利</h3>
+          ${hist.length ? `<div class="spark">${hist.map((h) => `<div class="spark-col" title="第 ${h.week} 週：${signedMoney(h.profit)}"><i class="${h.profit < 0 ? 'neg' : 'pos'}" style="height:${(Math.abs(h.profit) / maxAbs) * 100}%"></i><small>${h.week}</small></div>`).join('')}</div>` : '<p class="muted">第一週結束後會出現。</p>'}
           ${s.lastDay ? `<p class="calc">昨天：服務 ${s.lastDay.served} 人・營收 ${money(s.lastDay.revenue)}・生氣離開 ${s.lastDay.angry} 人・太擠沒進來 ${s.lastDay.balked} 人</p>` : ''}
           <p class="calc">今天到目前：來客 ${s.today.visitors}${s.today.delivery ? `（外送 ${s.today.delivery}）` : ''}・服務 ${s.today.served}・營收 ${money(s.today.revenue)}</p>
           <p class="calc">今天天氣：${s.weather.icon} ${s.weather.name}${s.festival ? `・${s.festival.icon} ${s.festival.name}` : ''}</p>
-        </div>
-        <div>
-          <h3>每週淨利</h3>
-          ${hist.length ? `<div class="spark">${hist.map((h) => `<div class="spark-col" title="第 ${h.week} 週：${signedMoney(h.profit)}"><i class="${h.profit < 0 ? 'neg' : 'pos'}" style="height:${(Math.abs(h.profit) / maxAbs) * 100}%"></i><small>${h.week}</small></div>`).join('')}</div>` : '<p class="muted">第一週結束後會出現。</p>'}
+`;
+      if (sub === 'econ') return `
           <h3>物價</h3>
           <div class="econ-grid">
             <div><span>📈 物價</span><b>+${((s.idx.cpi - 1) * 100).toFixed(1)}%</b></div>
@@ -2512,10 +2558,21 @@
             <div><span>👛 行情時薪</span><b>${money(s.marketWage)}</b></div>
           </div>
           <ul class="news-list">${s.news.map((n) => `<li>${n}</li>`).join('')}${(s.headlines || []).map((h) => `<li>${esc(h)}</li>`).join('')}</ul>
+`;
+      if (sub === 'log') return `
           <h3>📜 事件紀錄 <small>只保留最近三個月・顯示 ${Math.min(15, (s.eventLog || []).length)} 件</small></h3>
           ${(s.eventLog || []).length ? `<div class="event-log">${s.eventLog.slice(0, 15).map((l) => `<div class="${l.by === '逾時沒處理' ? 'late' : ''}"><small>第 ${l.day} 天 ${l.time}・${esc(l.by)}</small><b>${l.icon} ${esc(l.title)}</b><span>→ ${esc(l.choice)}${l.left && l.left.length ? `　👋 ${l.left.map((x) => esc(x.name)).join('、')} 離開` : ''}${l.delta ? ['cash', 'morale', 'jerk'].filter((k) => l.delta[k]).map((k) => `　${{ cash: '💰', morale: '😊', jerk: '😈' }[k]}${l.delta[k] > 0 ? '+' : ''}${k === 'cash' ? '$' + l.delta[k].toLocaleString() : l.delta[k]}`).join('') : ''}</span></div>`).join('')}</div>` : '<p class="muted">還沒有處理過事件。</p>'}
-        </div>
-      </div>`;
+`;
+      return `
+          <h3>這週到目前為止 <small>第 ${s.week} 週</small></h3>
+          <table class="ledger">${rows.map(([k, v]) => `<tr><th>${k}</th><td class="${v < 0 ? 'neg' : 'pos'}">${signedMoney(v)}</td></tr>`).join('')}
+            <tr class="total"><th>合計</th><td class="${net < 0 ? 'neg' : 'pos'}">${signedMoney(net)}</td></tr>
+            ${s.branches.length ? `<tr><th>　其中本店</th><td class="${net - (L.branches || 0) < 0 ? 'neg' : 'pos'}">${signedMoney(net - (L.branches || 0))}</td></tr><tr><th>　其中分店（週末結算）</th><td>${L.branches ? signedMoney(L.branches) : s.lastBranchNet ? '上週 ' + signedMoney(s.lastBranchNet.net) : '還沒結算'}</td></tr>${!L.branches && s.lastBranchNet && s.lastBranchNet.areaPay ? `<tr><th>　　＝各分店合計</th><td>${signedMoney(s.lastBranchNet.stores)}</td></tr><tr><th>　　－區經理薪水</th><td class="neg">${signedMoney(-s.lastBranchNet.areaPay)}</td></tr>` : ''}` : ''}</table>
+          ${L.dividend || L.ownerLoan || L.capital ? `<p class="calc">💼 不算在損益裡的現金進出：${[L.capital ? `募資／上市進帳 ${money(L.capital)}` : '', L.dividend ? `老闆領分紅 ${money(L.dividend)}` : '', L.ownerLoan ? `公司代墊老闆私人開銷 ${money(L.ownerLoan)}` : ''].filter(Boolean).join('・')}</p>` : ''}
+          ${L.waste ? `<p class="calc">{w:supplies}進貨裡有 ${money(L.waste)} 是過期報廢掉的。</p>` : ''}
+          <p class="calc">🧾 ${s.taxStatus ? TAX_LABEL[s.taxStatus] : '營業稅在週末結算'}；營業稅每週結算一次。</p>
+`;
+    });
   }
 
   // 評論：跟評價用同一批（最近 100 則），低分的原因分類統計，知道該改善什麼
@@ -2636,8 +2693,7 @@
           return `<button class="cat-item" data-action="life-spend" data-id="${id}" ${done || !x.ok(s) || o.wealth < x.cost ? 'disabled' : ''}><span class="cat-icon">${x.icon}</span><b>${x.name}</b><span class="cat-price">${done ? '已經有了' : money(x.cost)}</span><small>${x.desc}</small></button>`;
         })
         .join('')}</div>
-      <p class="drawer-tip">這些都要用「老闆個人財富」付（先領分紅）。個人的錢不夠付房貸、保母費時，會挪用公司的錢，員工會察覺。</p>
-      ${carDealer()}`;
+      <p class="drawer-tip">這些都要用「老闆個人財富」付（先領分紅）。個人的錢不夠付房貸、保母費時，會挪用公司的錢，員工會察覺。買車在「成長 → 🚘 車行」。</p>`;
   }
 
   // 惡搞品牌標誌（SVG）
@@ -2713,12 +2769,19 @@
     const lv = s.level;
     const next = LEVELS[lv];
     const canBranch = lv >= 5 && s.branches.length < BRANCH_SITES.length;
-    return `
-      <div class="drawer-body two-col">
-        <div>
-          <h3>店家等級 <small>賺的毛利越多，經驗越高</small></h3>
-          <div class="level-card"><b>Lv.${lv}</b><span class="lv-title">🏅 ${esc(s.levelTitle)}</span><div class="bar"><div class="bar-fill skill" style="width:${Math.round(s.levelProgress * 100)}%"></div></div><small>${next ? `${Math.round(s.xp).toLocaleString()} / ${next.toLocaleString()}` : '已經是最高等級'}</small></div>
-          ${levelRoadmap(lv)}
+    const group = groupPanel();
+    const evOn = s.chargeUnlocked;
+    return subDrawer('goals', [
+      { id: 'level', icon: '🏅', name: '等級', desc: '賺越多毛利經驗越高；看看下一級會解鎖什麼，還有年度好店評選的成績' },
+      { id: 'owner', icon: '🧑', name: '老闆人生', desc: '公司的錢和老闆自己的錢分開：領分紅、壓力和健康、家庭、花自己的錢' },
+      { id: 'car', icon: '🚘', name: '車行', desc: '用老闆自己的錢買車：出門比較快、比較不累，每台車各有特色' },
+      { id: 'rival', icon: '⚔️', name: '競爭對手', desc: '隔壁的對手店：評價、價格、乾淨程度決定客人選誰' },
+      { id: 'branch', icon: '🏙️', name: '分店', desc: lv >= 5 ? '開分店、調每間分店的時薪、定價、人手和改裝' : '店家 Lv.5 才能開分店', badge: s.branches.length || '' },
+      { id: 'group', icon: '🏢', name: '集團', desc: '中央廚房、加盟、上市或員工持股：章節解鎖的集團玩法', show: !!group },
+      { id: 'ev', icon: '⚡', name: '充電站', desc: evOn ? '你的充電站生意：來車、收支、加樁、調價、設定（買地在城市地圖）' : 'Lv.6 開放：在城市地圖買地開充電站', badge: (s.evStations || []).length || '' },
+      { id: 'achieve', icon: '🏆', name: '成就目標', desc: '長期目標和成就：有些達成會給獎金' },
+    ], (sub) => {
+      if (sub === 'owner') return `
           <h3>🏢 公司與老闆 <small>公司的錢不等於老闆的錢</small></h3>
           <div class="company-card">
             <div><span>公司現金</span><b>${money(s.cash)}</b></div>
@@ -2727,18 +2790,22 @@
           </div>
           <div class="branch-ctl"><button data-action="dividend" data-p="0.1" ${s.cash * 0.9 < 100000 ? 'disabled' : ''}>💰 領分紅 10%（${money(Math.round(s.cash * 0.1))}）</button><button data-action="dividend" data-p="0.3" ${s.cash * 0.7 < 100000 ? 'disabled' : ''}>💰 領 30%</button></div>
           <p class="drawer-tip">員工時薪還低於行情就領分紅，大家會不爽、慣老闆指數上升。</p>
-          ${lifePanel()}
+          ${lifePanel()}`;
+      if (sub === 'car') return carDealer();
+      if (sub === 'rival') return `
           <h3>附近的競爭 <small>評價、價格、乾淨程度決定客人選誰</small></h3>
           ${rivalCard()}
+`;
+      if (sub === 'branch') return `
           <h3>分店 <small>${lv >= 5 ? '每間分店可以調時薪、定價、人手和改裝' : '店家 Lv.5 才能開分店'}</small></h3>
           <div class="branch-list">
             ${s.branches.map((b, i) => branchCard(b, i)).join('') || '<p class="muted">還沒有分店。</p>'}
           </div>
           ${canBranch && s.feature('branch') ? `<button class="primary" data-action="branch-sites">🗺️ 挑地點開分店</button>` : canBranch ? '<p class="calc">🔒 完成「📜 第二章：站穩腳步」就能開分店。</p>' : ''}
-          ${groupPanel()}
-          ${s.awards.length ? `<h3>年度好店評選</h3>${s.awards.map((a) => `<p class="calc">${a.medal} 第 ${a.year} 年：${a.title}（${a.score} 分）</p>`).join('')}` : '<p class="drawer-tip">每年 12 月最後一週結束時，會舉辦年度好店評選。</p>'}
-        </div>
-        <div>
+`;
+      if (sub === 'group') return group;
+      if (sub === 'ev') return evStationsPanel();
+      if (sub === 'achieve') return `
           <h3>🎯 長期目標 <small>拿到金獎之後的下一步</small></h3>
           <div class="goal-list">
             ${ACHIEVEMENTS.filter((a) => a.long).map((a) => `<div class="goal ${s.achievements.has(a.id) ? 'done' : ''}"><span>${s.achievements.has(a.id) ? '🏆' : '🎯'}</span><div><b>${a.name}</b><small>${a.desc}${s.achievements.has(a.id) ? '' : `・${longProgress(a.id)}`}</small></div><em>${money(a.reward)}</em></div>`).join('')}
@@ -2748,8 +2815,24 @@
             ${ACHIEVEMENTS.filter((a) => !a.long).map((a) => `<div class="goal ${s.achievements.has(a.id) ? 'done' : ''}"><span>${s.achievements.has(a.id) ? '🏆' : '🔒'}</span><div><b>${a.name}</b><small>${a.desc}</small></div>${a.reward ? `<em>${money(a.reward)}</em>` : ''}</div>`).join('')}
           </div>
           <p class="drawer-tip">沙盒遊戲沒有時間限制。慣老闆指數到 100，或現金是負的又借不到錢，店就會收起來。</p>
-        </div>
-      </div>`;
+`;
+      return `
+          <h3>店家等級 <small>賺的毛利越多，經驗越高</small></h3>
+          <div class="level-card"><b>Lv.${lv}</b><span class="lv-title">🏅 ${esc(s.levelTitle)}</span><div class="bar"><div class="bar-fill skill" style="width:${Math.round(s.levelProgress * 100)}%"></div></div><small>${next ? `${Math.round(s.xp).toLocaleString()} / ${next.toLocaleString()}` : '已經是最高等級'}</small></div>
+          ${levelRoadmap(lv)}
+          ${s.awards.length ? `<h3>年度好店評選</h3>${s.awards.map((a) => `<p class="calc">${a.medal} 第 ${a.year} 年：${a.title}（${a.score} 分）</p>`).join('')}` : '<p class="drawer-tip">每年 12 月最後一週結束時，會舉辦年度好店評選。</p>'}
+`;
+    });
+  }
+
+  // ⚡ 成長 → 充電站：每一站的生意和設定都在這裡（買地要到城市地圖）
+  function evStationsPanel() {
+    const s = ui.sim;
+    const list = s.evStations || [];
+    if (!s.chargeUnlocked) return '<div class="empty-card"><span>🔒</span><b>Lv.6 開放</b><small>店家升到 Lv.6 之後，可以在城市地圖買地開充電站。快充、慢充、價格都自己定，各牌電動車都會來充。</small></div>';
+    const open = '<button class="primary" data-action="city-open">🗺️ 打開城市地圖（點🏷️待售的地買地）</button>';
+    if (!list.length) return `<div class="empty-card"><span>⚡</span><b>還沒有充電站</b><small>到城市地圖點綠色虛線的「🏷️ 待售」地：店旁的空地（等充電的車主會進店）、交流道口（快充最多）、辦公大樓（慢充多）、老社區（地便宜）。</small>${open}</div>`;
+    return list.map((st) => `<div class="ev-station-card">${lotPanel(st.lot)}</div>`).join('') + `<p class="drawer-tip">想再開一間：${open}</p>`;
   }
 
   // 章節解鎖的集團玩法：中央廚房、加盟、第二幕路線
@@ -3884,7 +3967,19 @@
         break;
       case 'advice-go':
         closeDialog();
+        if (btn.dataset.sub) (ui.sub = ui.sub || {})[btn.dataset.tab] = btn.dataset.sub;
         if (ui.tab !== btn.dataset.tab) openTab(btn.dataset.tab);
+        else renderDrawer();
+        break;
+      case 'subtab':
+        (ui.sub = ui.sub || {})[btn.dataset.tab] = btn.dataset.v;
+        renderDrawer();
+        {
+          const d = document.getElementById('drawer');
+          const body = d && d.querySelector('.sub-body');
+          if (body) body.scrollTop = 0;
+          if (d) d.scrollTop = 0;
+        }
         break;
       // 建議卡不會替你做：建設的卡帶你去建造、拿起那樣東西讓你自己擺；設定的卡帶你去經營頁
       case 'helper-do': {
@@ -3901,8 +3996,11 @@
             toast(`🤖 選好了「${def.name}」，點地板決定要擺在哪裡`, 'helper');
           } else toast(`🤖 「${def.name}」要 ${money(def.price)}，現在錢不夠`, 'helper');
         } else {
+          // 設定的卡：直接帶到經營頁的那一個小分頁
+          (ui.sub = ui.sub || {}).manage = { shifts: 'hours', legal: 'hours', priceSug: 'menu', priceUp: 'menu', borrow: 'money' }[a.type] || 'menu';
           if (ui.tab !== 'manage') openTab('manage');
-          toast(`🤖 ${{ shifts: '在「營業與排班」把一天分成兩班', legal: '在「勞健保與稅」把加班費、勞健保、休息打開', priceSug: '在「菜單與價格」把偏低的價格調回建議價', priceUp: '在「菜單與價格」自己決定要不要漲', borrow: '在「銀行」決定要不要借錢' }[a.type] || '在這裡調整'}`, 'helper');
+          else renderDrawer();
+          toast(`🤖 ${{ shifts: '在「經營 → 🕒 營業排班」把一天分成兩班', legal: '在「經營 → 🕒 營業排班」把加班費、勞健保、休息打開', priceSug: '在「經營 → 🍜 菜單價格」把偏低的價格調回建議價', priceUp: '在「經營 → 🍜 菜單價格」自己決定要不要漲', borrow: '在「經營 → 🏦 稅務貸款」決定要不要借錢' }[a.type] || '在這裡調整'}`, 'helper');
         }
         renderInbox();
         break;
