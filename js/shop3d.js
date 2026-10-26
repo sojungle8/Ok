@@ -2414,20 +2414,22 @@
       arcade.position.set(W / 2, 0.005, H + 0.5);
       arcade.receiveShadow = true;
       g.add(arcade);
-      // 馬路：雙向四線道（靠店這側兩條往右、對面兩條往左），中間雙黃線、同向車道之間白色虛線
-      const road = new THREE.Mesh(new THREE.PlaneGeometry(W + OUT_W * 2 + 30, 4.2), mat('#3e3e44', { roughness: 0.95 }));
+      // 馬路：靠店這側一條機車道（實線隔開，機車客人、外送員都騎在這裡），再來雙向四線道
+      // （靠店兩條往右、對面兩條往左），中間雙黃線、同向車道之間白色虛線
+      const road = new THREE.Mesh(new THREE.PlaneGeometry(W + OUT_W * 2 + 30, 4.75), mat('#3e3e44', { roughness: 0.95 }));
       road.rotation.x = -Math.PI / 2;
-      road.position.set(W / 2, 0.003, H + 3.2);
+      road.position.set(W / 2, 0.003, H + 3.425);
       road.receiveShadow = true;
       g.add(road);
       for (let x = -OUT_W - 14; x < W + OUT_W + 26; x += 1.6) {
-        for (const z of [H + 2.1, H + 4.3]) {
+        for (const z of [H + 2.9, H + 4.9]) {
           const line = new THREE.Mesh(boxGeo(0.8, 0.01, 0.06), basic('#f2f2f2'));
           line.position.set(x, 0.01, z);
           g.add(line);
         }
       }
-      for (const z of [H + 3.14, H + 3.26]) B(g, W + OUT_W * 2 + 40, 0.012, 0.05, basic('#f2c14e'), W / 2, 0, z);
+      B(g, W + OUT_W * 2 + 40, 0.012, 0.05, basic('#f2f2f2'), W / 2, 0, H + 2.0); // 機車道的白實線
+      for (const z of [H + 3.84, H + 3.96]) B(g, W + OUT_W * 2 + 40, 0.012, 0.05, basic('#f2c14e'), W / 2, 0, z);
       // 對面人行道、行道樹、斑馬線、公車站牌：讓街景不要空空的
       const far = new THREE.Mesh(
         new THREE.PlaneGeometry(W + OUT_W * 2 + 30, 1.4),
@@ -2444,10 +2446,10 @@
         })
       );
       far.rotation.x = -Math.PI / 2;
-      far.position.set(W / 2, 0.006, H + 6.0);
+      far.position.set(W / 2, 0.006, H + 6.5);
       far.receiveShadow = true;
       g.add(far);
-      B(g, W + OUT_W * 2 + 30, 0.08, 0.12, '#9a9289', W / 2, 0, H + 5.3);
+      B(g, W + OUT_W * 2 + 30, 0.08, 0.12, '#9a9289', W / 2, 0, H + 5.8);
       const leaf = ['#4f9a5a', '#5aa865', '#438a50'];
       // 行道樹放自己的群組：鏡頭轉到街上那一側時藏起來，才不會擋住店
       this.trees = new THREE.Group();
@@ -2455,25 +2457,25 @@
       let k = 0;
       for (let x = -OUT_W - 6; x < W + OUT_W + 8; x += 3.6) {
         k++;
-        B(this.trees, 0.6, 0.06, 0.6, '#6b5a48', x, 0, H + 6.0);
-        C(this.trees, 0.06, 0.08, 1.4, '#7a5a3c', x, 0, H + 6.0, 7);
+        B(this.trees, 0.6, 0.06, 0.6, '#6b5a48', x, 0, H + 6.5);
+        C(this.trees, 0.06, 0.08, 1.4, '#7a5a3c', x, 0, H + 6.5, 7);
         const top = new THREE.Mesh(new THREE.IcosahedronGeometry(0.62, 0), mat(leaf[k % 3], { roughness: 0.9, flatShading: true }));
-        top.position.set(x, 1.75, H + 6.0);
+        top.position.set(x, 1.75, H + 6.5);
         top.scale.y = 0.85;
         top.castShadow = true;
         this.trees.add(top);
         const top2 = new THREE.Mesh(new THREE.IcosahedronGeometry(0.42, 0), mat(leaf[(k + 1) % 3], { roughness: 0.9, flatShading: true }));
-        top2.position.set(x + 0.25, 2.2, H + 5.9);
+        top2.position.set(x + 0.25, 2.2, H + 6.4);
         top2.castShadow = true;
         this.trees.add(top2);
       }
-      for (let i = 0; i < 11; i++) {
+      for (let i = 0; i < 13; i++) {
         const zebra = new THREE.Mesh(boxGeo(0.7, 0.01, 0.28), basic('#ededed'));
-        zebra.position.set(-OUT_W - 4.4, 0.011, H + 1.4 + i * 0.36);
+        zebra.position.set(-OUT_W - 4.4, 0.011, H + 1.3 + i * 0.36);
         g.add(zebra);
       }
-      C(g, 0.035, 0.035, 2.1, '#6a6f75', -OUT_W - 2.2, 0, H + 5.6, 6);
-      B(g, 0.5, 0.36, 0.04, '#1f6fb2', -OUT_W - 2.2, 1.7, H + 5.6);
+      C(g, 0.035, 0.035, 2.1, '#6a6f75', -OUT_W - 2.2, 0, H + 6.1, 6);
+      B(g, 0.5, 0.36, 0.04, '#1f6fb2', -OUT_W - 2.2, 1.7, H + 6.1);
       const redLine = new THREE.Mesh(boxGeo(W + OUT_W * 2 + 30, 0.012, 0.06), basic('#d23c33'));
       redLine.position.set(W / 2, 0.012, H + 1.15);
       g.add(redLine);
@@ -3179,7 +3181,8 @@
       const list = [
         ...s.staff.filter((e) => e.state !== 'off').map((e) => ({ a: e, kind: 'staff' })),
         ...s.customers.map((c) => ({ a: c, kind: 'customer' })),
-        ...(this.quality === 'low' ? s.passers.slice(0, 6) : this.quality === 'medium' ? s.passers.slice(0, 12) : s.passers).map((p) => ({ a: p, kind: p.kind })),
+        // 路過的機車改由交通系統畫（會跟車、換道），這裡只畫走路的路人
+        ...(this.quality === 'low' ? s.passers.slice(0, 6) : this.quality === 'medium' ? s.passers.slice(0, 12) : s.passers).filter((p) => p.kind !== 'scooter').map((p) => ({ a: p, kind: p.kind })),
       ];
       for (const { a, kind } of list) {
         seen.add(a.id);
@@ -3308,6 +3311,13 @@
         v.ring.rotation.x = -Math.PI / 2;
         v.ring.position.y = 0.02;
         p.group.add(v.ring);
+      }
+      // 店外的人和機車：照模擬的格子畫在騎樓和機車道（H+1～H+1.95），不會跑進汽車車道
+      const H0 = this.sim.H;
+      if (z > H0 + 1.0) {
+        z = H0 + 1.0 + Math.min(1, (z - H0 - 1.0) / 2) * 0.85;
+        // 騎機車的：往右的靠外、往左的靠內，對向不會撞在一起
+        if (v.scooter && v.scooter.visible && a.moving) z += Math.sin(a.dir || 0) > 0.3 ? 0.12 : Math.sin(a.dir || 0) < -0.3 ? -0.12 : 0;
       }
       v.root.position.set(x, kind === 'scooter' ? 0 : y, z);
       if (a.dir !== undefined) {
@@ -4026,7 +4036,8 @@
         }
         if (c.state === 'out') {
           // 要切上馬路之前：外側車道前後要有空檔才出去
-          if (c.path[0] && c.path[0][3] === 'merge' && !this.laneFree(0, c.slot.ax + 0.6, 2.1, 1.2, 3.2, c, obs)) return true;
+          // （在入口前排隊的充電車會讓路，不算）
+          if (c.path[0] && c.path[0][3] === 'merge' && !this.laneFree(0, c.slot.ax + 0.6, 2.1, 1.2, 3.2, c, obs.filter((o) => !(o.ev && (o.ev.state === 'queue' || o.ev.state === 'in'))))) return true;
           if (move(c)) {
             if (c.back && c.exitPath) {
               c.back = false;
@@ -4240,14 +4251,41 @@
       return car;
     }
 
+    // 路過的機車（騎士＋機車）：跟汽車用同一套交通規則，比較快、比較會鑽
+    makeMoto() {
+      const s = this.sim;
+      const lanes = this.roadLanes();
+      const dir = Math.random() < 0.5 ? 1 : -1;
+      const lane = dir > 0 ? (Math.random() < 0.7 ? 0 : 1) : Math.random() < 0.7 ? 3 : 2;
+      const x = dir > 0 ? -s.W * 0.5 - 18 : s.W * 1.5 + 22;
+      const L = 0.95;
+      if (!this.laneFree(lane, x, L, 2.5, 2.5)) return null;
+      const g = new THREE.Group();
+      const inner = new THREE.Group();
+      inner.rotation.y = Math.PI / 2; // 機車模型車頭朝 +z，轉成朝 +x
+      const sc = scooterModel(['#c0392b', '#ecf0f1', '#2c3e50', '#2980b9', '#f1c40f', '#7f8c8d'][Math.floor(Math.random() * 6)]);
+      inner.add(sc);
+      const person = People.make(window.BossLooks.randomLook(Math.random));
+      person.group.position.y = 0.25;
+      inner.add(person.group);
+      g.add(inner);
+      g.traverse((o) => {
+        if (o.isMesh) o.castShadow = false;
+      });
+      g.position.set(x, 0, lanes[lane].z);
+      g.rotation.y = dir > 0 ? 0 : Math.PI;
+      this.trafficGroup.add(g);
+      return { g, dir, lane, x, z: lanes[lane].z, v: 5.5, vmax: 5.5 + Math.random() * 2.5, L, aggr: true, moto: true, person };
+    }
+
     // ───── 🚗 交通：雙向四線道、跟車、塞住就換車道，誰都不會穿過誰 ─────
     roadLanes() {
       const H = this.sim.H;
       return [
-        { z: H + 1.6, dir: 1 }, // 靠店的外側車道（電動車在這條排隊、進出）
-        { z: H + 2.6, dir: 1 },
-        { z: H + 3.8, dir: -1 },
-        { z: H + 4.8, dir: -1 }, // 對面的外側車道
+        { z: H + 2.45, dir: 1 }, // 靠店的外側車道（電動車在這條排隊、進出）；再靠店是機車道
+        { z: H + 3.35, dir: 1 },
+        { z: H + 4.45, dir: -1 },
+        { z: H + 5.35, dir: -1 }, // 對面的外側車道
       ];
     }
     // 路上所有會擋路的東西：車流、追逐的車、救護車、臨檢警車、在路上排隊或進出的充電車
@@ -4261,7 +4299,7 @@
       const H = this.sim.H;
       for (const c of this.evCars || []) {
         const p = c.g.position;
-        if (p.z < H + 1.05) continue;
+        if (p.z < H + 2.0) continue; // 還在充電場（或機車道上）的不算
         const along = Math.abs(Math.cos(c.g.rotation.y)) > 0.6; // 車身順著馬路
         out.push({ x: p.x, z: p.z, L: along ? 2.1 : 1.0, v: c.state === 'queue' ? 0 : 1.5, ev: c });
       }
@@ -4499,17 +4537,17 @@
         const pol = this.makeVehicle('police');
         // 警車停在對向外側車道，三角錐把那條車道收起來，往左的車要切到內側車道才過得去
         const x = s.W - 0.5;
-        pol.g.position.set(x, 0, H + 4.8);
+        pol.g.position.set(x, 0, H + 5.35);
         pol.g.rotation.y = Math.PI;
         const props = [];
         for (let i = 0; i < 3; i++) {
           const cone = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.38, 10), mat('#ff7a1a'));
-          cone.position.set(x + 1.6 + i * 0.9, 0.19, H + 4.45 + i * 0.12);
+          cone.position.set(x + 1.6 + i * 0.9, 0.19, H + 5.0 + i * 0.12);
           this.world.add(cone);
           props.push(cone);
         }
         const o = this.makeOfficer();
-        o.group.position.set(x - 1.4, 0, H + 4.4);
+        o.group.position.set(x - 1.4, 0, H + 4.95);
         o.group.scale.setScalar(1.25);
         o.group.rotation.y = -Math.PI / 2;
         // 指揮棒（發光）
@@ -4548,7 +4586,7 @@
         if (amb && !this.inc.collapse.cars.length) {
           const v = this.makeVehicle('ambulance');
           v.lights[1].userData.white = true;
-          v.g.position.set(p.group.position.x + 0.5, 0, H + 1.6);
+          v.g.position.set(p.group.position.x + 0.5, 0, H + 2.45);
           this.inc.collapse.cars.push(v);
         }
         if (this.inc.collapse.cars[0]) this.flashLights(this.inc.collapse.cars[0], now);
@@ -4596,7 +4634,7 @@
       const spots = [
         () => [-OUT_W + Math.random() * (OUT_W - 0.5), s.H + 0.35 + Math.random() * 0.5],
         () => [s.W + 0.5 + Math.random() * (OUT_W - 0.8), s.H + 0.35 + Math.random() * 0.5],
-        () => [-OUT_W + Math.random() * (s.W + OUT_W * 2), s.H + 5.55 + Math.random() * 0.8],
+        () => [-OUT_W + Math.random() * (s.W + OUT_W * 2), s.H + 6.05 + Math.random() * 0.8],
       ];
       const [x, z] = spots[Math.floor(Math.random() * spots.length)]();
       p.g.position.set(x, 0, z);
@@ -4656,7 +4694,8 @@
       const cap = this.quality === 'low' ? 2 : this.quality === 'medium' ? 4 : 6;
       this.trafficT -= k * rush;
       if (this.trafficT <= 0 && this.cars.filter((c) => !c.inc && !c.fromEV).length < cap * 1.5) {
-        const nc = this.makeCar();
+        // 台灣的街上機車很多：大約三成是機車
+        const nc = Math.random() < 0.3 ? this.makeMoto() : this.makeCar();
         if (nc) this.cars.push(nc);
         this.trafficT = nc ? 0.8 + Math.random() * 2.6 : 0.3;
       }
@@ -4667,7 +4706,7 @@
         const out = c.dir > 0 ? c.x > lim : c.x < -s.W * 0.5 - 24;
         if (out) {
           if (c.g.parent) c.g.parent.remove(c.g);
-          if (c.inc || c.fromEV) People.dispose(c.g);
+          if (c.inc || c.fromEV || c.moto) People.dispose(c.g, c.person);
         }
         return !out;
       });
