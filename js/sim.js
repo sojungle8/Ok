@@ -128,7 +128,7 @@
       this.usedEvents = new Set();
       this.achievements = new Set();
       this.xp = 0;
-      this.owner = Sim.ownerDefaults(); // 老闆個人的錢（領分紅才會進來）和人生狀態，跟公司分開
+      this.owner = Sim.ownerDefaults(); // 老闆個人的錢（月薪、分紅才會進來）和人生狀態，跟公司分開
       this.rooms = { storage: 0, rest: 0, office: 0, toilet: 0 }; // 後場的房間等級
       this.pets = []; // 店寵
       this.toiletClean = 100;
@@ -609,30 +609,86 @@
       return Math.max(0, Math.round((Math.max(0, avg) * 52 * pe * brand + assets) * (this.level >= 36 ? 1.05 : 1) + this.cash - this.loan));
     }
 
-    // 領分紅：公司的錢變成老闆的錢（扣 20% 稅）；薪水還低於行情就領分紅，員工會看在眼裡
-    takeDividend(amount) {
-      amount = Math.round(amount);
-      if (amount <= 0 || this.cash - amount < 100000) return false;
-      this.cash -= amount;
-      // 先還公司代墊的錢（稅後的部分拿來還）
-      let net = Math.round(amount * 0.8);
-      const repay = Math.min(net, this.owner.owe || 0);
+    // 公司的錢進老闆口袋：先還公司代墊的錢，剩下的才變成個人財富；回傳還了多少
+    ownerReceive(net) {
+      const o = this.owner;
+      const repay = Math.min(net, o.owe || 0);
       if (repay) {
-        this.owner.owe -= repay;
+        o.owe -= repay;
         this.cash += repay;
         this.ledger.ownerLoan = (this.ledger.ownerLoan || 0) - repay;
-        net -= repay;
-        this.notify(`🧾 分紅先還了公司代墊的 $${repay.toLocaleString()}${this.owner.owe ? `，還欠 $${this.owner.owe.toLocaleString()}` : '，已經還清'}。`);
       }
-      this.owner.wealth += net;
-      this.owner.taken += amount;
+      o.wealth += net - repay;
+      return repay;
+    }
+
+    // 老闆月薪：每 4 週從公司轉進老闆口袋，算公司的人事成本（扣繳 5%）
+    payOwnerSalary(L) {
+      const o = this.owner;
+      const pay = Math.round(o.salary || 0);
+      if (pay <= 0) return;
+      if (this.cash < pay) {
+        this.notify(`🧾 公司現金不夠，這個月老闆的薪水 $${pay.toLocaleString()} 先不領了。`, 'bad');
+        return;
+      }
+      this.cash -= pay;
+      L.ownerPay = (L.ownerPay || 0) + pay;
+      const net = Math.round(pay * 0.95);
+      const repay = this.ownerReceive(net);
+      this.notify(`🧑‍💼 老闆月薪 $${pay.toLocaleString()} 入帳（扣繳 5% 後 $${net.toLocaleString()}${repay ? `，其中 $${repay.toLocaleString()} 先還公司代墊` : ''}）`, 'good');
+    }
+
+    // 這一季還能領的盈餘：已結算的週＋這週到目前為止的獲利，扣掉已經預領的
+    get profitAvail() {
+      const o = this.owner;
+      return Math.max(0, Math.round((o.qProfit || 0) + this.profitOf(this.ledger) - (o.qTaken || 0)));
+    }
+
+    // 臨時預領本季盈餘（會從季分紅扣掉）；公司至少留 $100,000
+    withdrawProfit(p) {
+      const amount = Math.min(Math.round(this.profitAvail * p), Math.round(this.cash - 100000));
+      return amount >= 1000 && this.takeDividend(amount);
+    }
+
+    // 季分紅：每 12 週照「分紅比例 × 本季獲利」自動發放，虧損的季度不發
+    quarterDividend(report) {
+      const o = this.owner;
+      const q = Math.round(o.qProfit || 0);
+      const rate = o.divRate || 0;
+      const due = Math.max(0, Math.round(q * rate - (o.qTaken || 0)));
+      const paid = due > 0 ? Math.min(due, Math.max(0, Math.round(this.cash - 100000))) : 0;
+      if (q <= 0) this.notify(`📉 本季虧損 $${(-q).toLocaleString()}，不發分紅。`, 'bad');
+      else if (!rate) this.notify(`🏦 本季獲利 $${q.toLocaleString()}，分紅比例 0%，全部留在公司。`);
+      else if (!due) this.notify(`🏦 本季獲利 $${q.toLocaleString()} × ${Math.round(rate * 100)}%，已經預領過了，這季不再發分紅。`);
+      if (paid > 0) this.takeDividend(paid, { q, rate });
+      else if (due > 0) this.notify('🏦 公司現金不夠，這季分紅先不發。', 'bad');
+      report.divQ = { profit: q, rate, taken: o.qTaken || 0, paid };
+      o.qProfit = 0;
+      o.qTaken = 0;
+    }
+
+    // 領分紅：公司的錢變成老闆的錢（扣 20% 稅）
+    // auto＝季分紅：員工時薪低於行情又把分紅比例設很高，員工才會不爽；手動預領則每次都會被看在眼裡
+    takeDividend(amount, auto = null) {
+      amount = Math.round(amount);
+      if (amount <= 0 || this.cash - amount < 100000) return false;
+      const o = this.owner;
+      this.cash -= amount;
+      const net = Math.round(amount * 0.8);
+      const repay = this.ownerReceive(net);
+      if (repay) this.notify(`🧾 分紅先還了公司代墊的 $${repay.toLocaleString()}${o.owe ? `，還欠 $${o.owe.toLocaleString()}` : '，已經還清'}。`);
+      o.taken += amount;
+      if (!auto) o.qTaken = (o.qTaken || 0) + amount;
       this.ledger.dividend = (this.ledger.dividend || 0) + amount;
       const low = this.staff.filter((e) => e.wage < this.marketWage).length;
-      if (low) {
-        this.jerk = clamp(this.jerk + 3, 0, JERK_LIMIT);
-        for (const e of this.staff) e.mood = clamp(e.mood - 4, 0, 100);
-        this.notify(`😒 員工看到老闆領了 $${amount.toLocaleString()} 分紅，但還有 ${low} 個人的時薪低於行情……`, 'bad');
-      } else this.notify(`💰 領了 $${amount.toLocaleString()} 分紅（扣稅後 $${Math.round(amount * 0.8).toLocaleString()} 進你的口袋）`, 'good');
+      const upset = low && (!auto || auto.rate >= 0.35);
+      if (upset) {
+        const k = auto ? auto.rate / 0.35 : 1;
+        this.jerk = clamp(this.jerk + 3 * k, 0, JERK_LIMIT);
+        for (const e of this.staff) e.mood = clamp(e.mood - 4 * k, 0, 100);
+        this.notify(`😒 員工看到老闆${auto ? '季分紅' : '又'}領了 $${amount.toLocaleString()}，但還有 ${low} 個人的時薪低於行情……`, 'bad');
+      } else if (auto) this.notify(`💰 季分紅：本季獲利 $${auto.q.toLocaleString()} × ${Math.round(auto.rate * 100)}%${o.qTaken ? `，扣掉預領的 $${o.qTaken.toLocaleString()}` : ''}，發 $${amount.toLocaleString()}（扣稅後 $${net.toLocaleString()} 進你的口袋）`, 'good');
+      else this.notify(`💰 預領了 $${amount.toLocaleString()} 本季盈餘（扣稅後 $${net.toLocaleString()} 進你的口袋，季分紅時會扣掉）`, 'good');
       return true;
     }
 
@@ -4270,7 +4326,7 @@
 
     // ───── 🧑 人生篇章：老闆自己的人生 ─────
     static ownerDefaults() {
-      return { wealth: 0, taken: 0, owe: 0, stress: 20, health: 85, age: 32, partner: null, kids: 0, parents: 'ok', familyBond: 60, house: false, car: false, gym: false, filial: false, emba: false, nanny: false, trips: 0, parentTrips: 0, donated: 0, loan: 0, milestones: [], healthyWeeks: 0 };
+      return { wealth: 0, taken: 0, owe: 0, salary: 36000, divRate: 0.2, qProfit: 0, qTaken: 0, stress: 20, health: 85, age: 32, partner: null, kids: 0, parents: 'ok', familyBond: 60, house: false, car: false, gym: false, filial: false, emba: false, nanny: false, trips: 0, parentTrips: 0, donated: 0, loan: 0, milestones: [], healthyWeeks: 0 };
     }
 
     // 老闆個人的錢不夠付：只好動用公司的錢（員工會察覺）
@@ -4280,14 +4336,14 @@
         o.wealth -= amount;
         return true;
       }
-      // 不夠的部分由公司代墊：不算公司的開銷，記成「老闆欠公司」，之後領分紅會先扣回來
+      // 不夠的部分由公司代墊：不算公司的開銷，記成「老闆欠公司」，之後領月薪、分紅會先扣回來
       const lack = Math.round(amount - o.wealth);
       o.wealth = 0;
       o.owe = (o.owe || 0) + lack;
       this.cash -= lack;
       this.ledger.ownerLoan = (this.ledger.ownerLoan || 0) + lack;
       this.jerk = clamp(this.jerk + 0.3, 0, JERK_LIMIT);
-      this.notify(`💸 老闆個人的錢不夠付${what}，公司先代墊 $${lack.toLocaleString()}（老闆欠公司 $${o.owe.toLocaleString()}，領分紅時會先扣還）。`, 'bad');
+      this.notify(`💸 老闆個人的錢不夠付${what}，公司先代墊 $${lack.toLocaleString()}（老闆欠公司 $${o.owe.toLocaleString()}，領月薪、分紅時會先扣還）。`, 'bad');
       return false;
     }
 
@@ -7002,12 +7058,12 @@
 
     // ───── 每日、每週、每月 ─────
     emptyLedger() {
-      return { revenue: 0, materials: 0, wages: 0, labor: 0, health: 0, pension: 0, rent: 0, utilities: 0, interest: 0, tax: 0, fines: 0, cleaning: 0, welfare: 0, events: 0, branches: 0, group: 0, other: 0, rewards: 0, waste: 0, charging: 0 };
+      return { revenue: 0, materials: 0, wages: 0, labor: 0, health: 0, pension: 0, rent: 0, utilities: 0, interest: 0, tax: 0, fines: 0, cleaning: 0, welfare: 0, events: 0, branches: 0, group: 0, other: 0, rewards: 0, waste: 0, charging: 0, ownerPay: 0 };
     }
 
     // 報廢（waste）只是記錄：那些食材進貨時已經付過錢了
     profitOf(L) {
-      return L.revenue - L.materials - L.wages - L.labor - L.health - L.pension - L.rent - L.utilities - L.interest - L.tax - L.fines - L.cleaning - (L.welfare || 0) + L.events + L.branches + (L.group || 0) + L.other + (L.rewards || 0) + (L.charging || 0);
+      return L.revenue - L.materials - L.wages - (L.ownerPay || 0) - L.labor - L.health - L.pension - L.rent - L.utilities - L.interest - L.tax - L.fines - L.cleaning - (L.welfare || 0) + L.events + L.branches + (L.group || 0) + L.other + (L.rewards || 0) + (L.charging || 0);
     }
 
     emptyDay() {
@@ -7240,6 +7296,8 @@
       const grp = this.groupWeekly();
       this.cash += grp;
       if (grp > 0) this.gainXp(grp / 60);
+      // 老闆月薪：每 4 週發一次，算在這週的人事成本
+      if ((this.week - 1) % WEEKS_PER_MONTH === 0) this.payOwnerSalary(L);
       // 營業稅
       const tax = this.businessTax(L);
       L.tax += tax;
@@ -7282,6 +7340,9 @@
       // 年度好店評選：每年 12 月最後一週結束時
       this.yearProfit += profit;
       const endedWeek = this.week - 1;
+      // 季分紅：每 3 個月結算一次
+      this.owner.qProfit = (this.owner.qProfit || 0) + profit;
+      if (endedWeek % (WEEKS_PER_MONTH * 3) === 0) this.quarterDividend(report);
       const endedMonthOfYear = ((Math.ceil(endedWeek / WEEKS_PER_MONTH) - 1) % 12) + 1;
       if (endedMonthOfYear === 12 && endedWeek % WEEKS_PER_MONTH === 0) report.award = this.yearAward();
 

@@ -5404,3 +5404,19 @@ body.in-city .combo-badge { display: none; }
 @media (max-width: 700px) {
   .subtabs { -webkit-mask-image: linear-gradient(90deg, #000 88%, transparent); mask-image: linear-gradient(90deg, #000 88%, transparent); padding-right: 24px; }
 }
+
+/* 💼 老闆月薪、季分紅 */
+.pay-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; margin: 6px 0 10px; }
+.pay-card { background: var(--card, #fff); border: 1px solid var(--line, #e6ddd0); border-radius: 14px; padding: 10px 12px; }
+.pay-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.pay-head span { font-weight: 700; }
+.pay-head small { color: var(--muted, #8a7d6d); font-size: 12px; }
+.pay-step { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 8px 0 4px; }
+.pay-step b { font-size: 22px; min-width: 120px; text-align: center; }
+.pay-step b small { font-size: 12px; font-weight: 400; color: var(--muted, #8a7d6d); }
+.pay-step button { width: 38px; height: 38px; border-radius: 50%; font-size: 20px; }
+.seg { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 8px 0 4px; }
+.seg button { display: flex; flex-direction: column; align-items: center; padding: 6px 2px; border-radius: 10px; border: 1px solid var(--line); white-space: nowrap; }
+.seg button b { font-size: 16px; }
+.seg button small { font-size: 11px; opacity: 0.8; }
+.seg button.on { background: var(--accent, #e0592a); color: #fff; border-color: transparent; box-shadow: 0 2px 6px rgba(224, 89, 42, 0.35); }

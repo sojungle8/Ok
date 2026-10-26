@@ -205,6 +205,44 @@ T('個人錢不夠：差額記成老闆欠公司，分紅先還', () => {
   ok(s.owner.owe === 0, '分紅沒有先還代墊');
 });
 
+T('老闆月薪：每 4 週自動入帳，算在公司人事成本', () => {
+  const s = mk('noodle', { cash: 3e6 });
+  s.owner.salary = 50000;
+  days(s, 28);
+  const r = s.history[s.history.length - 1];
+  ok(r.ownerPay === 50000, `第 4 週月薪 ${r.ownerPay}`);
+  ok(s.history.slice(0, -1).every((h) => !h.ownerPay), '月中也發了薪水');
+  ok(s.owner.wealth >= 47500 - 40000, `個人財富 ${s.owner.wealth}`);
+});
+T('季分紅：每 12 週照比例自動發，扣掉預領，虧損不發', () => {
+  const s = mk('noodle', { cash: 5e6 });
+  s.owner.salary = 0;
+  s.owner.divRate = 0.5;
+  days(s, 77);
+  s.owner.qProfit = 1e6;
+  s.owner.qTaken = 100000;
+  const t0 = s.owner.taken;
+  days(s, 7);
+  const r = s.history[s.history.length - 1];
+  ok(r.divQ && r.divQ.paid === Math.round((1e6 + r.profit) * 0.5 - 100000), `季分紅 ${JSON.stringify(r.divQ)}`);
+  ok(s.owner.taken - t0 === r.divQ.paid && s.owner.qProfit === 0 && s.owner.qTaken === 0, '季分紅後沒歸零');
+  const s2 = mk('noodle', { cash: 5e6 });
+  s2.owner.divRate = 0.5;
+  days(s2, 77);
+  s2.owner.qProfit = -1e7;
+  days(s2, 7);
+  ok(s2.history[s2.history.length - 1].divQ.paid === 0, '虧損季度還發分紅');
+});
+T('預領：只能領本季已賺到的盈餘', () => {
+  const s = mk('noodle', { cash: 5e6 });
+  s.owner.qProfit = 0;
+  s.ledger = s.emptyLedger();
+  ok(!s.withdrawProfit(1), '沒賺錢也能預領');
+  s.owner.qProfit = 200000;
+  ok(s.withdrawProfit(0.5) && s.owner.qTaken === 100000, `預領 ${s.owner.qTaken}`);
+  ok(s.profitAvail === 100000, `剩 ${s.profitAvail}`);
+});
+
 // ───── 兼營業務 ─────
 T('兼營：每一項都有適合度星等和原因', () => {
   for (const ind of Object.keys(I.SIDE_BIZ)) {

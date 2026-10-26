@@ -2511,6 +2511,7 @@
       ['營收', L.revenue],
       ['{w:supplies}進貨', -L.materials],
       ['薪資', -L.wages],
+      ['🧑‍💼 老闆月薪', -(L.ownerPay || 0)],
       ['勞保＋健保（雇主負擔）', -((L.labor || 0) + (L.health || 0))],
       ['勞退提繳 6%', -(L.pension || 0)],
       ['房租', -L.rent],
@@ -2670,6 +2671,37 @@
     </div>`;
   }
 
+  // 💼 老闆怎麼從公司拿錢：月薪（每 4 週自動）、季分紅（每 12 週照比例自動）、臨時預領
+  const OWNER_SALARIES = [0, 24000, 36000, 50000, 80000, 120000, 200000, 300000];
+  const DIV_RATES = [[0, '0%', '全留公司'], [0.2, '20%', '穩健'], [0.35, '35%', '多拿一點'], [0.5, '50%', '大方分']];
+  function ownerPayPanel() {
+    const s = ui.sim;
+    const o = s.owner;
+    const ended = s.week - 1;
+    const toMonth = 4 - (ended % 4);
+    const toQ = 12 - (ended % 12);
+    const qNow = Math.round((o.qProfit || 0) + s.profitOf(s.ledger));
+    const est = Math.max(0, Math.round(qNow * (o.divRate || 0) - (o.qTaken || 0)));
+    const avail = Math.min(s.profitAvail, Math.max(0, Math.round(s.cash - 100000)));
+    const low = s.staff.filter((e) => e.wage < s.marketWage).length;
+    return `
+          <h3>💼 老闆怎麼領錢 <small>月薪、季分紅都是系統自動發</small></h3>
+          <div class="pay-grid">
+            <div class="pay-card">
+              <div class="pay-head"><span>🧑‍💼 月薪</span><small>每 4 週自動入帳・再 ${toMonth} 週</small></div>
+              <div class="pay-step"><button data-action="ownerSalary" data-d="-1" ${o.salary <= 0 ? 'disabled' : ''}>−</button><b>${money(o.salary || 0)}<small>／月</small></b><button data-action="ownerSalary" data-d="1" ${o.salary >= OWNER_SALARIES[OWNER_SALARIES.length - 1] ? 'disabled' : ''}>＋</button></div>
+              <p class="calc">算公司的人事成本，扣繳 5%。台灣小老闆常見 3～5 萬；拿得太多，公司獲利就少。</p>
+            </div>
+            <div class="pay-card">
+              <div class="pay-head"><span>📅 季分紅比例</span><small>每 12 週照本季獲利發・再 ${toQ} 週</small></div>
+              <div class="seg">${DIV_RATES.map(([v, l, d]) => `<button data-action="divRate" data-v="${v}" class="${(o.divRate || 0) === v ? 'on' : ''}"><b>${l}</b><small>${d}</small></button>`).join('')}</div>
+              <p class="calc">本季到目前獲利 <b class="${qNow < 0 ? 'neg' : ''}">${money(qNow)}</b>${o.qTaken ? `・已預領 ${money(o.qTaken)}` : ''}・預計分紅 <b>${money(est)}</b>（扣 20% 稅）。虧損的季度不發。</p>
+            </div>
+          </div>
+          <div class="branch-ctl"><button data-action="dividend" data-p="0.5" ${avail < 2000 ? 'disabled' : ''}>💰 預領本季盈餘一半（${money(Math.round(Math.min(s.profitAvail * 0.5, avail)))}）</button><button data-action="dividend" data-p="1" ${avail < 1000 ? 'disabled' : ''}>💰 全部預領（${money(avail)}）</button></div>
+          <p class="drawer-tip">${low ? `⚠️ 還有 ${low} 個員工時薪低於行情：這時預領，或分紅比例設 35% 以上，員工會不爽、慣老闆指數上升。` : '員工時薪都在行情以上，領多少都不會被說閒話。'}預領只能拿本季已經賺到的錢，季分紅時會扣掉。</p>`;
+  }
+
   // 🧑 老闆的人生：壓力、健康、家庭；用自己的錢（分紅）過生活
   function lifePanel() {
     const s = ui.sim;
@@ -2684,7 +2716,7 @@
         <div class="ibar"><span>壓力</span><div class="bar"><div class="bar-fill ${o.stress >= 70 ? 'jerk' : o.stress >= 45 ? 'energy' : 'morale'}" style="width:${Math.round(o.stress)}%"></div></div><b>${Math.round(o.stress)}</b></div>
         <div class="ibar"><span>健康</span><div class="bar"><div class="bar-fill ${o.health < 50 ? 'jerk' : 'skill'}" style="width:${Math.round(o.health)}%"></div></div><b>${Math.round(o.health)}</b></div>
         ${o.kids ? `<div class="ibar"><span>親子</span><div class="bar"><div class="bar-fill hunger" style="width:${Math.round(o.familyBond)}%"></div></div><b>${Math.round(o.familyBond)}</b></div>` : ''}
-        <p class="calc">${has || '還沒有什麼個人資產'}${o.loan ? `・借給朋友 ${money(o.loan)}` : ''}${o.owe ? `<br>🧾 <b>老闆欠公司 ${money(o.owe)}</b>（個人錢不夠時公司代墊的；領分紅會先扣還）` : ''}<br>壓力來源：自己處理的事件、沒人處理的事件、全年無休、客人等到生氣、沒有店長的分店。多授權、派店長、排公休、度假都會讓壓力下降；壓力太大會生病住院。</p>
+        <p class="calc">${has || '還沒有什麼個人資產'}${o.loan ? `・借給朋友 ${money(o.loan)}` : ''}${o.owe ? `<br>🧾 <b>老闆欠公司 ${money(o.owe)}</b>（個人錢不夠時公司代墊的；月薪、分紅入帳會先扣還）` : ''}<br>壓力來源：自己處理的事件、沒人處理的事件、全年無休、客人等到生氣、沒有店長的分店。多授權、派店長、排公休、度假都會讓壓力下降；壓力太大會生病住院。</p>
         ${v ? `<p class="calc">現在的人生評語：<b>${v.title}</b>${v.notes.length ? `（${v.notes.join('、')}）` : ''}</p>` : ''}
       </div>
       <div class="catalog">${Object.entries(L)
@@ -2693,7 +2725,7 @@
           return `<button class="cat-item" data-action="life-spend" data-id="${id}" ${done || !x.ok(s) || o.wealth < x.cost ? 'disabled' : ''}><span class="cat-icon">${x.icon}</span><b>${x.name}</b><span class="cat-price">${done ? '已經有了' : money(x.cost)}</span><small>${x.desc}</small></button>`;
         })
         .join('')}</div>
-      <p class="drawer-tip">這些都要用「老闆個人財富」付（先領分紅）。個人的錢不夠付房貸、保母費時，會挪用公司的錢，員工會察覺。買車在「成長 → 🚘 車行」。</p>`;
+      <p class="drawer-tip">這些都要用「老闆個人財富」付（月薪、季分紅會自動入帳）。個人的錢不夠付房貸、保母費時，會挪用公司的錢，員工會察覺。買車在「成長 → 🚘 車行」。</p>`;
   }
 
   // 惡搞品牌標誌（SVG）
@@ -2773,7 +2805,7 @@
     const evOn = s.chargeUnlocked;
     return subDrawer('goals', [
       { id: 'level', icon: '🏅', name: '等級', desc: '賺越多毛利經驗越高；看看下一級會解鎖什麼，還有年度好店評選的成績' },
-      { id: 'owner', icon: '🧑', name: '老闆人生', desc: '公司的錢和老闆自己的錢分開：領分紅、壓力和健康、家庭、花自己的錢' },
+      { id: 'owner', icon: '🧑', name: '老闆人生', desc: '公司的錢和老闆自己的錢分開：月薪、季分紅、壓力和健康、家庭、花自己的錢' },
       { id: 'car', icon: '🚘', name: '車行', desc: '用老闆自己的錢買車：出門比較快、比較不累，每台車各有特色' },
       { id: 'rival', icon: '⚔️', name: '競爭對手', desc: '隔壁的對手店：評價、價格、乾淨程度決定客人選誰' },
       { id: 'branch', icon: '🏙️', name: '分店', desc: lv >= 5 ? '開分店、調每間分店的時薪、定價、人手和改裝' : '店家 Lv.5 才能開分店', badge: s.branches.length || '' },
@@ -2786,10 +2818,9 @@
           <div class="company-card">
             <div><span>公司現金</span><b>${money(s.cash)}</b></div>
             <div><span>公司估值</span><b>${money(s.valuation)}</b><small>最近 8 週本業淨利 × 本益比＋資產</small></div>
-            <div><span>老闆個人財富</span><b>${money(s.owner.wealth)}</b><small>領分紅才會進來（扣 20% 稅）</small></div>
+            <div><span>老闆個人財富</span><b>${money(s.owner.wealth)}</b><small>月薪、分紅才會進來</small></div>
           </div>
-          <div class="branch-ctl"><button data-action="dividend" data-p="0.1" ${s.cash * 0.9 < 100000 ? 'disabled' : ''}>💰 領分紅 10%（${money(Math.round(s.cash * 0.1))}）</button><button data-action="dividend" data-p="0.3" ${s.cash * 0.7 < 100000 ? 'disabled' : ''}>💰 領 30%</button></div>
-          <p class="drawer-tip">員工時薪還低於行情就領分紅，大家會不爽、慣老闆指數上升。</p>
+          ${ownerPayPanel()}
           ${lifePanel()}`;
       if (sub === 'car') return carDealer();
       if (sub === 'rival') return `
@@ -3917,7 +3948,18 @@
         break;
       }
       case 'dividend':
-        s.takeDividend(s.cash * Number(btn.dataset.p));
+        s.withdrawProfit(Number(btn.dataset.p));
+        renderDrawer();
+        break;
+      case 'ownerSalary': {
+        const i = OWNER_SALARIES.indexOf(s.owner.salary);
+        const j = Math.max(0, Math.min(OWNER_SALARIES.length - 1, (i < 0 ? OWNER_SALARIES.findIndex((v) => v >= s.owner.salary) : i) + Number(btn.dataset.d)));
+        s.owner.salary = OWNER_SALARIES[j];
+        renderDrawer();
+        break;
+      }
+      case 'divRate':
+        s.owner.divRate = Number(btn.dataset.v);
         renderDrawer();
         break;
       case 'route':
