@@ -262,6 +262,41 @@ T('衛生稽查：分數有明細，罰完一週內不會再來', () => {
   ok(!came, `罰完 ${came} 次又來稽查`);
 });
 
+T('加盟收回：到期不續約、違約解約要有理由、買回變直營', () => {
+  const s = mk('noodle', { cash: 2e7, all: true });
+  while (s.level < 30) s.xp += 500;
+  const add = () => { s.rollFranchiseApps(); return s.acceptFranchise(s.franchiseApps[0].id); };
+  s.openBranch(I.BRANCH_SITES[I.BRANCH_SITES.length - 1].id);
+  ok(add() && add(), '加盟簽不起來');
+  const f0 = s.franchiseAt(0);
+  ok(f0.end === s.week + 48 && f0.renew, `合約 ${f0.end}`);
+  // 沒理由不能解約
+  f0.rating = 4.2;
+  f0.decency = 30;
+  ok(!s.terminateFranchise(0), '沒理由也能解約');
+  ok(s.auditFranchise(0) && f0.seen === 30, '稽核沒看到良心值');
+  const n0 = s.franchises.length;
+  ok(s.terminateFranchise(0) && s.franchises.length === n0 - 1, '稽核後還是不能解約');
+  // 買回變直營
+  const f1 = s.franchiseAt(0);
+  const price = s.franchiseBuyback(f1);
+  const b0 = s.branches.length, c0 = s.cash;
+  ok(s.buybackFranchise(0) && s.branches.length === b0 + 1 && c0 - s.cash === price, '買回沒有變直營或金額不對');
+  ok(s.branches[s.branches.length - 1].site === f1.site, '分店位置不對');
+  // 到期不續約
+  add();
+  const f2 = s.franchiseAt(0);
+  s.setFranchiseRenew(0, false);
+  f2.end = s.week + 1;
+  days(s, 7);
+  ok(!s.franchises.includes(f2), '到期不續約還在');
+  add();
+  const f3 = s.franchiseAt(0);
+  f3.end = s.week + 1;
+  days(s, 7);
+  ok(s.franchises.includes(f3) && f3.end > s.week + 40, '到期續約沒有延長');
+});
+
 // ───── 兼營業務 ─────
 T('兼營：每一項都有適合度星等和原因', () => {
   for (const ind of Object.keys(I.SIDE_BIZ)) {

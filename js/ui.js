@@ -2898,8 +2898,31 @@
     if (s.feature('franchise')) {
       const F = s.franchises || [];
       if (!s.franchiseApps) s.rollFranchiseApps();
-      out += `<h3>🤝 加盟 <small>${F.length}/${s.franchiseCap} 間・每間收加盟金 ${money(s.franchiseFee)}＋營收 6% 權利金</small></h3>`;
-      out += F.length ? `<div class="pot-list">${F.map((f) => `<div class="pot-row"><span class="mini-face">🏪</span><span><b>${esc(f.city)}${esc(f.district)}加盟店</b><small>加盟主 ${esc(f.name)}・★ ${f.rating.toFixed(1)}・上週權利金 ${money(f.last || 0)}</small></span></div>`).join('')}</div>` : '';
+      out += `<h3>🤝 加盟 <small>${F.length}/${s.franchiseCap} 間・每間收加盟金 ${money(s.franchiseFee)}，之後每週收權利金（營收 4% 扣掉督導成本 1%，星等越高收越多）・合約 48 週</small></h3>`;
+      out += F.length ? `<div class="fr-list">${F.map((f0, i) => {
+        const f = s.franchiseAt(i);
+        const left = f.end - s.week;
+        const why = s.franchiseBreach(f);
+        const price = s.franchiseBuyback(f);
+        const canBuy = s.level >= 5 && s.feature('branch');
+        const cf = (k) => ui.confirmFr === `${k}:${i}`;
+        return `<div class="fr-card">
+          <div class="fr-top"><span class="mini-face">🏪</span><span><b>${esc(f.city)}${esc(f.district)}加盟店</b><small>加盟主 ${esc(f.name)}</small></span></div>
+          <div class="fr-stats">
+            <span class="${f.rating < 3.4 ? 'neg' : ''}">★ ${f.rating.toFixed(1)}</span>
+            <span>上週權利金 ${money(f.last || 0)}</span>
+            <span>累積 ${money(f.total || 0)}</span>
+            <span class="${left <= 4 ? 'neg' : ''}">📄 合約剩 ${Math.max(0, left)} 週・到期${f.renew ? '續約' : '不續約'}</span>
+            <span class="${f.audited && f.seen < 50 ? 'neg' : ''}">${f.audited ? `🔍 員工對待 ${f.seen} 分（第 ${f.audited} 週稽核）` : '🔍 員工對待：還沒稽核'}</span>
+          </div>
+          <div class="fr-actions">
+            <button data-action="fr-renew" data-i="${i}" title="${f.renew ? `到期自動續約，收續約金 ${money(s.franchiseRenewFee)}` : '到期就拆招牌，不用賠錢'}">${f.renew ? '📄 改成到期不續約' : '📄 改回到期續約'}</button>
+            <button data-action="fr-audit" data-i="${i}" ${s.cash < s.franchiseAuditCost ? 'disabled' : ''}>🔍 派人稽核（${money(s.franchiseAuditCost)}）</button>
+            <button data-action="fr-end" data-i="${i}" class="${cf('end') ? 'danger' : ''}" ${!why || s.cash < s.franchiseTerminateCost ? 'disabled' : ''} title="${why ? `理由：${esc(why)}` : '要星等低於 3.4，或稽核抓到苛待員工才能違約解約'}">${cf('end') ? `確定解約？（${money(s.franchiseTerminateCost)}）` : `⚖️ 違約解約${why ? '' : '（沒有違約理由）'}`}</button>
+            <button data-action="fr-buy" data-i="${i}" class="${cf('buy') ? 'danger' : ''}" ${!canBuy || !price || s.cash < price ? 'disabled' : ''} title="買回來變直營分店：可以調時薪、定價、派店長">${cf('buy') ? `確定買回？（${money(price)}）` : `💰 買回變直營（${money(price)}）`}</button>
+          </div>
+        </div>`;
+      }).join('')}</div>` : '';
       out += F.length < s.franchiseCap
         ? `<p class="calc">想加盟的人（每兩週換一批）：面談印象不一定準，加盟主怎麼對員工，會算在你的品牌上。</p><div class="pot-list">${(s.franchiseApps || []).map((a) => `<div class="pot-row"><span class="mini-face">🙋</span><span><b>${esc(a.name)}・想開在${esc(a.city)}${esc(a.district)}</b><small class="muted">面談印象：「${esc(a.note)}」</small></span><span class="lead-btns"><button data-action="franchise-accept" data-id="${a.id}">🤝<small>簽約</small></button></span></div>`).join('')}</div>`
         : '<p class="calc">加盟店數量到上限了：多開直營分店，才有能力管更多加盟店。</p>';
@@ -4172,6 +4195,28 @@
         s.buyBackup();
         renderDrawer();
         break;
+      case 'fr-renew': {
+        const i = Number(btn.dataset.i);
+        s.setFranchiseRenew(i, !s.franchiseAt(i).renew);
+        renderDrawer();
+        break;
+      }
+      case 'fr-audit':
+        s.auditFranchise(Number(btn.dataset.i));
+        renderDrawer();
+        break;
+      case 'fr-end':
+      case 'fr-buy': {
+        const k = `${a === 'fr-end' ? 'end' : 'buy'}:${btn.dataset.i}`;
+        if (ui.confirmFr !== k) ui.confirmFr = k;
+        else {
+          ui.confirmFr = null;
+          if (a === 'fr-end') s.terminateFranchise(Number(btn.dataset.i));
+          else s.buybackFranchise(Number(btn.dataset.i));
+        }
+        renderDrawer();
+        break;
+      }
       case 'franchise-accept':
         s.acceptFranchise(Number(btn.dataset.id));
         renderDrawer();

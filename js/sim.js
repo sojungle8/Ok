@@ -14,6 +14,7 @@
   const DAY = 1440;
   const DAYS_PER_WEEK = 7;
   const WEEKS_PER_MONTH = 4;
+  const FRANCHISE_TERM = 48; // 加盟合約 48 週（一年）
   const OUT_W = 4; // 店面左右兩側的騎樓寬度
   const STREET = 3; // 店門外：騎樓、路邊、馬路
   const MIN_WAGE = 196;
@@ -1239,13 +1240,97 @@
       this.franchises = this.franchises || [];
       if (!a || !this.feature('franchise') || this.franchises.length >= this.franchiseCap) return false;
       this.franchiseApps = this.franchiseApps.filter((x) => x !== a);
-      this.franchises.push({ name: a.name, site: a.site, city: a.city, district: a.district, decency: a.decency, rating: 3.9, week: this.week, last: 0, total: 0 });
+      this.franchises.push({ name: a.name, site: a.site, city: a.city, district: a.district, decency: a.decency, rating: 3.9, week: this.week, end: this.week + FRANCHISE_TERM, renew: true, last: 0, total: 0 });
       this.cash += this.franchiseFee;
       this.ledger.other += this.franchiseFee;
       this.notify(`🤝 ${a.name}的${a.city}${a.district}加盟店開幕！收到加盟金 ${'$' + this.franchiseFee.toLocaleString()}。`, 'achieve');
       this.checkProgress();
       return true;
     }
+    // ── 收回加盟店：合約到期不續約、違約解約、協議買回變直營 ──
+    franchiseAt(i) {
+      const f = (this.franchises || [])[i];
+      if (f && !f.end) f.end = Math.max(f.week + FRANCHISE_TERM, this.week + 8); // 舊存檔沒有合約期
+      if (f && f.renew == null) f.renew = true;
+      return f;
+    }
+    removeFranchise(i) {
+      const f = this.franchises[i];
+      this.franchises.splice(i, 1);
+      this.franchiseIssue = null; // 還沒爆出來的事件是用位置記的，拿掉一間就作廢
+      return f;
+    }
+    // 派人去稽核：看得到加盟主怎麼對員工（良心值）
+    get franchiseAuditCost() {
+      return Math.round((this.ind.cash * 0.03) / 1000) * 1000;
+    }
+    auditFranchise(i) {
+      const f = this.franchiseAt(i);
+      const cost = this.franchiseAuditCost;
+      if (!f || this.cash < cost) return false;
+      this.cash -= cost;
+      this.ledger.other -= cost;
+      f.audited = this.week;
+      f.seen = Math.round(f.decency);
+      this.notify(`🔍 稽核了${f.city}${f.district}加盟店：員工對待 ${f.seen} 分${f.decency < 50 ? '，有加班費、勞健保的問題，可以違約解約' : '，沒什麼大問題'}。`, f.decency < 50 ? 'bad' : 'good');
+      return true;
+    }
+    // 違約解約：星等太低，或稽核抓到苛待員工才可以
+    franchiseBreach(f) {
+      if (!f) return null;
+      if (f.rating < 3.4) return `星等 ${f.rating.toFixed(1)} 低於合約標準 3.4`;
+      if (f.audited && f.decency < 50) return '稽核發現苛待員工';
+      return null;
+    }
+    get franchiseTerminateCost() {
+      return Math.round((this.ind.cash * 0.15) / 1000) * 1000;
+    }
+    terminateFranchise(i) {
+      const f = this.franchiseAt(i);
+      const why = this.franchiseBreach(f);
+      const cost = this.franchiseTerminateCost;
+      if (!f || !why || this.cash < cost) return false;
+      this.cash -= cost;
+      this.ledger.other -= cost;
+      this.removeFranchise(i);
+      if (f.audited && f.decency < 50) this.jerk = clamp(this.jerk - 1, 0, JERK_LIMIT);
+      if (this.rng() < 0.5) this.addReview(2, `${f.district}的加盟主說總部翻臉不認人，突然就被解約`, 'service');
+      this.notify(`⚖️ 以「${why}」跟${f.name}解約，${f.city}${f.district}的招牌拆下來了（處理費 ${money(cost)}）。`, 'event');
+      return true;
+    }
+    // 協議買回：店面設備打折＋大約 10 週加盟主的獲利；越賺錢越貴
+    franchiseBuyback(f) {
+      const site = BRANCH_SITES.find((x) => x.id === f.site);
+      if (!site) return null;
+      const weekly = this.branchBase().revenue * 0.1 * clamp((f.rating - 2.5) / 1.5, 0.3, 1.3);
+      return Math.round((this.siteCost(site, 'medium') * 0.55 + weekly * 10) / 10000) * 10000;
+    }
+    buybackFranchise(i) {
+      const f = this.franchiseAt(i);
+      const price = f && this.franchiseBuyback(f);
+      if (!price || this.level < 5 || !this.feature('branch') || this.cash < price) return false;
+      const site = BRANCH_SITES.find((x) => x.id === f.site);
+      this.cash -= price;
+      this.ledger.other -= price;
+      this.removeFranchise(i);
+      // 原本的店員大多留下來：加盟主對他們越好，士氣越高
+      const b = { site: site.id, district: site.name, size: 'medium', type: 'standard', paid: price, week: this.week, last: 0, total: 0, revenue: 0, wage: 'market', price: 'normal', staff: this.branchNeedOf('medium'), morale: Math.round(clamp(45 + f.decency * 0.35, 40, 80)), rating: Math.round(f.rating * 10) / 10, reno: 0, hist: [], fromFranchise: true };
+      this.branches.push(b);
+      this.notify(`💰 用 ${money(price)} 買回${f.city}${f.district}加盟店，改成直營分店！可以到「成長 → 分店」調時薪、定價、派店長。`, 'achieve');
+      this.checkProgress();
+      if (this.branches.length >= 3) this.achieve('chain');
+      return b;
+    }
+    setFranchiseRenew(i, on) {
+      const f = this.franchiseAt(i);
+      if (!f) return false;
+      f.renew = !!on;
+      return true;
+    }
+    get franchiseRenewFee() {
+      return Math.round((this.franchiseFee * 0.3) / 1000) * 1000;
+    }
+
     franchiseIssueEvent(i) {
       const f = this.franchises[i];
       const c = Math.round(this.ind.cash * 0.1);
@@ -1372,6 +1457,21 @@
       if (this.feature('franchise')) {
         if (!this.franchiseApps || this.week % 2 === 0) this.rollFranchiseApps();
         const R0 = this.branchBase().revenue;
+        // 合約到期：續約收續約金，不續約就拆招牌
+        for (let i = (this.franchises || []).length - 1; i >= 0; i--) {
+          const f = this.franchiseAt(i);
+          const left = f.end - this.week;
+          if (left === 4) this.notify(`📄 ${f.city}${f.district}加盟店的合約再 4 週到期，${f.renew ? '目前設定「續約」' : '目前設定「不續約」'}，要改到「成長 → 集團」。`, 'event');
+          if (left > 0) continue;
+          if (f.renew) {
+            f.end = this.week + FRANCHISE_TERM;
+            total += this.franchiseRenewFee;
+            this.notify(`📄 ${f.name}續約了${f.city}${f.district}加盟店，收到續約金 ${money(this.franchiseRenewFee)}。`, 'good');
+          } else {
+            this.removeFranchise(i);
+            this.notify(`📄 ${f.city}${f.district}加盟店合約到期不續約，招牌拆下來了，空出一個加盟名額。`);
+          }
+        }
         (this.franchises || []).forEach((f, i) => {
           const target = 3.2 + f.decency / 55 + (this.rating - 4) * 0.3;
           f.rating = clamp(f.rating + (target - f.rating) * 0.35 + (this.rng() - 0.5) * 0.1, 1, 5);

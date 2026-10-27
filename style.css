@@ -5432,3 +5432,15 @@ body.in-city .combo-badge { display: none; }
 .insp-parts span.neg { background: #fbe0dc; color: #c0392b; }
 .insp-fix { margin: 6px 0 0; padding-left: 18px; font-size: 13px; }
 .insp-fix li { margin: 3px 0; }
+
+/* 🤝 加盟店卡片 */
+.fr-list { display: grid; gap: 8px; margin: 6px 0 10px; }
+.fr-card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; }
+.fr-top { display: flex; align-items: center; gap: 8px; }
+.fr-top small { display: block; color: var(--muted); }
+.fr-stats { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.fr-stats span { font-size: 12.5px; padding: 3px 8px; border-radius: 8px; background: rgba(0, 0, 0, 0.04); }
+.fr-stats span.neg { background: #fbe0dc; color: #c0392b; }
+.fr-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.fr-actions button { font-size: 13px; }
+@media (min-width: 900px) { .fr-list { grid-template-columns: 1fr 1fr; } }
