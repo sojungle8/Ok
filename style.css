@@ -5420,3 +5420,15 @@ body.in-city .combo-badge { display: none; }
 .seg button b { font-size: 16px; }
 .seg button small { font-size: 11px; opacity: 0.8; }
 .seg button.on { background: var(--accent, #e0592a); color: #fff; border-color: transparent; box-shadow: 0 2px 6px rgba(224, 89, 42, 0.35); }
+
+/* 🕵️ 稽查分數明細 */
+.insp-score { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; margin: 8px 0; }
+.insp-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.insp-grade { font-weight: 700; padding: 2px 10px; border-radius: 999px; background: var(--accent-soft); }
+.insp-grade.pos { background: #dff3e4; color: #23784a; }
+.insp-grade.neg { background: #fbe0dc; color: #c0392b; }
+.insp-parts { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 4px; }
+.insp-parts span { font-size: 13px; padding: 3px 8px; border-radius: 8px; background: rgba(0, 0, 0, 0.04); }
+.insp-parts span.neg { background: #fbe0dc; color: #c0392b; }
+.insp-fix { margin: 6px 0 0; padding-left: 18px; font-size: 13px; }
+.insp-fix li { margin: 3px 0; }

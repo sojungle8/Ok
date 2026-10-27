@@ -2365,6 +2365,7 @@
     const s = ui.sim;
     const cl = Math.round(s.cleanliness);
     const h = s.hygiene.last;
+    const hb = s.hygieneBreakdown();
     return subDrawer('stock', [
       { id: 'goods', icon: '📦', name: '進貨庫存', desc: '每樣{w:supplies}每天補到多少、快沒了叫急件；打開自動進貨就不用天天顧', badge: s.ind.stock.filter((g) => s.stock[g.id] <= 0).length || '' },
       { id: 'clean', icon: '🧽', name: '清潔衛生', desc: '店裡乾不乾淨、要不要大掃除；衛生稽查的結果也在這裡', badge: cl < 60 ? '!' : '' },
@@ -2375,8 +2376,19 @@
             <div class="clean-detail">
               <div class="ibar"><span>髒污</span><div class="bar"><div class="bar-fill jerk" style="width:${Math.min(100, s.dirt.length * 4)}%"></div></div><b>${s.dirt.length}</b></div>
               <div class="ibar"><span>油垢</span><div class="bar"><div class="bar-fill hunger" style="width:${Math.min(100, (s.grime / 45) * 100)}%"></div></div><b>${Math.round(s.grime)}</b></div>
-              <small class="muted">員工沒客人時會自己拖地、擦桌子；油垢只有大掃除清得掉。</small>
+              <small class="muted">員工沒客人時會自己拖地、擦桌子；油垢每天營業都會累積，客人越多越快，只有大掃除清得掉。</small>
             </div>
+          </div>
+          <div class="insp-score">
+            <div class="insp-head"><b>🕵️ 現在來稽查會拿幾分？</b><span class="insp-grade ${hb.score < 60 ? 'neg' : hb.score >= 80 ? 'pos' : ''}">${hb.score} 分・${hb.score >= 80 ? '優' : hb.score >= 60 ? '良（通過）' : hb.score >= 40 && !s.hygiene.warned ? '限期改善' : '會被罰錢'}</span></div>
+            <div class="insp-parts">
+              <span>滿分 100</span>
+              <span class="${hb.grime >= 15 ? 'neg' : ''}">🛢️ 油垢 −${hb.grime}</span>
+              <span class="${hb.dirt >= 10 ? 'neg' : ''}">🧻 地上髒污 ${hb.dirtN} 處 −${hb.dirt}</span>
+              ${hb.pet ? `<span class="neg">🐾 寵物 −${hb.pet}</span>` : ''}
+            </div>
+            <small class="muted">80 分以上「優」・60 分以上通過・60 分以下第一次限期改善，複查還不及格就罰錢（不及格後一週內會再來）</small>
+            ${hb.fixes.length ? `<ul class="insp-fix">${hb.fixes.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>` : ''}
           </div>
           <div class="insp-actions">
             <button data-action="rush-clean">🧹 叫大家先打掃</button>
@@ -2384,10 +2396,11 @@
           </div>
           <div class="toggles">
             ${toggle('closingClean', s.policy.closingClean, '打烊後最後一班留下來打掃半小時（照算薪水）', '打烊就走，地上的髒污留到明天', true)}
-            ${toggle('cleaner', s.policy.cleaner, '請外包清潔阿姨（每天 $900）', '沒有請清潔人員', true)}
+            ${toggle('cleaner', s.policy.cleaner, '請外包清潔阿姨（每天 $900，順便減少油垢）', '沒有請清潔人員', true)}
+            ${toggle('autoDeepClean', s.policy.autoDeepClean, `油垢超過 20 自動請清潔公司大掃除（每次 ${money(s.deepCleanCost)}）`, '油垢太多不會自動大掃除', true)}
           </div>
-          <p class="calc">${h ? `上次${s.inspectorOrg}稽查（第 ${h.day} 天）：<b class="${h.fine || h.grade === '限期改善' ? 'neg' : 'pos'}">${h.grade}</b>（${h.clean} 分）${h.fine ? `，罰 ${money(h.fine)}` : ''}` : `${s.inspectorOrg}會不定期來稽查：80 分以上「優」，60 分以下會被要求限期改善，複查還是不及格就要罰錢。`}</p>
-          ${s.hygiene.warned ? '<div class="alert bad">⚠️ 收到限期改善通知，稽查員這幾天會回來複查！</div>' : ''}
+          <p class="calc">${h ? `上次${s.inspectorOrg}稽查（第 ${h.day} 天）：<b class="${h.fine || h.grade === '限期改善' ? 'neg' : 'pos'}">${h.grade}</b>（${h.clean} 分${h.parts ? `：油垢 −${h.parts.grime}、地上髒污 ${h.parts.dirtN} 處 −${h.parts.dirt}${h.parts.pet ? `、寵物 −${h.parts.pet}` : ''}` : ''}）${h.fine ? `，罰 ${money(h.fine)}` : ''}` : `${s.inspectorOrg}會不定期來稽查，分數就是上面那個。`}</p>
+          ${s.hygiene.warned ? `<div class="alert bad">⚠️ ${h && h.fine ? '剛被罰過' : '收到限期改善通知'}：${s.day >= (s.hygiene.recheck || 0) ? '稽查員隨時會回來複查' : `第 ${s.hygiene.recheck} 天起稽查員會回來複查`}，在那之前把分數拉到 60 以上就不會再被罰。</div>` : ''}
 ` : `
           <h3>{w:supplies}庫存 <small>每天開門前送貨；急件約 40 分鐘到，貴${s.level >= 18 ? '一成五' : '三成'}</small></h3>
           <div class="stock-list">

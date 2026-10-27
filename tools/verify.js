@@ -244,6 +244,24 @@ T('預領：只能領本季已賺到的盈餘', () => {
   ok(s.profitAvail === 100000, `剩 ${s.profitAvail}`);
 });
 
+T('衛生稽查：分數有明細，罰完一週內不會再來', () => {
+  const s = mk('noodle', { cash: 3e6 });
+  s.grime = 30;
+  for (let i = 0; i < 8; i++) s.addDirt(1 + (i % 4), 1 + Math.floor(i / 4), 3);
+  const b = s.hygieneBreakdown();
+  ok(b.score === 100 - b.grime - b.dirt - b.pet && b.fixes.length >= 2, `明細 ${JSON.stringify(b)}`);
+  s.hygiene.warned = true;
+  const c0 = s.cash;
+  s.finishInspection({ id: -1 });
+  ok(c0 - s.cash > 0 && s.hygiene.last.parts && s.hygiene.last.fixes.length, '不合格沒罰或沒有原因');
+  const until = s.hygiene.recheck;
+  ok(until === s.day + 7, `複查日 ${until}`);
+  let came = 0;
+  s.cb.hygiene = () => came++;
+  while (s.day < until) s.tick(1440);
+  ok(!came, `罰完 ${came} 次又來稽查`);
+});
+
 // ───── 兼營業務 ─────
 T('兼營：每一項都有適合度星等和原因', () => {
   for (const ind of Object.keys(I.SIDE_BIZ)) {

@@ -1724,10 +1724,22 @@
       this.sound('alert');
     }
 
+    // 稽查員怎麼打分數：100 分扣掉油垢、地上的髒污、寵物（餐飲業）
+    hygieneBreakdown() {
+      const dirt = Math.round(this.dirt.reduce((t, x) => t + Math.min(3, x.amt), 0) * 2.6);
+      const pet = this.isFood ? Math.round(this.pets.reduce((t, p) => t + (p.calm ? 0.3 : 1) * ((Fun.PETS[p.kind] || {}).hygiene || 0), 0) * 4 + (this.policy.petFriendly && !this.flags.has('petZone') ? 4 : 0)) : 0;
+      const grime = Math.round(this.grime);
+      const score = clamp(100 - grime - dirt - pet, 0, 100);
+      const fixes = [];
+      if (grime >= 15) fixes.push(`油垢扣 ${grime} 分：只有大掃除清得掉（${money(this.deepCleanCost)}），或打開「油垢太多自動請清潔公司」`);
+      if (dirt >= 10) fixes.push(`地上 ${this.dirt.length} 處髒污扣 ${dirt} 分：按「叫大家先打掃」，人手不夠就多排一個人或請清潔阿姨`);
+      if (pet >= 5) fixes.push(`寵物扣 ${pet} 分：餐飲業養寵物要隔出寵物區，或讓店寵待在後面`);
+      return { grime, dirt, dirtN: this.dirt.length, pet, score, fixes };
+    }
+
     finishInspection(c) {
-      // 餐飲業有養寵物、又沒有隔開：稽查員會扣分
-      const petRisk = this.isFood ? this.pets.reduce((t, p) => t + (p.calm ? 0.3 : 1) * ((Fun.PETS[p.kind] || {}).hygiene || 0), 0) * 4 + (this.policy.petFriendly && !this.flags.has('petZone') ? 4 : 0) : 0;
-      const cl = this.cleanliness - petRisk;
+      const b = this.hygieneBreakdown();
+      const cl = b.score;
       const org = this.inspectorOrg;
       let r;
       if (cl >= 80) {
@@ -1740,8 +1752,9 @@
         r = { grade: '良', fine: 0, text: `${org}稽查通過，稽查員提醒有些角落要再加強。` };
         this.hygiene.warned = false;
       } else if (cl >= 40 && !this.hygiene.warned) {
-        r = { grade: '限期改善', fine: 0, text: `${org}開了限期改善通知，一週內會再來複查，沒改善就要罰錢。` };
+        r = { grade: '限期改善', fine: 0, text: `${org}開了限期改善通知，3 天後會再來複查，沒改善就要罰錢。` };
         this.hygiene.warned = true;
+        this.hygiene.recheck = this.day + 3;
       } else {
         const fine = Math.round(((cl < 25 ? 60000 : 30000) * this.fineMult) / 1000) * 1000;
         r = { grade: '不合格', fine, text: `${org}稽查不合格，罰鍰 $${fine.toLocaleString()}，還上了地方新聞。` };
@@ -1749,12 +1762,17 @@
         this.ledger.fines += fine;
         this.demandMods.push({ mult: 0.88, days: 10 });
         this.addReview(1, '看到新聞說這家衛生不合格，不敢再去了', 'clean');
+        // 罰完給一週改善，不會天天來罰
         this.hygiene.warned = true;
+        this.hygiene.recheck = this.day + 7;
       }
       r.day = this.day;
       r.clean = Math.round(cl);
+      r.parts = { grime: b.grime, dirt: b.dirt, dirtN: b.dirtN, pet: b.pet };
+      r.fixes = b.fixes;
       this.hygiene.last = r;
-      this.notify(`🕵️ ${r.text}`, r.fine || r.grade === '限期改善' ? 'bad' : 'good');
+      const why = [b.grime && `油垢 −${b.grime}`, b.dirt && `地上髒污 ${b.dirtN} 處 −${b.dirt}`, b.pet && `寵物 −${b.pet}`].filter(Boolean).join('、');
+      this.notify(`🕵️ ${r.text}（${Math.round(cl)} 分${why ? `：${why}` : ''}）${r.fine || r.grade === '限期改善' ? '原因和改善方法在「庫存 → 🧽 清潔衛生」' : ''}`, r.fine || r.grade === '限期改善' ? 'bad' : 'good');
       if (this.cb.hygiene) this.cb.hygiene(r);
       this.customerLeave(c, 'done');
     }
@@ -6581,7 +6599,8 @@
       // 讀檔接續到一半的一天：早上的貨已經進過、錢也付過了，不要再叫一次
       if (!this._restoring) this.morningOrder();
       // 衛生稽查：平常很少來，開了限期改善就一定會回來複查
-      if (this.rng() < (this.hygiene.warned ? 0.35 : 0.035 * this.diff.inspect)) this.hygiene.at = this.hours.open + 60 + this.rng() * Math.max(60, this.hours.span - 150);
+      const recheck = this.hygiene.warned && this.day >= (this.hygiene.recheck || 0);
+      if (this.rng() < (recheck ? 0.5 : 0.035 * this.diff.inspect)) this.hygiene.at = this.hours.open + 60 + this.rng() * Math.max(60, this.hours.span - 150);
       if (this.weather.id === 'typhoon') {
         const ty = EVENTS.find((e) => e.id === 'typhoon');
         if (ty) this.pendingEvents.push({ ev: ty, at: this.hours.open + 20, where: 'staff' });
@@ -7154,16 +7173,18 @@
       // 清潔：油垢慢慢累積；打烊打掃會把地上的髒污清掉
       if (this.openToday) this.grime += (0.5 + report.served / 500) * (this.spotInfo.grime || 1);
       if (this.policy.closingClean) {
-        this.grime -= 0.5;
+        this.grime -= 0.6;
         for (const e of this.staff) if (e.task && e.task.type === 'clean') e.task = null;
         this.dirt = [];
       }
       if (this.policy.cleaner) {
-        this.grime -= 0.8;
+        this.grime -= 1.0;
         this.cash -= 900;
         this.ledger.cleaning += 900;
       }
       this.grime = clamp(this.grime, 0, 45);
+      // 油垢太多自動請清潔公司（玩家自己打開的設定）
+      if (this.policy.autoDeepClean && this.grime >= 20 && this.cash >= this.deepCleanCost + 30000) this.deepClean();
       report.clean = Math.round(this.cleanliness);
       report.holiday = !!(this.festival && this.festival.holiday && report.wages > 0);
 
