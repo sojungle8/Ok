@@ -2678,7 +2678,10 @@
     const s = ui.sim;
     const o = s.owner;
     const ended = s.week - 1;
-    const toMonth = 4 - (ended % 4);
+    const lp = o.lastPay;
+    const fixed = s.ownerFixedMonthly;
+    const takeHome = Math.round((o.salary || 0) * 0.95);
+    const need = Math.ceil(fixed / 0.95 / 6000) * 6000;
     const toQ = 12 - (ended % 12);
     const qNow = Math.round((o.qProfit || 0) + s.profitOf(s.ledger));
     const est = Math.max(0, Math.round(qNow * (o.divRate || 0) - (o.qTaken || 0)));
@@ -2688,9 +2691,10 @@
           <h3>💼 老闆怎麼領錢 <small>月薪、季分紅都是系統自動發</small></h3>
           <div class="pay-grid">
             <div class="pay-card">
-              <div class="pay-head"><span>🧑‍💼 月薪</span><small>每 4 週自動入帳・再 ${toMonth} 週</small></div>
+              <div class="pay-head"><span>🧑‍💼 月薪</span><small>每週結算自動入帳 ${money(Math.round((o.salary || 0) / 4))}</small></div>
               <div class="pay-step"><button data-action="ownerSalary" data-d="-1" ${o.salary <= 0 ? 'disabled' : ''}>−</button><b>${money(o.salary || 0)}<small>／月</small></b><button data-action="ownerSalary" data-d="1" ${o.salary >= OWNER_SALARIES[OWNER_SALARIES.length - 1] ? 'disabled' : ''}>＋</button></div>
-              <p class="calc">算公司的人事成本，扣繳 5%。台灣小老闆常見 3～5 萬；拿得太多，公司獲利就少。</p>
+              <p class="calc payslip">${!o.salary ? '月薪設成 $0：老闆不支薪，個人開銷全靠分紅。' : !lp ? '🧾 第一筆會在這週結算時入帳。' : lp.skipped ? `🧾 第 ${lp.week} 週：公司現金不夠，薪水 ${money(lp.gross)} 沒發。` : `🧾 第 ${lp.week} 週薪資單：${money(lp.gross)} − 扣繳 ${money(lp.tax)}${lp.repay ? ` − 還公司代墊 ${money(lp.repay)}` : ''} ＝ <b>實拿 ${money(lp.net)}</b>`}</p>
+              ${fixed && takeHome < fixed ? `<p class="calc warn">⚠️ 每月固定個人開銷約 ${money(fixed)}（${[o.house && '房貸', s.carInfo && '車子', o.nanny && '保母', o.filial && '孝親費'].filter(Boolean).join('、')}），月薪實拿 ${money(takeHome)} 不夠付，差額會由公司代墊。建議調到 ${money(need)} 以上。</p>` : `<p class="calc">算公司的人事成本，扣繳 5%。台灣小老闆常見 3～5 萬${fixed ? `；你每月固定個人開銷約 ${money(fixed)}` : ''}。</p>`}
             </div>
             <div class="pay-card">
               <div class="pay-head"><span>📅 季分紅比例</span><small>每 12 週照本季獲利發・再 ${toQ} 週</small></div>

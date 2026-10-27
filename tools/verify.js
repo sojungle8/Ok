@@ -205,14 +205,15 @@ T('個人錢不夠：差額記成老闆欠公司，分紅先還', () => {
   ok(s.owner.owe === 0, '分紅沒有先還代墊');
 });
 
-T('老闆月薪：每 4 週自動入帳，算在公司人事成本', () => {
+T('老闆月薪：每週結算入帳四分之一，算在公司人事成本，先付個人開銷', () => {
   const s = mk('noodle', { cash: 3e6 });
-  s.owner.salary = 50000;
-  days(s, 28);
-  const r = s.history[s.history.length - 1];
-  ok(r.ownerPay === 50000, `第 4 週月薪 ${r.ownerPay}`);
-  ok(s.history.slice(0, -1).every((h) => !h.ownerPay), '月中也發了薪水');
-  ok(s.owner.wealth >= 47500 - 40000, `個人財富 ${s.owner.wealth}`);
+  s.owner.salary = 48000;
+  s.owner.house = true;
+  days(s, 14);
+  ok(s.history.every((h) => h.ownerPay === 12000), `每週薪水 ${s.history.map((h) => h.ownerPay)}`);
+  ok(s.owner.lastPay && s.owner.lastPay.net === 11400, `薪資單 ${JSON.stringify(s.owner.lastPay)}`);
+  ok(!s.owner.owe && s.owner.wealth === (11400 - 9000) * 2, `房貸沒從薪水付：財富 ${s.owner.wealth}、欠 ${s.owner.owe}`);
+  ok(s.ownerFixedMonthly === 36000, `固定開銷 ${s.ownerFixedMonthly}`);
 });
 T('季分紅：每 12 週照比例自動發，扣掉預領，虧損不發', () => {
   const s = mk('noodle', { cash: 5e6 });

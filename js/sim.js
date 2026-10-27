@@ -622,20 +622,32 @@
       return repay;
     }
 
-    // 老闆月薪：每 4 週從公司轉進老闆口袋，算公司的人事成本（扣繳 5%）
+    // 老闆月薪：每週結算時發四分之一，從公司轉進老闆口袋，算公司的人事成本（扣繳 5%）
+    // 每週發，才跟得上每週要付的房貸、車子、保母費
     payOwnerSalary(L) {
       const o = this.owner;
-      const pay = Math.round(o.salary || 0);
+      const pay = Math.round((o.salary || 0) / WEEKS_PER_MONTH);
       if (pay <= 0) return;
+      const week = this.week - 1;
       if (this.cash < pay) {
-        this.notify(`🧾 公司現金不夠，這個月老闆的薪水 $${pay.toLocaleString()} 先不領了。`, 'bad');
+        o.lastPay = { week, gross: pay, skipped: true };
+        this.notify(`🧾 公司現金不夠，這週老闆的薪水 $${pay.toLocaleString()} 先不領了。`, 'bad');
         return;
       }
       this.cash -= pay;
       L.ownerPay = (L.ownerPay || 0) + pay;
       const net = Math.round(pay * 0.95);
       const repay = this.ownerReceive(net);
-      this.notify(`🧑‍💼 老闆月薪 $${pay.toLocaleString()} 入帳（扣繳 5% 後 $${net.toLocaleString()}${repay ? `，其中 $${repay.toLocaleString()} 先還公司代墊` : ''}）`, 'good');
+      o.lastPay = { week, gross: pay, tax: pay - net, repay, net: net - repay };
+      this.notify(`🧑‍💼 老闆薪水 $${pay.toLocaleString()} 入帳：扣繳 5% 後 $${net.toLocaleString()}${repay ? `，先還公司代墊 $${repay.toLocaleString()}，實拿 $${(net - repay).toLocaleString()}` : ''}`, repay ? '' : 'good');
+    }
+
+    // 老闆每個月固定要付的個人開銷（房貸、車、保母、孝親費）
+    get ownerFixedMonthly() {
+      const o = this.owner;
+      const c = this.carInfo;
+      const own = c && c.ev && this.evStations && this.evStations.some((st) => st.fast + st.slow > 0);
+      return (o.house ? 9000 * 4 : 0) + (o.nanny ? 8000 * 4 : 0) + (o.filial ? 10000 : 0) + (c ? Math.round(c.weekly * (own ? 0.5 : 1)) * 4 : 0);
     }
 
     // 這一季還能領的盈餘：已結算的週＋這週到目前為止的獲利，扣掉已經預領的
@@ -7291,13 +7303,13 @@
         this.flags.delete('floodBike');
         this.floodBikeIssue = true;
       }
+      // 老闆薪水先入帳，房貸、車子這些個人開銷才付得出來
+      this.payOwnerSalary(L);
       this.lifeWeekly();
       this.chargeWeekly();
       const grp = this.groupWeekly();
       this.cash += grp;
       if (grp > 0) this.gainXp(grp / 60);
-      // 老闆月薪：每 4 週發一次，算在這週的人事成本
-      if ((this.week - 1) % WEEKS_PER_MONTH === 0) this.payOwnerSalary(L);
       // 營業稅
       const tax = this.businessTax(L);
       L.tax += tax;
