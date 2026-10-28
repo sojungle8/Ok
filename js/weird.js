@@ -1014,7 +1014,7 @@
       sim.notify(`📉 前幾天「${(Fun.CASES.find((x) => x.id === theme) || {}).title || '客訴'}」的事被轉傳了，留言一面倒，這幾天來客少了一點。`, 'bad');
     },
     praise: (sim) => {
-      sim.social.followers += 60;
+      sim.addFans(60);
       sim.addReview(5, pick(sim, ['上次有點小狀況，但店家處理得很好，今天又來了', '老闆很講理，推', '有問題好好溝通，這家店值得支持']));
       sim.notify('💬 之前客訴的那位客人又來了，還留了一則好評。', 'good');
     },

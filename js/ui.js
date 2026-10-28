@@ -1974,15 +1974,12 @@
     </div>`;
   }
 
-  // 領導力：知道真正的數字就顯示數字，不然只顯示「看起來」的星星
-  const leadStars = (v) => {
-    const n = Math.max(1, Math.min(5, Math.round(v / 20)));
-    return '★'.repeat(n) + '☆'.repeat(5 - n);
-  };
+  // 領導力一律用 0～100 的數字：知道真正的數字就顯示確切值，還不知道就顯示「約 60？」的印象
+  const leadGuess = (v) => `約 ${Math.max(10, Math.min(90, Math.round(v / 10) * 10))}？`;
   function leadText(e) {
     const s = ui.sim;
     const k = s.leadKnown(e);
-    return k != null ? `領導力 <b>${k}</b>` : `領導力 <span title="看起來的印象，升上去三天後才知道真正的數字">${leadStars(e.leadSeen)}？</span>`;
+    return k != null ? `領導力 <b>${k}</b>` : `領導力 <span class="muted" title="看起來的印象，升上去三天後才知道真正的數字">${leadGuess(e.leadSeen)}</span>`;
   }
   function styleText(e) {
     const st = Fun.STYLES[e.style];
@@ -2073,17 +2070,36 @@
         .join('') || '<p class="muted">大家都是主管了（？）</p>'}</div>
       ${
         s.branches.length
-          ? `<h3>🏙️ 分店店長</h3><div class="pot-list">${s.branches
-              .map((b, i) => {
-                const m = b.manager;
-                const st = m && ST[m.style];
-                return `<div class="pot-row"><span class="mini-face">${m ? portraitSVG(m.look, 'happy') : '🏪'}</span><span><b>${esc(s.siteOf(b).city)}${esc(b.district)}店</b><small>${m ? `店長 ${esc(m.name)}・${st ? `${st.icon}${st.name}` : ''}・領導力 ${m.lead}・時薪 ${money(m.wage)}` : '沒有店長：到員工設定的「派去當分店店長」指派'}</small><small>士氣 ${Math.round(b.morale)}・★ ${b.rating.toFixed(1)}</small></span>${m ? `<span class="lead-btns"><button data-action="recall-mgr" data-i="${i}">🏪<small>調回本店</small></button></span>` : ''}</div>`;
-              })
-              .join('')}</div>`
+          ? `<h3>🏙️ 分店店長 <small>人不在眼前也要照顧：薪水、培訓、陪他帶班</small></h3><div class="mgr-list">${s.branches.map((b, i) => branchMgrCard(b, i)).join('')}</div>`
           : ''
       }
       ${authPanel()}
       <p class="drawer-tip">每個人都有看不到的「領導力」和「企圖心」：技能好不一定會帶人（彼得原理），企圖心太低的人被升上去會壓力很大，企圖心高的人等太久會主動來要求升遷。升職後有 14 天試用期。</p>
+    </div>`;
+  }
+
+  // 👑 分店店長卡：看能力和心情，調時薪、送主管課、老闆親自陪訓、調回本店
+  function branchMgrCard(b, i) {
+    const s = ui.sim;
+    const m = s.branchMgr(i);
+    const where = `${esc(s.siteOf(b).city)}${esc(b.district)}店`;
+    if (!m) return `<div class="mgr-card empty"><span class="mini-face">🏪</span><div><b>${where}</b><small>沒有店長：到「員工」點一位員工，選「派去當分店店長」。沒有店長的分店士氣、評價都比較差，總部管理費也比較高。</small></div></div>`;
+    const st = Fun.STYLES[m.style];
+    const mk = s.mgrMarketWage;
+    const mood = Math.round(m.mood);
+    const bar = (label, v, cls) => `<div class="ibar"><span>${label}</span><div class="bar"><div class="bar-fill ${cls}" style="width:${Math.max(0, Math.min(100, v))}%"></div></div><b>${Math.round(v)}</b></div>`;
+    return `<div class="mgr-card">
+      <div class="mgr-top"><span class="mini-face">${portraitSVG(m.look, mood >= 60 ? 'happy' : mood >= 35 ? 'neutral' : 'sad')}</span>
+        <div><b>👑 ${esc(m.name)}</b> <small>${where}・第 ${m.since} 週上任${st ? `・<span class="style-tag" title="${esc(st.desc)}">${st.icon} ${st.name}</span>` : ''}</small>
+        <small class="muted">${(m.traits || []).map((t) => (TRAITS[t] ? TRAITS[t].name : t)).join('、')}</small></div></div>
+      <div class="mgr-bars">${bar('領導力', m.lead, 'skill')}${bar('技能', m.skill, 'energy')}${bar('心情', mood, mood < 35 ? 'jerk' : 'morale')}</div>
+      ${mood < 35 ? `<p class="calc warn">😟 心情很差，可能會離職：加薪或親自去陪他帶班</p>` : ''}
+      <div class="mgr-wage"><span>時薪</span><span class="price-ctl"><button data-action="mgr-wage" data-i="${i}" data-d="-10">－</button><b class="${m.wage < mk ? 'neg' : ''}">${money(m.wage)}</b><button data-action="mgr-wage" data-i="${i}" data-d="10">＋</button></span><small>店長行情 ${money(mk)}${m.wage < mk ? '・低於行情，心情會慢慢變差' : ''}</small></div>
+      <div class="mgr-actions">
+        <button data-action="mgr-train" data-i="${i}" ${m.leadTrainWeek === s.week || s.cash < s.leadTrainCost || m.lead >= 100 ? 'disabled' : ''}>📚 送主管課 ${money(s.leadTrainCost)}<small>${m.leadTrainWeek === s.week ? '這週上過了' : '領導力 +8'}</small></button>
+        <button data-action="mgr-coach" data-i="${i}" ${m.coachWeek === s.week || s.boss.away ? 'disabled' : ''}>🤝 老闆親自陪訓<small>${m.coachWeek === s.week ? '這週去過了' : '領導力 +3・技能 +2・心情 +5・老闆壓力 +3'}</small></button>
+        <button data-action="recall-mgr" data-i="${i}">🏪 調回本店<small>回來當組長</small></button>
+      </div>
     </div>`;
   }
 
@@ -2298,7 +2314,7 @@
             (c, i) => `<div class="cand card">
               <span class="mini-face">${portraitSVG(c.look, 'neutral')}</span>
               <div><b>${esc(c.name)}</b><div class="chips">${c.traits.map((t) => `<span class="chip" title="${TRAITS[t].desc}">${TRAITS[t].name}</span>`).join('')}${sideChip(c)}</div>
-              ${c.side && Fun.SIDE_JOBS[c.side] ? `<small class="pos">${Fun.SIDE_JOBS[c.side].icon} ${Fun.SIDE_JOBS[c.side].perk}；會因為副業請假或早退</small>` : ''}<small>技能 ${c.skill}・希望時薪 ${money(c.wage)}</small><small>面試印象：領導力 ${leadStars(c.leadSeen || 50)}？・${Fun.AMBITION_LABEL(c.ambition ?? 50)}</small><small class="muted">${c.traits.map((t) => TRAITS[t].desc).join('；')}</small></div>
+              ${c.side && Fun.SIDE_JOBS[c.side] ? `<small class="pos">${Fun.SIDE_JOBS[c.side].icon} ${Fun.SIDE_JOBS[c.side].perk}；會因為副業請假或早退</small>` : ''}<small>技能 ${c.skill}・希望時薪 ${money(c.wage)}</small><small>面試印象：領導力 ${leadGuess(c.leadSeen || 50)}・${Fun.AMBITION_LABEL(c.ambition ?? 50)}</small><small class="muted">${c.traits.map((t) => TRAITS[t].desc).join('；')}</small></div>
               <button class="primary" data-action="hire" data-i="${i}">錄取</button>
             </div>`
           )
@@ -2390,13 +2406,14 @@
             <small class="muted">80 分以上「優」・60 分以上通過・60 分以下第一次限期改善，複查還不及格就罰錢（不及格後一週內會再來）</small>
             ${hb.fixes.length ? `<ul class="insp-fix">${hb.fixes.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>` : ''}
           </div>
+          ${s.hygieneRisks.length ? `<div class="insp-score risk"><div class="insp-head"><b>⚠️ 倉庫裡的隱憂（跟打掃無關，打掃再乾淨也會被罰）</b></div>${s.hygieneRisks.map((r) => `<div class="risk-row"><span>${r.icon} <b>${esc(r.name)}</b><small>${esc(r.why)}留下的・${esc(r.risk)}</small></span><button data-action="fix-risk" data-k="${r.k}" ${s.cash < r.cost ? 'disabled' : ''}>${esc(r.fix)}（${money(r.cost)}）</button></div>`).join('')}</div>` : ''}
           <div class="insp-actions">
             <button data-action="rush-clean">🧹 叫大家先打掃</button>
             <button data-action="deep-clean" ${s.cash < s.deepCleanCost ? 'disabled' : ''}>🧽 請清潔公司大掃除（${money(s.deepCleanCost)}）</button>
           </div>
           <div class="toggles">
             ${toggle('closingClean', s.policy.closingClean, '打烊後最後一班留下來打掃半小時（照算薪水）', '打烊就走，地上的髒污留到明天', true)}
-            ${toggle('cleaner', s.policy.cleaner, '請外包清潔阿姨（每天 $900，順便減少油垢）', '沒有請清潔人員', true)}
+            ${toggle('cleaner', s.policy.cleaner, '請外包清潔阿姨（每天 $900：營業中每 10 分鐘清一處髒污，順便減少油垢）', '沒有請清潔人員', true)}
             ${toggle('autoDeepClean', s.policy.autoDeepClean, `油垢超過 20 自動請清潔公司大掃除（每次 ${money(s.deepCleanCost)}）`, '油垢太多不會自動大掃除', true)}
           </div>
           <p class="calc">${h ? `上次${s.inspectorOrg}稽查（第 ${h.day} 天）：<b class="${h.fine || h.grade === '限期改善' ? 'neg' : 'pos'}">${h.grade}</b>（${h.clean} 分${h.parts ? `：油垢 −${h.parts.grime}、地上髒污 ${h.parts.dirtN} 處 −${h.parts.dirt}${h.parts.pet ? `、寵物 −${h.parts.pet}` : ''}` : ''}）${h.fine ? `，罰 ${money(h.fine)}` : ''}` : `${s.inspectorOrg}會不定期來稽查，分數就是上面那個。`}</p>
@@ -3006,7 +3023,7 @@
         ${b.morale < 55 ? `<p class="calc warn">⚠️ 士氣 ${Math.round(b.morale)}：再低下去分店會打電話來求救（加薪、加人、改裝都有幫助）</p>` : ''}
         ${b.rating < 3.8 ? `<p class="calc warn">⚠️ 評價 ${b.rating.toFixed(1)}：人手不夠或士氣差都會拉低評價</p>` : ''}
         ${b.broken > 0 ? `<p class="calc warn">🔧 設備故障中：容量少兩成（還要 ${b.broken} 週）</p>` : ''}
-        <p class="calc">${b.manager ? `👑 店長 ${esc(b.manager.name)}（${Fun.STYLES[b.manager.style] ? Fun.STYLES[b.manager.style].icon + Fun.STYLES[b.manager.style].name : ''}・領導力 ${b.manager.lead}）<button class="link" data-action="recall-mgr" data-i="${i}">調回本店</button>` : '👑 沒有店長：到「員工 → 主管」派一位過來，會照他的風格影響士氣、評價和成本'}</p>
+        ${branchMgrCard(b, i)}
         <div class="branch-stats">
           <span>★ ${b.rating.toFixed(1)}</span><span>士氣 ${Math.round(b.morale)}</span><span>上週 <b class="${b.last < 0 ? 'neg' : 'pos'}">${signedMoney(b.last)}</b></span>
         </div>
@@ -3902,6 +3919,18 @@
         if (s.appointArea(Number(btn.dataset.i))) s.checkProgress();
         renderDrawer();
         break;
+      case 'mgr-wage':
+        s.setBranchMgrWage(Number(btn.dataset.i), Number(btn.dataset.d));
+        renderDrawer();
+        break;
+      case 'mgr-train':
+        s.trainBranchMgr(Number(btn.dataset.i));
+        renderDrawer();
+        break;
+      case 'mgr-coach':
+        s.coachBranchMgr(Number(btn.dataset.i));
+        renderDrawer();
+        break;
       case 'recall-mgr':
         s.recallBranchManager(Number(btn.dataset.i));
         renderDrawer();
@@ -4217,6 +4246,10 @@
         renderDrawer();
         break;
       }
+      case 'fix-risk':
+        s.fixHygieneRisk(btn.dataset.k);
+        renderDrawer();
+        break;
       case 'franchise-accept':
         s.acceptFranchise(Number(btn.dataset.id));
         renderDrawer();

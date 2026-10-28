@@ -5444,3 +5444,23 @@ body.in-city .combo-badge { display: none; }
 .fr-actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .fr-actions button { font-size: 13px; }
 @media (min-width: 900px) { .fr-list { grid-template-columns: 1fr 1fr; } }
+.insp-score.risk { border-color: #e8a99c; background: #fff6f3; }
+.risk-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.risk-row small { display: block; color: var(--muted); font-size: 12px; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .insp-score.risk { background: #3a2622; border-color: #7a3b30; } }
+:root[data-theme="dark"] .insp-score.risk { background: #3a2622; border-color: #7a3b30; }
+
+/* 👑 分店店長卡 */
+.mgr-list { display: grid; gap: 8px; margin: 6px 0 10px; }
+@media (min-width: 900px) { .mgr-list { grid-template-columns: 1fr 1fr; } }
+.mgr-card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; margin: 6px 0; }
+.mgr-card.empty { display: flex; gap: 8px; align-items: center; }
+.mgr-card small { display: block; }
+.mgr-top { display: flex; gap: 10px; align-items: center; }
+.mgr-top .mini-face { width: 44px; height: 44px; flex: none; }
+.mgr-bars { display: grid; gap: 4px; margin: 8px 0; }
+.mgr-wage { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 6px 0; }
+.mgr-wage small { display: inline; color: var(--muted); }
+.mgr-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.mgr-actions button { display: flex; flex-direction: column; align-items: flex-start; font-size: 13px; padding: 6px 10px; }
+.mgr-actions button small { font-size: 11px; opacity: 0.8; }

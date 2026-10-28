@@ -38,7 +38,7 @@
         icon: '🙋',
         title: `${e.name}想升組長`,
         text: again
-          ? `${e.name}又來找你了：「老闆，上次你說再觀察看看……我覺得我已經準備好了。如果這次還是不行，我可能要想想自己的未來。」${e.askSnap ? `（比起上次第 ${e.askSnap.day} 天來問：技能 ${e.askSnap.skill} → ${Math.round(e.skill)}${e.askSnap.lead != null ? `，領導力印象 ${'★'.repeat(Math.max(1, Math.round(e.askSnap.lead / 20)))} → ${'★'.repeat(Math.max(1, Math.round(e.leadSeen / 20)))}` : ''}${Math.round(e.skill) - e.askSnap.skill >= 5 ? '，進步很明顯' : '，進步不太多'}）` : ''}`
+          ? `${e.name}又來找你了：「老闆，上次你說再觀察看看……我覺得我已經準備好了。如果這次還是不行，我可能要想想自己的未來。」${e.askSnap ? `（比起上次第 ${e.askSnap.day} 天來問：技能 ${e.askSnap.skill} → ${Math.round(e.skill)}${e.askSnap.lead != null ? `，領導力印象 約 ${Math.round(e.askSnap.lead / 10) * 10} → 約 ${Math.round(e.leadSeen / 10) * 10}` : ''}${Math.round(e.skill) - e.askSnap.skill >= 5 ? '，進步很明顯' : '，進步不太多'}）` : ''}`
           : `${e.name}下班前把你拉到一旁：「老闆，我在這裡做了 ${Math.max(1, Math.floor((sim.day - e.hiredDay) / 7))} 週，大部分的事我都會了。我想試試看當組長，帶新人。」`,
         choices: [
           { label: '好，從明天開始你就是組長', note: `時薪 +$${Fun.RANKS.leader.wage}`, effects: { promoteOf: [e.id, 'leader'] }, result: `${e.name}眼睛一亮：「我不會讓你失望的！」同事們拍手起鬨。` },

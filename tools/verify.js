@@ -297,6 +297,37 @@ T('加盟收回：到期不續約、違約解約要有理由、買回變直營',
   ok(s.franchises.includes(f3) && f3.end > s.week + 40, '到期續約沒有延長');
 });
 
+T('分店店長：調薪、主管課、陪訓、心情太差會離職', () => {
+  const s = mk('noodle', { cash: 2e7, all: true });
+  while (s.level < 10) s.xp += 500;
+  const b = s.openBranch(I.BRANCH_SITES[0].id);
+  ok(b, '分店開不起來');
+  const e = s.staff[0];
+  ok(s.assignBranchManager(e, 0), '派不了店長');
+  const m = s.branchMgr(0);
+  const w0 = m.wage, md0 = m.mood;
+  ok(s.setBranchMgrWage(0, 10) && m.wage === w0 + 10 && m.mood > md0, '加薪沒變');
+  const l0 = m.lead;
+  ok(s.trainBranchMgr(0) && m.lead === Math.min(100, l0 + 8) && !s.trainBranchMgr(0), '主管課不對');
+  const l1 = m.lead, st0 = s.owner.stress;
+  ok(s.coachBranchMgr(0) && m.lead === Math.min(100, l1 + 3) && s.owner.stress > st0 && !s.coachBranchMgr(0), '陪訓不對');
+  m.wage = 196;
+  m.mood = 10;
+  let gone = false;
+  for (let k = 0; k < 60 && !gone; k++) {
+    m.mood = 10;
+    s.branchMgrWeekly(b);
+    gone = !b.manager;
+  }
+  ok(gone, '薪水很低心情很差也不會離職');
+});
+T('粉絲：漲到店的規模上限就漲不動', () => {
+  const s = mk('noodle');
+  const cap = s.fanCap;
+  for (let k = 0; k < 200; k++) s.addFans(5000);
+  ok(s.social.followers <= cap * 1.6, `粉絲 ${s.social.followers} 上限 ${cap}`);
+});
+
 // ───── 兼營業務 ─────
 T('兼營：每一項都有適合度星等和原因', () => {
   for (const ind of Object.keys(I.SIDE_BIZ)) {
@@ -754,8 +785,9 @@ T('車行：用個人的錢買、換車舊車五五折、舊存檔的車照樣�
   s.owner.wealth = 4e6;
   const trade = s.carTradeIn();
   ok(trade === 940000, `舊車折抵 ${trade}`);
+  const f0 = s.social.followers;
   ok(s.buyCar('mx') && s.owner.wealth === 4e6 + trade - Fun.CARS.mx.cost, '換車金額不對');
-  ok(s.social.followers >= 800, '鷹翼門沒有加粉絲');
+  ok(s.social.followers > f0, '鷹翼門沒有加粉絲');
   const old = mk('noodle');
   old.owner.car = true;
   ok(old.carInfo === Fun.CARS.gas, '舊存檔的 car:true 讀不到');

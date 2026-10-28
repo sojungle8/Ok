@@ -182,7 +182,7 @@ const v = s.victoryResult || s.lastVictory || (s.history.find((h) => h.victory) 
 const avg = (o, a, b) => { let n = 0, t = 0; for (let k = a; k <= b; k++) { n++; t += o[k] || 0; } return (t / n).toFixed(1); };
 console.log(`${persona}｜${s.ind.name}｜${mode}｜種子${seed}（${((Date.now() - t0) / 1000).toFixed(0)} 秒）`);
 console.log(`結果：${out}${v ? `・${v.medal}${v.score} 分` : ''}`);
-console.log(`現金 $${Math.round(s.cash).toLocaleString()}・借款 $${s.loan.toLocaleString()}・評價 ${s.rating.toFixed(2)}・慣老闆 ${Math.round(s.jerk)}・員工 ${s.staff.length}・Lv.${s.level}・分店 ${s.branches.length}`);
+console.log(`現金 $${Math.round(s.cash).toLocaleString()}・借款 $${s.loan.toLocaleString()}・評價 ${s.rating.toFixed(2)}・慣老闆 ${Math.round(s.jerk)}・員工 ${s.staff.length}・Lv.${s.level}・分店 ${s.branches.length}・粉絲 ${s.social.followers.toLocaleString()}（上限 ${(s.fanCap || 0).toLocaleString()}）`);
 console.log(`現金第一次 <6 萬：第 ${st.lowCashDay ?? '-'} 天；第一次變負：第 ${st.firstNeg ?? '-'} 天`);
 console.log(`事件：共 ${st.events} 件、逾時 ${st.ignored}；每天平均 第1-7天 ${avg(st.eventsByDay, 1, 7)}、第8-28天 ${avg(st.eventsByDay, 8, 28)}、之後 ${avg(st.eventsByDay, 29, Math.max(29, s.day))}`);
 console.log(`通知：每天平均 第1天 ${st.notesByDay[1] || 0}、第2-7天 ${avg(st.notesByDay, 2, 7)}、第8-28天 ${avg(st.notesByDay, 8, 28)}`);
