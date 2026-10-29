@@ -1,7 +1,7 @@
 // 功能逐項驗證：每個玩法都實際跑一次，檢查結果對不對
 // 用法：node tools/verify.js            （全部）
 //       node tools/verify.js 授權 存檔   （只跑名稱含這些字的）
-for (const f of ['data', 'fun', 'weird', 'trends26', 'activities', 'city', 'citymap', 'plots', 'career', 'progress', 'slash', 'sidebiz', 'backroom', 'pets', 'life', 'ev', 'portraits', 'industries', 'sim']) require(`../js/${f}.js`);
+for (const f of ['data', 'fun', 'weird', 'trends26', 'activities', 'city', 'citymap', 'plots', 'career', 'progress', 'drama', 'slash', 'sidebiz', 'backroom', 'pets', 'life', 'ev', 'portraits', 'industries', 'sim']) require(`../js/${f}.js`);
 const { Sim, CATALOG } = globalThis.BossSim;
 const Fun = globalThis.BossFun;
 const I = globalThis.BossIndustries;
@@ -351,6 +351,31 @@ T('走歪：誘惑接受就開始、每週有黑錢、被抓三次東窗事發�
   s2.setDark('books', true);
   s2.dark.heat = 50;
   ok(s2.washDark() && s2.dark.heat === 0 && !s2.darkActive().length && !s2.washDark(), '洗白不對');
+});
+
+T('短劇：每一齣都能從第一集演到大結局，存檔讀檔不會斷', () => {
+  for (const D of Fun.DRAMAS) {
+    const s = mk('noodle', { cash: 3e6 });
+    days(s, 2);
+    s.drama.cur = { id: D.id, ep: 0, st: {}, day: s.day + 1, pending: false };
+    s.drama.cool = 9999;
+    for (let k = 0; k < 40 && !s.drama.done.includes(D.id); k++) {
+      days(s, 1);
+      if (k === 3) {
+        const s2 = Sim.load(s.serialize(), {});
+        ok(s2.drama.cur || s2.drama.done.includes(D.id), `${D.id} 讀檔後劇情不見了`);
+      }
+    }
+    ok(s.drama.done.includes(D.id), `${D.id} 沒演完：${JSON.stringify(s.drama.cur)}`);
+  }
+});
+T('短劇：沒處理就照最消極的選項演下去', () => {
+  const s = mk('noodle', { cash: 3e6, events: false });
+  days(s, 2);
+  s.drama.cur = { id: 'influencer', ep: 0, st: {}, day: s.day + 1, pending: false };
+  s.drama.cool = 9999;
+  for (let k = 0; k < 20 && !s.drama.done.includes('influencer'); k++) days(s, 1);
+  ok(s.drama.done.includes('influencer'), `沒演完 ${JSON.stringify(s.drama.cur)}`);
 });
 
 // ───── 兼營業務 ─────

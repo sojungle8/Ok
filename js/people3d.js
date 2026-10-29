@@ -15,6 +15,16 @@
     }
     return g;
   };
+  // 共用的幾何（需要先位移的手腳之類）：同一個 key 只建一次
+  const cgF = (k, fn) => {
+    let g = geoCache.get(k);
+    if (!g) {
+      g = fn();
+      g.userData.shared = true;
+      geoCache.set(k, g);
+    }
+    return g;
+  };
   const mat = (color, opts = {}) => {
     const key = color + JSON.stringify(opts);
     if (!cache.has(key)) cache.set(key, new THREE.MeshStandardMaterial({ color, roughness: 0.75, metalness: 0.05, ...opts }));
@@ -110,14 +120,13 @@
       const pants = mat(look.suit ? '#232a38' : '#3d4350');
       const hairM = mat(look.hair);
 
-      const legGeo = new THREE.BoxGeometry(0.11, 0.34, 0.12);
-      legGeo.translate(0, -0.17, 0);
+      const legGeo = cgF('leg', () => cg('BoxGeometry', 0.11, 0.34, 0.12).translate(0, -0.17, 0));
       const legL = new THREE.Mesh(legGeo, pants);
       const legR = new THREE.Mesh(legGeo, pants);
       legL.position.set(-0.07, 0.36, 0);
       legR.position.set(0.07, 0.36, 0);
       // 鞋子
-      const shoeGeo = new THREE.BoxGeometry(0.13, 0.07, 0.19);
+      const shoeGeo = cg('BoxGeometry', 0.13, 0.07, 0.19);
       const shoeMat = mat(look.old ? '#5a4030' : look.suit ? '#1a1a1a' : ['#2b2b2b', '#f2f2f2', '#3d5a80', '#8a5a3b'][Math.floor((look.skin.charCodeAt(2) + look.hair.charCodeAt(3)) % 4)]);
       for (const leg of [legL, legR]) {
         const shoe = new THREE.Mesh(shoeGeo, shoeMat);
@@ -125,34 +134,34 @@
         leg.add(shoe);
       }
 
-      const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.16, 0.2, 4, 12), shirt);
+      const body = new THREE.Mesh(cg('CapsuleGeometry', 0.16, 0.2, 4, 12), shirt);
       body.position.y = 0.53;
       body.scale.set(1, 1, 0.78);
       const parts = [legL, legR, body];
       if (look.tie) {
-        const tie = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.18, 0.02), mat(look.tie));
+        const tie = new THREE.Mesh(cg('BoxGeometry', 0.05, 0.18, 0.02), mat(look.tie));
         tie.position.set(0, 0.6, 0.13);
         parts.push(tie);
       }
       // 衣領和衣服下擺：比單色膠囊多一點層次
-      const collar = new THREE.Mesh(new THREE.TorusGeometry(0.085, 0.022, 6, 14), mat(shade(look.shirt, -0.18)));
+      const collar = new THREE.Mesh(cg('TorusGeometry', 0.085, 0.022, 6, 14), mat(shade(look.shirt, -0.18)));
       collar.rotation.x = Math.PI / 2;
       collar.position.set(0, 0.77, 0.01);
       parts.push(collar);
-      const hem = new THREE.Mesh(new THREE.CylinderGeometry(0.162, 0.165, 0.05, 14), mat(look.suit ? '#232a38' : shade(look.shirt, -0.12)));
+      const hem = new THREE.Mesh(cg('CylinderGeometry', 0.162, 0.165, 0.05, 14), mat(look.suit ? '#232a38' : shade(look.shirt, -0.12)));
       hem.scale.set(1, 1, 0.78);
       hem.position.set(0, 0.4, 0);
       parts.push(hem);
       // 配件：學生的書包、上班族的公事包、長輩的拐杖、稽查員的板夾、圍裙
       if (look.extra === 'backpack') {
-        const bp = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.3, 0.12), mat(look.extraColor || '#2c6fbb'));
+        const bp = new THREE.Mesh(cg('BoxGeometry', 0.26, 0.3, 0.12), mat(look.extraColor || '#2c6fbb'));
         bp.position.set(0, 0.56, -0.18);
-        const flap = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.1, 0.13), mat(shade(look.extraColor || '#2c6fbb', -0.2)));
+        const flap = new THREE.Mesh(cg('BoxGeometry', 0.24, 0.1, 0.13), mat(shade(look.extraColor || '#2c6fbb', -0.2)));
         flap.position.set(0, 0.66, -0.185);
         parts.push(bp, flap);
       }
       if (look.apron) {
-        const ap = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.3, 0.02), mat(look.apron));
+        const ap = new THREE.Mesh(cg('BoxGeometry', 0.26, 0.3, 0.02), mat(look.apron));
         ap.position.set(0, 0.5, 0.13);
         parts.push(ap);
       }
@@ -161,8 +170,7 @@
         body.rotation.x = 0.12;
       }
 
-      const armGeo = new THREE.CapsuleGeometry(0.045, 0.22, 3, 8);
-      armGeo.translate(0, -0.13, 0);
+      const armGeo = cgF('arm', () => cg('CapsuleGeometry', 0.045, 0.22, 3, 8).translate(0, -0.13, 0));
       const armL = new THREE.Mesh(armGeo, shirt);
       const armR = new THREE.Mesh(armGeo, shirt);
       armL.position.set(-0.2, 0.68, 0);
@@ -170,7 +178,7 @@
       armL.rotation.z = 0.12;
       armR.rotation.z = -0.12;
       // 手
-      const handGeo = new THREE.SphereGeometry(0.05, 10, 8);
+      const handGeo = cg('SphereGeometry', 0.05, 10, 8);
       for (const arm of [armL, armR]) {
         const hand = new THREE.Mesh(handGeo, skin);
         hand.position.y = -0.28;
@@ -183,47 +191,47 @@
       armR.add(carry);
       // 左手固定拿著的東西
       if (look.extra === 'briefcase') {
-        const bc = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.18, 0.24), mat(look.extraColor || '#3a2c25'));
+        const bc = new THREE.Mesh(cg('BoxGeometry', 0.06, 0.18, 0.24), mat(look.extraColor || '#3a2c25'));
         bc.position.set(0, -0.38, 0);
         armL.add(bc);
       } else if (look.extra === 'cane') {
-        const cane = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.62, 6), mat('#6b4a2f'));
+        const cane = new THREE.Mesh(cg('CylinderGeometry', 0.014, 0.014, 0.62, 6), mat('#6b4a2f'));
         cane.position.set(0, -0.56, 0.06);
-        const knob = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 0.1), mat('#6b4a2f'));
+        const knob = new THREE.Mesh(cg('BoxGeometry', 0.03, 0.03, 0.1), mat('#6b4a2f'));
         knob.position.set(0, -0.27, 0.08);
         armL.add(cane, knob);
       } else if (look.extra === 'clipboard') {
-        const cb = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.24, 0.18), mat('#8a5a3b'));
+        const cb = new THREE.Mesh(cg('BoxGeometry', 0.03, 0.24, 0.18), mat('#8a5a3b'));
         cb.position.set(0.02, -0.3, 0.06);
-        const paper = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.2, 0.15), mat('#ffffff'));
+        const paper = new THREE.Mesh(cg('BoxGeometry', 0.035, 0.2, 0.15), mat('#ffffff'));
         paper.position.set(0.03, -0.3, 0.06);
         armL.add(cb, paper);
       }
 
       const head = new THREE.Group();
       head.position.y = 0.92;
-      const skull = new THREE.Mesh(new THREE.SphereGeometry(0.17, 20, 16), skin);
+      const skull = new THREE.Mesh(cg('SphereGeometry', 0.17, 20, 16), skin);
       head.add(skull);
       // 頭髮
       if (look.hairStyle !== 'bald') {
         // 頭髮只蓋頭頂和後腦，前面往上掀，臉才露得出來
-        const hair = new THREE.Mesh(new THREE.SphereGeometry(0.182, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.5), hairM);
+        const hair = new THREE.Mesh(cg('SphereGeometry', 0.182, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.5), hairM);
         hair.rotation.x = -0.55;
         head.add(hair);
       }
       if (look.hairStyle === 'long' || look.hairStyle === 'bob') {
-        const back = new THREE.Mesh(new THREE.BoxGeometry(0.34, look.hairStyle === 'long' ? 0.34 : 0.22, 0.12), hairM);
+        const back = new THREE.Mesh(cg('BoxGeometry', 0.34, look.hairStyle === 'long' ? 0.34 : 0.22, 0.12), hairM);
         back.position.set(0, look.hairStyle === 'long' ? -0.1 : -0.03, -0.1);
         head.add(back);
       }
       if (look.hairStyle === 'bun') {
-        const bun = new THREE.Mesh(new THREE.SphereGeometry(0.08, 12, 10), hairM);
+        const bun = new THREE.Mesh(cg('SphereGeometry', 0.08, 12, 10), hairM);
         bun.position.set(0, 0.17, -0.06);
         head.add(bun);
       }
       if (look.hairStyle === 'long' && !look.hat) {
         // 馬尾
-        const tail = new THREE.Mesh(new THREE.CapsuleGeometry(0.05, 0.14, 3, 8), hairM);
+        const tail = new THREE.Mesh(cg('CapsuleGeometry', 0.05, 0.14, 3, 8), hairM);
         tail.position.set(0, -0.06, -0.19);
         tail.rotation.x = 0.35;
         head.add(tail);
@@ -231,12 +239,12 @@
       // 女生：兩側留鬢髮，戴廚師帽、鴨舌帽時後面也看得到低馬尾，才分得出男女
       if (look.gender === 'f' && look.hairStyle !== 'bald') {
         for (const sx of [-1, 1]) {
-          const lock = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.2, 0.09), hairM);
+          const lock = new THREE.Mesh(cg('BoxGeometry', 0.05, 0.2, 0.09), hairM);
           lock.position.set(sx * 0.165, -0.07, 0.03);
           head.add(lock);
         }
         if (look.hat) {
-          const low = new THREE.Mesh(new THREE.CapsuleGeometry(0.055, 0.16, 3, 8), hairM);
+          const low = new THREE.Mesh(cg('CapsuleGeometry', 0.055, 0.16, 3, 8), hairM);
           low.position.set(0, -0.1, -0.18);
           low.rotation.x = 0.3;
           head.add(low);
@@ -244,20 +252,20 @@
       }
       if (look.hairStyle === 'spiky') {
         for (let i = 0; i < 5; i++) {
-          const sp = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.12, 6), hairM);
+          const sp = new THREE.Mesh(cg('ConeGeometry', 0.05, 0.12, 6), hairM);
           sp.position.set(-0.1 + i * 0.05, 0.17, -0.02);
           sp.rotation.z = (i - 2) * 0.25;
           head.add(sp);
         }
       }
       if (look.hat === 'chef') {
-        const hat = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.13, 0.2, 16), mat('#ffffff'));
+        const hat = new THREE.Mesh(cg('CylinderGeometry', 0.15, 0.13, 0.2, 16), mat('#ffffff'));
         hat.position.y = 0.2;
         head.add(hat);
       } else if (look.hat === 'cap') {
-        const cap = new THREE.Mesh(new THREE.SphereGeometry(0.186, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.4), mat(look.hatColor));
+        const cap = new THREE.Mesh(cg('SphereGeometry', 0.186, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.4), mat(look.hatColor));
         head.add(cap);
-        const visor = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.02, 0.12), mat(look.hatColor));
+        const visor = new THREE.Mesh(cg('BoxGeometry', 0.2, 0.02, 0.12), mat(look.hatColor));
         visor.position.set(0, 0.08, 0.18);
         head.add(visor);
       }
@@ -271,7 +279,7 @@
       face.position.set(0, -0.035, 0.176);
       head.add(face);
       if (look.glasses) {
-        const gl = new THREE.Mesh(new THREE.TorusGeometry(0.035, 0.008, 6, 16), mat('#222222'));
+        const gl = new THREE.Mesh(cg('TorusGeometry', 0.035, 0.008, 6, 16), mat('#222222'));
         const gr = gl.clone();
         gl.position.set(-0.055, -0.02, 0.178);
         gr.position.set(0.055, -0.02, 0.178);
@@ -279,13 +287,29 @@
       }
 
       group.add(...parts, armL, armR, head);
+      if (!People.noUnify) {
+        // 一次合成：身體零件搬到一個原點的群組，四肢、頭各自是一個部位，全部併成一個網格
+        head.scale.setScalar(1.35);
+        head.position.y = 0.97;
+        if (carry) carry.userData.keep = true;
+        face.userData.keep = true;
+        const holder = new THREE.Group();
+        group.add(holder);
+        for (const m of parts) if (m !== legL && m !== legR) holder.add(m);
+        unifyPerson(group, [holder, legL, legR, armL, armR, head]);
+        mergeGroup(head, [face]); // 剩下不受光的小零件
+        group.scale.setScalar(1.25);
+        return finishPerson(group, { legL, legR, armL, armR, head, faceCanvas, faceTex, faceMat, boss, carry, look });
+      }
       // 合併零件：每個人只剩頭、身體、四肢、臉幾個網格
       mergeGroup(head, [face]);
       for (const limb of [legL, legR]) mergeLimb(limb);
       for (const limb of [armL, armR]) mergeLimb(limb, [carry]);
       const torso = parts.filter((m) => m !== legL && m !== legR);
+      let torsoNode = null;
       if (torso.length > 1) {
         const holder = new THREE.Group();
+        torsoNode = holder;
         group.add(holder);
         const geo = mergeMeshes(torso, group);
         torso.forEach((m) => group.remove(m));
@@ -294,16 +318,11 @@
       // Q 版比例：頭大一點，遠遠看也認得出表情
       head.scale.setScalar(1.35);
       head.position.y = 0.97;
+      // 手上拿的東西、臉不要併進身體
+      if (carry) carry.userData.keep = true;
+      face.userData.keep = true;
       group.scale.setScalar(1.25);
-      // 人物不投射即時陰影，改用腳下的圓形陰影（比較省效能，也比較好分辨位置）
-      const blob = new THREE.Mesh(blobGeo, blobMat);
-      blob.rotation.x = -Math.PI / 2;
-      blob.position.y = 0.012;
-      blob.renderOrder = -1;
-      group.add(blob);
-      const person = { group, legL, legR, armL, armR, head, blob, faceCanvas, faceTex, faceMat, mood: null, boss, phase: Math.random() * 6, carry, female: look.gender === 'f' };
-      People.setMood(person, boss ? 'smug' : 'neutral');
-      return person;
+      return finishPerson(group, { legL, legR, armL, armR, head, faceCanvas, faceTex, faceMat, boss, carry, look });
     },
 
     setMood(p, mood) {
@@ -501,9 +520,145 @@
     limb.material = vcMat;
   }
 
+  // ───── 一個人只畫一次：身體、四肢、頭合成一個網格，手腳擺動交給顯示卡 ─────
+  // 每個頂點記著自己屬於哪個部位（aPart），畫的時候套上那個部位現在的姿勢（uPart）
+  // legL、armR 這些部位物件照樣留著讓動畫程式去轉，只是本身不再畫出來
+  const hiddenMat = new THREE.MeshBasicMaterial({ visible: false });
+  const emptyGeo = new THREE.BufferGeometry();
+  emptyGeo.userData.shared = true;
+  function personMat() {
+    const m = vcMat.clone();
+    const uPart = { value: [0, 1, 2, 3, 4].map(() => new THREE.Matrix4()) };
+    m.userData.personMat = true;
+    m.userData.uPart = uPart;
+    m.onBeforeCompile = (sh) => {
+      sh.uniforms.uPart = uPart;
+      sh.vertexShader = sh.vertexShader
+        .replace(
+          '#include <common>',
+          `#include <common>
+attribute float aPart;
+uniform mat4 uPart[5];
+mat4 partMat() {
+  int i = int(aPart + 0.5);
+  if (i == 1) return uPart[0];
+  if (i == 2) return uPart[1];
+  if (i == 3) return uPart[2];
+  if (i == 4) return uPart[3];
+  if (i == 5) return uPart[4];
+  return mat4(1.0);
+}`
+        )
+        .replace('#include <beginnormal_vertex>', 'mat4 pm = partMat();\nvec3 objectNormal = mat3(pm) * vec3(normal);\n#ifdef USE_TANGENT\nvec3 objectTangent = vec3(tangent.xyz);\n#endif')
+        .replace('#include <begin_vertex>', 'vec3 transformed = (pm * vec4(position, 1.0)).xyz;');
+    };
+    m.customProgramCacheKey = () => 'person-v1';
+    return m;
+  }
+  const _v = new THREE.Vector3();
+  const _nm = new THREE.Matrix3();
+  function unifyPerson(group, nodes) {
+    group.updateWorldMatrix(true, true);
+    const items = [];
+    let total = 0;
+    nodes.forEach((node, k) => {
+      const inv = new THREE.Matrix4().copy(node.matrixWorld).invert();
+      node.traverse((m) => {
+        if (!m.isMesh || m.userData.keep || !(m.material === vcMat || mergeable(m))) return;
+        // 手上拿的東西、臉（或它們底下的零件）不要併
+        for (let x = m.parent; x && x !== node; x = x.parent) if (x.userData.keep) return;
+        const g = m.geometry;
+        if (!g.attributes.position) return;
+        const n = g.index ? g.index.count : g.attributes.position.count;
+        items.push({ m, k, rel: new THREE.Matrix4().multiplyMatrices(inv, m.matrixWorld), n });
+        total += n;
+      });
+    });
+    const pos = new Float32Array(total * 3);
+    const nor = new Float32Array(total * 3);
+    const col = new Float32Array(total * 3);
+    const part = new Float32Array(total);
+    let o = 0;
+    const done = [];
+    for (const { m, k, rel, n } of items) {
+      const g = m.geometry;
+      const P = g.attributes.position;
+      const N = g.attributes.normal;
+      const C = m.material.vertexColors && g.attributes.color ? g.attributes.color : null;
+      const I = g.index;
+      _nm.getNormalMatrix(rel);
+      if (!C) tmpColor.copy(m.material.color);
+      for (let j = 0; j < n; j++, o++) {
+        const vi = I ? I.getX(j) : j;
+        _v.fromBufferAttribute(P, vi).applyMatrix4(rel);
+        pos[o * 3] = _v.x;
+        pos[o * 3 + 1] = _v.y;
+        pos[o * 3 + 2] = _v.z;
+        if (N) {
+          _v.fromBufferAttribute(N, vi).applyMatrix3(_nm).normalize();
+          nor[o * 3] = _v.x;
+          nor[o * 3 + 1] = _v.y;
+          nor[o * 3 + 2] = _v.z;
+        }
+        if (C) {
+          col[o * 3] = C.getX(vi);
+          col[o * 3 + 1] = C.getY(vi);
+          col[o * 3 + 2] = C.getZ(vi);
+        } else {
+          col[o * 3] = tmpColor.r;
+          col[o * 3 + 1] = tmpColor.g;
+          col[o * 3 + 2] = tmpColor.b;
+        }
+        part[o] = k;
+      }
+      done.push(m);
+    }
+    if (!done.length) return null;
+    for (const m of done) {
+      if (nodes.includes(m)) {
+        // 四肢本身就是網格：留著當關節，不再畫出來
+        if (!m.geometry.userData.shared) m.geometry.dispose();
+        m.geometry = emptyGeo;
+        m.material = hiddenMat;
+      } else {
+        if (!m.geometry.userData.shared) m.geometry.dispose();
+        m.parent.remove(m);
+      }
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    geo.setAttribute('aPart', new THREE.BufferAttribute(part, 1));
+    geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0.6, 0), 1.1);
+    const m = personMat();
+    const mesh = new THREE.Mesh(geo, m);
+    const u = m.userData.uPart.value;
+    // 每次畫之前，把四肢和頭現在的姿勢抄給顯示卡（部位都是 group 的直屬子物件）
+    mesh.onBeforeRender = () => {
+      for (let i = 0; i < 5; i++) u[i].copy(nodes[i + 1].matrix);
+    };
+    group.add(mesh);
+    return mesh;
+  }
+
   const blobGeo = new THREE.CircleGeometry(0.26, 16);
   blobGeo.userData.shared = true;
   const blobMat = new THREE.MeshBasicMaterial({ color: '#000000', transparent: true, opacity: 0.22, depthWrite: false });
+
+  // 人物的最後一步：腳下的圓形陰影、標記、預設表情
+  function finishPerson(group, { legL, legR, armL, armR, head, faceCanvas, faceTex, faceMat, boss, carry, look }) {
+    // 人物不投射即時陰影，改用腳下的圓形陰影（比較省效能，也比較好分辨位置）
+    const blob = new THREE.Mesh(blobGeo, blobMat);
+    blob.rotation.x = -Math.PI / 2;
+    blob.position.y = 0.012;
+    blob.renderOrder = -1;
+    group.add(blob);
+    group.userData.person = true;
+    const person = { group, legL, legR, armL, armR, head, blob, faceCanvas, faceTex, faceMat, mood: null, boss, phase: Math.random() * 6, carry, female: look.gender === 'f' };
+    People.setMood(person, boss ? 'smug' : 'neutral');
+    return person;
+  }
 
   People.vcBasic = vcBasic;
   People.blobGeo = blobGeo;
@@ -511,6 +666,7 @@
   People.dispose = (group, person) => {
     group.traverse((o) => {
       if (o.geometry && !o.geometry.userData.shared) o.geometry.dispose();
+      if (o.material && o.material.userData && o.material.userData.personMat) o.material.dispose();
     });
     if (person && person.faceTex) person.faceTex.dispose();
     if (person && person.faceMat) person.faceMat.dispose();

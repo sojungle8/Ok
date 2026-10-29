@@ -525,6 +525,12 @@
           renderTopbar();
           text += '（先調回正常速度）';
         }
+        // 📺 短劇開演：沒在看別的對話框就直接播
+        if (ev && ev.ev && ev.ev.drama && !ui.dialog) {
+          ui.dialog = { type: 'event', ev };
+          renderDialog();
+          return;
+        }
         toast(text, 'event');
         renderInbox();
       },
@@ -2776,6 +2782,15 @@
       const next = ch.quests.find((q) => !p.done.includes(q.id));
       html = `<span class="qi">${ch.icon}</span><span><b>${esc(ch.name.split('：')[0])} ${n}/${ch.quests.length}</b><small>${next ? esc(next.text) : ''}</small></span>`;
     }
+    // 追劇中：下一集什麼時候上演
+    const dc = s.drama && s.drama.cur;
+    const DD = dc && (Fun.DRAMAS || []).find((x) => x.id === dc.id);
+    if (DD) {
+      const left = dc.day - s.day;
+      const when = dc.pending ? '今天上演！' : left <= 0 ? '今天上演！' : left === 1 ? '明天上演' : `${left} 天後上演`;
+      // 任務的那一格要留在最後（樣式靠 :last-child 排版），追劇放在前面整列
+      html = `<span class="drama-chip">📺 《${esc(DD.title)}》第 ${dc.ep + 1} 集・${when}</span>` + html;
+    }
     el.hidden = !html || !!ui.tab;
     if (el.dataset.html !== html) {
       el.innerHTML = html;
@@ -3199,6 +3214,8 @@
          <div class="tip">${isTouch ? '拖曳畫面可以移動視角，兩指縮放；' : '拖曳畫面可以移動視角，滾輪縮放，Q／E 旋轉；'}員工頭上出現 <b class="bang">!</b> 是有事找你，左上角也會列出來。</div>
          <button class="primary" data-action="close-dialog">開門營業</button>`
       );
+    } else if (d.type === 'event' && d.ev.ev.drama) {
+      inner = dramaCard(d.ev);
     } else if (d.type === 'event') {
       const ev = d.ev;
       const sp = speakerOf(ev);
@@ -3232,6 +3249,8 @@
          </div>
          <button class="ghost" data-action="close-dialog">等一下再說（Esc）</button>`
       );
+    } else if (d.type === 'result' && d.ev && d.ev.ev && d.ev.ev.drama) {
+      inner = dramaResult(d);
     } else if (d.type === 'result') {
       const r = d.result;
       const re = reactionOf(d);
@@ -3470,6 +3489,59 @@
       ${r.headlines ? `<div class="headlines"><small>📰 本週網路熱門</small>${r.headlines.map((h) => `<p>${esc(h)}</p>`).join('')}</div>` : ''}
       <p class="calc">📱 粉絲 ${(r.followers || 0).toLocaleString()} 人・下週時事：${s.social.trend ? `${s.social.trend.icon} ${s.social.trend.name}` : '—'}</p>
       <button class="primary" data-action="close-dialog">繼續經營</button>
+    </div>`;
+  }
+
+  // 📺 短劇演出：對白一句一句跳出來，最後才出現選項
+  function dramaHead(D, extra = '') {
+    const ep = D.ep >= D.total ? '大結局' : `第 ${D.ep}/${D.total} 集`;
+    return `<div class="drama-top"><span class="drama-poster">${D.poster}</span><div><small>📺 店裡的短劇・${ep}</small><b>《${esc(D.title)}》</b></div>${extra}</div>`;
+  }
+  function dramaCard(ev) {
+    const s = ui.sim;
+    const D = ev.ev.drama;
+    const step = 0.85;
+    const lines = D.lines.map(([who, t], i) => `<div class="dl ${who === '旁白' ? 'narr' : ''}" style="animation-delay:${(i * step).toFixed(2)}s">${who === '旁白' ? '' : `<b>${esc(who)}</b>`}<p>${esc(t)}</p></div>`).join('');
+    const after = (D.lines.length * step).toFixed(2);
+    return `<div class="drama card ${D.climax ? 'climax' : ''}">
+      ${dramaHead(D, `<span class="drama-timer">⏳ ${Math.max(0, Math.round(ev.deadline - s.minute))} 分</span>`)}
+      <div class="drama-lines">${lines}</div>
+      <div class="drama-ask" style="animation-delay:${after}s">
+        <h2>${ev.ev.icon} ${esc(ev.ev.title)}</h2>
+        <div class="choices">${ev.ev.choices
+          .map((c, i) => {
+            const fx = s.resolveEffects(c);
+            const meta = fx.cash ? `<span class="cost ${fx.cash > 0 ? 'good' : 'bad'}">${signedMoney(fx.cash)}</span>` : '';
+            return `<button class="choice" data-action="choose" data-i="${i}"><span class="choice-label"><kbd>${i + 1}</kbd>${esc(c.label)}</span><span class="choice-meta">${meta}</span></button>`;
+          })
+          .join('')}</div>
+        <button class="ghost" data-action="close-dialog">等一下再看（Esc）</button>
+      </div>
+    </div>`;
+  }
+  function dramaResult(d) {
+    const D = d.ev.ev.drama;
+    const r = d.result;
+    if (D.climax && !d.fxDone) {
+      d.fxDone = true;
+      setTimeout(() => {
+        confetti(140);
+        const card = document.querySelector('.drama.result');
+        if (card) card.classList.add('shake');
+      }, 60);
+    }
+    const tail = D.teaser
+      ? `<div class="drama-teaser"><small>📺 下集預告</small><p>${esc(D.teaser)}</p><em>${d.ev.ev._next || 3} 天後上演・追劇進度在畫面左下角</em></div>`
+      : D.climax
+        ? '<div class="drama-end">— 全劇終 —</div>'
+        : '';
+    return `<div class="drama card result ${D.climax ? 'climax' : ''}">
+      ${dramaHead(D)}
+      <h2>${esc(r.choice.label)}</h2>
+      <p class="event-text">${esc(r.choice.result || '')}</p>
+      ${deltaChips(r.delta)}
+      ${tail}
+      <button class="primary" data-action="close-dialog">繼續（Enter）</button>
     </div>`;
   }
 

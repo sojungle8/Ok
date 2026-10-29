@@ -131,6 +131,7 @@
       this.xp = 0;
       this.owner = Sim.ownerDefaults(); // 老闆個人的錢（月薪、分紅才會進來）和人生狀態，跟公司分開
       this.dark = Sim.darkDefaults(); // 🕶️ 走歪的路：開著哪些邪門手段、黑歷史、被抓幾次
+      this.drama = { cur: null, done: [], cool: 6 }; // 📺 店裡的連續劇：正在演哪一齣、第幾集
       this.rooms = { storage: 0, rest: 0, office: 0, toilet: 0 }; // 後場的房間等級
       this.pets = []; // 店寵
       this.toiletClean = 100;
@@ -518,7 +519,7 @@
 
     // 老闆自己的人生大事（結婚、家人住院、買房……）：只有老闆能決定，任何代理都不能碰
     isPersonalEvent(p) {
-      if (String(p.ev.id).startsWith('life_') || String(p.ev.id).startsWith('tempt_')) return true;
+      if (String(p.ev.id).startsWith('life_') || String(p.ev.id).startsWith('tempt_') || String(p.ev.id).startsWith('drama_')) return true;
       return p.ev.choices.some((c) => Object.keys(this.resolveEffects(c)).some((k) => k.startsWith('life')));
     }
 
@@ -1457,6 +1458,74 @@
       this.notify(`🕊️ 洗白上岸：補稅、補保費、公開道歉，花了 ${money(cost)}。黑歷史歸零。`, 'achieve');
       if (this.cb.chapter) this.cb.chapter({ ending: { title: '洗白上岸', medal: '🕊️', text: '你在記者會上鞠躬道歉，把該繳的都繳了。有人說你作秀，但你知道，從今天開始可以睡得著了。' }, route: 'wash' });
       return true;
+    }
+
+    // ───── 📺 店裡的連續劇 ─────
+    dramaStaff() {
+      const pool = this.staff.filter((e) => e.rank !== 'manager');
+      return pool[Math.floor(this.rng() * pool.length)] || this.staff[0];
+    }
+    // 每天開店時：該演下一集就排進今天，沒在追的劇就偶爾開一齣新的
+    dramaDaily() {
+      const d = this.drama;
+      const D = Fun.DRAMAS || [];
+      if (!D.length || !this.openToday) return;
+      if (!d.cur) {
+        if (this.day < d.cool || this.rng() > 0.3) return;
+        const pool = D.filter((x) => !d.done.includes(x.id) && (!x.cond || x.cond(this)));
+        if (!pool.length) return;
+        const pick = pool[Math.floor(this.rng() * pool.length)];
+        d.cur = { id: pick.id, ep: 0, st: {}, day: this.day, pending: false };
+      }
+      const cur = d.cur;
+      if (cur.pending || this.day < cur.day) return;
+      const ev = this.dramaEvent();
+      if (!ev) {
+        d.cur = null;
+        return;
+      }
+      cur.pending = true;
+      cur.next = ev._next;
+      this.pendingEvents.push({ ev, at: this.hours.open + 45 + this.rng() * 150, where: 'door' });
+      this.pendingEvents.sort((a, b) => a.at - b.at);
+    }
+    dramaEvent() {
+      const cur = this.drama.cur;
+      const D = (Fun.DRAMAS || []).find((x) => x.id === cur.id);
+      if (!D || !D.eps[cur.ep]) return null;
+      if (cur.ep === 0 && D.id === 'heir' && !this.staff.length) return null;
+      const ep = D.eps[cur.ep](this, cur.st);
+      if (ep.who) cur.st.who = ep.who;
+      const last = ep.ev.choices[ep.ev.choices.length - 1];
+      return {
+        id: `drama_${D.id}_${cur.ep}`,
+        icon: ep.ev.icon,
+        title: ep.ev.title,
+        text: ep.lines.map(([who, t]) => (who === '旁白' ? t : `${who}：「${t.replace(/^「|」$/g, '')}」`)).join('\n'),
+        drama: { id: D.id, title: D.title, poster: D.poster, ep: cur.ep + 1, total: D.eps.length, lines: ep.lines, teaser: ep.teaser || '', climax: !!ep.ev.climax },
+        choices: ep.ev.choices.map((c) => ({ label: c.label, effects: { ...c.effects, dramaStep: { set: c.set || {} } }, result: c.result })),
+        // 沒處理：照最後一個（最消極的）選項發展下去
+        ignore: { effects: { dramaStep: { set: last.set || {} } }, result: '你沒有理會……劇情自己往下走了。' },
+        _next: ep.next || 3,
+      };
+    }
+    dramaAdvance(step) {
+      const d = this.drama;
+      const cur = d.cur;
+      if (!cur) return;
+      const D = (Fun.DRAMAS || []).find((x) => x.id === cur.id);
+      Object.assign(cur.st, step.set || {});
+      cur.pending = false;
+      const next = cur.next || 3;
+      cur.ep += 1;
+      if (!D || cur.ep >= D.eps.length) {
+        d.done.push(cur.id);
+        d.cur = null;
+        d.cool = this.day + 4;
+        this.achieve && this.achieve('drama1');
+        return;
+      }
+      cur.day = this.day + next;
     }
 
     // ── 收回加盟店：合約到期不續約、違約解約、協議買回變直營 ──
@@ -2592,6 +2661,7 @@
     }
 
     removeEmployee(e, transfer) {
+      if (!transfer) this.leftCount = (this.leftCount || 0) + 1;
       this.dropTask(e);
       this._fxAt = null;
       // 店長走了，大家會有點慌
@@ -7114,6 +7184,7 @@
         this.kitchen.issues += 1;
         this.pendingEvents.push({ ev: this.kitchenEvent(), at: this.hours.open + 40, where: 'phone' });
       }
+      this.dramaDaily();
       // 🕶️ 誘惑找上門：開店兩週後偶爾有人來推銷邪門手段（已經在用的、還不能用的不會來）
       if (this.day >= 14 && !this.dark.busted && this.rng() < 0.045) {
         const pool = Object.keys(Fun.DARK || {}).filter((k) => !this.dark.on[k] && this.darkAvail(k) && (this.dark.declined || {})[k] !== this.week);
@@ -7260,6 +7331,7 @@
       }
       if (fx.demand) this.demandMods.push({ mult: fx.demand.mult, days: fx.demand.months * 7 });
       if (fx.darkOn) this.setDark(fx.darkOn, true);
+      if (fx.dramaStep) this.dramaAdvance(fx.dramaStep);
       if (fx.flag) {
         this.flags.add(fx.flag);
         // 記住是哪個事件留下的隱憂：之後被罰才說得出原因
@@ -8045,6 +8117,8 @@
         franchiseApps: this.franchiseApps || null,
         ipo: this.ipo || null,
         dark: this.dark,
+        drama: this.drama,
+        leftCount: this.leftCount || 0,
         coop: this.coop || null,
         authCount: this.authCount || 0,
         branches: this.branches,
@@ -8164,6 +8238,9 @@
       s.franchiseApps = d.franchiseApps || null;
       s.ipo = d.ipo || null;
       s.dark = { ...Sim.darkDefaults(), ...(d.dark || {}) };
+      s.drama = { cur: null, done: [], cool: 0, ...(d.drama || {}) };
+      if (s.drama.cur && s.drama.cur.pending) s.drama.cur.pending = false; // 讀檔時還沒演完的那集，明天重演
+      s.leftCount = d.leftCount || 0;
       s.coop = d.coop || null;
       s.authCount = d.authCount || 0;
       s.owner = { ...Sim.ownerDefaults(), ...(d.owner || {}) };
@@ -8445,6 +8522,7 @@
     { id: 'year2', name: '老字號', desc: '經營滿兩年（96 週）', reward: 200000, long: true },
     { id: 'ipoEnd', name: '敲鐘', desc: '走完上市路線，而且沒有變成慣老闆', reward: 0, long: true },
     { id: 'coopEnd', name: '百年老店', desc: '走完員工持股路線，指定接班人', reward: 0, long: true },
+    { id: 'drama1', name: '追完一齣劇', desc: '看完店裡第一齣連續劇的大結局', reward: 30000 },
     { id: 'darkEnd', name: '黑心帝國', desc: '走完黑心財團路線，而且沒有東窗事發', reward: 0, long: true },
   ];
 
