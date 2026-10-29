@@ -392,6 +392,31 @@ T('自訂：改菜名只改自己這局、招牌菜一週一次、改店名、�
   ok(s.renameProduct(id, '', '') && s.ind.products[0].name === orig, '恢復原名失敗');
 });
 
+T('終章：路線走完進入商業帝國，達成後依手段給結局；收購對手', () => {
+  const s = mk('store', { cash: 5e8, all: true });
+  while (s.level < 30) s.xp += 3000;
+  s.progress.route = 'ipo';
+  s.progress.chapter = Fun.CHAPTERS.length;
+  s.progress.ended = true;
+  ok(s.chapter && s.chapter.empire, '路線走完沒有進入終章');
+  for (let i = 0; i < 20; i++) s.branches.push({ site: 'x' + i, district: '測' + i, size: 'medium', type: 'standard', paid: 1, week: 1, last: 0, total: 0, revenue: 0, wage: 'market', price: 'normal', staff: 3, morale: 70, rating: 4, reno: 0, hist: [] });
+  s.kitchen = { cost: 1, week: 1 };
+  s.franchises = [{ name: 'a', site: 'y', city: 'c', district: 'd', decency: 70, rating: 4, week: 1, last: 0, total: 0 }];
+  s.evStations = [{ fast: 1, slow: 0 }];
+  s.rival = { name: '對手', strength: 0.5, closed: false, opened: 1 };
+  ok(s.acquireRival() && s.rival.closed, '收購對手失敗');
+  s.social.followers = 20000;
+  Object.defineProperty(s, 'valuation', { get: () => 1e12, configurable: true });
+  s.checkProgress(true);
+  ok(s.progress.empire === 'clean' && !s.chapter, `帝國結局不對：${s.progress.empire}`);
+  const s2 = mk('store');
+  s2.dark.unlocked = true;
+  s2.dark.earned = s2.ind.cash * 20;
+  ok(Fun.empireEnding(s2).id === 'dark', '黑心帝國結局不對');
+  s2.dark.washed = true;
+  ok(Fun.empireEnding(s2).id === 'wash', '洗白結局不對');
+});
+
 // ───── 兼營業務 ─────
 T('兼營：每一項都有適合度星等和原因', () => {
   for (const ind of Object.keys(I.SIDE_BIZ)) {

@@ -136,6 +136,31 @@
     },
   };
 
+  // 🏰 終章：商業帝國。不管走哪條路，終點都是這裡；結局看你是怎麼蓋起來的
+  Fun.EMPIRE = {
+    id: 'empire',
+    icon: '🏰',
+    name: '終章：商業帝國',
+    story: '上市、員工持股、還是走歪……那些都只是手段。終點只有一個：讓這塊招牌變成一個帝國。',
+    quests: [
+      { id: 'emp_val', text: '集團估值達到開店資金的 400 倍', check: (s) => s.valuation >= s.ind.cash * 400, prog: (s) => `$${Math.round(s.valuation).toLocaleString()} / $${(s.ind.cash * 400).toLocaleString()}` },
+      { id: 'emp_shops', text: '直營分店加加盟店達到 20 間', check: (s) => s.branches.length + (s.franchises || []).length >= 20, prog: (s) => `現在 ${s.branches.length + (s.franchises || []).length} 間` },
+      { id: 'emp_lines', text: '事業版圖 4 塊以上（分店、加盟、中央廚房、充電站、兼營業務）', check: (s) => s.empireLines().length >= 4, prog: (s) => `${s.empireLines().join('、') || '還沒有'}` },
+      { id: 'emp_rival', text: '商圈裡沒有對手（打到收店，或直接收購）', check: (s) => !s.rival || !!s.rival.closed },
+      { id: 'emp_fans', text: '品牌粉絲 15,000 人', check: (s) => s.social.followers >= 15000, prog: (s) => `現在 ${s.social.followers.toLocaleString()} 人` },
+    ],
+  };
+  // 帝國的結局：看你一路是怎麼走過來的
+  Fun.empireEnding = (s) => {
+    const d = s.dark || {};
+    const route = s.progress && s.progress.route;
+    if (d.washed) return { id: 'wash', medal: '🎭', title: '洗白的帝國', text: '你曾經走歪，但在最後一刻回了頭。帝國的地基有幾塊是黑的，你比誰都清楚，所以你比誰都認真地把它補好。' };
+    if (d.unlocked && !d.busted && (d.earned || 0) >= s.ind.cash * 10) return { id: 'dark', medal: '👑', title: '黑心帝國', text: '帝國蓋起來了，用的是法條裡最賺錢的那幾頁。你站在最頂樓，窗外是整座城市。只是每次電話響起，你都會先看一下來電顯示。' };
+    if (route === 'coop') return { id: 'people', medal: '🤲', title: '人民的帝國', text: '這是全台灣員工最想進去的公司。帝國的每一塊磚，都刻著一個員工的名字。' };
+    if (s.jerk >= 40) return { id: 'tyrant', medal: '😈', title: '慣老闆帝國', text: '帝國很大，人來來去去。新聞說你是傳奇，離職的員工在網路上寫了很長的文章。' };
+    return { id: 'clean', medal: '🏰', title: '乾淨的帝國', text: '從一間小店到一個帝國，你沒有變成你討厭的那種老闆。這是最難的路，你走完了。' };
+  };
+
   // 🕶️ 邪門手段：最賺錢的方法都寫在法條裡（諷刺：現實中每一項都是違法的）
   // heat：每週增加的黑歷史；risk：被抓機率的倍數；tempt：找上門的誘惑
   Fun.DARK = {

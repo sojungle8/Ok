@@ -467,6 +467,8 @@
       const C = Fun.CHAPTERS || [];
       const p = this.progress;
       if (p.chapter < C.length) return C[p.chapter];
+      // 第二幕走完（或東窗事發）：進入終章；帝國蓋好了就全部完成
+      if (p.ended && Fun.EMPIRE) return p.empire ? null : { ...Fun.EMPIRE, empire: true };
       if (p.route && Fun.ROUTES && Fun.ROUTES[p.route]) return { id: 'route', icon: Fun.ROUTES[p.route].icon, name: `第二幕：${Fun.ROUTES[p.route].name}`, story: Fun.ROUTES[p.route].desc, quests: Fun.ROUTES[p.route].quests, route: true };
       return null;
     }
@@ -477,7 +479,7 @@
       const p = this.progress;
       for (let guard = 0; guard < 8; guard++) {
         const ch = this.chapter;
-        if (!ch || p.ended) return;
+        if (!ch || (p.ended && !ch.empire)) return;
         let changed = false;
         for (const q of ch.quests) {
           if (!p.done.includes(q.id) && q.check(this)) {
@@ -488,6 +490,14 @@
         }
         if (!ch.quests.every((q) => p.done.includes(q.id))) return;
         // 整章完成
+        if (ch.empire) {
+          const E = Fun.empireEnding(this);
+          p.empire = E.id;
+          p.empireEnding = E;
+          this.achieve('empire');
+          if (this.cb.chapter) this.cb.chapter({ ending: E, route: 'empire' });
+          return;
+        }
         if (ch.route) {
           p.ended = true;
           const R = Fun.ROUTES[p.route];
@@ -1459,6 +1469,37 @@
       for (const e of this.staff) e.mood = clamp(e.mood + 8, 0, 100);
       this.notify(`🕊️ 洗白上岸：補稅、補保費、公開道歉，花了 ${money(cost)}。黑歷史歸零。`, 'achieve');
       if (this.cb.chapter) this.cb.chapter({ ending: { title: '洗白上岸', medal: '🕊️', text: '你在記者會上鞠躬道歉，把該繳的都繳了。有人說你作秀，但你知道，從今天開始可以睡得著了。' }, route: 'wash' });
+      return true;
+    }
+
+    // ───── 🏰 帝國 ─────
+    empireLines() {
+      const out = [];
+      if (this.branches.length) out.push('直營分店');
+      if ((this.franchises || []).length) out.push('加盟');
+      if (this.kitchen) out.push('中央廚房');
+      if ((this.evStations || []).some((st) => st.fast + st.slow > 0)) out.push('充電站');
+      if (this.ownedSide && this.ownedSide().length >= 2) out.push('兼營業務');
+      return out;
+    }
+    // 直接把對面的店買下來
+    get acquireCost() {
+      const r = this.rival;
+      return r ? Math.round((this.ind.cash * (2 + r.strength * 4)) / 10000) * 10000 : 0;
+    }
+    acquireRival() {
+      const r = this.rival;
+      if (!r || r.closed || this.level < 10 || this.cash < this.acquireCost) return false;
+      const cost = this.acquireCost;
+      this.cash -= cost;
+      this.ledger.other -= cost;
+      r.closed = true;
+      r.closedWeek = this.week;
+      r.acquired = true;
+      this.demandMods.push({ mult: 1.12, days: 28 });
+      this.notify(`🦈 用 ${money(cost)} 收購了對面的「${r.name}」，招牌拆了，客人都到你這邊來了。`, 'achieve');
+      this.achieve('rival');
+      this.checkProgress();
       return true;
     }
 
@@ -8595,6 +8636,7 @@
     { id: 'year2', name: '老字號', desc: '經營滿兩年（96 週）', reward: 200000, long: true },
     { id: 'ipoEnd', name: '敲鐘', desc: '走完上市路線，而且沒有變成慣老闆', reward: 0, long: true },
     { id: 'coopEnd', name: '百年老店', desc: '走完員工持股路線，指定接班人', reward: 0, long: true },
+    { id: 'empire', name: '商業帝國', desc: '完成終章：從一間小店變成一個帝國', reward: 0, long: true },
     { id: 'drama1', name: '追完一齣劇', desc: '看完店裡第一齣連續劇的大結局', reward: 30000 },
     { id: 'darkEnd', name: '黑心帝國', desc: '走完黑心財團路線，而且沒有東窗事發', reward: 0, long: true },
   ];

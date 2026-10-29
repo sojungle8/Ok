@@ -2815,7 +2815,7 @@
     const ch = s.chapter;
     const p = s.progress;
     let html;
-    if (p.ended) html = '<span class="qi">📜</span><span><b>全部完成</b></span>';
+    if (p.ended && !ch) html = `<span class="qi">${p.empire ? '🏰' : '📜'}</span><span><b>${p.empire ? '帝國完成' : '全部完成'}</b></span>`;
     else if (!ch && s.feature('route')) html = '<span class="qi">🛤️</span><span><b>選擇第二幕的路線</b><small>點這裡做決定</small></span>';
     else if (!ch) html = '';
     else {
@@ -2859,13 +2859,13 @@
       main = `<div class="chapter-card">
         <div class="chapter-head"><span>${ch.icon}</span><div><b>${esc(ch.name)}</b><small>${esc(ch.story)}</small></div></div>
         ${questList(ch)}
-        ${ch.route ? '' : `<p class="calc">完成獎勵：${money(ch.reward.cash)}＋經驗 ${ch.reward.xp.toLocaleString()}</p><div class="feat-row"><small>解鎖：</small>${feat(ch.unlock)}</div>`}
+        ${ch.route || ch.empire ? '' : `<p class="calc">完成獎勵：${money(ch.reward.cash)}＋經驗 ${ch.reward.xp.toLocaleString()}</p><div class="feat-row"><small>解鎖：</small>${feat(ch.unlock)}</div>`}
       </div>`;
     } else if (s.feature('route') && !p.route) {
       main = `<div class="chapter-card"><div class="chapter-head"><span>🛤️</span><div><b>第二幕：你想讓這間店變成什麼樣子？</b><small>每條路都能走到最後，選了就不能換。${s.dark && s.dark.unlocked && !s.dark.busted ? '你已經走歪過了，所以多了一條路……' : ''}</small></div></div>
         <div class="route-pick">${Object.entries(Fun.ROUTES).filter(([, r]) => !r.need || r.need(s)).map(([id, r]) => `<div class="route"><b>${r.icon} ${r.name}</b><p>${r.desc}</p><ul>${r.quests.map((q) => `<li>${esc(q.text)}</li>`).join('')}</ul><button class="primary" data-action="route" data-id="${id}">走這條路</button></div>`).join('')}</div></div>`;
     } else if (p.ended) {
-      const R = p.route === 'dark' && s.dark.busted ? { ending: { medal: '🚔', title: '東窗事發', text: '黑心帝國沒蓋起來。店還開著，但你得從頭來過。' } } : Fun.ROUTES[p.route];
+      const R = p.empire && p.empireEnding ? { ending: p.empireEnding } : p.route === 'dark' && s.dark.busted ? { ending: { medal: '🚔', title: '東窗事發', text: '黑心帝國沒蓋起來。店還開著，但你得從頭來過。' } } : Fun.ROUTES[p.route];
       main = `<div class="chapter-card"><div class="chapter-head"><span>${R.ending.medal}</span><div><b>${R.ending.title}</b><small>${R.ending.text}</small></div></div><p class="calc">故事結束了，但店會一直開下去。你可以繼續經營、挑戰長期目標。</p></div>`;
     }
     const past = C.filter((c) => p.chapters.includes(c.id));
@@ -3165,6 +3165,7 @@
         <button data-action="loyalty" ${s.loyalty || s.cash < 8000 ? 'disabled' : ''}>💳 ${s.loyalty ? '已經有集點卡' : '印集點卡（$8,000）'}</button>
         <button data-action="open-hub" data-id="schemes">🕵️ 陰謀計畫</button>
         <button data-action="open-hub" data-id="collabs">🤝 聯名合作</button>
+        ${r && !r.closed ? `<button data-action="acquire-rival" class="${ui.confirmAcq ? 'danger' : ''}" ${s.level < 10 || s.cash < s.acquireCost ? 'disabled' : ''} title="${s.level < 10 ? '店家 Lv.10 才能收購' : '直接買下對面的店：對手消失，客人多一成二（4 週）'}">${ui.confirmAcq ? `確定收購？（${money(s.acquireCost)}）` : `🦈 收購對面（${money(s.acquireCost)}）`}</button>` : ''}
       </div>
       ${s.collabs.length ? `<p class="calc">進行中的聯名：${s.collabs.map((c) => `${c.icon}${esc(c.name)}（到第 ${c.until} 天）`).join('、')}</p>` : ''}
       ${r && !r.closed && r.grudge ? `<p class="calc neg">對方記仇程度：${'😤'.repeat(Math.min(5, r.grudge))}</p>` : ''}</div>`;
@@ -4523,6 +4524,14 @@
       }
       case 'signature':
         s.setSignature(btn.dataset.id);
+        renderDrawer();
+        break;
+      case 'acquire-rival':
+        if (!ui.confirmAcq) ui.confirmAcq = true;
+        else {
+          ui.confirmAcq = false;
+          s.acquireRival();
+        }
         renderDrawer();
         break;
       case 'fix-risk':
