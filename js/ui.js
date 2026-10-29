@@ -152,6 +152,84 @@
     }, 500);
   }
 
+  // 存檔文字框：在預覽框裡瀏覽器常常不准下載或選檔案，改用「複製文字／貼上文字」
+  // mode 'export'：顯示存檔文字讓玩家複製；'import'：貼上存檔文字匯入（inGame 時直接讀進來玩）
+  function saveTextBox(mode, text = '', inGame = false) {
+    document.querySelector('.savebox-wrap')?.remove();
+    const w = document.createElement('div');
+    w.className = 'savebox-wrap';
+    w.innerHTML = `<div class="savebox card" role="dialog">
+      <h3>${mode === 'export' ? '📋 複製存檔' : '📋 貼上存檔'}</h3>
+      <p class="calc">${mode === 'export' ? '這段文字就是你的存檔：按「全部複製」，貼到記事本或傳給別人保存。要讀回來時用「貼上存檔」。' : '把之前複製的存檔文字整段貼進來，再按「匯入」。'}</p>
+      <textarea spellcheck="false" ${mode === 'export' ? 'readonly' : 'placeholder="在這裡貼上存檔文字（{ 開頭的一大段）"'}>${esc(text)}</textarea>
+      <div class="savebox-btns">
+        ${mode === 'export' ? '<button class="primary" data-sb="copy">📋 全部複製</button><button data-sb="dl">📤 改用下載檔案</button>' : '<button class="primary" data-sb="import">📥 匯入</button>'}
+        <button data-sb="close">關閉</button>
+      </div>
+      <small class="savebox-msg muted">${mode === 'export' ? `${Math.round(text.length / 1024)} KB` : ''}</small>
+    </div>`;
+    document.body.appendChild(w);
+    const ta = w.querySelector('textarea');
+    const msg = (t, bad) => {
+      const m = w.querySelector('.savebox-msg');
+      m.textContent = t;
+      m.className = `savebox-msg ${bad ? 'neg' : 'pos'}`;
+    };
+    w.addEventListener('click', async (ev) => {
+      const b = ev.target.closest('[data-sb]');
+      if (ev.target === w || (b && b.dataset.sb === 'close')) return w.remove();
+      if (!b) return;
+      if (b.dataset.sb === 'copy') {
+        ta.focus();
+        ta.select();
+        let ok = false;
+        try {
+          await navigator.clipboard.writeText(text);
+          ok = true;
+        } catch (e) {
+          try {
+            ok = document.execCommand('copy');
+          } catch (e2) {}
+        }
+        msg(ok ? '✅ 已複製，可以貼上了' : '已經幫你全選了，請用「複製」（長按或 Ctrl+C）', !ok);
+      } else if (b.dataset.sb === 'dl') exportSave(text, `不當慣老闆-存檔`);
+      else if (b.dataset.sb === 'import') {
+        const raw = ta.value.trim();
+        if (!importSaveText(raw, inGame)) return msg('這段文字不是遊戲存檔（要整段完整貼上）', true);
+        w.remove();
+      }
+    });
+    if (mode === 'import') setTimeout(() => ta.focus(), 50);
+  }
+
+  // 匯入存檔文字：開始畫面存進空的一格；遊戲中直接讀進來接著玩
+  function importSaveText(raw, inGame) {
+    try {
+      const d = JSON.parse(raw);
+      if (!d.ind || !INDUSTRIES.some((i) => i.id === d.ind) || !Array.isArray(d.objects)) throw new Error('bad');
+      if (inGame) {
+        const sim = Sim.load(raw, {});
+        store.set(slotKey(ui.slot), raw);
+        cancelAnimationFrame(ui.raf);
+        if (ui.place) ui.place.destroy();
+        ui.place = null;
+        if (ui.view) ui.view.destroy();
+        ui.settings.tutorial = false;
+        startGame(sim, ui.slot);
+        toast('📥 匯入成功');
+      } else {
+        const slot = ui.settings.slot || firstEmptySlot();
+        store.set(slotKey(slot), raw);
+        ui.settings.slot = slot;
+        renderStart();
+        flash(`📥 匯入成功，存在第 ${slot} 格`);
+      }
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   function importSave(file, slot) {
     const reader = new FileReader();
     reader.onload = () => {
@@ -278,13 +356,13 @@
             const i = infos[n];
             return i
               ? `<div class="slot card"><span class="slot-no">${n}</span><div class="slot-info"><b>${i.icon} ${esc(i.shop)}</b><small>${i.ind}・第 ${i.week} 週（第 ${i.day} 天）・現金 ${money(i.cash)}${i.branches ? `・分店 ${i.branches} 間` : ''}${i.savedAt ? `・存於 ${savedLabel(i.savedAt)}` : ''}</small></div>
-                  <div class="slot-actions"><button class="primary" data-action="continue" data-slot="${n}">繼續</button><button data-action="export-slot" data-slot="${n}" title="匯出成檔案">📤</button><button data-action="delete-slot" data-slot="${n}" class="${ui.confirmDelete === n ? 'danger' : ''}" title="刪除">${ui.confirmDelete === n ? '確定刪除' : '🗑️'}</button></div></div>`
+                  <div class="slot-actions"><button class="primary" data-action="continue" data-slot="${n}">繼續</button><button data-action="export-slot" data-slot="${n}" title="複製存檔文字">📋</button><button data-action="delete-slot" data-slot="${n}" class="${ui.confirmDelete === n ? 'danger' : ''}" title="刪除">${ui.confirmDelete === n ? '確定刪除' : '🗑️'}</button></div></div>`
               : `<div class="slot card empty"><span class="slot-no">${n}</span><div class="slot-info"><b>空的存檔</b><small>開新店會存在這裡</small></div></div>`;
           }).join('')}
         </div>`
             : ''
         }
-        <div class="slot-import"><label class="file-btn">📥 匯入存檔檔案<input type="file" accept=".json,application/json" data-action="import-file" hidden /></label></div>
+        <div class="slot-import"><button data-action="paste-save">📋 貼上存檔文字</button><label class="file-btn">📥 匯入存檔檔案<input type="file" accept=".json,application/json" data-action="import-file" hidden /></label></div>
 
         <h2 class="section-title">選一個產業</h2>
         <div class="industries">
@@ -3274,7 +3352,7 @@
         <div class="slot-list compact">
           ${SLOTS.map((n) => `<div class="slot ${n === ui.slot ? 'current' : ''}"><span class="slot-no">${n}</span><div class="slot-info"><b>${infos[n] ? `${infos[n].icon} ${esc(infos[n].shop)}` : '空的'}</b><small>${infos[n] ? `第 ${infos[n].week} 週・${money(infos[n].cash)}${infos[n].savedAt ? `・存於 ${savedLabel(infos[n].savedAt)}` : ''}` : ''}</small></div><button data-action="save-slot" data-slot="${n}">${n === ui.slot ? '💾 存檔' : '存到這格'}</button></div>`).join('')}
         </div>
-        <div class="insp-actions"><button data-action="export-current">📤 匯出成檔案</button><label class="file-btn">📥 匯入到第 ${ui.slot} 格<input type="file" accept=".json,application/json" data-action="import-file-game" hidden /></label></div>
+        <div class="insp-actions"><button data-action="export-current">📋 複製存檔文字</button><button data-action="paste-save" data-ingame="1">📋 貼上存檔文字</button><label class="file-btn">📥 匯入到第 ${ui.slot} 格<input type="file" accept=".json,application/json" data-action="import-file-game" hidden /></label></div>
         <h3>畫質 <small>目前 ${ui.view ? Math.round(ui.view.fps) : '—'} fps</small></h3>
         <div class="segmented small">
           ${[['auto', '自動'], ['high', '高'], ['medium', '中'], ['low', '低（省電）']].map(([v, l]) => `<button data-action="quality" data-value="${v}" class="${q === v ? 'active' : ''}">${l}</button>`).join('')}
@@ -3501,9 +3579,12 @@
       case 'export-slot': {
         const n = Number(btn.dataset.slot);
         const i = slotInfo(n);
-        if (i) exportSave(loadSlot(n), `不當慣老闆-${i.shop}-第${i.day}天`);
+        if (i) saveTextBox('export', loadSlot(n));
         break;
       }
+      case 'paste-save':
+        saveTextBox('import', '', !!btn.dataset.ingame);
+        break;
       case 'delete-slot': {
         const n = Number(btn.dataset.slot);
         if (ui.confirmDelete === n) {
@@ -3528,7 +3609,7 @@
         break;
       }
       case 'export-current':
-        exportSave(s.serialize(), `不當慣老闆-${s.shopName}-第${s.day}天`);
+        saveTextBox('export', s.serialize());
         break;
       case 'quality':
         ui.quality = btn.dataset.value;
