@@ -203,9 +203,30 @@
   }
 
   // 匯入存檔文字：開始畫面存進空的一格；遊戲中直接讀進來接著玩
+  // 修改碼：{"patch":{"ipo.streak":3}}，只改目前這局已經存在的數值（遊戲中才能用）
+  function applyPatch(patch) {
+    const s = ui.sim;
+    const done = [];
+    for (const [path, v] of Object.entries(patch)) {
+      const keys = path.split('.');
+      let o = s;
+      for (const k of keys.slice(0, -1)) o = o && typeof o === 'object' ? o[k] : undefined;
+      const last = keys[keys.length - 1];
+      if (!o || typeof o !== 'object' || !(last in o) || typeof o[last] === 'object' || typeof o[last] === 'function') continue;
+      o[last] = v;
+      done.push(`${path} = ${v}`);
+    }
+    if (!done.length) return false;
+    save();
+    if (ui.tab) renderDrawer();
+    toast(`🛠️ 已修改：${done.join('、')}`);
+    return true;
+  }
+
   function importSaveText(raw, inGame) {
     try {
       const d = JSON.parse(raw);
+      if (d && d.patch && typeof d.patch === 'object') return inGame && !!ui.sim && applyPatch(d.patch);
       if (!d.ind || !INDUSTRIES.some((i) => i.id === d.ind) || !Array.isArray(d.objects)) throw new Error('bad');
       if (inGame) {
         const sim = Sim.load(raw, {});
