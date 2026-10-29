@@ -3190,6 +3190,9 @@
     if (!box) return;
     const d = ui.dialog;
     const s = ui.sim;
+    // 📺 短劇演出時：上下滑入電影黑邊
+    if (!document.querySelector('.cinema-bar')) document.body.insertAdjacentHTML('beforeend', '<div class="cinema-bar top"></div><div class="cinema-bar bottom"></div>');
+    document.body.classList.toggle('cinema', !!(d && d.ev && d.ev.ev && d.ev.ev.drama));
     if (!d) {
       box.innerHTML = '';
       return;

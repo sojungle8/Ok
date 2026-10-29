@@ -2416,7 +2416,10 @@
       g.add(arcade);
       // 馬路：靠店這側一條機車道（實線隔開，機車客人、外送員都騎在這裡），再來雙向四線道
       // （靠店兩條往右、對面兩條往左），中間雙黃線、同向車道之間白色虛線
-      const road = new THREE.Mesh(new THREE.PlaneGeometry(W + OUT_W * 2 + 30, 4.75), mat('#3e3e44', { roughness: 0.95 }));
+      // 馬路的材質單獨一份：下雨時變暗、變得會反光（濕路面）
+      if (!this.roadMat) this.roadMat = new THREE.MeshStandardMaterial({ color: '#3e3e44', roughness: 0.95, metalness: 0 });
+      const road = new THREE.Mesh(new THREE.PlaneGeometry(W + OUT_W * 2 + 30, 4.75), this.roadMat);
+      road.userData.keep = true;
       road.rotation.x = -Math.PI / 2;
       road.position.set(W / 2, 0.003, H + 3.425);
       road.receiveShadow = true;
@@ -3332,6 +3335,34 @@
       p.legR.rotation.x = sitting ? -1.4 : p.legR.rotation.x;
       if (sitting) p.group.position.y = -0.18;
       else if (!v.scooter || !v.scooter.visible) p.group.position.y = kind === 'scooter' ? 0.25 : walking ? p.group.position.y : 0;
+      if (kind === 'customer' && !sitting && !(v.scooter && v.scooter.visible)) this.reactAgent(v, a, dt, now);
+    }
+
+    // 客人的情緒動作：很滿意就跳兩下揮手、生氣就搖頭、等太久腳在打拍子
+    reactAgent(v, c, dt, now) {
+      const p = v.p;
+      if (c.state !== v.lastState) {
+        v.lastState = c.state;
+        v.stateT = 0;
+      }
+      v.stateT = (v.stateT || 0) + dt;
+      const t = v.stateT;
+      if (c.state === 'leaving' && t < 1.3) {
+        if (c.stars >= 4.5) {
+          p.group.position.y = Math.abs(Math.sin(t * 7)) * 0.16 * (1 - t / 1.3);
+          p.armR.rotation.x = -2.7 + Math.sin(t * 14) * 0.3;
+          p.armL.rotation.x = -2.5 + Math.cos(t * 14) * 0.3;
+        } else if (!c.stars || c.stars < 2.5) {
+          p.head.rotation.y = Math.sin(t * 22) * 0.35 * (1 - t / 1.3);
+        }
+        return;
+      }
+      if (p.head.rotation.y && c.state !== 'leaving') p.head.rotation.y = 0;
+      if (c.state === 'queue' && c.waited > c.patience * 0.6 && !c.moving) {
+        p.legL.rotation.x = Math.max(0, Math.sin(now / 90)) * -0.35;
+        p.armL.rotation.x = -1.3;
+        p.armL.rotation.z = 0.5;
+      } else if (p.armL.rotation.z) p.armL.rotation.z = 0;
     }
 
     setFaceForCustomer(p, c) {
@@ -3361,6 +3392,15 @@
       const wx = this.sim.weather;
       this.raining = !!wx && (wx.id === 'rain' || wx.id === 'typhoon');
       this.rain.visible = this.raining;
+      // 濕路面：慢慢變暗、變亮滑（雨停之後也是慢慢乾）
+      this.wet = Math.max(0, Math.min(1, (this.wet || 0) + (this.raining ? dt * 0.4 : -dt * 0.05)));
+      if (this.roadMat && Math.abs((this._wetShown || 0) - this.wet) > 0.02) {
+        this._wetShown = this.wet;
+        this.roadMat.color.set('#3e3e44').lerp(this._wetCol || (this._wetCol = new THREE.Color('#25262c')), this.wet);
+        this.roadMat.roughness = 0.95 - this.wet * 0.6;
+        this.roadMat.metalness = this.wet * 0.25;
+      }
+      this.updateRipples3(dt);
       if (!this.raining) return;
       const s = this.sim;
       const storm = wx.id === 'typhoon';
@@ -3384,6 +3424,110 @@
       this.rain.geometry.attributes.position.needsUpdate = true;
     }
 
+    // 🌸 季節的飄落物：春天櫻花瓣、秋天落葉、夏天晚上的螢火蟲（一群點一次畫完）
+    updateSeason(dt, now) {
+      const s = this.sim;
+      const si = s.seasonIdx; // 0 冬、1 春、2 夏、3 秋
+      const night = this.nightK || 0;
+      const kind = this.raining || this.quality === 'low' ? null : si === 1 ? 'petal' : si === 3 ? 'leaf' : si === 2 && night > 0.6 ? 'fly' : null;
+      if (!kind) {
+        if (this.flake) this.flake.visible = false;
+        return;
+      }
+      const N = 46;
+      if (!this.flake) {
+        const tex = canvasTex(32, 32, (c, w, h) => {
+          const gr = c.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
+          gr.addColorStop(0, 'rgba(255,255,255,1)');
+          gr.addColorStop(0.5, 'rgba(255,255,255,.8)');
+          gr.addColorStop(1, 'rgba(255,255,255,0)');
+          c.fillStyle = gr;
+          c.fillRect(0, 0, w, h);
+        });
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(N * 3), 3));
+        this.flakeMat = new THREE.PointsMaterial({ size: 8, sizeAttenuation: false, map: tex, transparent: true, depthWrite: false, color: '#ffffff' });
+        this.flake = new THREE.Points(geo, this.flakeMat);
+        this.flake.frustumCulled = false;
+        this.flakeSeeds = Array.from({ length: N }, () => ({ x: Math.random(), y: Math.random(), z: Math.random(), p: Math.random() * 6 }));
+        this.world.add(this.flake);
+      }
+      if (this.flakeKind !== kind) {
+        this.flakeKind = kind;
+        this.flakeMat.color.set(kind === 'petal' ? '#ffc4d6' : kind === 'leaf' ? '#e8913a' : '#d8ff7a');
+        // 正交鏡頭：點的大小是畫面上的像素，跟著鏡頭縮放一起變大變小
+        this.flakeBase = kind === 'fly' ? 8 : 12;
+        this.flakeMat.blending = kind === 'fly' ? THREE.AdditiveBlending : THREE.NormalBlending;
+        this.flakeMat.needsUpdate = true;
+      }
+      this.flake.visible = true;
+      this.flakeMat.size = this.flakeBase * Math.max(0.6, Math.min(2.5, this.zoom || 1)) * Math.min(2, this.renderer.getPixelRatio());
+      const W = s.W + 12;
+      const D = s.H + 9;
+      const arr = this.flake.geometry.attributes.position.array;
+      const t = now / 1000;
+      this.flakeSeeds.forEach((r, i) => {
+        if (kind === 'fly') {
+          // 螢火蟲：在店外慢慢飄、忽明忽暗
+          r.p += dt;
+          arr[i * 3] = -6 + r.x * W + Math.sin(r.p * 0.7 + i) * 0.6;
+          arr[i * 3 + 1] = 0.4 + r.y * 1.6 + Math.sin(r.p * 1.3) * 0.2;
+          arr[i * 3 + 2] = s.H + 1 + r.z * 6 + Math.cos(r.p * 0.5 + i) * 0.5;
+          if (Math.sin(t * 2 + i * 1.7) < -0.6) arr[i * 3 + 1] = -5; // 熄掉的那一下
+          return;
+        }
+        r.y -= dt * (kind === 'leaf' ? 0.07 : 0.05);
+        if (r.y < 0) {
+          r.y += 1;
+          r.x = Math.random();
+          r.z = Math.random();
+        }
+        arr[i * 3] = -6 + r.x * W + Math.sin(t * 0.9 + r.p) * 0.5;
+        arr[i * 3 + 1] = r.y * 6;
+        arr[i * 3 + 2] = -3 + r.z * D + Math.cos(t * 0.7 + r.p) * 0.3;
+      });
+      this.flake.geometry.attributes.position.needsUpdate = true;
+    }
+
+    // 雨滴打在地上的漣漪：一群圓圈一次畫完（加法混色，顏色調暗就等於淡出）
+    updateRipples3(dt) {
+      const on = this.raining && this.quality !== 'low';
+      if (!this.rip) {
+        if (!on) return;
+        const N = 70;
+        const geo = new THREE.RingGeometry(0.07, 0.1, 18).rotateX(-Math.PI / 2);
+        const m = new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+        this.rip = new THREE.InstancedMesh(geo, m, N);
+        this.rip.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(N * 3), 3);
+        this.rip.frustumCulled = false;
+        this.rip.renderOrder = 1;
+        this.ripSeeds = Array.from({ length: N }, () => ({ t: Math.random(), x: 0, z: 0 }));
+        this.world.add(this.rip);
+      }
+      this.rip.visible = on;
+      if (!on) return;
+      const s = this.sim;
+      const storm = s.weather && s.weather.id === 'typhoon';
+      const M = this._ripM || (this._ripM = new THREE.Matrix4());
+      const col = this._ripC || (this._ripC = new THREE.Color());
+      this.ripSeeds.forEach((r, i) => {
+        r.t += dt * (storm ? 1.6 : 1.1);
+        if (r.t >= 1) {
+          r.t -= 1;
+          // 落在騎樓外的人行道和馬路上
+          r.x = -4 + Math.random() * (s.W + 8);
+          r.z = s.H + 0.9 + Math.random() * 5;
+        }
+        const k = 0.5 + r.t * 1.6;
+        M.makeScale(k, 1, k).setPosition(r.x, 0.02, r.z);
+        this.rip.setMatrixAt(i, M);
+        const a = (1 - r.t) * 0.2 * (0.5 + this.wet * 0.5);
+        this.rip.setColorAt(i, col.setRGB(a * 0.8, a * 0.9, a));
+      });
+      this.rip.instanceMatrix.needsUpdate = true;
+      this.rip.instanceColor.needsUpdate = true;
+    }
+
     // ───── 日夜 ─────
     updateLight() {
       const s = this.sim;
@@ -3394,6 +3538,7 @@
       const dusk = h > 16.5 && h < 19.5 ? 1 - Math.abs(h - 18) / 1.5 : h > 5 && h < 7 ? 1 - Math.abs(h - 6) : 0;
       // 顏色重複使用，不要每一幀都 new（手機上會一直觸發垃圾回收）
       const C = (this._skyC = this._skyC || { night: new THREE.Color('#1c2333'), noon: new THREE.Color('#cfdde8'), dusk: new THREE.Color('#e9a06b'), gloom: new THREE.Color('#6f7a86'), sun: new THREE.Color('#ff9d5c'), sky: new THREE.Color() });
+      C.night.set('#111a2c');
       const sky = C.sky.copy(C.night).lerp(C.noon, day);
       if (dusk > 0) sky.lerp(C.dusk, dusk * 0.55);
       const wx = s.weather ? s.weather.id : 'sunny';
@@ -3405,21 +3550,32 @@
       const az = ((h - 6) / 12.5) * Math.PI;
       this.sun.position.set(s.W / 2 + Math.cos(az) * 14, 6 + day * 14, s.H / 2 - 8);
       this.sun.target.position.set(s.W / 2, 0, s.H / 2);
-      this.hemi.intensity = 0.25 + day * 0.5;
+      // 晚上：環境光換成偏藍的月光、調暗，店裡的暖光才會跳出來
       const night = 1 - day;
+      C.hemiSky = C.hemiSky || new THREE.Color();
+      C.hemiGround = C.hemiGround || new THREE.Color();
+      this.hemi.color.copy(C.hemiSky.set('#ffffff').lerp(C.moon || (C.moon = new THREE.Color('#8fa6d8')), night));
+      this.hemi.groundColor.copy(C.hemiGround.set('#8a7d70').lerp(C.deep || (C.deep = new THREE.Color('#262a3a')), night));
+      this.hemi.intensity = 0.16 + day * 0.59;
+      if (night > 0.6) {
+        this.sun.color.lerp(C.moonSun || (C.moonSun = new THREE.Color('#9fb4ff')), (night - 0.6) * 2.5);
+        this.sun.intensity = Math.max(0.08, this.sun.intensity * 0.6);
+      }
       const lit = s.isOpen || s.staff.some((e) => e.state === 'working');
       this.indoor.position.set(s.W / 2, 2.4, s.H / 2);
-      this.indoor.intensity = lit ? 0.3 + night * 1.3 : night * 0.1;
+      // 晚上店裡要是一盞暖黃的燈箱：亮度跟著天色加強
+      this.indoor.intensity = lit ? 0.35 + night * 2.4 : night * 0.1;
+      this.indoor.decay = 1.1;
       this.indoor.distance = Math.max(s.W, s.H) * 1.6;
       for (const l of this.lamps) l.intensity = night > 0.5 ? 1.2 : 0;
       this.nightK = night;
       if (this.glowMat) {
-        this.glowMat.opacity = night > 0.4 ? Math.min(0.7, (night - 0.4) * 1.6) : 0;
+        this.glowMat.opacity = night > 0.4 ? Math.min(0.85, (night - 0.4) * 1.8) : 0;
         this.spillMat.opacity = lit ? Math.min(0.55, night * 0.65) : 0;
       }
       if (this.grade) {
-        const tint = night > 0.5 ? `rgba(40,60,120,${(0.07 * (night - 0.5) * 2).toFixed(2)})` : dusk > 0 ? `rgba(255,140,60,${(0.12 * dusk).toFixed(2)})` : 'rgba(0,0,0,0)';
-        const vig = (0.1 + night * 0.22).toFixed(2);
+        const tint = night > 0.5 ? `rgba(25,40,100,${(0.16 * (night - 0.5) * 2).toFixed(2)})` : dusk > 0 ? `rgba(255,140,60,${(0.14 * dusk).toFixed(2)})` : 'rgba(0,0,0,0)';
+        const vig = (0.1 + night * 0.3).toFixed(2);
         const key = tint + vig;
         if (key !== this.gradeKey) {
           this.gradeKey = key;
@@ -3502,6 +3658,7 @@
         this.renderer.shadowMap.needsUpdate = true;
       }
       this.updateRain(dt);
+      this.updateSeason(dt, now);
       this.updateStreetLife(dt, now);
       this.updateEVBay(dt);
       this.updateRipples(dt);
