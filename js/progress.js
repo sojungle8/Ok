@@ -87,7 +87,7 @@
         { id: 'lv20', text: '店家升到 Lv.20', check: (s) => s.level >= 20, prog: (s) => `現在 Lv.${s.level}` },
         { id: 'shops8', text: '分店加加盟店達到 6 間', check: (s) => s.branches.length + (s.franchises || []).length >= 6, prog: (s) => `現在 ${s.branches.length + (s.franchises || []).length} 間` },
         { id: 'kitchen1', text: '蓋好中央廚房', check: (s) => !!s.kitchen },
-        { id: 'clean12', text: '連續 12 週沒有被罰款', check: (s) => lastWeeks(s, 12).length === 12 && lastWeeks(s, 12).every((h) => !h.fines), prog: (s) => `最近 ${(() => { let n = 0; for (const h of [...s.history].reverse()) { if (h.fines) break; n++; } return n; })()} 週` },
+        { id: 'clean12', text: '連續 12 週沒有被罰款（走歪的人：黑歷史 40 以上而且沒被抓過）', check: (s) => (lastWeeks(s, 12).length === 12 && lastWeeks(s, 12).every((h) => !h.fines)) || !!(s.dark && s.dark.heat >= 40 && !s.dark.caught), prog: (s) => `最近 ${(() => { let n = 0; for (const h of [...s.history].reverse()) { if (h.fines) break; n++; } return n; })()} 週` },
       ],
       reward: { cash: 1000000, xp: 10000 },
       unlock: ['route'],
@@ -120,6 +120,33 @@
       ],
       ending: { title: '百年老店', medal: '🏮', text: '招牌換過三次油漆，店裡的人換了好幾輪，但每個在這裡工作過的人，都說這是他做過最好的工作。' },
     },
+    dark: {
+      icon: '🕶️',
+      name: '黑心財團',
+      desc: '最賺錢的方法都寫在法條裡。手段越多賺越快，但黑歷史越高越容易爆雷；被抓三次就東窗事發。',
+      // 只有已經走歪過（接受過誘惑、開過邪門手段）的人才看得到這條路
+      need: (s) => !!(s.dark && s.dark.unlocked && !s.dark.busted),
+      quests: [
+        { id: 'dark_3', text: '同時開著 3 種邪門手段', check: (s) => s.darkActive().length >= 3, prog: (s) => `現在 ${s.darkActive().length} 種` },
+        { id: 'dark_money', text: '靠邪門手段賺到開店資金的 20 倍', check: (s) => (s.dark.earned || 0) >= s.ind.cash * 20, prog: (s) => `$${Math.round(s.dark.earned || 0).toLocaleString()} / $${(s.ind.cash * 20).toLocaleString()}` },
+        { id: 'dark_rival', text: '把對面的店打到收掉', check: (s) => !!(s.rival && s.rival.closed) },
+        { id: 'dark_safe', text: '黑歷史 80 以上還沒東窗事發', check: (s) => s.dark.heat >= 80 && !s.dark.busted, prog: (s) => `黑歷史 ${Math.round(s.dark.heat)}` },
+      ],
+      ending: { title: '黑心帝國', medal: '👑', text: '你成了業界最有錢的老闆。新聞叫你「傳奇」，員工私下叫你「那個人」。每次經過地檢署，你都會不自覺地加快腳步。' },
+    },
+  };
+
+  // 🕶️ 邪門手段：最賺錢的方法都寫在法條裡（諷刺：現實中每一項都是違法的）
+  // heat：每週增加的黑歷史；risk：被抓機率的倍數；tempt：找上門的誘惑
+  Fun.DARK = {
+    books: { icon: '📒', name: '兩本帳', desc: '營業稅幾乎不用繳，還能虛報進項退稅', law: '稅捐稽徵法', heat: 1, risk: 1, tempt: { who: '會計師事務所的「老江湖」', text: '「老闆，大家都這樣做啦。一本給國稅局看，一本給自己看，稅少繳八成，誰查得到？」', yes: '「那就麻煩你了」' } },
+    insure: { icon: '🧾', name: '低報投保薪資', desc: '勞健保、勞退少繳八成', law: '勞工保險條例', heat: 1, risk: 1, tempt: { who: '人資顧問', text: '「投保薪資照基本工資報就好，員工也不會去查。一個月省下來的保費，夠你再開半間店。」', yes: '「照你說的報」' } },
+    relabel: { icon: '🛢️', name: '過期品改標籤', desc: '進貨成本省三成', law: '食品安全衛生管理法', heat: 1.5, risk: 1.3, tempt: { who: '供應商業務', text: '「這批剩三天就到期，我半價給你。標籤我們幫你重貼，日期往後推一個月，吃不死人啦。」', yes: '「全部給我」' } },
+    reviews: { icon: '⭐', name: '買假好評', desc: '每週灌 8 則五星，評價往上衝', law: '公平交易法', heat: 0.8, risk: 1.2, tempt: { who: '網路行銷公司', text: '「五星好評一則二十塊，保證真人帳號、每則都不一樣。你的對手都在買了，你不買就輸了。」', yes: '「先買一個月」' } },
+    squeeze: { icon: '🦈', name: '削價殺對手', desc: '賠錢賣、挖角，對手很快撐不住；客人 +8%', law: '公平交易法', heat: 0.5, risk: 0.8, tempt: { who: '你的大學同學（現在在財團上班）', text: '「打仗就要打到對方站不起來。先賠錢賣三個月，把他的員工高薪挖過來，之後整條街都是你的。」', yes: '「開打」' } },
+    mill: { icon: '💰', name: '加盟吸金', desc: '狂開招商說明會收加盟金，收了不管', law: '公平交易法', heat: 1.2, risk: 1, need: (s) => s.feature('franchise'), tempt: { who: '加盟展的策展人', text: '「說明會一場收十個加盟主，加盟金先收，之後他們做得好不好是他們的事。這才叫品牌授權。」', yes: '「每週辦一場」' } },
+    politics: { icon: '🍱', name: '政商關係', desc: '逢年過節送禮給議員：勞檢變少、其他手段被抓的機率 -45%', law: '貪污治罪條例', heat: 1, risk: 0.6, tempt: { who: '議員服務處主任', text: '「老闆，議員很欣賞你。逢年過節走動走動，以後衛生局、勞工局要來，我們都會先『關心』一下。」', yes: '「請議員多多指教」' } },
+    pump: { icon: '📈', name: '財報美化、炒股', desc: '上市公司限定：作帳拉股價，邊拉邊賣手上的持股', law: '證券交易法', heat: 2, risk: 1.2, need: (s) => !!(s.ipo && s.ipo.listed), tempt: { who: '投顧老師', text: '「財報數字修漂亮一點，我這邊幫你喊盤，股價拉上去你就慢慢倒貨。散戶？他們自己要買的。」', yes: '「就這麼辦」' } },
   };
 
   // Lv.11～25 的獎勵（裝潢、店面之外的好處）

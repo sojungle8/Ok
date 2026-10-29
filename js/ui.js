@@ -2177,6 +2177,34 @@
     </div>`;
   }
 
+  // 🕶️ 暗黑帳本：開關邪門手段、看黑歷史和被抓的風險、洗白
+  function darkPanel() {
+    const s = ui.sim;
+    const d = s.dark;
+    const heat = Math.round(d.heat);
+    const on = s.darkActive();
+    const pct = (k) => Math.round((0.005 + (d.heat / 100) * 0.05) * Fun.DARK[k].risk * (d.on.politics && k !== 'politics' ? 0.55 : 1) * 1000) / 10;
+    if (d.busted) return `<div class="empty-card"><b>🚔 東窗事發</b><p class="calc">所有邪門手段都曝光了，這條路走不下去了。好好經營吧。</p></div>`;
+    return `
+      <div class="dark-head">
+        <div><span>👁️ 黑歷史</span><div class="bar"><div class="bar-fill jerk" style="width:${heat}%"></div></div><b class="${heat >= 70 ? 'neg' : ''}">${heat}</b></div>
+        <div class="dark-stats"><span>🚨 被抓 <b class="${d.caught ? 'neg' : ''}">${d.caught}/3</b> 次</span><span>💵 黑錢累計 <b>${money(d.earned)}</b></span><span>🕶️ 開著 <b>${on.length}</b> 種</span></div>
+        <small class="muted">每種手段每週都會讓黑歷史上升；黑歷史越高，每種手段每週被抓的機率越高。被抓 3 次或黑歷史滿 100 就東窗事發。全部停手後黑歷史每週 -2。</small>
+      </div>
+      <div class="dark-list">${Object.entries(Fun.DARK).map(([k, D]) => {
+        const can = s.darkAvail(k);
+        const act = !!d.on[k];
+        return `<div class="dark-card ${act ? 'on' : ''} ${can ? '' : 'locked'}">
+          <div class="dark-top"><span class="dark-icon">${D.icon}</span><div><b>${D.name}</b><small>${D.desc}</small></div></div>
+          <div class="dark-meta"><span>⚖️ 《${D.law}》</span><span>👁️ +${D.heat}/週</span>${act ? `<span class="neg">🚨 本週被抓 ${pct(k)}%</span>` : ''}${act && d.last[k] ? `<span class="pos">上週 +${money(d.last[k])}</span>` : ''}${d.acc[k] ? `<span>累積 ${money(d.acc[k])}</span>` : ''}</div>
+          ${can ? `<button data-action="dark-toggle" data-k="${k}" class="${act ? '' : 'primary'}">${act ? '🧹 停手' : '🕶️ 開始'}</button>` : `<small class="muted">${k === 'pump' ? '🔒 上市之後才能用' : '🔒 要先開放加盟'}</small>`}
+        </div>`;
+      }).join('')}</div>
+      ${d.log.length ? `<p class="calc">被抓紀錄：${d.log.map((x) => `第 ${x.day} 天 ${Fun.DARK[x.id].icon}${Fun.DARK[x.id].name} 罰 ${money(x.fine)}`).join('・')}</p>` : ''}
+      ${d.washed ? '<p class="calc">🕊️ 你已經洗白過一次了。</p>' : d.unlocked ? `<div class="group-card"><p class="calc">🕊️ <b>洗白上岸</b>：補稅、補保費、公開道歉，全部手段停掉、黑歷史歸零、慣老闆指數 -10。只能用一次。</p><button data-action="dark-wash" class="${ui.confirmWash ? 'danger' : ''}" ${s.cash < s.washCost ? 'disabled' : ''}>${ui.confirmWash ? `確定洗白？（${money(s.washCost)}）` : `🕊️ 洗白上岸（${money(s.washCost)}）`}</button></div>` : ''}
+      <p class="drawer-tip">⚠️ 這是諷刺玩法：現實中每一項都是犯罪，被抓的代價遠比遊戲裡嚴重。</p>`;
+  }
+
   // 👑 分店店長卡：看能力和心情，調時薪、送主管課、老闆親自陪訓、調回本店
   function branchMgrCard(b, i) {
     const s = ui.sim;
@@ -2778,10 +2806,10 @@
         ${ch.route ? '' : `<p class="calc">完成獎勵：${money(ch.reward.cash)}＋經驗 ${ch.reward.xp.toLocaleString()}</p><div class="feat-row"><small>解鎖：</small>${feat(ch.unlock)}</div>`}
       </div>`;
     } else if (s.feature('route') && !p.route) {
-      main = `<div class="chapter-card"><div class="chapter-head"><span>🛤️</span><div><b>第二幕：你想讓這間店變成什麼樣子？</b><small>兩條路都能走到最後，選了就不能換。</small></div></div>
-        <div class="route-pick">${Object.entries(Fun.ROUTES).map(([id, r]) => `<div class="route"><b>${r.icon} ${r.name}</b><p>${r.desc}</p><ul>${r.quests.map((q) => `<li>${esc(q.text)}</li>`).join('')}</ul><button class="primary" data-action="route" data-id="${id}">走這條路</button></div>`).join('')}</div></div>`;
+      main = `<div class="chapter-card"><div class="chapter-head"><span>🛤️</span><div><b>第二幕：你想讓這間店變成什麼樣子？</b><small>每條路都能走到最後，選了就不能換。${s.dark && s.dark.unlocked && !s.dark.busted ? '你已經走歪過了，所以多了一條路……' : ''}</small></div></div>
+        <div class="route-pick">${Object.entries(Fun.ROUTES).filter(([, r]) => !r.need || r.need(s)).map(([id, r]) => `<div class="route"><b>${r.icon} ${r.name}</b><p>${r.desc}</p><ul>${r.quests.map((q) => `<li>${esc(q.text)}</li>`).join('')}</ul><button class="primary" data-action="route" data-id="${id}">走這條路</button></div>`).join('')}</div></div>`;
     } else if (p.ended) {
-      const R = Fun.ROUTES[p.route];
+      const R = p.route === 'dark' && s.dark.busted ? { ending: { medal: '🚔', title: '東窗事發', text: '黑心帝國沒蓋起來。店還開著，但你得從頭來過。' } } : Fun.ROUTES[p.route];
       main = `<div class="chapter-card"><div class="chapter-head"><span>${R.ending.medal}</span><div><b>${R.ending.title}</b><small>${R.ending.text}</small></div></div><p class="calc">故事結束了，但店會一直開下去。你可以繼續經營、挑戰長期目標。</p></div>`;
     }
     const past = C.filter((c) => p.chapters.includes(c.id));
@@ -2944,6 +2972,7 @@
       { id: 'branch', icon: '🏙️', name: '分店', desc: lv >= 5 ? '開分店、調每間分店的時薪、定價、人手和改裝' : '店家 Lv.5 才能開分店', badge: s.branches.length || '' },
       { id: 'group', icon: '🏢', name: '集團', desc: '中央廚房、加盟、上市或員工持股：章節解鎖的集團玩法', show: !!group },
       { id: 'ev', icon: '⚡', name: '充電站', desc: evOn ? '你的充電站生意：來車、收支、加樁、調價、設定（買地在城市地圖）' : 'Lv.6 開放：在城市地圖買地開充電站', badge: (s.evStations || []).length || '' },
+      { id: 'dark', icon: '🕶️', name: '暗黑帳本', desc: '最賺錢的方法都寫在法條裡：邪門手段、黑歷史、洗白（諷刺玩法，現實中都是違法的）', show: !!(s.dark && (s.dark.unlocked || s.feature('route'))), badge: s.darkActive().length || '' },
       { id: 'achieve', icon: '🏆', name: '成就目標', desc: '長期目標和成就：有些達成會給獎金' },
     ], (sub) => {
       if (sub === 'owner') return `
@@ -2969,6 +2998,7 @@
 `;
       if (sub === 'group') return group;
       if (sub === 'ev') return evStationsPanel();
+      if (sub === 'dark') return darkPanel();
       if (sub === 'achieve') return `
           <h3>🎯 長期目標 <small>拿到金獎之後的下一步</small></h3>
           <div class="goal-list">
@@ -4019,6 +4049,20 @@
       }
       case 'appoint-area':
         if (s.appointArea(Number(btn.dataset.i))) s.checkProgress();
+        renderDrawer();
+        break;
+      case 'dark-toggle': {
+        const k = btn.dataset.k;
+        s.setDark(k, !s.dark.on[k]);
+        renderDrawer();
+        break;
+      }
+      case 'dark-wash':
+        if (!ui.confirmWash) ui.confirmWash = true;
+        else {
+          ui.confirmWash = false;
+          s.washDark();
+        }
         renderDrawer();
         break;
       case 'mgr-wage':

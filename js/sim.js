@@ -130,6 +130,7 @@
       this.achievements = new Set();
       this.xp = 0;
       this.owner = Sim.ownerDefaults(); // 老闆個人的錢（月薪、分紅才會進來）和人生狀態，跟公司分開
+      this.dark = Sim.darkDefaults(); // 🕶️ 走歪的路：開著哪些邪門手段、黑歷史、被抓幾次
       this.rooms = { storage: 0, rest: 0, office: 0, toilet: 0 }; // 後場的房間等級
       this.pets = []; // 店寵
       this.toiletClean = 100;
@@ -487,7 +488,7 @@
         if (ch.route) {
           p.ended = true;
           const R = Fun.ROUTES[p.route];
-          this.achieve(p.route === 'ipo' ? 'ipoEnd' : 'coopEnd');
+          this.achieve(p.route === 'ipo' ? 'ipoEnd' : p.route === 'dark' ? 'darkEnd' : 'coopEnd');
           if (this.cb.chapter) this.cb.chapter({ ending: R.ending, route: p.route });
           return;
         }
@@ -517,7 +518,7 @@
 
     // 老闆自己的人生大事（結婚、家人住院、買房……）：只有老闆能決定，任何代理都不能碰
     isPersonalEvent(p) {
-      if (String(p.ev.id).startsWith('life_')) return true;
+      if (String(p.ev.id).startsWith('life_') || String(p.ev.id).startsWith('tempt_')) return true;
       return p.ev.choices.some((c) => Object.keys(this.resolveEffects(c)).some((k) => k.startsWith('life')));
     }
 
@@ -707,7 +708,7 @@
 
     chooseRoute(id) {
       const p = this.progress;
-      if (!this.feature('route') || p.route || !Fun.ROUTES[id]) return false;
+      if (!this.feature('route') || p.route || !Fun.ROUTES[id] || (Fun.ROUTES[id].need && !Fun.ROUTES[id].need(this))) return false;
       p.route = id;
       this.notify(`🛤️ 你選擇了「${Fun.ROUTES[id].name}」的路。`, 'achieve');
       return true;
@@ -1248,6 +1249,216 @@
       this.checkProgress();
       return true;
     }
+    // ───── 🕶️ 走歪的路：最賺錢的方法都寫在法條裡 ─────
+    static darkDefaults() {
+      return { unlocked: false, on: {}, heat: 0, caught: 0, earned: 0, acc: {}, last: {}, log: [], busted: false, washed: false, declined: {} };
+    }
+    darkActive() {
+      return Object.keys(this.dark.on).filter((k) => this.dark.on[k]);
+    }
+    darkAvail(id) {
+      const D = Fun.DARK && Fun.DARK[id];
+      return !!D && (!D.need || D.need(this));
+    }
+    setDark(id, on) {
+      const d = this.dark;
+      const D = Fun.DARK && Fun.DARK[id];
+      if (!D || d.busted || (on && !this.darkAvail(id))) return false;
+      if (!!d.on[id] === !!on) return false;
+      d.unlocked = true;
+      d.on[id] = !!on;
+      if (on) d.acc[id] = d.acc[id] || 0;
+      this.notify(on ? `🕶️ 開始「${D.icon}${D.name}」：${D.desc}（違反《${D.law}》）` : `🧹 停掉「${D.icon}${D.name}」了。黑歷史不會馬上消失，之前做過的還是可能被查到。`, on ? 'event' : '');
+      return true;
+    }
+    temptEvent(id) {
+      const D = Fun.DARK[id];
+      const T = D.tempt;
+      return {
+        id: `tempt_${id}`,
+        icon: D.icon,
+        title: `${T.who}來找你`,
+        text: `${T.text}（${D.icon}${D.name}：${D.desc}）`,
+        choices: [
+          { label: T.yes, effects: { darkOn: id }, result: `你點了頭。對方笑著說：「老闆是聰明人。」之後可以到「成長 → 🕶️ 暗黑帳本」管理。`, tip: `現實中這違反《${D.law}》。` },
+          { label: '「不了，這不是我想做的生意」', effects: { morale: 1 }, result: '對方聳聳肩：「改天想通了再找我。」' },
+        ],
+        ignore: { effects: {}, result: '你沒回應，對方就沒再來了。' },
+      };
+    }
+    // 每週結算：邪門手段的好處、黑歷史、被抓的風險
+    darkWeekly(L) {
+      const d = this.dark;
+      const on = this.darkActive().filter((k) => {
+        if (this.darkAvail(k)) return true;
+        d.on[k] = false; // 條件不見了（例如加盟沒了）就自動停
+        return false;
+      });
+      d.last = {};
+      if (!on.length) {
+        d.heat = Math.max(0, d.heat - 3);
+        return;
+      }
+      d.heat = Math.max(0, d.heat - 1); // 風頭會慢慢過去
+      const base = this.ind.cash;
+      const g = (id, v) => {
+        v = Math.max(0, Math.round(v));
+        d.acc[id] = (d.acc[id] || 0) + v;
+        d.last[id] = v;
+        d.earned += v;
+        return v;
+      };
+      const has = (k) => on.includes(k);
+      if (has('books')) {
+        const v = g('books', L.tax + base * 0.04);
+        L.tax -= Math.min(L.tax, v);
+        this.cash += v;
+      }
+      if (has('insure')) {
+        const v = g('insure', ((L.labor || 0) + (L.health || 0) + (L.pension || 0)) * 0.8);
+        L.labor = (L.labor || 0) * 0.2;
+        L.health = (L.health || 0) * 0.2;
+        L.pension = (L.pension || 0) * 0.2;
+        this.cash += v;
+      }
+      if (has('relabel')) {
+        const v = g('relabel', L.materials * 0.3);
+        L.materials -= v;
+        this.cash += v;
+      }
+      if (has('reviews')) {
+        const cost = 4000;
+        L.other -= cost;
+        this.cash -= cost;
+        const fake = ['這家真的是我吃過最棒的！！推推推', '服務超好，環境超讚，CP 值爆表', '五顆星不能再多了，大家快來', '老闆人超好，東西超好吃，必訪', '已經回訪十次，每次都很滿意'];
+        for (let i = 0; i < 8; i++) this.addReview(5, fake[Math.floor(this.rng() * fake.length)]);
+        this.demandMods.push({ mult: 1.06, days: 7 });
+        g('reviews', base * 0.1); // 評價高帶來的生意
+      }
+      if (has('squeeze')) {
+        const cost = Math.round(base * 0.03);
+        L.other -= cost;
+        this.cash -= cost;
+        this.demandMods.push({ mult: 1.1, days: 7 });
+        if (this.rival && !this.rival.closed) this.rival.strength = Math.max(0.05, this.rival.strength * 0.6);
+        g('squeeze', base * 0.15);
+      }
+      if (has('mill')) {
+        const v = g('mill', this.franchiseFee * 1.5);
+        L.group = (L.group || 0) + v;
+        this.cash += v;
+      }
+      if (has('politics')) {
+        const cost = Math.round(base * 0.04);
+        L.other -= cost;
+        this.cash -= cost;
+      }
+      if (has('pump')) {
+        const v = g('pump', this.valuation * 0.004);
+        L.capital = (L.capital || 0) + v;
+        this.cash += v;
+      }
+      d.heat = clamp(d.heat + on.reduce((t, k) => t + Fun.DARK[k].heat, 0), 0, 100);
+      // 被抓：黑歷史越高越容易；有政商關係罩著，其他手段比較不會出事
+      for (const k of on) {
+        const p = (0.005 + (d.heat / 100) * 0.05) * Fun.DARK[k].risk * (has('politics') && k !== 'politics' ? 0.55 : 1);
+        if (this.rng() < p) {
+          this.darkCaught(k, L);
+          if (d.busted) break;
+        }
+      }
+      if (d.heat >= 70 && !d.heatWarned) {
+        d.heatWarned = true;
+        this.notify(`👁️ 黑歷史 ${Math.round(d.heat)}：有記者在打聽你的事了。再這樣下去隨時會爆。`, 'bad');
+      } else if (d.heat < 55) d.heatWarned = false;
+    }
+    darkCaught(id, L) {
+      const d = this.dark;
+      const D = Fun.DARK[id];
+      const acc = d.acc[id] || 0;
+      const base = this.ind.cash;
+      let fine = 0;
+      let extra = '';
+      if (id === 'books') (fine = acc * 1.3 + base * 0.2), (extra = '補稅之外再加罰');
+      else if (id === 'insure') {
+        fine = acc * 1.2 + base * 0.15;
+        this.jerk = clamp(this.jerk + 8, 0, JERK_LIMIT);
+        for (const e of this.staff) e.mood = clamp(e.mood - 10, 0, 100);
+        extra = '員工知道自己的勞保被低報，大家都很火';
+      } else if (id === 'relabel') {
+        fine = acc * 0.6 + base * 0.4;
+        this.demandMods.push({ mult: 0.8, days: 7 });
+        for (let i = 0; i < 5; i++) this.addReview(1, '新聞說這家用過期食材改標籤，噁心', 'quality');
+        extra = '上了新聞，客人少兩成（7 天）';
+      } else if (id === 'reviews') {
+        fine = base * 0.2;
+        for (let i = 0; i < 12; i++) this.addReview(1, '原來五星都是買的，騙子', 'quality');
+        this.social.followers = Math.round(this.social.followers * 0.7);
+        extra = '網友抓包，被灌了一堆一星、粉絲掉三成';
+      } else if (id === 'mill') {
+        fine = acc * 0.5 + base * 0.3;
+        for (let i = 0; i < 4; i++) this.addReview(1, '加盟主血本無歸，總部只會收錢', 'service');
+        extra = '加盟主集體抗議，要回一半的加盟金';
+      } else if (id === 'politics') {
+        fine = base * 0.6;
+        this.owner.stress = clamp(this.owner.stress + 20, 0, 100);
+        extra = '檢調約談到半夜（老闆壓力 +20）';
+      } else if (id === 'squeeze') (fine = base * 0.4), (extra = '公平會認定掠奪性定價');
+      else if (id === 'pump') {
+        fine = acc * 1.5 + base * 2;
+        d.heat = Math.min(100, d.heat + 10);
+        extra = '金管會調查，股價跌停';
+      }
+      fine = Math.round(fine / 1000) * 1000;
+      this.cash -= fine;
+      L.fines += fine;
+      d.on[id] = false;
+      d.acc[id] = 0;
+      d.heat = Math.min(100, d.heat + 12);
+      d.caught += 1;
+      d.log.unshift({ day: this.day, id, fine });
+      d.log = d.log.slice(0, 10);
+      this.notify(`🚨 「${D.icon}${D.name}」東窗事發：違反《${D.law}》，罰 ${money(fine)}。${extra}（被抓 ${d.caught}/3 次）`, 'bad');
+      if (d.caught >= 3 || d.heat >= 100) this.darkBust();
+    }
+    // 被抓三次（或黑歷史爆表）：全部手段停掉、重罰，這條路走到底了
+    darkBust() {
+      const d = this.dark;
+      if (d.busted) return;
+      d.busted = true;
+      for (const k of Object.keys(d.on)) d.on[k] = false;
+      const fine = Math.round((Math.max(0, this.cash) * 0.2 + this.dark.earned * 0.3 + this.ind.cash * 0.5) / 10000) * 10000;
+      this.cash -= fine;
+      this.ledger.fines += fine;
+      this.jerk = clamp(this.jerk + 30, 0, JERK_LIMIT);
+      this.owner.stress = clamp(this.owner.stress + 30, 0, 100);
+      this.demandMods.push({ mult: 0.6, days: 21 });
+      const p = this.progress;
+      if (p.route === 'dark') p.ended = true;
+      this.notify(`🚔 東窗事發：檢調搜索總部，所有邪門手段全部曝光，罰款加和解金 ${money(fine)}。`, 'bad');
+      if (this.cb.chapter) this.cb.chapter({ ending: { title: '東窗事發', medal: '🚔', text: '新聞跑馬燈打著你的名字。店還開著，但門口多了很多記者，少了很多客人。員工們說：「我們早就知道會這樣。」' }, route: 'dark' });
+    }
+    // 洗白上岸：花一大筆錢補稅、補發、道歉，黑歷史歸零（只能一次）
+    get washCost() {
+      return Math.round((this.dark.earned * 0.4 + this.ind.cash) / 10000) * 10000;
+    }
+    washDark() {
+      const d = this.dark;
+      const cost = this.washCost;
+      if (d.busted || d.washed || !d.unlocked || this.cash < cost) return false;
+      this.cash -= cost;
+      this.ledger.other -= cost;
+      for (const k of Object.keys(d.on)) d.on[k] = false;
+      d.heat = 0;
+      d.acc = {};
+      d.washed = true;
+      this.jerk = clamp(this.jerk - 10, 0, JERK_LIMIT);
+      for (const e of this.staff) e.mood = clamp(e.mood + 8, 0, 100);
+      this.notify(`🕊️ 洗白上岸：補稅、補保費、公開道歉，花了 ${money(cost)}。黑歷史歸零。`, 'achieve');
+      if (this.cb.chapter) this.cb.chapter({ ending: { title: '洗白上岸', medal: '🕊️', text: '你在記者會上鞠躬道歉，把該繳的都繳了。有人說你作秀，但你知道，從今天開始可以睡得著了。' }, route: 'wash' });
+      return true;
+    }
+
     // ── 收回加盟店：合約到期不續約、違約解約、協議買回變直營 ──
     franchiseAt(i) {
       const f = (this.franchises || [])[i];
@@ -6903,6 +7114,11 @@
         this.kitchen.issues += 1;
         this.pendingEvents.push({ ev: this.kitchenEvent(), at: this.hours.open + 40, where: 'phone' });
       }
+      // 🕶️ 誘惑找上門：開店兩週後偶爾有人來推銷邪門手段（已經在用的、還不能用的不會來）
+      if (this.day >= 14 && !this.dark.busted && this.rng() < 0.045) {
+        const pool = Object.keys(Fun.DARK || {}).filter((k) => !this.dark.on[k] && this.darkAvail(k) && (this.dark.declined || {})[k] !== this.week);
+        if (pool.length) this.pendingEvents.push({ ev: this.temptEvent(pool[Math.floor(this.rng() * pool.length)]), at: this.hours.open + 90 + this.rng() * 240, where: 'phone' });
+      }
       if (this.franchiseIssue && this.franchises && this.franchises[this.franchiseIssue.i]) {
         this.pendingEvents.push({ ev: this.franchiseIssueEvent(this.franchiseIssue.i), at: this.hours.open + 70, where: 'phone' });
         this.franchiseIssue = null;
@@ -7043,6 +7259,7 @@
         for (const id of Object.keys(this.prices)) this.prices[id] = Math.round(this.prices[id] * (1 + fx.price));
       }
       if (fx.demand) this.demandMods.push({ mult: fx.demand.mult, days: fx.demand.months * 7 });
+      if (fx.darkOn) this.setDark(fx.darkOn, true);
       if (fx.flag) {
         this.flags.add(fx.flag);
         // 記住是哪個事件留下的隱憂：之後被罰才說得出原因
@@ -7554,10 +7771,11 @@
       const tax = this.businessTax(L);
       L.tax += tax;
       this.cash -= tax;
+      this.darkWeekly(L);
 
       // 勞動檢查
       let inspection = null;
-      if (this.rng() < (0.05 + this.jerk / 250) * this.diff.inspect) {
+      if (this.rng() < (0.05 + this.jerk / 250) * this.diff.inspect * (this.dark.on.politics ? 0.5 : 1)) {
         const v = [...this.flags].filter((f) => VIOLATIONS[f]);
         const fine = Math.round(v.reduce((s, f) => s + VIOLATIONS[f].fine, 0) * 0.6 * this.fineMult);
         inspection = { violations: v.map((f) => VIOLATIONS[f].label), fine };
@@ -7826,6 +8044,7 @@
         franchises: this.franchises || [],
         franchiseApps: this.franchiseApps || null,
         ipo: this.ipo || null,
+        dark: this.dark,
         coop: this.coop || null,
         authCount: this.authCount || 0,
         branches: this.branches,
@@ -7944,6 +8163,7 @@
       s.franchises = d.franchises || [];
       s.franchiseApps = d.franchiseApps || null;
       s.ipo = d.ipo || null;
+      s.dark = { ...Sim.darkDefaults(), ...(d.dark || {}) };
       s.coop = d.coop || null;
       s.authCount = d.authCount || 0;
       s.owner = { ...Sim.ownerDefaults(), ...(d.owner || {}) };
@@ -8225,6 +8445,7 @@
     { id: 'year2', name: '老字號', desc: '經營滿兩年（96 週）', reward: 200000, long: true },
     { id: 'ipoEnd', name: '敲鐘', desc: '走完上市路線，而且沒有變成慣老闆', reward: 0, long: true },
     { id: 'coopEnd', name: '百年老店', desc: '走完員工持股路線，指定接班人', reward: 0, long: true },
+    { id: 'darkEnd', name: '黑心帝國', desc: '走完黑心財團路線，而且沒有東窗事發', reward: 0, long: true },
   ];
 
   VIOLATIONS.noRestDay = VIOLATIONS.noRestDay || { label: '未依法排休（七休一）', fine: 60000 };

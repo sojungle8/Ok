@@ -328,6 +328,31 @@ T('粉絲：漲到店的規模上限就漲不動', () => {
   ok(s.social.followers <= cap * 1.6, `粉絲 ${s.social.followers} 上限 ${cap}`);
 });
 
+T('走歪：誘惑接受就開始、每週有黑錢、被抓三次東窗事發、洗白歸零', () => {
+  const s = mk('store', { cash: 5e6 });
+  ok(!Fun.ROUTES.dark.need(s), '沒走歪過就看得到黑心路線');
+  const ev = s.temptEvent('books');
+  s.spawnEvent({ where: 'phone', ev });
+  ok(s.dark.on.books && s.dark.unlocked, '接受誘惑沒有開始');
+  ok(s.isPersonalEvent({ ev }), '誘惑可以被代理決定');
+  s.setDark('relabel', true);
+  days(s, 7);
+  const r = s.history[s.history.length - 1];
+  ok(s.dark.earned > 0 && s.dark.last.relabel > 0, `沒賺到黑錢 ${JSON.stringify(s.dark.last)}`);
+  ok(s.dark.heat > 0, '黑歷史沒增加');
+  const L = s.emptyLedger();
+  for (let k = 0; k < 3; k++) {
+    s.dark.on.books = true;
+    s.darkCaught('books', L);
+  }
+  ok(s.dark.busted && !s.darkActive().length, '被抓三次沒有東窗事發');
+  ok(!s.setDark('books', true), '東窗事發後還能用');
+  const s2 = mk('store', { cash: 5e7 });
+  s2.setDark('books', true);
+  s2.dark.heat = 50;
+  ok(s2.washDark() && s2.dark.heat === 0 && !s2.darkActive().length && !s2.washDark(), '洗白不對');
+});
+
 // ───── 兼營業務 ─────
 T('兼營：每一項都有適合度星等和原因', () => {
   for (const ind of Object.keys(I.SIDE_BIZ)) {
