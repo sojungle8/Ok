@@ -5603,3 +5603,56 @@ body.in-world .joy-knob { left: 41px; top: 41px; }
   .dh-clock small { display: none; }
   .dh-btns button { font-size: 14px; padding: 9px 12px; }
 }
+
+/* 📈 股市 */
+.stock-head { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 6px; }
+.stock-head small { display: block; font-size: 11px; color: var(--muted); }
+.stock-head b { font-size: 18px; font-variant-numeric: tabular-nums; }
+.stock-head b span { font-size: 12px; margin-left: 4px; }
+.stock-head .pos { color: #d93b2b; }
+.stock-head .neg { color: #1e9e57; }
+.stock-chart { width: 100%; height: 70px; background: rgba(0, 0, 0, 0.03); border-radius: 10px; }
+.stock-chart polyline { fill: none; stroke-width: 2.5; vector-effect: non-scaling-stroke; }
+.stock-chart.up polyline { stroke: #d93b2b; }
+.stock-chart.down polyline { stroke: #1e9e57; }
+.stock-raid { background: #2b2134; color: #ffcf7a; padding: 8px 10px; border-radius: 10px; font-size: 13px; margin: 6px 0; animation: wanted 1.2s infinite; }
+.stock-card .city-btns button small { display: block; font-size: 11px; color: var(--muted); }
+
+/* 🍳 自創新品、🔤 招牌字體 */
+.create-card { display: grid; gap: 6px; margin-top: 10px; }
+.input-box select { font: inherit; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg, #fff); color: inherit; }
+.style-chip.font-serif { font-family: "Noto Serif TC", serif; font-weight: 900; }
+.style-chip.font-round { font-family: "Huninn", sans-serif; }
+.style-chip.font-brush { font-family: "LXGW WenKai TC", serif; }
+.style-chip.font-neon { color: #ff4fa3; text-shadow: 0 0 6px #ff4fa3; background: #1d1828; }
+.group-card .city-btns button small { display: block; font-size: 11px; color: var(--muted); }
+
+/* ✨ 統一的介面動畫：對話框彈出、按鈕按下回彈、分頁切換淡入、數字更新閃一下 */
+.dialog-backdrop { animation: ui-fade 0.18s ease-out; }
+.dialog-backdrop > .card:not(.drama):not(.ending) { animation: ui-pop 0.26s cubic-bezier(0.2, 0.9, 0.3, 1.25); }
+.drawer .subdrawer-body, .drawer .sub-body, .drawer h3 + * { animation: ui-rise 0.22s ease-out both; }
+.savebox-wrap .savebox { animation: ui-pop 0.24s cubic-bezier(0.2, 0.9, 0.3, 1.25); }
+button { transition: transform 0.08s ease, filter 0.15s ease, background-color 0.15s ease; }
+button:not(:disabled):active { transform: scale(0.95); filter: brightness(0.94); }
+.dh-btns button:not(:disabled):active, .dh-menu button:not(:disabled):active { transform: scale(0.93); }
+.group-card, .fr-card, .mgr-card, .stock-card { animation: ui-rise 0.25s ease-out both; }
+.dh-msg { animation: ui-pop 0.25s cubic-bezier(0.2, 0.9, 0.3, 1.25); }
+.dh-mission, .dh-menu { animation: ui-rise 0.2s ease-out; }
+@keyframes ui-fade { from { opacity: 0; } }
+@keyframes ui-pop { from { opacity: 0; transform: scale(0.88) translateY(12px); } }
+@keyframes ui-rise { from { opacity: 0; transform: translateY(8px); } }
+:root[data-quality='low'] .group-card, :root[data-quality='low'] .drawer h3 + * { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  .dialog-backdrop, .dialog-backdrop > .card, .drawer h3 + *, .savebox-wrap .savebox, .group-card, .fr-card, .mgr-card, .stock-card, .dh-msg, .dh-mission, .dh-menu { animation: none !important; }
+  button:active { transform: none !important; }
+}
+
+/* 🌀 颱風：畫面邊緣暗下來、斜斜的雨絲、閃電一閃 */
+body.typhoon .shop-grade { box-shadow: inset 0 0 120px 40px rgba(20, 28, 40, 0.55); }
+body.typhoon .viewport::after { content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 2; background: repeating-linear-gradient(105deg, rgba(220, 235, 255, 0.07) 0 2px, transparent 2px 22px); background-size: 220px 220px; animation: storm-streak 0.35s linear infinite; }
+.shop-grade.bolt { background: rgba(235, 240, 255, 0.55) !important; transition: none; }
+@keyframes storm-streak { to { background-position: -60px 220px; } }
+:root[data-quality='low'] body.typhoon .viewport::after { display: none; }
+@media (prefers-reduced-motion: reduce) { body.typhoon .viewport::after { animation: none; } }
+.world-fade { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; background: #141a28; color: #fff; font-size: 20px; font-weight: 700; pointer-events: none; transition: opacity 0.4s ease; animation: ui-fade 0.15s ease-out; }
+.world-fade.out { opacity: 0; }

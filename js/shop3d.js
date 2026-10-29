@@ -292,6 +292,16 @@
     else B(g, w, h, t, color, 0, 0, z + d / 2 - t / 2, opts); // 上面開口：前面要有面板
   }
 
+  function signFont(kind) {
+    return {
+      serif: '900 110px "Noto Serif TC","PMingLiU",serif',
+      round: 'bold 110px "Huninn","Noto Sans TC",sans-serif',
+      brush: 'bold 110px "LXGW WenKai TC","DFKai-SB","BiauKai",serif',
+      neon: 'bold 110px "Huninn","Noto Sans TC",sans-serif',
+    }[kind] || 'bold 110px "PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif';
+  }
+  root.BossSignFont = signFont;
+
   function canvasTex(w, h, draw) {
     const c = document.createElement('canvas');
     c.width = w;
@@ -2549,23 +2559,48 @@
       B(this.walls.front, W + 0.3, 0.35, 0.18, trim, W / 2, WALL_H - 0.05, H + 0.02);
       // 招牌
       const signColor = s.style.sign || ind.signColor;
-      this.signTex = canvasTex(1024, 192, (c, w, h) => {
+      // 招牌字體（玩家自己挑）：字型還沒載入就先用黑體畫，載入後重畫
+      const fontKind = (s.custom && s.custom.font) || 'sans';
+      const fontStr = signFont(fontKind);
+      const drawSign = (c, w, h) => {
+        const neon = fontKind === 'neon';
         const grad = c.createLinearGradient(0, 0, 0, h);
-        grad.addColorStop(0, signColor);
+        grad.addColorStop(0, neon ? '#1d1828' : signColor);
         grad.addColorStop(1, '#00000033');
-        c.fillStyle = signColor;
+        c.fillStyle = neon ? '#1d1828' : signColor;
         c.fillRect(0, 0, w, h);
         c.fillStyle = grad;
         c.fillRect(0, 0, w, h);
-        c.strokeStyle = '#ffffff';
+        c.strokeStyle = neon ? signColor : fontKind === 'serif' ? '#e8c06a' : '#ffffff';
         c.lineWidth = 8;
         c.strokeRect(10, 10, w - 20, h - 20);
-        c.fillStyle = '#ffffff';
-        c.font = 'bold 110px "PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif';
+        c.fillStyle = neon ? '#ffffff' : fontKind === 'serif' ? '#ffe7a8' : '#ffffff';
+        if (neon) {
+          c.shadowColor = signColor;
+          c.shadowBlur = 28;
+        }
+        c.font = fontStr;
         c.textAlign = 'center';
         c.textBaseline = 'middle';
+        let fs = 110;
+        while (c.measureText(s.shopName).width > w - 60 && fs > 40) {
+          fs -= 6;
+          c.font = fontStr.replace('110px', `${fs}px`);
+        }
         c.fillText(s.shopName, w / 2, h / 2 + 6);
-      });
+        if (neon) c.fillText(s.shopName, w / 2, h / 2 + 6);
+        c.shadowBlur = 0;
+      };
+      this.signTex = canvasTex(1024, 192, drawSign);
+      if (fontKind !== 'sans' && document.fonts && document.fonts.load) {
+        const tex = this.signTex;
+        document.fonts.load(fontStr, s.shopName).then(() => {
+          const c = tex.image.getContext('2d');
+          c.clearRect(0, 0, 1024, 192);
+          drawSign(c, 1024, 192);
+          tex.needsUpdate = true;
+        }).catch(() => {});
+      }
       this.signMat = new THREE.MeshStandardMaterial({ map: this.signTex, emissive: '#ffffff', emissiveMap: this.signTex, emissiveIntensity: 0.15, transparent: true });
       this.signSide = new THREE.MeshStandardMaterial({ color: signColor, transparent: true });
       const sign = new THREE.Mesh(new THREE.BoxGeometry(Math.min(W, 7), 0.95, 0.12), [this.signSide, this.signSide, this.signSide, this.signSide, this.signMat, this.signSide]);
@@ -3317,6 +3352,33 @@
           p.armR.rotation.x = -0.9 + Math.sin(now / 90) * 0.35;
           p.armL.rotation.x = -0.9 + Math.cos(now / 90) * 0.35;
         }
+        // 沒事做的時候：累了伸懶腰、心情差偷滑手機、休息時坐著滑手機、心情很好偶爾揮手哼歌
+        const idle = !a.moving && !a.path.length && !serving && !mopping && !ev && !using && !crate;
+        let phone = false;
+        if (idle && (a.state === 'working' || a.state === 'break')) {
+          const ph = now / 1000 + a.id * 1.7;
+          if (a.energy < 30 && ph % 9 < 1.6) {
+            const k = Math.sin(((ph % 9) / 1.6) * Math.PI);
+            p.armR.rotation.x = -2.9 * k;
+            p.armL.rotation.x = -2.9 * k;
+            p.head.rotation.x = -0.25 * k;
+          } else if (sitting || a.state === 'break' || a.mood < 40) {
+            phone = true;
+            p.armR.rotation.x = -1.25;
+            p.armL.rotation.x = -1.05;
+            p.head.rotation.x = 0.32;
+          } else if (a.mood >= 75 && ph % 14 < 1.2) {
+            p.armR.rotation.x = -2.6 + Math.sin(ph * 12) * 0.35;
+            p.head.rotation.z = Math.sin(ph * 6) * 0.12;
+          } else {
+            p.head.rotation.x = 0;
+            p.head.rotation.z = 0;
+          }
+        } else if (p.head.rotation.x || p.head.rotation.z) {
+          p.head.rotation.x = 0;
+          p.head.rotation.z = 0;
+        }
+        if (phone && !mopping && !crate) People.setCarry(p, 'phone');
         // 面向服務位
         if (serving && a.task.obj) a.dir = Math.atan2(a.task.lane.custSpot.x - a.task.lane.staffSpot.x, a.task.lane.custSpot.z - a.task.lane.staffSpot.z);
       } else if (kind === 'scooter') {
@@ -3442,6 +3504,75 @@
         arr.set([x, y, z, x + slant * 0.4, y - 0.35, z], i * 6);
       });
       this.rain.geometry.attributes.position.needsUpdate = true;
+    }
+
+    // 🌀 颱風：招牌和遮雨棚被吹得一直晃、樹葉垃圾袋橫著飛、偶爾打雷閃電
+    updateStorm(dt, now) {
+      const s = this.sim;
+      const storm = s.weather && s.weather.id === 'typhoon';
+      this.stormK = Math.max(0, Math.min(1, (this.stormK || 0) + (storm ? dt * 0.5 : -dt * 0.5)));
+      const k = this.stormK;
+      if (this.sign) {
+        this.sign.rotation.z = k * Math.sin(now / 130) * 0.05;
+        this.sign.rotation.x = k * Math.sin(now / 210) * 0.06;
+      }
+      if (!this.debris && k > 0) {
+        const N = this.quality === 'low' ? 24 : 60;
+        const geo = new THREE.PlaneGeometry(0.16, 0.11);
+        const m = new THREE.MeshLambertMaterial({ side: THREE.DoubleSide });
+        this.debris = new THREE.InstancedMesh(geo, m, N);
+        this.debris.frustumCulled = false;
+        const C = new THREE.Color();
+        this.debrisSeeds = Array.from({ length: N }, (_, i) => {
+          this.debris.setColorAt(i, C.set(['#6f9a4f', '#8db35e', '#c9b27c', '#f2f2f2', '#d94f3d', '#5c8c3e'][i % 6]));
+          return { x: Math.random(), y: Math.random(), z: Math.random(), r: Math.random() * 6, sp: 0.6 + Math.random() * 0.8 };
+        });
+        this.world.add(this.debris);
+      }
+      if (this.debris) {
+        this.debris.visible = k > 0.05;
+        if (this.debris.visible) {
+          const M = this._dbM || (this._dbM = new THREE.Matrix4());
+          const Q = this._dbQ || (this._dbQ = new THREE.Quaternion());
+          const E = this._dbE || (this._dbE = new THREE.Euler());
+          const V = this._dbV || (this._dbV = new THREE.Vector3());
+          const S1 = this._dbS || (this._dbS = new THREE.Vector3(1, 1, 1));
+          const W = s.W + 12;
+          this.debrisSeeds.forEach((d, i) => {
+            d.x += dt * d.sp * 0.35 * k;
+            d.r += dt * 9 * d.sp;
+            if (d.x > 1) {
+              d.x -= 1;
+              d.y = Math.random();
+              d.z = Math.random();
+            }
+            V.set(-6 + d.x * W, 0.2 + d.y * 3.2 + Math.sin(d.r) * 0.3, s.H + 0.4 + d.z * 6);
+            Q.setFromEuler(E.set(d.r, d.r * 0.7, d.r * 1.3));
+            S1.setScalar(k);
+            M.compose(V, Q, S1);
+            this.debris.setMatrixAt(i, M);
+          });
+          this.debris.instanceMatrix.needsUpdate = true;
+        }
+      }
+      // 閃電：整個畫面亮一下，過一下才打雷
+      this.boltT = (this.boltT || 0) - dt;
+      if (storm && k > 0.8 && this.boltT <= 0) {
+        this.boltT = 6 + Math.random() * 10;
+        this.bolt = 0.35;
+        this.thunderAt = now + 600 + Math.random() * 900;
+      }
+      if (this.thunderAt && now > this.thunderAt) {
+        this.thunderAt = 0;
+        if (root.BossAudio && root.BossAudio.play) root.BossAudio.play('thunder');
+      }
+      if (this.bolt > 0) {
+        this.bolt -= dt;
+        const f = this.bolt > 0.25 || (this.bolt > 0.08 && this.bolt < 0.14) ? 1 : 0;
+        this.hemi.intensity += f * 1.4;
+        this.grade.classList.toggle('bolt', !!f);
+      } else if (this.grade.classList.contains('bolt')) this.grade.classList.remove('bolt');
+      document.body.classList.toggle('typhoon', k > 0.5);
     }
 
     // 🌸 季節的飄落物：春天櫻花瓣、秋天落葉、夏天晚上的螢火蟲（一群點一次畫完）
@@ -3678,6 +3809,7 @@
         this.renderer.shadowMap.needsUpdate = true;
       }
       this.updateRain(dt);
+      this.updateStorm(dt, now);
       this.updateSeason(dt, now);
       this.updateStreetLife(dt, now);
       this.updateEVBay(dt);

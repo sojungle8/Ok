@@ -210,14 +210,14 @@
     const w = document.createElement('div');
     w.className = 'savebox-wrap';
     w.innerHTML = `<div class="savebox card input-box" role="dialog"><h3>${esc(title)}</h3>${note ? `<p class="calc">${esc(note)}</p>` : ''}
-      ${fields.map((f) => `<label class="ib-field"><span>${esc(f.label)}</span><input data-k="${f.key}" maxlength="${f.max || 20}" value="${esc(f.value || '')}" /></label>`).join('')}
+      ${fields.map((f) => `<label class="ib-field"><span>${esc(f.label)}</span>${f.options ? `<select data-k="${f.key}">${f.options.map(([v, l]) => `<option value="${esc(v)}" ${v === f.value ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>` : `<input data-k="${f.key}" ${f.type ? `type="${f.type}"` : ''} maxlength="${f.max || 20}" value="${esc(f.value || '')}" />`}</label>`).join('')}
       <div class="savebox-btns"><button class="primary" data-sb="ok">確定</button><button data-sb="close">取消</button></div><small class="savebox-msg neg"></small></div>`;
     document.body.appendChild(w);
     const first = w.querySelector('input');
     if (first) setTimeout(() => first.focus(), 50);
     const submit = () => {
       const v = {};
-      w.querySelectorAll('input').forEach((i) => (v[i.dataset.k] = i.value));
+      w.querySelectorAll('input, select').forEach((i) => (v[i.dataset.k] = i.value));
       const r = ok(v);
       if (r === true) {
         w.remove();
@@ -884,20 +884,36 @@
   // 走出店門：真實比例的街頭（world3d.js）
   function openWorld() {
     const s = ui.sim;
-    if (!window.BossWorld3D || !ui.view || ui.place || ui.world) return false;
+    if (!window.BossWorld3D || !ui.view || ui.place || ui.world || ui.worldPending) return false;
     if (!s.startDrive()) return false;
     if (ui.city) closeCity();
     closeDialog();
     if (ui.tab) openTab(ui.tab);
     closeInspector();
     if (ui.bossMode) setBossMode(false);
-    ui.world = new window.BossWorld3D(ui.view, s, { gender: ui.settings.gender, quality: ui.view.quality });
-    ui.view.overlay.hidden = true;
-    ui.keys.clear();
-    ui.driveMenu = false;
-    document.getElementById('joy').hidden = !isTouch;
-    document.body.classList.add('driving', 'in-world');
-    renderDriveHud();
+    // 蓋整座城市要零點幾秒：先蓋一層「走出店門」的轉場，下一幀才開始蓋，畫面不會像當掉
+    const fade = document.createElement('div');
+    fade.className = 'world-fade';
+    fade.innerHTML = '<span>🌆 走出店門……</span>';
+    document.getElementById('app').appendChild(fade);
+    ui.worldPending = true;
+    requestAnimationFrame(() =>
+      setTimeout(() => {
+        ui.worldPending = false;
+        if (ui.sim !== s || !ui.view || ui.place) return fade.remove();
+        ui.world = new window.BossWorld3D(ui.view, s, { gender: ui.settings.gender, quality: ui.view.quality });
+        ui.view.overlay.hidden = true;
+        ui.keys.clear();
+        ui.driveMenu = false;
+        document.getElementById('joy').hidden = !isTouch;
+        document.body.classList.add('driving', 'in-world');
+        renderDriveHud();
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          fade.classList.add('out');
+          setTimeout(() => fade.remove(), 450);
+        }));
+      }, 20),
+    );
     return true;
   }
   function closeWorld() {
@@ -2094,6 +2110,7 @@
               <div class="style-row"><span>招牌 <small>$5,000</small></span>${SIGNS.map((c) => `<button class="swatch ${(s.style.sign || s.ind.signColor) === c ? 'active' : ''}" style="background:${c}" data-action="style" data-kind="sign" data-value="${c}" aria-label="招牌顏色"></button>`).join('')}</div>
               <div class="style-row"><span>雨遮 <small>$4,000・條紋</small></span>${SIGNS.map((c) => `<button class="swatch stripe ${s.style.awning === c ? 'active' : ''}" style="--c:${c}" data-action="style" data-kind="awning" data-value="${c}" aria-label="雨遮顏色"></button>`).join('')}</div>
               <h3>🎨 自己的風格 <small>讓這間店是你的店</small></h3>
+              <div class="style-row"><span>招牌字體 <small>${money(s.fontCost)}</small></span>${[['sans', '黑體'], ['serif', '明體'], ['round', '圓體'], ['brush', '楷書'], ['neon', '霓虹']].map(([f, n]) => `<button class="style-chip font-${f} ${(s.custom.font || 'sans') === f ? 'active' : ''}" data-action="sign-font" data-value="${f}">${n}</button>`).join('')}</div>
               <div class="style-row"><span>店名</span><b class="shop-name-now">${esc(s.shopName)}</b><button data-action="rename-shop" ${s.cash < s.renameCost ? 'disabled' : ''}>🪧 改店名・換招牌（${money(s.renameCost)}）</button></div>
               <div class="style-row"><span>員工制服 <small>${money(s.uniformCost)}</small></span><button class="style-chip ${!s.custom.uniform ? 'active' : ''}" data-action="uniform" data-value="">各穿各的</button>${UNIFORMS.map((c) => `<button class="swatch ${s.custom.uniform === c ? 'active' : ''}" style="background:${c}" data-action="uniform" data-value="${c}" aria-label="制服顏色"></button>`).join('')}</div>
               <p class="drawer-tip">菜名、圖示、招牌菜在「經營 → 🍜 價格」每個品項旁邊的 ✏️、⭐。</p>`
@@ -2790,13 +2807,14 @@
                 const avail = s.availableProducts().some((x) => x.id === pr.id) || !s.menu[pr.id];
                 return `<div class="price-row ${s.menu[pr.id] ? '' : 'off'}">
                   <div class="pr-name-wrap"><label class="price-name"><input type="checkbox" data-action="menu" data-id="${pr.id}" ${s.menu[pr.id] ? 'checked' : ''} /> ${pr.icon} ${esc(pr.name)}${s.custom.signature === pr.id ? ' <span class="sig-tag">⭐招牌</span>' : ''}</label>
-                  <span class="pr-tools"><button data-action="edit-product" data-id="${pr.id}" title="改菜名、換圖示">✏️</button><button data-action="signature" data-id="${pr.id}" class="${s.custom.signature === pr.id ? 'on' : ''}" ${s.custom.signature === pr.id || !s.signatureReady ? 'disabled' : ''} title="${s.signatureReady ? '定為招牌菜：點的人多六成（一週可以換一次）' : '招牌菜一週只能換一次'}">⭐</button></span></div>
+                  <span class="pr-tools">${pr.custom ? `<button data-action="del-product" data-id="${pr.id}" title="下架這道自創菜">🗑️</button>` : `<button data-action="edit-product" data-id="${pr.id}" title="改菜名、換圖示">✏️</button>`}<button data-action="signature" data-id="${pr.id}" class="${s.custom.signature === pr.id ? 'on' : ''}" ${s.custom.signature === pr.id || !s.signatureReady ? 'disabled' : ''} title="${s.signatureReady ? '定為招牌菜：點的人多六成（一週可以換一次）' : '招牌菜一週只能換一次'}">⭐</button></span></div>
                   <span class="price-ctl"><button data-action="price" data-id="${pr.id}" data-d="-5">－</button><b class="${cur > sug * 1.1 ? 'neg' : cur < sug * 0.9 ? 'pos' : ''}">$${cur}</b><button data-action="price" data-id="${pr.id}" data-d="5">＋</button></span>
                   <small>建議 $${sug}・毛利 ${margin}%${avail ? '' : '・<span class="neg">沒有設備</span>'}${g && s.stock[g.id] <= 0 ? '・<span class="neg">賣完了</span>' : ''}</small>
                 </div>`;
               })
               .join('')}
           </div>
+          <div class="group-card create-card"><b>🍳 自創新品</b><small class="muted">用現有的食材和設備變出一道新菜：自己取名、選圖示、定價（最多 4 道，已經 ${(s.custom.items || []).length} 道）。新菜會讓菜單更豐富，客人變多。</small><button data-action="create-product" ${(s.custom.items || []).length >= 4 || s.cash < s.createCost ? 'disabled' : ''}>🍳 研發自創菜（${money(s.createCost)}）</button></div>
           ${s.feature('seasonal') ? seasonalCard() : ''}
           <p class="drawer-tip">✏️ 可以幫品項取自己的名字、換圖示（免費）；⭐ 招牌菜點的人會多六成，一週可以換一次。<br>比建議價貴 10% 以上，客人會明顯變少，評價也會變差；學生和長輩對價格特別敏感，上班族比較不在意。${s.promoOn ? `<br>🎉 九折優惠到第 ${s.promo.until} 天。` : ''}</p>
 `;
@@ -3212,6 +3230,22 @@
   function groupPanel() {
     const s = ui.sim;
     let out = '';
+    if (s.brand2Unlocked) {
+      const B = s.brand2;
+      out += '<h3>🏷️ 第二品牌 <small>開另一個產業的連鎖，不用自己顧店</small></h3><div class="group-card">';
+      if (!B) {
+        out += `<p class="calc">選一個產業、取個名字，集團出錢開第一間。之後靠研發顧品質、打廣告衝人氣、一間一間展店；品質沒顧好會賠錢，還會連累本店的評價。</p><div class="city-btns">${INDUSTRIES.filter((I) => I.id !== s.ind.id).map((I) => `<button data-action="brand2-launch" data-id="${I.id}" ${s.cash < s.brand2Cost(I.id) ? 'disabled' : ''}>${I.icon} ${I.name}<small>${money(s.brand2Cost(I.id))}</small></button>`).join('')}</div>`;
+      } else {
+        out += `<p class="calc"><b>${B.icon} ${esc(B.name)}</b>・${B.stores} 間店・品質 ${Math.round(B.quality)}・人氣 ${'🔥'.repeat(Math.ceil(B.hype)) || '—'}・上週 <span class="${B.last >= 0 ? 'pos' : 'neg'}">${money(B.last)}</span>・累計 ${money(B.total)}</p>
+          <div class="bar"><div class="bar-fill ${B.quality >= 55 ? 'skill' : 'jerk'}" style="width:${Math.round(B.quality)}%"></div></div>
+          <div class="city-btns">
+            <button data-action="brand2" data-kind="store" ${s.cash < s.brand2StoreCost || B.stores >= 20 ? 'disabled' : ''}>🏪 展店<small>${money(s.brand2StoreCost)}・品質 -3</small></button>
+            <button data-action="brand2" data-kind="rd" ${s.cash < 40000 + B.stores * 8000 ? 'disabled' : ''}>🧪 研發改良<small>${money(40000 + B.stores * 8000)}・品質 +9</small></button>
+            <button data-action="brand2" data-kind="ad" ${s.cash < 30000 + B.stores * 6000 ? 'disabled' : ''}>📣 打廣告<small>${money(30000 + B.stores * 6000)}・人氣 +1</small></button>
+          </div>`;
+      }
+      out += '</div>';
+    }
     if (s.feature('kitchen')) {
       const K = s.kitchenName;
       out += `<h3>🏭 ${K} <small>所有店一起降成本，也一起承擔風險</small></h3>`;
@@ -3258,8 +3292,13 @@
       out += `<h3>🔔 上市之路</h3><div class="group-card">`;
       if (!I) out += `<p class="calc">公司估值達到 ${money(s.raiseNeed)} 就能找投資人（現在 ${money(s.valuation)}）。募資大約拿到一年本業獲利的現金；之後投資人每週分走兩成五的獲利，每季還要交成績單。</p><button class="primary" data-action="ipo-raise" ${s.valuation < s.raiseNeed ? 'disabled' : ''}>💼 引進投資人</button>`;
       else if (!I.listed) out += `<p class="calc">這一季（還有 ${Math.max(0, 13 - (s.week - I.qWeek))} 週）：淨利 ${money(Math.round(I.qProfit))} / 目標 ${money(I.target)}・連續達標 ${I.streak} 季</p><div class="bar"><div class="bar-fill skill" style="width:${Math.min(100, Math.round((I.qProfit / Math.max(1, I.target)) * 100))}%"></div></div><button class="primary" data-action="ipo-list" ${I.streak < 3 || s.jerk >= 20 ? 'disabled' : ''}>🔔 申請掛牌${I.streak < 3 ? `（要連續 3 季達標）` : s.jerk >= 20 ? '（慣老闆指數要低於 20）' : ''}</button>`;
-      else out += '<p class="calc">🔔 已經掛牌上市。</p>';
       out += '</div>';
+      if (I && I.listed) out += stockPanel();
+    } else if (route === 'dark') {
+      out += `<h3>🕶️ 借殼上市</h3><div class="group-card">`;
+      if (!s.ipo) out += `<p class="calc">走歪路的人不用連續三季達標：買一家快下市的空殼公司，換上你的招牌就是上市公司。要估值到 ${money(Math.round(s.raiseNeed * 0.8))}（現在 ${money(s.valuation)}）、現金 ${money(s.shellCost)}。代價：你只拿到 42% 股份，黑歷史 +12，很容易被禿鷹盯上。</p><button class="primary" data-action="shell-list" ${s.canShell() ? '' : 'disabled'}>🕶️ 借殼上市（${money(s.shellCost)}）</button>`;
+      out += '</div>';
+      if (s.equity) out += stockPanel();
     } else if (route === 'coop') {
       const C = s.coop;
       out += `<h3>🤲 員工持股・百年老店</h3><div class="group-card">`;
@@ -3615,8 +3654,8 @@
       </div>`;
     } else if (d.type === 'ending') {
       const e = s.ending;
-      inner = `<div class="card ending lose">
-        <div class="ending-face">${portraitSVG(bossLook(ui.settings.gender), e.type === 'jerk' ? 'shocked' : 'sad')}<span>${e.type === 'jerk' ? '📰' : '💸'}</span></div>
+      inner = `<div class="card ending ${e.win ? 'win' : 'lose'}">
+        <div class="ending-face">${portraitSVG(bossLook(ui.settings.gender), e.win ? 'happy' : e.type === 'jerk' ? 'shocked' : 'sad')}<span>${e.win ? '🏝️' : e.type === 'jerk' ? '📰' : e.type === 'ousted' ? '🦅' : '💸'}</span></div>
         <h2>${e.title}</h2><p>${e.desc}</p>
         <div class="ending-stats">
           <div><span>撐了</span><b>${s.day - 1} 天</b></div>
@@ -3630,6 +3669,35 @@
     if (ui.sim) inner = ui.sim.w(inner);
     box.innerHTML = d.type === 'minigame' ? '' : `<div class="dialog-backdrop ${['week', 'ending', 'victory', 'menu', 'advice', 'activity', 'boss-menu', 'city', 'trip', 'rival-visit', 'schemes', 'collabs', 'sites', 'chapter'].includes(d.type) ? 'center' : ''}">${inner}</div>`;
     ui.dialogShownAt = performance.now();
+  }
+
+  // 📈 上市公司：股價走勢、持股、法說會、股東會、收購戰
+  function stockPanel() {
+    const s = ui.sim;
+    const S = s.equity;
+    if (!S) return '';
+    const h = S.hist.length > 1 ? S.hist : [S.price, S.price];
+    const lo = Math.min(...h);
+    const hi = Math.max(...h);
+    const pts = h.map((v, i) => `${((i / (h.length - 1)) * 300).toFixed(1)},${(70 - ((v - lo) / Math.max(0.01, hi - lo)) * 62 - 4).toFixed(1)}`).join(' ');
+    const first = h[0];
+    const up = S.price >= first;
+    const chg = ((S.price / first - 1) * 100).toFixed(1);
+    const R = S.raid && !S.raid.done ? S.raid : null;
+    const qLeft = Math.max(0, 13 - (s.week - S.qStart));
+    const unit = s.marketCap * 0.01;
+    return `<h3>📈 股市</h3><div class="group-card stock-card">
+      <div class="stock-head"><div><small>股價</small><b class="${up ? 'pos' : 'neg'}">${S.price.toFixed(1)}<span>${up ? '▲' : '▼'} ${chg}%</span></b></div><div><small>市值</small><b>${money(s.marketCap)}</b></div><div><small>你的持股</small><b>${(S.own * 100).toFixed(1)}%</b><small>${money(s.ownStake)}</small></div></div>
+      <svg class="stock-chart ${up ? 'up' : 'down'}" viewBox="0 0 300 70" preserveAspectRatio="none"><polyline points="${pts}"/></svg>
+      <p class="calc">市場情緒 ${S.mood >= 1.15 ? '🔥 過熱' : S.mood >= 0.95 ? '🙂 正常' : S.mood >= 0.75 ? '😟 悲觀' : '🥶 恐慌'}（股價 ÷ 合理價 ${S.mood.toFixed(2)}）・本季（剩 ${qLeft} 週）淨利 ${money(S.q)}${S.guide != null ? ` / 財測 ${money(S.guide)}` : '・法說會還沒開'}・下次股東會第 ${S.agmDue} 週</p>
+      ${S.guide != null ? `<div class="bar"><div class="bar-fill ${S.q >= S.guide ? 'skill' : 'jerk'}" style="width:${Math.min(100, Math.round((S.q / Math.max(1, S.guide)) * 100))}%"></div></div>` : ''}
+      ${R ? `<div class="stock-raid">🦅 <b>${esc(R.name)}</b>正在收購：持股 ${Math.round(R.pct * 100)}%（你 ${Math.round(S.own * 100)}%）。他超過你、而且你們加起來過六成，你就會被踢出董事會。</div>` : S.own < 0.5 ? '<p class="calc">⚠️ 你的持股沒過半：股價低的時候容易被惡意收購。</p>' : ''}
+      <div class="city-btns">
+        <button data-action="stock-buy" ${s.owner.wealth < unit || S.own >= 0.9 ? 'disabled' : ''}>📈 增持 1%<small>個人付 ${money(unit)}</small></button>
+        <button data-action="stock-sell" ${S.own <= 0.05 ? 'disabled' : ''}>📉 賣 1% 套現<small>拿 ${money(unit * 0.994)}，股價會跌</small></button>
+        <button data-action="stock-buyback" ${s.cash < s.buybackCost ? 'disabled' : ''}>🏦 庫藏股 2%<small>公司付 ${money(s.buybackCost)}，撐股價</small></button>
+      </div>
+    </div>`;
   }
 
   function weekReport(r) {
@@ -4739,6 +4807,52 @@
         break;
       case 'ipo-raise':
         s.raiseFunds();
+        renderDrawer();
+        break;
+      case 'sign-font':
+        if (!s.setSignFont(btn.dataset.value)) toast('錢不夠', 'bad');
+        renderDrawer();
+        break;
+      case 'create-product': {
+        const bases = s.ind.products.filter((p) => !p.custom && !p.side && s.hasRecipe(p));
+        inputBox({
+          title: '🍳 自創新品',
+          note: `研發費 ${money(s.createCost)}。選一道現有的菜當基底（用同樣的食材和設備），價格可以定在基底的一半到三倍之間：越貴成本越高，點的人越少。`,
+          fields: [
+            { key: 'base', label: '基底', value: bases[0] && bases[0].id, options: bases.map((p) => [p.id, `${p.icon} ${p.name}（$${s.prices[p.id]}）`]) },
+            { key: 'name', label: '菜名（最多 10 個字）', value: '', max: 10 },
+            { key: 'icon', label: '圖示（貼一個 emoji）', value: '✨', max: 4 },
+            { key: 'price', label: '售價', value: String(bases[0] ? Math.round(bases[0].price * 1.3) : 100), max: 6, type: 'number' },
+          ],
+          ok: (v) => !!s.createProduct(v) || '要有菜名，價格要在基底的 0.5～3 倍之間（也要付得起研發費）',
+          done: () => renderDrawer(),
+        });
+        break;
+      }
+      case 'del-product':
+        if (s.removeProduct(btn.dataset.id)) toast('🗑️ 下架了');
+        renderDrawer();
+        break;
+      case 'brand2-launch': {
+        const I = INDUSTRIES.find((x) => x.id === btn.dataset.id);
+        inputBox({ title: `🏷️ 第二品牌：${I.icon} ${I.name}`, note: `開辦費 ${money(s.brand2Cost(I.id))}，從公司現金出。`, fields: [{ key: 'name', label: '品牌名稱', value: I.nameIdeas ? I.nameIdeas[1] : I.shopName, max: 12 }], ok: (v) => s.launchBrand2(I.id, v.name) || '名字要 2～12 個字（也要付得起開辦費）', done: () => renderDrawer() });
+        break;
+      }
+      case 'brand2':
+        if (!s.brand2Act(btn.dataset.kind)) toast('做不到（錢不夠或店數到上限）', 'bad');
+        renderDrawer();
+        break;
+      case 'shell-list':
+        if (!s.shellList()) toast('條件還不夠', 'bad');
+        renderDrawer();
+        break;
+      case 'stock-buy':
+      case 'stock-sell':
+        if (!s.tradeStock(a === 'stock-buy' ? 1 : -1)) toast('做不到（錢不夠或持股到上限）', 'bad');
+        renderDrawer();
+        break;
+      case 'stock-buyback':
+        if (!s.buyback()) toast('公司現金不夠', 'bad');
         renderDrawer();
         break;
       case 'ipo-list':

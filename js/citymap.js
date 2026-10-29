@@ -112,16 +112,45 @@
       fit: { breakfast: 1.12, noodle: 1.0, drinks: 1.0, barber: 1.05, scooter: 1.15, store: 1.05 },
       near: '廟和香舖',
     },
+    university: {
+      x: 0, y: 3, name: '大學城', icon: '🎓',
+      desc: '學生整天都在，晚上宵夜更旺；寒暑假整條街像鬼城，學生很看價錢。',
+      traffic: 1.15, rent: 0.9, weekend: 0.9,
+      hours: { 11: 1.2, 12: 1.35, 18: 1.25, 21: 1.3, 22: 1.35, 23: 1.3 },
+      mix: { student: 1.9, office: 0.5, elderly: 0.6, family: 0.7 },
+      fit: { breakfast: 1.05, noodle: 1.1, drinks: 1.25, barber: 1.1, scooter: 1.15, store: 1.1 },
+      breakMonths: [1, 2, 7, 8],
+      near: '大學宿舍',
+    },
+    oldstreet: {
+      x: 0, y: 1, name: '老街觀光區', icon: '🏯',
+      desc: '週末觀光客擠到走不動，平日很安靜；觀光客出手大方但不會再來。',
+      traffic: 1.12, rent: 1.0, weekend: 1.5,
+      hours: { 10: 1.1, 11: 1.2, 14: 1.25, 15: 1.3, 16: 1.25 },
+      mix: { family: 1.4, student: 1.1, elderly: 1.0, office: 0.6 },
+      fit: { breakfast: 0.85, noodle: 1.1, drinks: 1.2, barber: 0.75, scooter: 0.85, store: 1.0 },
+      loyal: 0.97,
+      near: '老街攤販',
+    },
+    techpark: {
+      x: 8, y: 0, name: '科技園區', icon: '💻',
+      desc: '工程師加班到很晚，早餐和宵夜都有人；週末完全沒人，房租很硬。',
+      traffic: 1.12, rent: 1.2, weekend: 0.5,
+      hours: { 7: 1.3, 8: 1.45, 12: 1.4, 19: 1.2, 20: 1.25, 21: 1.2 },
+      mix: { office: 1.9, student: 0.5, elderly: 0.4, family: 0.6 },
+      fit: { breakfast: 1.15, noodle: 1.15, drinks: 1.1, barber: 0.9, scooter: 0.8, store: 1.15 },
+      near: '科技公司',
+    },
   };
   // 開店畫面的星等：照 AI 試玩一年（一般難度、兩個種子）本店淨利跟「一般街邊」比的結果
   // ★★★★★ 多賺三成五以上、★★★★ 多賺一成五、★★★ 差不多、★★ 少賺一點、★ 少賺一成五以上
   const STARS = {
-    breakfast: { nightmarket: 1, school: 5, alley: 3, office: 5, mrt: 5, temple: 2 },
-    noodle: { nightmarket: 4, school: 3, alley: 2, office: 4, mrt: 4, temple: 3 },
-    drinks: { nightmarket: 5, school: 4, alley: 2, office: 3, mrt: 5, temple: 3 },
-    barber: { nightmarket: 2, school: 3, alley: 4, office: 3, mrt: 2, temple: 3 },
-    scooter: { nightmarket: 3, school: 2, alley: 3, office: 3, mrt: 1, temple: 3 },
-    store: { nightmarket: 2, school: 3, alley: 2, office: 3, mrt: 5, temple: 4 },
+    breakfast: { nightmarket: 1, school: 5, alley: 3, office: 5, mrt: 5, temple: 2, university: 3, oldstreet: 2, techpark: 4 },
+    noodle: { nightmarket: 4, school: 3, alley: 2, office: 4, mrt: 4, temple: 3, university: 4, oldstreet: 3, techpark: 4 },
+    drinks: { nightmarket: 5, school: 4, alley: 2, office: 3, mrt: 5, temple: 3, university: 5, oldstreet: 4, techpark: 3 },
+    barber: { nightmarket: 2, school: 3, alley: 4, office: 3, mrt: 2, temple: 3, university: 3, oldstreet: 1, techpark: 2 },
+    scooter: { nightmarket: 3, school: 2, alley: 3, office: 3, mrt: 1, temple: 3, university: 4, oldstreet: 2, techpark: 2 },
+    store: { nightmarket: 2, school: 3, alley: 2, office: 3, mrt: 5, temple: 4, university: 3, oldstreet: 3, techpark: 4 },
   };
 
   // 舊存檔沒有選地點：當成一般街道，什麼都不加減
@@ -156,6 +185,21 @@
       { id: 'mrt_works', p: 0.012, text: '🚧 捷運出口要施工兩週，圍籬把人行道擋了一半', mult: 0.82, days: 14 },
       { id: 'mrt_concert', p: 0.015, text: '🎤 附近有演唱會，散場的人潮從捷運站湧出來', mult: 1.2, days: 1 },
       { id: 'mrt_delay', p: 0.012, text: '🚇 捷運號誌故障，大家在出口等公車，順便進來買東西', mult: 1.1, days: 1 },
+    ],
+    university: [
+      { id: 'un_exam', p: 0.02, text: '📖 期末考週，學生熬夜唸書，宵夜和咖啡賣翻', mult: 1.15, days: 7, noBreak: true },
+      { id: 'un_fest', p: 0.012, text: '🎸 大學校慶園遊會，整條街都是人', mult: 1.3, days: 1, noBreak: true },
+      { id: 'un_cheap', p: 0.012, text: '📱 學生在 Dcard 發文說你家「CP 值好低」', mult: 0.9, days: 7 },
+    ],
+    oldstreet: [
+      { id: 'os_bus', p: 0.02, text: '🚌 好幾台觀光巴士停在老街口，整群觀光客湧進來', mult: 1.3, days: 1 },
+      { id: 'os_ig', p: 0.012, text: '📸 網紅在老街拍片爆紅，週末排隊人潮暴增', mult: 1.2, days: 14 },
+      { id: 'os_rain', p: 0.015, text: '🌧️ 連假下大雨，觀光客都沒來', mult: 0.75, days: 3 },
+    ],
+    techpark: [
+      { id: 'tp_bonus', p: 0.012, text: '💰 園區科技廠發年終，工程師下班都來犒賞自己', mult: 1.2, days: 7 },
+      { id: 'tp_layoff', p: 0.008, text: '📉 有家科技廠放無薪假，中午排隊的人少了', mult: 0.85, days: 21 },
+      { id: 'tp_ot', p: 0.02, text: '🌙 新品趕出貨，整個園區加班到半夜', mult: 1.1, days: 5 },
     ],
     temple: [
       { id: 'tp_fair', p: 0.015, text: '🏮 廟會遶境經過門口，鞭炮聲中人潮塞爆整條街', mult: 1.4, days: 1, grime: 4 },

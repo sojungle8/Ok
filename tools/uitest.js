@@ -1,7 +1,7 @@
 // 介面點擊測試：每個產業 × 手機／桌機，打開每個分頁、子分頁，按遍裡面的按鈕，跑幾天，抓錯誤與版面溢出
 // 用法：node tools/uitest.js [產業,...] [phone,desk]（需要 playwright；截圖存在 $OUT）
 const { chromium } = require('playwright');
-const SKIP = /^(quit|delete-slot|export-current|export-slot|enter-place|boss-mode|pick-build|move-obj|tut-restart|place-leave|go-out|speed|tab)$/;
+const SKIP = /^(quit|delete-slot|export-current|export-slot|enter-place|boss-mode|pick-build|move-obj|tut-restart|place-leave|go-out|speed|tab|drive-start)$/;
 const OUT = process.env.OUT || require('os').tmpdir() + '/boss-ui';
 require('fs').mkdirSync(OUT, { recursive: true });
 (async () => {

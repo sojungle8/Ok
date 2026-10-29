@@ -983,6 +983,123 @@ T('充電站設定：地鎖監視器一次付錢、經營方式可以開關、�
   ok(!s.setChargeOption('community', 'combo', true), '老社區的站也能店內折扣');
 });
 
+// ───── 📈 上市公司 ─────
+const fire = (s, ev, i) => {
+  const p = { where: 'phone', ev };
+  s.activeEvents.push(p);
+  return s.applyChoice(p, ev.choices[i]);
+};
+T('股市：掛牌有股價、法說會財測、股東會發股利、增持減持、庫藏股、惡意收購會踢人', () => {
+  const s = mk('store', { cash: 5e7, all: true });
+  s.progress.route = 'ipo';
+  days(s, 14);
+  s.ipo = { investors: true, streak: 3, listed: false, qWeek: s.week, qProfit: 0, target: 1, quarters: 3 };
+  s.jerk = 0;
+  ok(s.listCompany() && s.equity && s.equity.price > 0, '掛牌沒有股價');
+  const S = s.equity;
+  // 法說會：樂觀財測
+  const call = s.stockCallEvent();
+  const m0 = S.mood;
+  fire(s, call, 1);
+  ok(S.guide > 0 && S.mood > m0, '財測沒記下來或股價沒反應');
+  // 股東會：高股息
+  const agm = s.stockAgmEvent();
+  const w0 = s.owner.wealth;
+  const c0 = s.cash;
+  s.profitLog = [100000, 100000];
+  fire(s, s.stockAgmEvent(), 0);
+  ok(s.cash < c0 && s.owner.wealth > w0, '股利沒發');
+  ok(agm.id.startsWith('stock_') && s.isPersonalEvent({ ev: agm }), '股東會可以被代理');
+  // 增持、減持、庫藏股
+  s.owner.wealth = 1e12;
+  const own0 = S.own;
+  ok(s.tradeStock(1) && S.own > own0, '增持失敗');
+  ok(s.tradeStock(-1) && Math.abs(S.own - own0) < 1e-6, '減持失敗');
+  const sh0 = S.shares;
+  ok(s.buyback() && S.shares < sh0 && S.own > own0, '庫藏股沒效果');
+  // 一季過去：財報對財測
+  for (let i = 0; i < 14; i++) {
+    s.day += 7;
+    s.stockWeekly({ profit: 1, other: 0, rewards: 0 });
+  }
+  ok(S.hist.length > 5 && s.stockCall, `季末沒有安排下一次法說會 ${S.hist.length} ${s.stockCall} ${S.callDue} ${s.week} ${S.qStart}`);
+  // 惡意收購：持股不過半，對方買超過你就出局
+  S.own = 0.3;
+  S.raid = { name: '禿鷹', pct: 0.29, since: s.week };
+  for (let i = 0; i < 6 && !s.over; i++) s.stockWeekly({ profit: 1 });
+  ok(s.over && s.ending.type === 'ousted', '被收購沒出局');
+  // 反制：自己掏錢增持
+  const s3 = mk('store', { cash: 5e7, all: true });
+  s3.initEquity(0.4, 1);
+  s3.equity.raid = { name: '禿鷹', pct: 0.2, since: 1 };
+  s3.owner.wealth = 1e13;
+  fire(s3, s3.stockRaidEvent(), 0);
+  ok(s3.equity.raid.done && s3.equity.own >= 0.5, '增持護盤失敗');
+  // 賣掉：財務自由結局
+  const s4 = mk('store', { cash: 5e7 });
+  s4.initEquity(0.5, 1);
+  s4.equity.raid = { name: '禿鷹', pct: 0.2, since: 1 };
+  const w4 = s4.owner.wealth;
+  fire(s4, s4.stockRaidEvent(), 3);
+  ok(s4.over && s4.ending.win && s4.owner.wealth > w4, '賣公司結局不對');
+  // 存檔
+  const s5 = Sim.deserialize ? Sim.deserialize(s3.serialize()) : null;
+  ok(!s5 || (s5.equity && s5.equity.own === s3.equity.own), '股票沒存檔');
+});
+T('借殼上市：走歪路不用三季達標，花錢買空殼，持股只有四成二', () => {
+  const s = mk('store', { cash: 5e8, all: true });
+  s.progress.route = 'dark';
+  Object.defineProperty(s, 'valuation', { get: () => 1e10, configurable: true });
+  ok(s.shellList() && s.ipo.listed && s.equity.own < 0.5, '借殼失敗');
+  ok(!s.shellList(), '可以借殼兩次');
+});
+
+// ───── 🍳 自由度補完 ─────
+T('自創新品：用基底做新菜、會被點、存檔後還在、可以下架；招牌字體；第二品牌每週有損益；新地點可以開店', () => {
+  const s = mk('noodle', { cash: 5e6 });
+  toOpen(s);
+  const id = s.createProduct({ name: '老闆特製麵', icon: '🔥', base: 'beefnoodle', price: 220 });
+  ok(id && s.menu[id] && s.prices[id] === 220 && s.ingOf[id], '自創菜沒上架');
+  ok(!s.createProduct({ name: '太貴', icon: '💎', base: 'drynoodle', price: 9999 }), '價格超過三倍也能建');
+  let asked = 0;
+  const sf = s.stationFor.bind(s);
+  s.stationFor = (pr) => {
+    if (pr.id === id) asked += 1;
+    return sf(pr);
+  };
+  days(s, 3);
+  ok(asked > 0 && s.availableProducts().some((p) => p.id === id), '沒有客人點自創菜（或沒有設備做）');
+  s.stationFor = sf;
+  const s2 = Sim.load(s.serialize());
+  ok(s2.ind.products.some((p) => p.id === id && p.name === '老闆特製麵') && s2.menu[id], '存檔後自創菜不見了');
+  ok(s2.removeProduct(id) && !s2.ind.products.some((p) => p.id === id), '下架失敗');
+  ok(s.setSignFont('brush') && s.custom.font === 'brush' && !s.setSignFont('brush'), '招牌字體');
+  // 第二品牌
+  const b = mk('noodle', { cash: 5e7, all: true });
+  b.xp = 1e7;
+  while (b.level < 12) b.xp += 1e5;
+  ok(b.launchBrand2('drinks', '喝飽飽') && b.brand2.stores === 1, '第二品牌開不起來');
+  ok(!b.launchBrand2('store', '第三個'), '可以開兩個第二品牌');
+  ok(b.brand2Act('store') && b.brand2.stores === 2, '展店失敗');
+  ok(b.brand2Act('rd') && b.brand2Act('ad'), '研發／廣告失敗');
+  const q0 = b.brand2.quality;
+  const net = b.brand2Weekly();
+  ok(typeof net === 'number' && b.brand2.quality < q0, '第二品牌每週沒有結算');
+  b.brand2.quality = 75;
+  let tot = 0;
+  for (let i = 0; i < 10; i++) {
+    b.brand2.quality = 75;
+    tot += b.brand2Weekly();
+  }
+  ok(tot > 0, `品質好的第二品牌還在賠錢 ${tot}`);
+  ok(Sim.load(b.serialize()).brand2.name === '喝飽飽', '第二品牌沒存檔');
+  // 新地點
+  for (const sp of ['university', 'oldstreet', 'techpark']) {
+    const n = new Sim('drinks', { mode: 'normal', spot: sp, rng: mulberry(3) });
+    ok(n.spot === sp, `開不了${sp}`);
+  }
+});
+
 // ───── 執行 ─────
 const want = process.argv.slice(2);
 let pass = 0;

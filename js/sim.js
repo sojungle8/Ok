@@ -531,7 +531,7 @@
 
     // 老闆自己的人生大事（結婚、家人住院、買房……）：只有老闆能決定，任何代理都不能碰
     isPersonalEvent(p) {
-      if (String(p.ev.id).startsWith('life_') || String(p.ev.id).startsWith('tempt_') || String(p.ev.id).startsWith('drama_')) return true;
+      if (['life_', 'tempt_', 'drama_', 'stock_'].some((k) => String(p.ev.id).startsWith(k))) return true;
       return p.ev.choices.some((c) => Object.keys(this.resolveEffects(c)).some((k) => k.startsWith('life')));
     }
 
@@ -1553,6 +1553,125 @@
       this.notify(`🪧 「${old}」正式改名為「${name}」！新招牌掛上去了。`, 'achieve');
       return true;
     }
+    // 🍳 自創品項：用現有的食材和設備做一道新菜（最多四道）
+    get createCost() {
+      return Math.round((this.ind.cash * 0.05 + (this.custom.items || []).length * 10000) / 1000) * 1000;
+    }
+    createProduct({ name, icon, base, price }) {
+      const items = this.custom.items || (this.custom.items = []);
+      const b = this.ind.products.find((x) => x.id === base && !x.custom);
+      name = String(name || '').trim().slice(0, 10);
+      icon = Array.from(String(icon || '').trim()).slice(0, 2).join('') || '✨';
+      price = Math.round(Number(price) || 0);
+      if (!b || name.length < 1 || items.length >= 4 || this.cash < this.createCost) return false;
+      if (!(price >= b.price * 0.5 && price <= b.price * 3)) return false;
+      const id = `cx${(this.custom.nextItem = (this.custom.nextItem || 0) + 1)}`;
+      this.cash -= this.createCost;
+      this.ledger.other -= this.createCost;
+      const it = { id, name, icon, base, price };
+      items.push(it);
+      this.addCustomProduct(it);
+      this.notify(`🍳 自創新品「${icon}${name}」上架！第一個月客人會因為新鮮多點一些。`, 'achieve');
+      this.demandMods.push({ mult: 1.04, days: 28 });
+      return id;
+    }
+    addCustomProduct(it) {
+      const b = this.ind.products.find((x) => x.id === it.base);
+      if (!b || this.ind.products.some((x) => x.id === it.id)) return;
+      // 賣得比原本那道貴：食材成本也照比例加一點（用料比較好）
+      const k = it.price / b.price;
+      const p = { ...b, id: it.id, name: it.name, icon: it.icon, price: it.price, cost: Math.round(b.cost * (0.7 + k * 0.35)), weight: Math.max(1, (b.weight || 1) * 0.8), custom: true, base: b.id };
+      delete p.rd;
+      delete p.lv;
+      this.ind.products.push(p);
+      if (this.ingOf[b.id]) this.ingOf[it.id] = this.ingOf[b.id];
+      if (!(it.id in this.prices)) this.prices[it.id] = it.price;
+      if (!(it.id in this.menu)) this.menu[it.id] = true;
+    }
+    removeProduct(id) {
+      const items = this.custom.items || [];
+      const i = items.findIndex((x) => x.id === id);
+      if (i < 0) return false;
+      items.splice(i, 1);
+      this.ind.products = this.ind.products.filter((x) => x.id !== id);
+      delete this.menu[id];
+      if (this.custom.signature === id) this.custom.signature = null;
+      return true;
+    }
+    // 🔤 招牌字型
+    get fontCost() {
+      return 6000;
+    }
+    setSignFont(f) {
+      if (!['sans', 'serif', 'round', 'brush', 'neon'].includes(f) || (this.custom.font || 'sans') === f || this.cash < this.fontCost) return false;
+      this.cash -= this.fontCost;
+      this.ledger.other -= this.fontCost;
+      this.custom.font = f;
+      this.styleVer = (this.styleVer || 0) + 1;
+      this.notify('🔤 招牌換了新字體！', 'good');
+      return true;
+    }
+
+    // 🏷️ 第二品牌：用集團的錢開另一個產業的連鎖（自己不用顧店，靠品質和行銷）
+    get brand2Unlocked() {
+      return this.level >= 12 || this.branches.length >= 2 || this.feature('franchise');
+    }
+    brand2Cost(indId) {
+      const I = INDUSTRIES.find((x) => x.id === indId);
+      return I ? Math.round((I.cash * 4) / 10000) * 10000 : 0;
+    }
+    launchBrand2(indId, name) {
+      const I = INDUSTRIES.find((x) => x.id === indId);
+      name = String(name || '').trim().slice(0, 12);
+      if (this.brand2 || !this.brand2Unlocked || !I || I.id === this.ind.id || name.length < 2 || this.cash < this.brand2Cost(indId)) return false;
+      this.cash -= this.brand2Cost(indId);
+      this.ledger.other -= this.brand2Cost(indId);
+      this.brand2 = { ind: I.id, name, icon: I.icon, stores: 1, quality: 55, hype: 0, week: this.week, last: 0, total: 0 };
+      this.notify(`🏷️ 第二品牌「${I.icon}${name}」第一間店開幕了！`, 'achieve');
+      return true;
+    }
+    get brand2StoreCost() {
+      const B = this.brand2;
+      return B ? Math.round((this.brand2Cost(B.ind) * (0.55 + B.stores * 0.08)) / 10000) * 10000 : 0;
+    }
+    brand2Act(kind) {
+      const B = this.brand2;
+      if (!B) return false;
+      const cost = kind === 'store' ? this.brand2StoreCost : kind === 'rd' ? 40000 + B.stores * 8000 : kind === 'ad' ? 30000 + B.stores * 6000 : 0;
+      if (!cost || this.cash < cost || (kind === 'store' && B.stores >= 20)) return false;
+      this.cash -= cost;
+      this.ledger.other -= cost;
+      if (kind === 'store') {
+        B.stores += 1;
+        B.quality = clamp(B.quality - 3, 0, 100); // 開太快品質會掉
+        this.notify(`🏷️ ${B.name}第 ${B.stores} 間店開幕`, 'good');
+      } else if (kind === 'rd') {
+        B.quality = clamp(B.quality + 9, 0, 100);
+        this.notify(`🧪 ${B.name}的產品改良了（品質 ${Math.round(B.quality)}）`, 'good');
+      } else {
+        B.hype = Math.min(3, B.hype + 1);
+        this.notify(`📣 ${B.name}下了一波廣告`, 'good');
+      }
+      return true;
+    }
+    // 每週：每間店賺多少看品質、廣告熱度；品質沒顧會慢慢掉
+    brand2Weekly() {
+      const B = this.brand2;
+      if (!B) return 0;
+      const I = INDUSTRIES.find((x) => x.id === B.ind);
+      // 品質 70 的店一週大約淨賺「開店資金的 8%」；品質掉到 40 就幾乎不賺
+      const base = I.cash * 0.1 * this.idx.cpi;
+      const q = (B.quality - 30) / 40;
+      const per = base * (q + B.hype * 0.2) * (0.85 + this.rng() * 0.3) - I.rent * 0.15;
+      const net = Math.round(per * B.stores - B.stores * 2500);
+      B.quality = clamp(B.quality - 1 - B.stores * 0.12, 0, 100);
+      B.hype = Math.max(0, B.hype - 0.5);
+      B.last = net;
+      B.total += net;
+      if (B.quality < 35 && this.rng() < 0.2) this.addReview(2, `${B.name}越來越難吃了，跟${this.shopName}同一家公司耶`, 'quality');
+      return net;
+    }
+
     // 員工制服顏色
     get uniformCost() {
       return 8000;
@@ -1767,7 +1886,199 @@
       this.cash += amt;
       this.ledger.capital = (this.ledger.capital || 0) + amt;
       this.notify(`🔔 敲鐘掛牌！公開發行進帳 ${'$' + amt.toLocaleString()}。`, 'achieve');
+      this.initEquity(0.55, 1.05);
       this.checkProgress();
+      return true;
+    }
+
+    // 🕶️ 借殼上市：走歪路的人不用連續三季達標，買一家快下市的空殼公司把自己塞進去
+    get shellCost() {
+      return Math.round((this.raiseNeed * 0.18) / 100000) * 100000;
+    }
+    canShell() {
+      return !!(this.progress && this.progress.route === 'dark' && !this.ipo && this.valuation >= this.raiseNeed * 0.8 && this.cash >= this.shellCost);
+    }
+    shellList() {
+      if (!this.canShell()) return false;
+      this.cash -= this.shellCost;
+      this.ledger.other -= this.shellCost;
+      this.ipo = { investors: true, listed: true, shell: true, streak: 0, qWeek: this.week, qProfit: 0, target: 0, quarters: 0 };
+      this.initEquity(0.42, 0.85);
+      if (this.dark) this.dark.heat = clamp(this.dark.heat + 12, 0, 100);
+      this.notify(`🕶️ 借殼上市成功！花了 ${money(this.shellCost)} 買下一家快下市的「${['宏碁電子零件', '大同紡織', '全興建設', '永豐塑膠'][this.week % 4]}」，換上你的招牌就是上市公司了。不過你只拿到四成二的股份，小心被人盯上。`, 'achieve');
+      this.checkProgress();
+      return true;
+    }
+
+    // ───── 📈 上市之後：股價、法說會、股東會、惡意收購 ─────
+    initEquity(own = 0.55, mood = 1) {
+      // 股數照估值抓：掛牌價大概落在 60～85 元
+      const shares = Math.max(100000, Math.round(Math.max(this.valuation, 1e7) / (60 + this.rng() * 25) / 1000) * 1000);
+      const price = Math.max(1, Math.round((Math.max(this.valuation, 1e7) / shares) * mood * 100) / 100);
+      this.equity = { shares, own, mood, price, fair: Math.max(this.valuation, 1e7), hist: [price], since: this.week, guide: null, q: 0, qStart: this.week, callDue: this.week + 2, agmDue: this.week + 26, raid: null, peak: price, calls: 0 };
+    }
+    get fairPrice() {
+      // 用平滑過的估值（市場不會因為一週虧錢就砍一半）
+      const S = this.equity;
+      return Math.max(1, Math.max(S.fair || this.valuation, 1e6) / S.shares);
+    }
+    get marketCap() {
+      return this.equity ? Math.round(this.equity.price * this.equity.shares) : 0;
+    }
+    get ownStake() {
+      return this.equity ? Math.round(this.marketCap * this.equity.own) : 0;
+    }
+    stockMood(d) {
+      const S = this.equity;
+      if (!S) return;
+      S.mood = clamp(S.mood + d, 0.3, 3);
+      this.stockPrice();
+    }
+    stockPrice() {
+      const S = this.equity;
+      S.price = Math.max(1, Math.round(this.fairPrice * S.mood * 100) / 100);
+      S.peak = Math.max(S.peak || 0, S.price);
+    }
+    // 每週：情緒慢慢回到合理、新聞會影響；季末對財測；年度股東會；股價低又持股不過半會被禿鷹盯上
+    stockWeekly(report) {
+      const S = this.equity;
+      if (!S) return;
+      const core = report.profit - (report.other || 0) - (report.rewards || 0);
+      S.fair = S.fair ? S.fair * 0.9 + this.valuation * 0.1 : this.valuation;
+      let news = (this.rating - 4) * 0.025 - (this.jerk > 50 ? 0.03 : 0) - (this.dark && this.dark.heat > 60 ? 0.03 : 0);
+      if (this.lifeScandal) news -= 0.05;
+      S.mood += (1 - S.mood) * 0.12 + (this.rng() - 0.5) * 0.14 + news;
+      S.mood = clamp(S.mood, 0.3, 3);
+      this.stockPrice();
+      S.hist = [...S.hist, S.price].slice(-52);
+      // 財測：這一季累積的本業淨利 vs 法說會講的
+      S.q += core;
+      if (this.week - S.qStart >= 13) {
+        if (S.guide != null) {
+          const hit = S.q >= S.guide;
+          const k = S.guide > 0 ? S.q / S.guide : 1;
+          this.stockMood(hit ? 0.08 + Math.min(0.15, (k - 1) * 0.3) : -0.12 - Math.min(0.3, (1 - k) * 0.6));
+          this.notify(hit ? `📈 財報優於財測！本季淨利 ${money(S.q)}（財測 ${money(S.guide)}），股價漲到 ${S.price.toFixed(1)} 元` : `📉 財報不如財測：本季淨利 ${money(S.q)}（財測 ${money(S.guide)}），股價跌到 ${S.price.toFixed(1)} 元`, hit ? 'achieve' : 'bad');
+        }
+        S.q = 0;
+        S.qStart = this.week;
+        S.guide = null;
+        S.callDue = this.week + 1;
+      }
+      if (S.callDue && this.week >= S.callDue) {
+        S.callDue = 0;
+        this.stockCall = true;
+      }
+      if (this.week >= S.agmDue) {
+        S.agmDue = this.week + 52;
+        this.stockAgm = true;
+      }
+      // 惡意收購
+      if (S.raid && !S.raid.done) {
+        S.raid.pct = Math.min(0.75, S.raid.pct + 0.025 + this.rng() * 0.035);
+        this.stockMood(0.02);
+        if (S.raid.pct > S.own && S.raid.pct + S.own > 0.6) {
+          this.over = true;
+          this.ending = { type: 'ousted', title: '你被踢出自己的公司', desc: `〈${S.raid.name}入主${this.shopName}〉臨時股東會上，${S.raid.name}的人拿下過半董事席次。你一手打造的品牌，明天開始換人當家。你還留著 ${Math.round(S.own * 100)}% 的股票，但已經沒有說話的份了。` };
+          return;
+        }
+        if (this.week % 2 === 0) this.notify(`🦅 ${S.raid.name}持股已經到 ${Math.round(S.raid.pct * 100)}%（你 ${Math.round(S.own * 100)}%）`, 'bad');
+      } else if (!S.raid && S.own < 0.5 && S.mood < 0.92 && this.week - S.since > 8 && this.rng() < 0.12) {
+        S.raid = { name: ['禿鷹資本', '鼎泰豐收購基金', '大和解私募', '黑石牌投資'][Math.floor(this.rng() * 4)], pct: 0.06, since: this.week };
+        this.stockRaid = true;
+      }
+    }
+    stockCallEvent() {
+      const S = this.equity;
+      const h = this.history.slice(-8);
+      const avg = h.length ? h.reduce((t, x) => t + x.profit - (x.other || 0) - (x.rewards || 0), 0) / h.length : 0;
+      const base = Math.max(10000, Math.round(avg * 13));
+      S.calls = (S.calls || 0) + 1;
+      return {
+        id: 'stock_call',
+        icon: '🎤',
+        title: `第 ${S.calls} 次法說會`,
+        text: `台下坐滿分析師和財經記者，等你講下一季的財測。最近每週本業淨利大約 ${money(avg)}，照這樣一季是 ${money(base)}。股價現在 ${S.price.toFixed(1)} 元。`,
+        choices: [
+          { label: `保守：財測 ${money(base * 0.9)}`, effects: { stockGuide: Math.round(base * 0.9), stockMood: 0.02 }, result: '分析師覺得很無聊，但很安心。「這家公司講話算話。」' },
+          { label: `樂觀：財測 ${money(base * 1.2)}（成長兩成）`, effects: { stockGuide: Math.round(base * 1.2), stockMood: 0.12 }, result: '股價當天跳漲。下一季要真的做到，不然會摔得更重。' },
+          { label: `畫大餅：「我們其實是一家 AI 餐飲科技公司」`, effects: { stockGuide: Math.round(base * 1.6), stockMood: 0.32, jerk: 1 }, result: '你放了一張全是箭頭的投影片，股價漲停。後排有個記者在偷笑。' },
+        ],
+        ignore: { effects: { stockGuide: base, stockMood: -0.08 }, result: '你沒出席，市場解讀成壞消息。' },
+      };
+    }
+    stockAgmEvent() {
+      const S = this.equity;
+      const yearProfit = Math.max(0, (this.profitLog || []).slice(-52).reduce((t, x) => t + x, 0));
+      const div = Math.round(yearProfit * 0.6);
+      const pay = Math.round(Math.max(800000, this.marketCap * 0.004));
+      return {
+        id: 'stock_agm',
+        icon: '🏛️',
+        title: '年度股東會',
+        text: `一年一度的股東會。去年本業賺了 ${money(yearProfit)}，股東們想知道錢要怎麼分。你持有 ${Math.round(S.own * 100)}% 的股份。`,
+        choices: [
+          { label: `高股息：發 ${money(div)} 現金股利（你拿 ${money(div * S.own)}）`, effects: { stockDiv: div, stockMood: 0.1 }, result: '存股族在台下拍手。公司帳上的錢少了一大截。' },
+          { label: '保留盈餘：錢留著繼續展店', effects: { stockMood: -0.04 }, result: '有小股東舉手抗議，但大部分人投了同意。' },
+          { label: `幫自己加董事酬勞 ${money(pay)}`, effects: { stockPay: pay, stockMood: -0.12, jerk: 3 }, result: '議案過了，但隔天財經版標題是〈公司賺不多，董座先加薪〉。' },
+        ],
+        ignore: { effects: { stockMood: -0.06 }, result: '股東會草草結束。' },
+      };
+    }
+    stockRaidEvent() {
+      const S = this.equity;
+      const R = S.raid;
+      const need = Math.max(0, 0.51 - S.own);
+      const buyCost = Math.round(this.marketCap * need * 1.15);
+      return {
+        id: 'stock_raid',
+        icon: '🦅',
+        title: `${R.name}在收你的股票`,
+        text: `券商打電話來：「${R.name}這幾週一直在市場上吃你的股票，已經 ${Math.round(R.pct * 100)}% 了。你只有 ${Math.round(S.own * 100)}%，他們想拿董事席次。」`,
+        choices: [
+          { label: `自己掏錢增持到 51%（約 ${money(buyCost)}，從個人財富付）`, effects: { stockRaid: 'buy' }, result: need ? '你把個人的錢砸進股市。持股過半，對方只能摸摸鼻子。' : '你本來就過半，對方白忙一場。' },
+          { label: '請白衣騎士：找友好的財團進來（你的持股被稀釋一成）', effects: { stockRaid: 'knight', stockMood: -0.04 }, result: '老朋友的集團進場護盤，禿鷹知難而退。只是以後開會多了一個要討好的人。' },
+          { label: '毒藥丸：增發新股給其他股東，稀釋他', effects: { stockRaid: 'pill', stockMood: -0.15 }, result: '對方持股被稀釋了，但市場很不爽，股價大跌。他們還沒放棄。' },
+          { label: `乾脆賣給他（溢價三成，你拿約 ${money(this.ownStake * 1.3)}）`, effects: { stockRaid: 'sell' }, result: '你簽了字。從今天起，你是財務自由的前老闆。' },
+        ],
+        ignore: { effects: {}, result: '你沒理他們。他們繼續買。' },
+      };
+    }
+    // 老闆自己買賣股票（個人的錢）、公司買庫藏股（公司的錢）
+    tradeStock(dir) {
+      const S = this.equity;
+      if (!S) return false;
+      const lot = 0.01;
+      const val = this.marketCap * lot;
+      if (dir > 0) {
+        if (S.own >= 0.9 || this.owner.wealth < val * 1.003) return false;
+        this.owner.wealth -= Math.round(val * 1.003);
+        S.own = Math.round((S.own + lot) * 1000) / 1000;
+        this.stockMood(0.015);
+        this.notify(`📈 董事長增持 1%（${money(val)}），市場覺得你有信心`);
+      } else {
+        if (S.own <= 0.05) return false;
+        const net = Math.round(val * 0.994);
+        this.owner.wealth += net;
+        S.own = Math.round((S.own - lot) * 1000) / 1000;
+        this.stockMood(-0.025);
+        this.notify(`📉 董事長申報轉讓 1%，拿到 ${money(net)}。股民在 PTT 罵你倒貨`);
+      }
+      return true;
+    }
+    get buybackCost() {
+      return Math.round(this.marketCap * 0.02);
+    }
+    buyback() {
+      const S = this.equity;
+      if (!S || this.cash < this.buybackCost) return false;
+      this.cash -= this.buybackCost;
+      this.ledger.capital = (this.ledger.capital || 0) - this.buybackCost;
+      S.shares = Math.round(S.shares * 0.98);
+      S.own = Math.min(0.95, S.own / 0.98);
+      if (S.raid) S.raid.pct = Math.min(0.75, S.raid.pct / 0.98);
+      this.stockMood(0.05);
+      this.notify(`🏦 公司買回 2% 庫藏股（${money(this.buybackCost)}），你的持股比例變成 ${(S.own * 100).toFixed(1)}%`);
       return true;
     }
     boardEvent() {
@@ -1888,6 +2199,7 @@
         }
       }
       if (this.coop && this.coop.shares) for (const e of this.staff) e.mood = clamp(e.mood + 1.5, 0, 100);
+      total += this.brand2Weekly();
       L.group = (L.group || 0) + total;
       return total;
     }
@@ -4886,7 +5198,7 @@
       if (this.gridDirty) this.rebuildGrid();
       const have = new Set(this.stations.flatMap((s) => s.def.serves));
       const down = this.sideDownUntil || {};
-      return this.ind.products.filter((p) => this.menu[p.id] && this.hasRecipe(p) && have.has(p.id) && !(down[p.id] >= this.day));
+      return this.ind.products.filter((p) => this.menu[p.id] && this.hasRecipe(p) && have.has(p.base || p.id) && !(down[p.id] >= this.day));
     }
 
     // ───── 兼營業務 ─────
@@ -6135,7 +6447,7 @@
 
     stationFor(product) {
       if (this.gridDirty) this.rebuildGrid();
-      const list = this.stations.filter((s) => s.def.serves.includes(product.id));
+      const list = this.stations.filter((s) => s.def.serves.includes(product.base || product.id));
       if (!list.length) return null;
       // 選排隊最少的
       return list.reduce((a, b) => (a.queue.length + a.lanes.filter((l) => l.customer).length <= b.queue.length + b.lanes.filter((l) => l.customer).length ? a : b));
@@ -7351,6 +7663,13 @@
         this.pendingEvents.push({ ev: this.franchiseIssueEvent(this.franchiseIssue.i), at: this.hours.open + 70, where: 'phone' });
         this.franchiseIssue = null;
       }
+      for (const [flag, make, at] of [['stockCall', 'stockCallEvent', 60], ['stockAgm', 'stockAgmEvent', 75], ['stockRaid', 'stockRaidEvent', 100]]) {
+        if (!this[flag] || !this.equity) continue;
+        this[flag] = false;
+        if (flag === 'stockRaid' && (!this.equity.raid || this.equity.raid.done)) continue;
+        this.pendingEvents.push({ ev: this[make](), at: this.hours.open + at, where: 'phone' });
+      }
+      if (this.equity && this.equity.raid && !this.equity.raid.done && this.week - this.equity.raid.since > 0 && (this.week - this.equity.raid.since) % 3 === 0 && this.weekday === 1) this.stockRaid = true;
       if (this.boardPush && this.ipo) {
         this.boardPush = false;
         this.pendingEvents.push({ ev: this.boardEvent(), at: this.hours.open + 80, where: 'phone' });
@@ -7657,6 +7976,47 @@
       if (fx.franchiseFix && this.franchises && this.franchises[fx.franchiseFix[0]]) this.franchises[fx.franchiseFix[0]].decency = clamp(this.franchises[fx.franchiseFix[0]].decency + fx.franchiseFix[1], 0, 100);
       if (fx.franchiseEnd != null && this.franchises && this.franchises[fx.franchiseEnd]) this.franchises.splice(fx.franchiseEnd, 1);
       if (fx.ipoTarget && this.ipo) this.ipo.target = Math.round(this.ipo.target * (1 + fx.ipoTarget));
+      if (this.equity) {
+        const S = this.equity;
+        if (fx.stockGuide != null) S.guide = fx.stockGuide;
+        if (fx.stockDiv) {
+          this.cash -= fx.stockDiv;
+          this.ledger.capital = (this.ledger.capital || 0) - fx.stockDiv;
+          this.ownerReceive(Math.round(fx.stockDiv * S.own * 0.9));
+        }
+        if (fx.stockPay) {
+          this.cash -= fx.stockPay;
+          this.ledger.ownerPay = (this.ledger.ownerPay || 0) + fx.stockPay;
+          this.ownerReceive(fx.stockPay);
+        }
+        if (fx.stockRaid && S.raid) {
+          const R = S.raid;
+          if (fx.stockRaid === 'buy') {
+            const need = Math.max(0, 0.51 - S.own);
+            const cost = Math.round(this.marketCap * need * 1.15);
+            const can = Math.min(need, this.owner.wealth / Math.max(1, this.marketCap * 1.15));
+            this.owner.wealth -= Math.round(this.marketCap * can * 1.15);
+            S.own += can;
+            if (S.own >= 0.505) R.done = true;
+            else this.notify(`💸 個人的錢不夠（要 ${money(cost)}），只買到 ${(S.own * 100).toFixed(1)}%，${R.name}還在買`, 'bad');
+          } else if (fx.stockRaid === 'knight') {
+            S.own *= 0.9;
+            R.done = true;
+          } else if (fx.stockRaid === 'pill') {
+            R.pct *= 0.6;
+            S.shares = Math.round(S.shares * 1.25);
+          } else if (fx.stockRaid === 'sell') {
+            const got = Math.round(this.ownStake * 1.3);
+            this.owner.wealth += got;
+            S.own = 0;
+            this.over = true;
+            this.achieve && this.achieve('exitRich');
+            this.ending = { type: 'exit', win: true, title: '賣掉公司，財務自由', desc: `〈${R.name}以溢價三成收購${this.shopName}〉你拿到 ${money(got)}，從此不用再看營業額臉色。新老闆第一天就把你最愛的那道菜下架了。` };
+          }
+          if (R.done) this.notify(`🛡️ ${R.name}收購失敗，退場了`, 'achieve');
+        }
+        if (fx.stockMood) this.stockMood(fx.stockMood);
+      }
       if (fx.kitchenDown && this.kitchen) this.kitchen.downUntil = this.day + fx.kitchenDown;
       if (fx.kitchenGamble) {
         if (this.rng() < 0.45) {
@@ -8062,6 +8422,7 @@
       report.branchDetail = br.map((b) => ({ name: `${this.siteOf(b).city}${b.district}`, last: b.last, fee: b.fee || 0, lostN: b.lostN || 0 }));
       this.history.push(report);
       this.ipoQuarter(report);
+      this.stockWeekly(report);
       // 只留最近半年（26 週）的完整週報；整年要用的數字另外記成精簡的一串
       if (this.history.length > HISTORY_WEEKS) this.history.splice(0, this.history.length - HISTORY_WEEKS);
       this.profitLog = [...(this.profitLog || []), Math.round(profit)].slice(-52);
@@ -8273,6 +8634,8 @@
         franchises: this.franchises || [],
         franchiseApps: this.franchiseApps || null,
         ipo: this.ipo || null,
+        equity: this.equity || null,
+        brand2: this.brand2 || null,
         dark: this.dark,
         drama: this.drama,
         custom: this.custom,
@@ -8395,12 +8758,16 @@
       s.franchises = d.franchises || [];
       s.franchiseApps = d.franchiseApps || null;
       s.ipo = d.ipo || null;
+      s.equity = d.equity || null;
+      s.brand2 = d.brand2 || null;
+      if (s.ipo && s.ipo.listed && !s.equity) s.initEquity(0.55, 1);
       s.dark = { ...Sim.darkDefaults(), ...(d.dark || {}) };
       s.drama = { cur: null, done: [], cool: 0, ...(d.drama || {}) };
       if (s.drama.cur && s.drama.cur.pending) s.drama.cur.pending = false; // 讀檔時還沒演完的那集，明天重演
       s.leftCount = d.leftCount || 0;
       if (s.boss && s.boss.away && s.boss.away.kind === 'drive') s.boss.away = null; // 讀檔時人一定在店裡
       s.custom = { names: {}, signature: null, sigDay: -99, uniform: null, ...(d.custom || {}) };
+      for (const it of s.custom.items || []) s.addCustomProduct(it);
       s.applyCustomNames();
       s.coop = d.coop || null;
       s.authCount = d.authCount || 0;
@@ -8681,6 +9048,7 @@
     { id: 'week500', name: '一週淨賺五十萬', desc: '單週淨利超過 $500,000', reward: 100000, long: true },
     { id: 'allhappy', name: '全公司都想待', desc: '本店員工平均心情 85 以上，所有分店士氣也在 75 以上（至少 3 間分店）', reward: 120000, long: true },
     { id: 'year2', name: '老字號', desc: '經營滿兩年（96 週）', reward: 200000, long: true },
+    { id: 'exitRich', name: '財務自由', desc: '把上市公司賣給收購方，溢價出場', reward: 0, long: true },
     { id: 'ipoEnd', name: '敲鐘', desc: '走完上市路線，而且沒有變成慣老闆', reward: 0, long: true },
     { id: 'coopEnd', name: '百年老店', desc: '走完員工持股路線，指定接班人', reward: 0, long: true },
     { id: 'empire', name: '商業帝國', desc: '完成終章：從一間小店變成一個帝國', reward: 0, long: true },

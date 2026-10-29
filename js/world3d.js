@@ -221,7 +221,9 @@
       }
     });
   }
-  function textSign(text, bg, fg = '#fff', w = 512, h = 128) {
+  function textSign(text, bg, fg = '#fff', w = 512, h = 128, fontKind) {
+    const tpl = fontKind && root.BossSignFont ? root.BossSignFont(fontKind) : null;
+    const F = (fs) => (tpl ? tpl.replace('110px', `${fs}px`) : `bold ${fs}px "Noto Sans TC", sans-serif`);
     return tex(
       canvas(w, h, (c) => {
         c.fillStyle = bg;
@@ -232,11 +234,11 @@
         c.fillStyle = fg;
         c.textAlign = 'center';
         c.textBaseline = 'middle';
-        let fs = h * 0.56;
-        c.font = `bold ${fs}px "Noto Sans TC", sans-serif`;
+        let fs = Math.round(h * 0.56);
+        c.font = F(fs);
         while (c.measureText(text).width > w - 40 && fs > 12) {
           fs -= 2;
-          c.font = `bold ${fs}px "Noto Sans TC", sans-serif`;
+          c.font = F(fs);
         }
         c.fillText(text, w / 2, h / 2 + 2);
       }),
@@ -777,7 +779,7 @@
         this.scene.add(aw);
       }
       // 大招牌（自己畫的貼圖）
-      const sign = new THREE.Mesh(new THREE.PlaneGeometry(xb - xa - 1, 2.2), new THREE.MeshBasicMaterial({ map: textSign(label, bg) }));
+      const sign = new THREE.Mesh(new THREE.PlaneGeometry(xb - xa - 1, 2.2), new THREE.MeshBasicMaterial({ map: textSign(label, bg, '#fff', 512, 128, home ? this.sim.custom && this.sim.custom.font : null) }));
       sign.position.set((xa + xb) / 2, GF + 1.3, front + dir * 0.1);
       if (dir < 0) sign.rotation.y = Math.PI;
       this.scene.add(sign);

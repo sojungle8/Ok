@@ -104,7 +104,11 @@
     siren: (t) => {
       for (let i = 0; i < 6; i++) tone(i % 2 ? 660 : 880, t + i * 0.32, 0.3, { type: 'sawtooth', vol: 0.035 });
     },
-    // 鐵捲門：一連串金屬喀啦聲
+    // 打雷：低沉的隆隆聲（一串往下滑的鋸齒波）
+    thunder: (t) => {
+      for (let i = 0; i < 8; i++) tone(70 - i * 4, t + i * 0.09 + Math.random() * 0.05, 0.5, { type: 'sawtooth', vol: 0.06 - i * 0.006, slide: 0.5 });
+    },
+        // 鐵捲門：一連串金屬喀啦聲
     shutter: (t) => {
       for (let i = 0; i < 14; i++) tone(90 + (i % 3) * 25, t + i * 0.07, 0.08, { type: 'sawtooth', vol: 0.05, slide: 0.7 });
     },
@@ -113,7 +117,7 @@
   function play(name) {
     if (!ctx || !prefs.sfx || !SOUNDS[name]) return;
     const now = ctx.currentTime;
-    const gap = name === 'coin' ? 0.12 : name === 'door' ? 0.9 : name === 'shutter' ? 1.5 : name === 'garbage' ? 5 : 0.25;
+    const gap = name === 'thunder' ? 4 : name === 'coin' ? 0.12 : name === 'door' ? 0.9 : name === 'shutter' ? 1.5 : name === 'garbage' ? 5 : 0.25;
     if (last[name] && now - last[name] < gap) return;
     last[name] = now;
     SOUNDS[name](now + 0.01);

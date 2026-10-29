@@ -468,6 +468,11 @@
         const bag = new THREE.Mesh(cg('BoxGeometry', 0.16, 0.18, 0.08), mat('#f7f7f2'));
         bag.position.y = -0.1;
         c.add(bag);
+      } else if (kind === 'phone') {
+        const ph = new THREE.Mesh(cg('BoxGeometry', 0.07, 0.13, 0.015), mat('#1d1d22'));
+        ph.position.set(0, -0.02, 0.06);
+        ph.rotation.x = -0.6;
+        c.add(ph);
       } else if (kind === 'mop') {
         const stick = new THREE.Mesh(cg('CylinderGeometry', 0.012, 0.012, 0.85, 6), mat('#c9a36b'));
         stick.position.set(0, -0.12, 0.12);
