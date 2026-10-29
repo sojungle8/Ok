@@ -378,6 +378,20 @@ T('短劇：沒處理就照最消極的選項演下去', () => {
   ok(s.drama.done.includes('influencer'), `沒演完 ${JSON.stringify(s.drama.cur)}`);
 });
 
+T('自訂：改菜名只改自己這局、招牌菜一週一次、改店名、制服，存檔都留著', () => {
+  const s = mk('noodle', { cash: 3e6 });
+  const id = s.ind.products[0].id;
+  const orig = I.INDUSTRIES.find((x) => x.id === 'noodle').products[0].name;
+  ok(s.renameProduct(id, '阿嬤的牛肉麵', '🥘') && s.ind.products[0].name === '阿嬤的牛肉麵', '改名失敗');
+  ok(I.INDUSTRIES.find((x) => x.id === 'noodle').products[0].name === orig, '改到別的存檔共用的菜單');
+  ok(s.setSignature(id) && !s.setSignature(s.ind.products[1].id), '招牌菜可以一直換');
+  ok(s.renameShop('阿明牛肉麵') && s.shopName === '阿明牛肉麵', '改店名失敗');
+  ok(s.setUniform('#2c6fbb') && s.custom.uniform === '#2c6fbb', '制服失敗');
+  const s2 = Sim.load(s.serialize(), {});
+  ok(s2.ind.products[0].name === '阿嬤的牛肉麵' && s2.ind.products[0].icon === '🥘' && s2.shopName === '阿明牛肉麵' && s2.custom.signature === id && s2.custom.uniform === '#2c6fbb', '存檔沒留住');
+  ok(s.renameProduct(id, '', '') && s.ind.products[0].name === orig, '恢復原名失敗');
+});
+
 // ───── 兼營業務 ─────
 T('兼營：每一項都有適合度星等和原因', () => {
   for (const ind of Object.keys(I.SIDE_BIZ)) {

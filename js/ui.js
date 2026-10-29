@@ -2,6 +2,8 @@
 (function () {
   const { Sim, CATALOG, catalogById, ACHIEVEMENTS, MIN_WAGE, WEEKDAYS, INS, TAX_LABEL, CUSTOMER_TYPES } = window.BossSim;
   const { DECOR_THEMES, INDUSTRIES, CAT_LABELS, LOTS, TRAITS, LEVELS, DISTRICTS, DISTRICT_INFO, DIFFICULTY, FLOORS, WALLS, SIGNS, BRANCH_SITES, BRANCH_SIZES } = window.BossIndustries;
+  // 員工制服可以挑的顏色
+  const UNIFORMS = ['#d9482b', '#2c6fbb', '#2f8f6b', '#f2c14e', '#8e44ad', '#2b2b30', '#f5f5f0', '#e0478a'];
   const Fun = window.BossFun;
   const { portraitSVG, bossLook, VISITORS } = window.BossLooks;
   const app = document.getElementById('app');
@@ -200,6 +202,38 @@
       }
     });
     if (mode === 'import') setTimeout(() => ta.focus(), 50);
+  }
+
+  // 小輸入框：改店名、改菜名這類
+  function inputBox({ title, note, fields, ok, done }) {
+    document.querySelector('.savebox-wrap')?.remove();
+    const w = document.createElement('div');
+    w.className = 'savebox-wrap';
+    w.innerHTML = `<div class="savebox card input-box" role="dialog"><h3>${esc(title)}</h3>${note ? `<p class="calc">${esc(note)}</p>` : ''}
+      ${fields.map((f) => `<label class="ib-field"><span>${esc(f.label)}</span><input data-k="${f.key}" maxlength="${f.max || 20}" value="${esc(f.value || '')}" /></label>`).join('')}
+      <div class="savebox-btns"><button class="primary" data-sb="ok">確定</button><button data-sb="close">取消</button></div><small class="savebox-msg neg"></small></div>`;
+    document.body.appendChild(w);
+    const first = w.querySelector('input');
+    if (first) setTimeout(() => first.focus(), 50);
+    const submit = () => {
+      const v = {};
+      w.querySelectorAll('input').forEach((i) => (v[i.dataset.k] = i.value));
+      const r = ok(v);
+      if (r === true) {
+        w.remove();
+        if (done) done();
+      } else w.querySelector('.savebox-msg').textContent = typeof r === 'string' ? r : '';
+    };
+    w.addEventListener('click', (ev) => {
+      const b = ev.target.closest('[data-sb]');
+      if (ev.target === w || (b && b.dataset.sb === 'close')) return w.remove();
+      if (b && b.dataset.sb === 'ok') submit();
+    });
+    w.addEventListener('keydown', (ev) => {
+      ev.stopPropagation();
+      if (ev.key === 'Enter') submit();
+      if (ev.key === 'Escape') w.remove();
+    });
   }
 
   // 匯入存檔文字：開始畫面存進空的一格；遊戲中直接讀進來接著玩
@@ -1399,7 +1433,7 @@
     if (!el.dataset.built) {
       el.dataset.built = '1';
       el.innerHTML = `
-        <div class="tb-shop"><span class="tb-icon">${s.ind.icon}</span><div><b>${esc(s.shopName)}</b><small data-f="date"></small></div></div>
+        <div class="tb-shop"><span class="tb-icon">${s.ind.icon}</span><div><b data-f="shop">${esc(s.shopName)}</b><small data-f="date"></small></div></div>
         <div class="tb-weather"><span data-f="wicon"></span><small data-f="wtext"></small><small class="tb-clean" data-f="clean" title="店裡的乾淨程度"></small></div>
         <div class="tb-clock" data-f="clockbox"><b data-f="clock"></b><small data-f="status"></small></div>
         <div class="tb-speed">${SPEEDS.map(([v, l, t]) => `<button data-action="speed" data-v="${v}" title="${t}">${l}</button>`).join('')}</div>
@@ -1411,6 +1445,7 @@
         <div class="tb-menu"><button data-action="advice" class="tb-advice" title="店長建議：現在最該處理的事">💡<i data-f="advn"></i></button><button data-action="music" title="背景音樂">🎵</button><button data-action="sfx" title="音效">🔊</button><button data-action="sys-menu" title="選單：存檔、匯出、畫質">☰</button><button data-action="quit" title="存檔並回主選單">🚪</button></div>`;
     }
     const f = (k) => el.querySelector(`[data-f="${k}"]`);
+    if (f('shop') && f('shop').textContent !== s.shopName) f('shop').textContent = s.shopName;
     const txt = (k, v) => {
       const n = f(k);
       if (n && n.textContent !== v) n.textContent = v;
@@ -1933,7 +1968,12 @@
                 .map(([id, f]) => `<button class="style-chip ${s.style.floor === id ? 'active' : ''}" data-action="style" data-kind="floor" data-value="${id}" ${!s.ownedFloors.has(id) && s.cash < f.price ? 'disabled' : ''}><i style="background:${f.colors ? `linear-gradient(135deg, ${f.colors[0]} 50%, ${f.colors[1]} 50%)` : 'var(--bg)'}"></i>${f.name}<small>${s.ownedFloors.has(id) ? '已擁有' : money(f.price)}</small></button>`)
                 .join('')}</div>
               <div class="style-row"><span>牆面 <small>$3,000</small></span>${WALLS.map((c) => `<button class="swatch ${(s.style.wall || WALLS[0]) === c ? 'active' : ''}" style="background:${c}" data-action="style" data-kind="wall" data-value="${c}" aria-label="牆面顏色"></button>`).join('')}</div>
-              <div class="style-row"><span>招牌 <small>$5,000</small></span>${SIGNS.map((c) => `<button class="swatch ${(s.style.sign || s.ind.signColor) === c ? 'active' : ''}" style="background:${c}" data-action="style" data-kind="sign" data-value="${c}" aria-label="招牌顏色"></button>`).join('')}</div>`
+              <div class="style-row"><span>招牌 <small>$5,000</small></span>${SIGNS.map((c) => `<button class="swatch ${(s.style.sign || s.ind.signColor) === c ? 'active' : ''}" style="background:${c}" data-action="style" data-kind="sign" data-value="${c}" aria-label="招牌顏色"></button>`).join('')}</div>
+              <div class="style-row"><span>雨遮 <small>$4,000・條紋</small></span>${SIGNS.map((c) => `<button class="swatch stripe ${s.style.awning === c ? 'active' : ''}" style="--c:${c}" data-action="style" data-kind="awning" data-value="${c}" aria-label="雨遮顏色"></button>`).join('')}</div>
+              <h3>🎨 自己的風格 <small>讓這間店是你的店</small></h3>
+              <div class="style-row"><span>店名</span><b class="shop-name-now">${esc(s.shopName)}</b><button data-action="rename-shop" ${s.cash < s.renameCost ? 'disabled' : ''}>🪧 改店名・換招牌（${money(s.renameCost)}）</button></div>
+              <div class="style-row"><span>員工制服 <small>${money(s.uniformCost)}</small></span><button class="style-chip ${!s.custom.uniform ? 'active' : ''}" data-action="uniform" data-value="">各穿各的</button>${UNIFORMS.map((c) => `<button class="swatch ${s.custom.uniform === c ? 'active' : ''}" style="background:${c}" data-action="uniform" data-value="${c}" aria-label="制服顏色"></button>`).join('')}</div>
+              <p class="drawer-tip">菜名、圖示、招牌菜在「經營 → 🍜 價格」每個品項旁邊的 ✏️、⭐。</p>`
             : `${ui.buildCat === 'decor' ? decorSummary() : ''}<div class="catalog">${items
                 .map((d) => {
                   const tags = [];
@@ -2626,7 +2666,8 @@
                 const g = s.ingOf[pr.id];
                 const avail = s.availableProducts().some((x) => x.id === pr.id) || !s.menu[pr.id];
                 return `<div class="price-row ${s.menu[pr.id] ? '' : 'off'}">
-                  <label class="price-name"><input type="checkbox" data-action="menu" data-id="${pr.id}" ${s.menu[pr.id] ? 'checked' : ''} /> ${pr.icon} ${pr.name}</label>
+                  <div class="pr-name-wrap"><label class="price-name"><input type="checkbox" data-action="menu" data-id="${pr.id}" ${s.menu[pr.id] ? 'checked' : ''} /> ${pr.icon} ${esc(pr.name)}${s.custom.signature === pr.id ? ' <span class="sig-tag">⭐招牌</span>' : ''}</label>
+                  <span class="pr-tools"><button data-action="edit-product" data-id="${pr.id}" title="改菜名、換圖示">✏️</button><button data-action="signature" data-id="${pr.id}" class="${s.custom.signature === pr.id ? 'on' : ''}" ${s.custom.signature === pr.id || !s.signatureReady ? 'disabled' : ''} title="${s.signatureReady ? '定為招牌菜：點的人多六成（一週可以換一次）' : '招牌菜一週只能換一次'}">⭐</button></span></div>
                   <span class="price-ctl"><button data-action="price" data-id="${pr.id}" data-d="-5">－</button><b class="${cur > sug * 1.1 ? 'neg' : cur < sug * 0.9 ? 'pos' : ''}">$${cur}</b><button data-action="price" data-id="${pr.id}" data-d="5">＋</button></span>
                   <small>建議 $${sug}・毛利 ${margin}%${avail ? '' : '・<span class="neg">沒有設備</span>'}${g && s.stock[g.id] <= 0 ? '・<span class="neg">賣完了</span>' : ''}</small>
                 </div>`;
@@ -2634,7 +2675,7 @@
               .join('')}
           </div>
           ${s.feature('seasonal') ? seasonalCard() : ''}
-          <p class="drawer-tip">比建議價貴 10% 以上，客人會明顯變少，評價也會變差；學生和長輩對價格特別敏感，上班族比較不在意。${s.promoOn ? `<br>🎉 九折優惠到第 ${s.promo.until} 天。` : ''}</p>
+          <p class="drawer-tip">✏️ 可以幫品項取自己的名字、換圖示（免費）；⭐ 招牌菜點的人會多六成，一週可以換一次。<br>比建議價貴 10% 以上，客人會明顯變少，評價也會變差；學生和長輩對價格特別敏感，上班族比較不在意。${s.promoOn ? `<br>🎉 九折優惠到第 ${s.promo.until} 天。` : ''}</p>
 `;
       if (sub === 'hours') return `
           <h3>營業與排班 <small>改了明天生效</small></h3>
@@ -4467,6 +4508,23 @@
         renderDrawer();
         break;
       }
+      case 'rename-shop':
+        inputBox({ title: '🪧 改店名', note: `換新招牌要 ${money(s.renameCost)}。2～12 個字。`, fields: [{ key: 'name', label: '新店名', value: s.shopName, max: 12 }], ok: (v) => s.renameShop(v.name) || '店名要 2～12 個字，而且要跟現在不一樣（也要付得起招牌錢）', done: () => renderDrawer() });
+        break;
+      case 'uniform':
+        if (!s.setUniform(btn.dataset.value || null) && btn.dataset.value) toast('錢不夠', 'bad');
+        renderDrawer();
+        break;
+      case 'edit-product': {
+        const pr = s.ind.products.find((x) => x.id === btn.dataset.id);
+        if (!pr) break;
+        inputBox({ title: `✏️ ${pr.icon} ${pr.name}`, note: '留空白就恢復原本的名字和圖示。', fields: [{ key: 'name', label: '菜名（最多 10 個字）', value: pr.name, max: 10 }, { key: 'icon', label: '圖示（貼一個 emoji）', value: pr.icon, max: 4 }], ok: (v) => s.renameProduct(pr.id, v.name, v.icon) || '改不了', done: () => renderDrawer() });
+        break;
+      }
+      case 'signature':
+        s.setSignature(btn.dataset.id);
+        renderDrawer();
+        break;
       case 'fix-risk':
         s.fixHygieneRisk(btn.dataset.k);
         renderDrawer();

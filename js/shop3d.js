@@ -2572,8 +2572,19 @@
       sign.position.set(W / 2, WALL_H + 0.6, H + 0.15);
       g.add(sign);
       this.sign = sign;
-      // 遮雨棚
-      const awn = new THREE.Mesh(new THREE.BoxGeometry(W, 0.05, 0.8), this.signSide);
+      // 遮雨棚：自己挑顏色就做成條紋的
+      let awnMat = this.signSide;
+      if (s.style && s.style.awning) {
+        const col = s.style.awning;
+        const tex = canvasTex(256, 32, (c, w, h) => {
+          for (let i = 0; i < 16; i++) {
+            c.fillStyle = i % 2 ? '#fdfaf3' : col;
+            c.fillRect((i * w) / 16, 0, w / 16 + 1, h);
+          }
+        });
+        awnMat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.8 });
+      }
+      const awn = new THREE.Mesh(new THREE.BoxGeometry(W, 0.05, 0.8), awnMat);
       this.awning = awn;
       awn.position.set(W / 2, WALL_H - 0.1, H + 0.45);
       awn.rotation.x = 0.18;
@@ -3190,8 +3201,16 @@
       for (const { a, kind } of list) {
         seen.add(a.id);
         let v = this.agents.get(a.id);
+        // 員工制服：換了顏色就重新做一個人
+        const uni = kind === 'staff' ? (s.custom && s.custom.uniform) || null : null;
+        if (v && kind === 'staff' && v.uni !== uni) {
+          this.world.remove(v.root);
+          People.dispose(v.root, v.p);
+          this.agents.delete(a.id);
+          v = null;
+        }
         if (!v) {
-          const p = People.make(a.look);
+          const p = People.make(uni ? { ...a.look, shirt: uni } : a.look);
           p.group.userData.pick = kind === 'staff' ? { kind: 'staff', staff: a } : kind === 'customer' ? { kind: 'customer', customer: a } : null;
           v = { p, kind, pickable: kind === 'staff' || kind === 'customer' };
           if (v.pickable) {
@@ -3223,6 +3242,7 @@
             v.umbrella = umbrellaModel(['#2c6fbb', '#d9482b', '#2f8f6b', '#f1c40f', '#8e44ad', '#34495e'][a.id % 6]);
             p.group.add(v.umbrella);
           }
+          v.uni = uni;
           this.agents.set(a.id, v);
         }
         if (v.umbrella) v.umbrella.visible = this.raining && a.z >= this.sim.H - 0.3 && !(v.scooter && v.scooter.visible);

@@ -67,8 +67,9 @@
     constructor(industryId, opts = {}) {
       const ind = INDUSTRIES.find((i) => i.id === industryId);
       if (!ind) throw new Error(`未知產業：${industryId}`);
-      this.ind = ind;
       applyNames(ind.id);
+      // 每間店自己一份菜單（可以自己改菜名、換圖示），不會動到其他存檔
+      this.ind = { ...ind, products: ind.products.map((p) => ({ ...p })) };
       this.rng = opts.rng || Math.random;
       this.cb = opts.callbacks || {};
       this.shopName = opts.shopName || ind.shopName;
@@ -132,6 +133,7 @@
       this.owner = Sim.ownerDefaults(); // 老闆個人的錢（月薪、分紅才會進來）和人生狀態，跟公司分開
       this.dark = Sim.darkDefaults(); // 🕶️ 走歪的路：開著哪些邪門手段、黑歷史、被抓幾次
       this.drama = { cur: null, done: [], cool: 6 }; // 📺 店裡的連續劇：正在演哪一齣、第幾集
+      this.custom = { names: {}, signature: null, sigDay: -99, uniform: null }; // 🎨 玩家自訂：菜名、招牌菜、制服
       this.rooms = { storage: 0, rest: 0, office: 0, toilet: 0 }; // 後場的房間等級
       this.pets = []; // 店寵
       this.toiletClean = 100;
@@ -1457,6 +1459,73 @@
       for (const e of this.staff) e.mood = clamp(e.mood + 8, 0, 100);
       this.notify(`🕊️ 洗白上岸：補稅、補保費、公開道歉，花了 ${money(cost)}。黑歷史歸零。`, 'achieve');
       if (this.cb.chapter) this.cb.chapter({ ending: { title: '洗白上岸', medal: '🕊️', text: '你在記者會上鞠躬道歉，把該繳的都繳了。有人說你作秀，但你知道，從今天開始可以睡得著了。' }, route: 'wash' });
+      return true;
+    }
+
+    // ───── 🎨 玩家自訂 ─────
+    applyCustomNames() {
+      for (const p of this.ind.products) {
+        const c = this.custom.names[p.id];
+        if (!c) continue;
+        if (c.name) p.name = c.name;
+        if (c.icon) p.icon = c.icon;
+      }
+    }
+    // 改菜名、換圖示（免費）；空白就恢復原本的
+    renameProduct(id, name, icon) {
+      const p = this.ind.products.find((x) => x.id === id);
+      const orig = INDUSTRIES.find((i) => i.id === this.ind.id).products.find((x) => x.id === id);
+      if (!p || !orig) return false;
+      name = String(name || '').trim().slice(0, 10);
+      icon = String(icon || '').trim();
+      icon = icon ? Array.from(icon).slice(0, 2).join('') : '';
+      p.name = name || orig.name;
+      p.icon = icon || orig.icon;
+      if (!name && !icon) delete this.custom.names[id];
+      else this.custom.names[id] = { name: name || null, icon: icon || null };
+      return true;
+    }
+    // 招牌菜：一週只能換一次
+    get signatureReady() {
+      return this.day - (this.custom.sigDay || -99) >= 7;
+    }
+    setSignature(id) {
+      if (!this.signatureReady || !this.ind.products.some((p) => p.id === id) || this.custom.signature === id) return false;
+      const p = this.ind.products.find((x) => x.id === id);
+      this.custom.signature = id;
+      this.custom.sigDay = this.day;
+      this.notify(`⭐ 把「${p.icon}${p.name}」定為招牌菜！點的人會變多。`, 'good');
+      return true;
+    }
+    // 換店名：重做招牌
+    get renameCost() {
+      return Math.round((this.ind.cash * 0.06) / 1000) * 1000;
+    }
+    renameShop(name) {
+      name = String(name || '').trim().slice(0, 12);
+      if (name.length < 2 || name === this.shopName || this.cash < this.renameCost) return false;
+      this.cash -= this.renameCost;
+      this.ledger.other -= this.renameCost;
+      const old = this.shopName;
+      this.shopName = name;
+      this.styleVer = (this.styleVer || 0) + 1;
+      this.notify(`🪧 「${old}」正式改名為「${name}」！新招牌掛上去了。`, 'achieve');
+      return true;
+    }
+    // 員工制服顏色
+    get uniformCost() {
+      return 8000;
+    }
+    setUniform(color) {
+      if (color === this.custom.uniform) return false;
+      if (color && this.cash < this.uniformCost) return false;
+      if (color) {
+        this.cash -= this.uniformCost;
+        this.ledger.other -= this.uniformCost;
+        for (const e of this.staff) e.mood = clamp(e.mood + 2, 0, 100);
+        this.notify('👕 全店換上新制服了！大家看起來很有精神。', 'good');
+      }
+      this.custom.uniform = color || null;
       return true;
     }
 
@@ -5884,8 +5953,8 @@
           this.ownedFloors.add(value);
         }
         this.style.floor = value;
-      } else if (kind === 'wall' || kind === 'sign') {
-        const cost = kind === 'wall' ? 3000 : 5000;
+      } else if (kind === 'wall' || kind === 'sign' || kind === 'awning') {
+        const cost = kind === 'wall' ? 3000 : kind === 'awning' ? 4000 : 5000;
         if (this.style[kind] === value) return true;
         if (this.cash < cost) return false;
         this.cash -= cost;
@@ -5914,7 +5983,8 @@
       // 學生偏好便宜的品項，上班族不太在意價格
       const sens = type ? type.priceSens : 1;
       const avgP = prods.reduce((s, p) => s + this.effPrice(p.id), 0) / prods.length;
-      const ws = prods.map((p) => p.weight * Math.pow(avgP / Math.max(1, this.effPrice(p.id)), (sens - 1) * 0.8));
+      // 招牌菜：點的人多六成
+      const ws = prods.map((p) => p.weight * Math.pow(avgP / Math.max(1, this.effPrice(p.id)), (sens - 1) * 0.8) * (this.custom.signature === p.id ? 1.6 : 1));
       let r = this.rng() * ws.reduce((a, b) => a + b, 0);
       let product = prods[0];
       for (let i = 0; i < prods.length; i++) {
@@ -8118,6 +8188,7 @@
         ipo: this.ipo || null,
         dark: this.dark,
         drama: this.drama,
+        custom: this.custom,
         leftCount: this.leftCount || 0,
         coop: this.coop || null,
         authCount: this.authCount || 0,
@@ -8241,6 +8312,8 @@
       s.drama = { cur: null, done: [], cool: 0, ...(d.drama || {}) };
       if (s.drama.cur && s.drama.cur.pending) s.drama.cur.pending = false; // 讀檔時還沒演完的那集，明天重演
       s.leftCount = d.leftCount || 0;
+      s.custom = { names: {}, signature: null, sigDay: -99, uniform: null, ...(d.custom || {}) };
+      s.applyCustomNames();
       s.coop = d.coop || null;
       s.authCount = d.authCount || 0;
       s.owner = { ...Sim.ownerDefaults(), ...(d.owner || {}) };

@@ -5535,3 +5535,15 @@ body.cinema .dialog-backdrop { padding-top: calc(7vh + 8px); padding-bottom: cal
 body.cinema .drama { max-height: calc(86vh - 16px); }
 body.cinema .topbar, body.cinema #quest-chip { visibility: hidden; }
 @media (prefers-reduced-motion: reduce) { .cinema-bar { transition: none; } }
+
+/* 🎨 自訂：雨遮條紋、菜單工具、輸入框 */
+.swatch.stripe { background: repeating-linear-gradient(90deg, var(--c) 0 6px, #fdfaf3 6px 12px); }
+.shop-name-now { font-size: 15px; margin-right: 6px; }
+.price-row .pr-tools { display: inline-flex; gap: 4px; }
+.price-row .pr-tools button { padding: 2px 6px; font-size: 14px; min-width: 0; }
+.price-row .pr-tools button.on { background: #f2c14e; border-color: transparent; }
+.sig-tag { font-size: 11px; padding: 1px 6px; border-radius: 999px; background: #fff1c2; color: #8a5a00; margin-left: 4px; white-space: nowrap; }
+.input-box .ib-field { display: grid; gap: 4px; margin: 6px 0; }
+.input-box .ib-field span { font-size: 13px; color: var(--muted); }
+.input-box input { font: inherit; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg, #fff); color: inherit; }
+.pr-name-wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; }
