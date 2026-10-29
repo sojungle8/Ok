@@ -3087,6 +3087,52 @@
       return go;
     }
 
+    // ───── 🚗 開放世界：老闆自己開車在城市亂跑（店照常營業） ─────
+    startDrive() {
+      const b = this.boss;
+      if (b.away) return false;
+      this.bossLeaveLane();
+      b.away = { kind: 'drive', start: this.minute, until: this.minute + 9999 };
+      b.ride = false;
+      this.notify(this.carInfo ? `🚗 老闆開著${this.carInfo.name}出門兜風了` : '🛵 老闆騎機車出門晃晃了');
+      return true;
+    }
+    endDrive(silent) {
+      const b = this.boss;
+      if (!b.away || b.away.kind !== 'drive') return false;
+      b.away = null;
+      if (!silent) this.notify('🏪 老闆回到店裡了');
+      return true;
+    }
+    // 罰單、修車錢：老闆自己的錢付
+    driveFine(amount, why) {
+      this.payPersonal(amount, why);
+      this.notify(`${why}（$${amount.toLocaleString()}）`, 'bad');
+    }
+    // 開車賺的：外送的錢進公司，載客、競速、撿到的進老闆口袋
+    driveReward({ cash = 0, wealth = 0, text, review, fans }) {
+      if (cash) {
+        this.cash += cash;
+        this.ledger.other += cash;
+      }
+      if (wealth) this.owner.wealth += wealth;
+      if (review) this.addReview(review[0], review[1]);
+      if (fans) this.addFans(fans);
+      if (text) this.notify(text, cash || wealth ? 'good' : 'bad');
+    }
+    // 自己開車去批發市場載貨：每樣補兩成五，比叫貨便宜（車越大載越多）
+    driveErrand() {
+      const haul = (this.carInfo && this.carInfo.haul) || 0;
+      const k = this.carInfo ? 0.25 + haul * 3 : 0.12;
+      let saved = 0;
+      for (const g of this.ind.stock) {
+        const add = Math.round((this.par[g.id] || 0) * k);
+        this.stock[g.id] = (this.stock[g.id] || 0) + add;
+        saved += add * (g.cost || 1) * 0.15;
+      }
+      this.notify(`📦 自己開車去批發市場載貨：每樣補了 ${Math.round(k * 100)}%${saved ? `，比叫貨省了約 $${Math.round(saved).toLocaleString()}` : ''}`, 'good');
+    }
+
     // 🚄 搭高鐵去外縣市的分店巡店：先騎到板橋站，搭車、巡店、再搭回來（要好幾個小時）
     trainMinutes(siteId) {
       const site = BRANCH_SITES.find((x) => x.id === siteId);
@@ -6565,7 +6611,7 @@
 
       // 老闆：出門回來、顧店會累
       const B = this.boss;
-      if (B.away && (B.away.untilDay ? this.day >= B.away.untilDay && this.minute >= this.hours.open : this.minute >= B.away.until)) this.finishTrip();
+      if (B.away && B.away.kind !== 'drive' && (B.away.untilDay ? this.day >= B.away.untilDay && this.minute >= this.hours.open : this.minute >= B.away.until)) this.finishTrip();
       if (B.state === 'working' && !B.away) {
         if (B.lane && B.lane.customer && B.lane.customer.state === 'atLane') B.energy = clamp(B.energy - 0.12 * (1 - B.fit * 0.1) * dt, 0, 100);
         else B.energy = clamp(B.energy + 0.04 * dt, 0, 100);
@@ -8353,6 +8399,7 @@
       s.drama = { cur: null, done: [], cool: 0, ...(d.drama || {}) };
       if (s.drama.cur && s.drama.cur.pending) s.drama.cur.pending = false; // 讀檔時還沒演完的那集，明天重演
       s.leftCount = d.leftCount || 0;
+      if (s.boss && s.boss.away && s.boss.away.kind === 'drive') s.boss.away = null; // 讀檔時人一定在店裡
       s.custom = { names: {}, signature: null, sigDay: -99, uniform: null, ...(d.custom || {}) };
       s.applyCustomNames();
       s.coop = d.coop || null;

@@ -5547,3 +5547,59 @@ body.cinema .topbar, body.cinema #quest-chip { visibility: hidden; }
 .input-box .ib-field span { font-size: 13px; color: var(--muted); }
 .input-box input { font: inherit; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg, #fff); color: inherit; }
 .pr-name-wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; }
+
+/* 🚗 開放世界：駕駛儀表板 */
+.drive-hud { position: fixed; inset: 0; pointer-events: none; z-index: 14; }
+.drive-hud > * { pointer-events: auto; }
+.dh-top { position: absolute; top: 72px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; align-items: stretch; }
+.dh-top > div { background: rgba(20, 18, 28, 0.82); color: #fff; border-radius: 14px; padding: 6px 12px; display: grid; place-items: center; min-width: 74px; }
+.dh-top small { font-size: 11px; opacity: 0.75; }
+.dh-speed b { font-size: 26px; line-height: 1; font-variant-numeric: tabular-nums; }
+.dh-speed.fast b { color: #ff8a65; }
+.dh-wanted { color: #ffd54a; font-size: 18px; letter-spacing: 1px; animation: wanted 0.8s infinite; }
+@keyframes wanted { 50% { background: rgba(160, 20, 30, 0.9); } }
+.dh-clock { font-weight: 700; }
+.dh-mission { position: absolute; top: 140px; left: 50%; transform: translateX(-50%); width: min(360px, 90vw); background: rgba(255, 248, 230, 0.95); border-radius: 14px; padding: 8px 12px; display: grid; gap: 4px; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2); }
+.dh-mission span { font-size: 13px; }
+.dh-msg { position: absolute; top: 46%; left: 50%; transform: translateX(-50%); background: rgba(20, 18, 28, 0.85); color: #fff; padding: 8px 16px; border-radius: 999px; font-weight: 700; white-space: nowrap; max-width: 92vw; overflow: hidden; text-overflow: ellipsis; }
+.dh-btns { position: absolute; right: 12px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
+.dh-btns button { font-size: 15px; padding: 10px 14px; border-radius: 14px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2); }
+.dh-btns .drive-brake { background: #d93b2b; color: #fff; border: 0; width: 84px; height: 84px; border-radius: 50%; font-size: 16px; touch-action: none; }
+.dh-menu { position: absolute; right: 12px; bottom: 210px; display: grid; gap: 6px; width: min(300px, 80vw); }
+.dh-menu button { display: grid; text-align: left; gap: 2px; padding: 8px 12px; border-radius: 12px; }
+.dh-menu small { font-size: 11px; color: var(--muted); }
+.drive-start { width: 100%; margin: 6px 0; padding: 10px; font-size: 15px; font-weight: 700; border-radius: 12px; background: linear-gradient(90deg, #2b2134, #6c4ab6); color: #fff; border: 0; }
+body.driving #quest-chip, body.driving .helper-cards, body.driving #inbox { display: none; }
+.drive-marks { position: absolute; inset: 0; pointer-events: none; }
+.dmark { position: absolute; left: 0; top: 0; font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 999px; background: #fff; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2); white-space: nowrap; }
+.dmark.mission { background: #f2c14e; font-size: 13px; }
+.dmark.police { background: #2b6bff; color: #fff; }
+.dmark.cam { background: #4a4f57; color: #fff; font-size: 11px; }
+@media (max-width: 640px) { .dh-top { top: 112px; } .dh-mission { top: 176px; } }
+
+/* 🌆 開放世界：街頭（第三人稱） */
+body.in-world .cam-buttons, body.in-world #boss-toggle, body.in-world #boss-hud, body.in-world #boss-act, body.in-world .combo-badge, body.in-world #toolbar, body.in-world #city-panel { display: none !important; }
+body.in-world .joy { bottom: calc(28px + env(safe-area-inset-bottom, 0px)); width: 132px; height: 132px; }
+body.in-world .joy-knob { left: 41px; top: 41px; }
+.world-overlay { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.wlabel { position: absolute; left: 0; top: 0; font-size: 13px; font-weight: 700; padding: 3px 9px; border-radius: 999px; background: rgba(255, 255, 255, 0.92); color: #2a2420; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25); white-space: nowrap; transform-origin: 50% 100%; }
+.wlabel.home { background: #ffb347; }
+.wlabel.near { background: #5fd1ff; color: #08263a; }
+.wmark { position: absolute; left: 0; top: 0; font-size: 13px; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: #f2c14e; color: #2a2420; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3); white-space: nowrap; }
+.minimap { position: absolute; left: 12px; top: 74px; border-radius: 50%; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35); pointer-events: none; z-index: 4; }
+.dh-flash { position: absolute; inset: 0; background: #fff; opacity: 0.7; pointer-events: none !important; animation: dhflash 0.25s forwards; }
+@keyframes dhflash { to { opacity: 0; } }
+.dh-sub { font-size: 12px; color: #fff; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6); margin-top: 4px; }
+.dh-gps { display: flex; flex-wrap: wrap; gap: 4px; }
+.dh-gps button { padding: 4px 8px; font-size: 12px; border-radius: 999px; display: inline-block; }
+.dh-menu { max-height: calc(100vh - 330px); overflow-y: auto; }
+.dh-btns kbd { font-size: 11px; margin-left: 4px; }
+.dh-car { background: #2b2134; color: #fff; border: 0; }
+@media (max-width: 640px) {
+  .minimap { top: 8px; left: 8px; }
+  body.in-world .dh-top { top: 150px; left: auto; right: 8px; transform: none; gap: 6px; }
+  body.in-world .dh-mission { top: 214px; }
+  .dh-top > div { min-width: 60px; padding: 4px 8px; }
+  .dh-clock small { display: none; }
+  .dh-btns button { font-size: 14px; padding: 9px 12px; }
+}

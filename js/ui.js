@@ -516,6 +516,7 @@
             <button data-action="cam-reset" title="鏡頭回到預設（雙擊地板可以拉近）">⌖</button>
             <button data-action="cam-back" title="一鍵看後場（再按一次回到原本視角）">🚪</button>
             <button data-action="city-open" title="看整座城市（M）">🗺️</button>
+            <button data-action="drive-start" title="走出店門（開放世界）">🌆</button>
           </div>
           <div class="city-panel card" id="city-panel" hidden></div>
         </div>
@@ -637,6 +638,7 @@
     ui.place = null;
     document.body.classList.remove('in-place');
     if (ui.city) closeCity();
+    closeWorld();
     ui.view = new window.BossShop3D(document.getElementById('view'), sim, {
       onClick: onViewClick,
       onHover: (t) => {
@@ -827,12 +829,16 @@
     ui.view.selected = ui.inspect && (ui.inspect.kind === 'staff' || ui.inspect.kind === 'customer') ? ui.inspect.ref : null;
     // 省電：最多每秒 60 幀（低畫質 30）；暫停、看對話框、沒在操作時降到每秒 12 幀
     const v = ui.view;
-    const idle = (blocked || ui.speed === 0) && !v.busy && !ui.build && !ui.bossMode;
+    const idle = (blocked || ui.speed === 0) && !v.busy && !ui.build && !ui.bossMode && !ui.world;
     if (idle) v.perf.start = 0;
     if (now - (ui.lastDraw || 0) >= 1000 / (idle ? 12 : v.fpsCap) - 3) {
       const ddt = Math.min(0.1, (now - (ui.lastDraw || now)) / 1000);
       ui.lastDraw = now;
-      if (ui.city) {
+      if (ui.world) {
+        ui.world.input = driveInput();
+        ui.world.update(ddt, now);
+        ui.world.render();
+      } else if (ui.city) {
         ui.city.update(ddt, now);
         ui.city.render();
       } else if (ui.place) {
@@ -848,6 +854,7 @@
       renderInbox();
       if (ui.tut) renderTutorial();
       if (ui.city) renderCityPanel();
+      renderDriveHud();
       renderQuestChip();
       updateMusic();
     }
@@ -857,6 +864,120 @@
       refreshDrawerLive();
     }
     ui.raf = requestAnimationFrame(loop);
+  }
+
+  // ───── 🚗 開放世界：自由駕駛 ─────
+  function driveInput() {
+    const k = ui.keys;
+    let x = 0;
+    let y = 0;
+    if (k.has('a') || k.has('arrowleft')) x -= 1;
+    if (k.has('d') || k.has('arrowright')) x += 1;
+    if (k.has('w') || k.has('arrowup')) y -= 1;
+    if (k.has('s') || k.has('arrowdown')) y += 1;
+    if (ui.joy) {
+      x += ui.joy.x;
+      y += ui.joy.y;
+    }
+    return { x, y, brake: k.has(' ') || ui.driveBrake, boost: k.has('shift') };
+  }
+  // 走出店門：真實比例的街頭（world3d.js）
+  function openWorld() {
+    const s = ui.sim;
+    if (!window.BossWorld3D || !ui.view || ui.place || ui.world) return false;
+    if (!s.startDrive()) return false;
+    if (ui.city) closeCity();
+    closeDialog();
+    if (ui.tab) openTab(ui.tab);
+    closeInspector();
+    if (ui.bossMode) setBossMode(false);
+    ui.world = new window.BossWorld3D(ui.view, s, { gender: ui.settings.gender, quality: ui.view.quality });
+    ui.view.overlay.hidden = true;
+    ui.keys.clear();
+    ui.driveMenu = false;
+    document.getElementById('joy').hidden = !isTouch;
+    document.body.classList.add('driving', 'in-world');
+    renderDriveHud();
+    return true;
+  }
+  function closeWorld() {
+    if (!ui.world) return;
+    ui.world.destroy();
+    ui.world = null;
+    ui.driveMenu = false;
+    ui.keys.clear();
+    document.body.classList.remove('driving', 'in-world');
+    document.getElementById('joy').hidden = !(ui.bossMode && isTouch);
+    if (ui.view) {
+      ui.view.overlay.hidden = false;
+      ui.view.updateCamera();
+      ui.view.renderer.shadowMap.needsUpdate = true;
+    }
+    renderDriveHud();
+  }
+  function endDriveUI(silent) {
+    closeWorld();
+    ui.sim.endDrive(silent);
+  }
+  function renderDriveHud() {
+    let el = document.getElementById('drive-hud');
+    const w = ui.world;
+    if (!w) {
+      if (el) el.hidden = true;
+      return;
+    }
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'drive-hud';
+      el.className = 'drive-hud';
+      document.getElementById('app').appendChild(el);
+      // 手機的煞車鍵：按住才煞
+      el.addEventListener('pointerdown', (e) => {
+        if (!e.target.closest('.drive-brake')) return;
+        ui.driveBrake = true;
+        const up = () => {
+          ui.driveBrake = false;
+          window.removeEventListener('pointerup', up);
+          window.removeEventListener('pointercancel', up);
+        };
+        window.addEventListener('pointerup', up);
+        window.addEventListener('pointercancel', up);
+      });
+    }
+    el.hidden = false;
+    const s = ui.sim;
+    const d = w.state;
+    const m = d.mission;
+    const foot = d.mode === 'foot';
+    const key = (k) => (isTouch ? '' : ` <kbd>${k}</kbd>`);
+    const html = `${d.flash ? '<div class="dh-flash"></div>' : ''}<div class="dh-top">
+        <div class="dh-speed ${d.kmh > d.limit && !foot ? 'fast' : ''}">${foot ? `<b>🚶</b><small>${d.kmh > 15 ? '跑步' : '走路'}</small>` : `<b>${d.kmh}</b><small>km/h・限速 ${d.limit}</small>`}</div>
+        ${d.wanted ? `<div class="dh-wanted">${'★'.repeat(d.wanted)}<small>警察在追</small></div>` : ''}
+        <div class="dh-clock">${s.clockLabel}<small>${money(s.cash)}・個人 ${money(s.owner.wealth)}</small></div>
+      </div>
+      ${m ? `<div class="dh-mission"><b>${m.icon} ${m.name}</b><span>${esc(m.labels[m.i])}</span><div class="bar"><div class="bar-fill ${m.left / m.total < 0.3 ? 'jerk' : 'skill'}" style="width:${Math.max(0, Math.round((m.left / m.total) * 100))}%"></div></div><small>還剩 ${Math.max(0, Math.ceil(m.left))} 秒</small></div>` : ''}
+      ${d.msg ? `<div class="dh-msg">${esc(d.msg)}</div>` : ''}
+      <div class="dh-btns">
+        ${d.near ? `<button class="primary" data-action="drive-enter">${d.near === 'home' ? '🏪 回店裡' : `🚪 進去${esc(d.nearName || '')}`}${key('E')}</button>` : ''}
+        ${foot && d.carNear ? `<button class="dh-car" data-action="drive-car">🚗 ${d.carNear}${key('F')}</button>` : ''}
+        ${!foot ? `<button data-action="drive-car">🚪 下車${key('F')}</button>` : ''}
+        <button data-action="drive-menu">📱 手機${key('Tab')}</button>
+        ${isTouch && !foot ? '<button class="drive-brake" data-action="drive-brake">🛑 煞車</button>' : ''}
+      </div>
+      ${ui.driveMenu ? `<div class="dh-menu">
+        ${m ? `<button data-action="drive-quit">❌ 放棄任務<small>${m.icon} ${m.name}</small></button>` : `<b class="dh-sub">💼 接任務</b>
+        <button data-action="drive-mission" data-kind="delivery">🛵 外送<small>回店取餐送到客人家：錢進公司、送得快有好評</small></button>
+        <button data-action="drive-mission" data-kind="taxi">🚖 載客<small>開車載客人：車資進你的口袋</small></button>
+        <button data-action="drive-mission" data-kind="errand">📦 跑腿進貨<small>開車去批發市場載貨回店：補貨又省錢${s.carInfo ? '' : '（找台車吧）'}</small></button>
+        <button data-action="drive-mission" data-kind="race">🏁 街頭競速<small>四個檢查點限時：贏很多，但可能被檢舉</small></button>`}
+        <b class="dh-sub">🧭 導航</b>
+        <div class="dh-gps">${w.doors.map((x) => `<button data-action="drive-gps" data-id="${x.id}">${x.icon} ${esc(x.name)}</button>`).join('')}</div>
+        <button data-action="drive-end">🚕 叫計程車直接回店<small>不想走回去：馬上回到店裡</small></button>
+      </div>` : ''}`;
+    if (el.dataset.html !== html) {
+      el.innerHTML = html;
+      el.dataset.html = html;
+    }
   }
 
   // ───── 🗺️ 城市：從店裡拉遠看整座城市，點地標騎車過去 ─────
@@ -932,10 +1053,11 @@
     }
     el.hidden = false;
     const b = s.boss;
+    const driveBtn = b.away ? '' : '<button class="drive-start" data-action="drive-start">🌆 走出店門（開放世界：走路、開車、接任務）</button>';
     const head = `<div class="city-head"><b>🗺️ 雙北</b><small>${s.clockLabel}・${b.away ? bossAwayText() : '老闆在店裡'}</small><button class="primary" data-action="city-close">🏪 回到店裡</button></div>`;
     const id = ui.cityPick;
     if (!id) {
-      const html = `${head}<p class="calc">點地圖上的地點看看要不要去。路越遠騎越久，老闆不在的時候店裡照常營業。拖曳移動、兩指或滾輪縮放。${s.chargeUnlocked ? '<br>🏷️ 綠色虛線框是可以買的地，可以開⚡充電站。' : ''}</p>`;
+      const html = `${head}${driveBtn}<p class="calc">點地圖上的地點看看要不要去。路越遠騎越久，老闆不在的時候店裡照常營業。拖曳移動、兩指或滾輪縮放。${s.chargeUnlocked ? '<br>🏷️ 綠色虛線框是可以買的地，可以開⚡充電站。' : ''}</p>`;
       if (el.dataset.html !== html) {
         morph(el, html);
         el.dataset.html = html;
@@ -1104,6 +1226,7 @@
     if (A.kind === 'ride') return `🛵 騎車去${s.w(name(A.to))}・還要 ${left} 分鐘`;
     if (A.kind === 'rideBack') return `🛵 騎車回店裡・還要 ${left} 分鐘`;
     if (A.kind === 'train') return `🚄 搭高鐵巡店中・還要 ${left} 分鐘`;
+    if (A.kind === 'drive') return s.carInfo ? `🚗 開著${s.carInfo.name}在城市裡兜風` : '🛵 騎機車在城市裡晃';
     if (A.scene) return '🚶 在外面逛';
     return `出門中・還要 ${left} 分鐘`;
   }
@@ -3690,6 +3813,7 @@
     ui.place = null;
     document.body.classList.remove('in-place');
     if (ui.city) closeCity();
+    closeWorld();
     if (ui.view) ui.view.destroy();
     ui.view = null;
     ui.sim = null;
@@ -4526,6 +4650,77 @@
         s.setSignature(btn.dataset.id);
         renderDrawer();
         break;
+      case 'drive-start':
+        if (!openWorld()) {
+          toast(ui.sim.boss.away ? '老闆已經在外面了' : '現在沒辦法出門', 'bad');
+          break;
+        }
+        toast(isTouch ? '🌆 左下搖桿走路；拖曳畫面轉視角；靠近車子按「上車」（別人的車也行……）' : '🌆 WASD 走路、Shift 跑步、拖曳滑鼠轉視角；F 上下車（別人的車也行……）、E 進門、Tab 開手機', 'helper');
+        break;
+      case 'drive-end':
+        endDriveUI();
+        break;
+      case 'drive-car':
+        if (ui.world && !ui.world.toggleVehicle()) toast('附近沒有車', 'bad');
+        renderDriveHud();
+        break;
+      case 'drive-mission':
+        if (ui.world) {
+          if (!ui.world.startMission(btn.dataset.kind)) toast('先把手上的任務做完', 'bad');
+          ui.driveMenu = false;
+          renderDriveHud();
+        }
+        break;
+      case 'drive-quit':
+        if (ui.world) ui.world.failMission('放棄了');
+        ui.driveMenu = false;
+        renderDriveHud();
+        break;
+      case 'drive-gps':
+        if (ui.world) ui.world.setGps(btn.dataset.id);
+        ui.driveMenu = false;
+        renderDriveHud();
+        break;
+      case 'drive-menu':
+        ui.driveMenu = !ui.driveMenu;
+        renderDriveHud();
+        break;
+      case 'drive-brake':
+        break;
+      case 'drive-enter': {
+        const id = ui.world && ui.world.near;
+        if (!id) break;
+        if (id === 'home') {
+          endDriveUI();
+          break;
+        }
+        const t = cityTarget(id);
+        if (t.kind === 'scene') {
+          endDriveUI(true);
+          if (id === 'rival') enterPlace('rival');
+          else if (s.enterPlace(id)) arrivePlace(id);
+        } else if (t.kind === 'branch') {
+          const r = s.visitBranch(id);
+          if (r) {
+            ui.dialog = { type: 'trip', result: r };
+            renderDialog();
+          }
+        } else if (t.kind === 'trip') {
+          // 走到門口：馬上辦事，辦完繼續逛
+          s.boss.away = { id, until: s.minute, start: s.minute, ride: 0 };
+          const r = s.finishTrip();
+          s.startDrive();
+          if (r) {
+            ui.dialog = { type: 'trip', result: r };
+            renderDialog();
+          }
+        } else if (t.kind === 'hub') {
+          ui.dialog = { type: t.hub };
+          renderDialog();
+        } else if (t.kind === 'hsr') toast('🚄 外縣市分店要從城市地圖搭高鐵去', 'helper');
+        else toast('這裡沒什麼好逛的', 'helper');
+        break;
+      }
       case 'acquire-rival':
         if (!ui.confirmAcq) ui.confirmAcq = true;
         else {
@@ -4865,6 +5060,21 @@
       return;
     }
     const k = e.key.toLowerCase();
+    if (ui.world) {
+      if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' ', 'shift'].includes(k)) {
+        e.preventDefault();
+        ui.keys.add(k);
+        return;
+      }
+      if (k === 'e') return clickAction('drive-enter', {});
+      if (k === 'f') return clickAction('drive-car', {});
+      if (k === 'tab') {
+        e.preventDefault();
+        return clickAction('drive-menu', {});
+      }
+      if (k === 'escape' && ui.driveMenu) return clickAction('drive-menu', {});
+      if (k === 'm' || k === 'g' || k === 'q' || k === 'c') return;
+    }
     if (ui.bossMode) {
       if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(k)) {
         e.preventDefault();
