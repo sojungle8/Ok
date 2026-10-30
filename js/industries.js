@@ -487,6 +487,27 @@
     { id: 'zhongli', city: '桃園', name: '中壢車站', icon: '🛤️', desc: '學生、移工、通勤族混在一起，熱鬧又多元。', traffic: 1.05, rent: 0.85, cost: 0.85, mix: { student: 0.35, office: 0.25, elderly: 0.1, family: 0.25, tourist: 0.05 } },
     { id: 'hualien', city: '花蓮', name: '東大門夜市', icon: '🌊', desc: '觀光客的必訪景點，暑假和連假爆滿，冬天就冷冷清清。', traffic: 1.1, rent: 0.75, cost: 0.8, season: { high: [7, 8, 2], low: [11, 12, 1] }, mix: { student: 0.1, office: 0.05, elderly: 0.1, family: 0.2, tourist: 0.55 } },
     { id: 'luodong', city: '宜蘭', name: '羅東夜市', icon: '🍃', desc: '在地人的生活圈，週末有台北人開車來玩。', traffic: 0.85, rent: 0.65, cost: 0.7, mix: { student: 0.15, office: 0.1, elderly: 0.3, family: 0.3, tourist: 0.15 } },
+    // 第二批：展店到 20 間以上要的地點
+    { id: 'gongguan', city: '台北', name: '公館', icon: '📚', desc: '大學生的地盤，晚上和考試週特別熱鬧，很在意 CP 值。', traffic: 1.25, rent: 1.3, cost: 1.2, mix: { student: 0.6, office: 0.15, elderly: 0.05, family: 0.1, tourist: 0.1 } },
+    { id: 'neihu', city: '台北', name: '內湖科技園區', icon: '🏢', desc: '上班族的午餐戰場，平日中午排到馬路上，週末很安靜。', traffic: 1.2, rent: 1.45, cost: 1.35, rich: true, weekdayOnly: true, mix: { student: 0.05, office: 0.7, elderly: 0.05, family: 0.15, tourist: 0.05 } },
+    { id: 'tianmu', city: '台北', name: '天母', icon: '🌿', desc: '高級住宅區，外國人和家庭多，客人有錢但很挑。', traffic: 0.95, rent: 1.4, cost: 1.3, rich: true, mix: { student: 0.1, office: 0.15, elderly: 0.2, family: 0.45, tourist: 0.1 } },
+    { id: 'sanchong', city: '新北', name: '三重', icon: '🛵', desc: '機車多到看不到地板，老社區和小工廠，客人很實在。', traffic: 1.05, rent: 0.85, cost: 0.85, mix: { student: 0.15, office: 0.25, elderly: 0.25, family: 0.35, tourist: 0 } },
+    { id: 'tamsui', city: '新北', name: '淡水老街', icon: '🌅', desc: '看夕陽的觀光客擠滿老街，週末爆滿，下雨天就沒人。', traffic: 1.15, rent: 1.0, cost: 0.95, mix: { student: 0.2, office: 0.05, elderly: 0.1, family: 0.2, tourist: 0.45 } },
+    { id: 'linkou', city: '新北', name: '林口新市鎮', icon: '🏗️', desc: '新大樓一棟一棟蓋，年輕家庭搬進來，晚上和週末才有人。', traffic: 0.9, rent: 0.95, cost: 0.9, mix: { student: 0.1, office: 0.25, elderly: 0.05, family: 0.55, tourist: 0.05 } },
+    { id: 'keelung', city: '基隆', name: '廟口夜市', icon: '⚓', desc: '港邊的老夜市，郵輪靠港時觀光客湧進來，常常下雨。', traffic: 1.05, rent: 0.75, cost: 0.75, mix: { student: 0.1, office: 0.1, elderly: 0.25, family: 0.2, tourist: 0.35 } },
+    { id: 'taichungst', city: '台中', name: '台中車站', icon: '🚉', desc: '舊城區重新熱起來，文青、旅客、通勤族都有。', traffic: 1.15, rent: 0.95, cost: 0.95, mix: { student: 0.25, office: 0.25, elderly: 0.1, family: 0.15, tourist: 0.25 } },
+    { id: 'qixing', city: '台中', name: '七期', icon: '💎', desc: '豪宅和百貨商場，客人出手大方，房租也很有氣勢。', traffic: 1.2, rent: 1.6, cost: 1.5, rich: true, mix: { student: 0.05, office: 0.35, elderly: 0.1, family: 0.35, tourist: 0.15 } },
+    { id: 'anping', city: '台南', name: '安平老街', icon: '🏯', desc: '古蹟和小吃，觀光客一整年都有，在地人反而少來。', traffic: 1.05, rent: 0.8, cost: 0.8, season: { high: [7, 8, 2], low: [12, 1] }, mix: { student: 0.1, office: 0.05, elderly: 0.15, family: 0.25, tourist: 0.45 } },
+    { id: 'zhongzheng', city: '台南', name: '中西區', icon: '🍧', desc: '老台南的心臟，排隊名店一間接一間，大家吃東西很講究。', traffic: 1.1, rent: 0.9, cost: 0.9, mix: { student: 0.2, office: 0.15, elderly: 0.25, family: 0.2, tourist: 0.2 } },
+    { id: 'sanduo', city: '高雄', name: '三多商圈', icon: '🛍️', desc: '高雄的百貨商圈，逛街人潮多，捷運直達。', traffic: 1.3, rent: 1.25, cost: 1.2, mix: { student: 0.25, office: 0.3, elderly: 0.05, family: 0.25, tourist: 0.15 } },
+    { id: 'pier2', city: '高雄', name: '駁二藝術特區', icon: '🎨', desc: '倉庫改成的文創區，週末和演唱會散場時人潮暴增。', traffic: 1.1, rent: 0.95, cost: 0.95, mix: { student: 0.25, office: 0.05, elderly: 0.05, family: 0.25, tourist: 0.4 } },
+    { id: 'fengshan', city: '高雄', name: '鳳山', icon: '🏘️', desc: '人口很多的老城區，街坊熟客多，房租便宜。', traffic: 0.95, rent: 0.7, cost: 0.7, mix: { student: 0.15, office: 0.15, elderly: 0.3, family: 0.4, tourist: 0 } },
+    { id: 'zhubei', city: '新竹', name: '竹北高鐵', icon: '🏙️', desc: '工程師家庭的新市鎮，收入高、晚上和週末才熱鬧。', traffic: 1.0, rent: 1.15, cost: 1.1, rich: true, mix: { student: 0.05, office: 0.35, elderly: 0.05, family: 0.5, tourist: 0.05 } },
+    { id: 'taoyuanart', city: '桃園', name: '藝文特區', icon: '🎭', desc: '新興的商圈，年輕上班族和家庭都多。', traffic: 1.1, rent: 1.0, cost: 1.0, mix: { student: 0.2, office: 0.35, elderly: 0.05, family: 0.35, tourist: 0.05 } },
+    { id: 'changhua', city: '彰化', name: '彰化火車站', icon: '🍚', desc: '肉圓和爌肉飯的故鄉，在地人很挑嘴，房租親切。', traffic: 0.95, rent: 0.6, cost: 0.65, mix: { student: 0.25, office: 0.15, elderly: 0.3, family: 0.25, tourist: 0.05 } },
+    { id: 'chiayi', city: '嘉義', name: '文化路夜市', icon: '🍗', desc: '雞肉飯一條街，晚上人潮滿滿，阿里山的觀光客也會經過。', traffic: 1.0, rent: 0.6, cost: 0.65, mix: { student: 0.2, office: 0.1, elderly: 0.25, family: 0.25, tourist: 0.2 } },
+    { id: 'pingtung', city: '屏東', name: '屏東夜市', icon: '🌴', desc: '熱情的南台灣，墾丁的遊客路過會停下來。', traffic: 0.9, rent: 0.55, cost: 0.6, season: { high: [7, 8, 4], low: [11, 12] }, mix: { student: 0.15, office: 0.1, elderly: 0.3, family: 0.3, tourist: 0.15 } },
+    { id: 'taitung', city: '台東', name: '鐵花村', icon: '🎶', desc: '慢活的音樂聚落，觀光客來來去去，冬天很安靜。', traffic: 0.85, rent: 0.5, cost: 0.6, season: { high: [7, 8, 2], low: [11, 12, 1] }, mix: { student: 0.1, office: 0.05, elderly: 0.2, family: 0.2, tourist: 0.45 } },
   ];
   // 分店店面大小：cap 能容納的客人、draw 吸引力、rent 房租、cost 開店費、staff 需要的人手
   const BRANCH_SIZES = {

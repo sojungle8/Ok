@@ -1224,8 +1224,9 @@
       return Math.round((this.ind.cash * 0.35) / 10000) * 10000;
     }
     // 直營店越多，越有能力管加盟店
+    // 每多一間直營店，總部能多管一間半的加盟店（督導、教育訓練跟得上）
     get franchiseCap() {
-      return 1 + this.branches.length;
+      return 2 + Math.floor(this.branches.length * 1.5);
     }
     rollFranchiseApps() {
       const who = ['陳先生', '林小姐', '黃老闆', '張太太', '李大哥', '王小姐', '吳先生', '劉媽媽', '蔡老闆', '楊小姐', '許先生', '鄭太太'];
@@ -3448,7 +3449,7 @@
     // 🚄 搭高鐵去外縣市的分店巡店：先騎到板橋站，搭車、巡店、再搭回來（要好幾個小時）
     trainMinutes(siteId) {
       const site = BRANCH_SITES.find((x) => x.id === siteId);
-      return { 台中: 60, 台南: 105, 高雄: 115, 新竹: 35, 桃園: 25, 花蓮: 130, 宜蘭: 70 }[site && site.city] || 60;
+      return { 台北: 20, 新北: 20, 基隆: 40, 台中: 60, 彰化: 75, 嘉義: 85, 台南: 105, 高雄: 115, 屏東: 130, 新竹: 35, 桃園: 25, 花蓮: 130, 台東: 160, 宜蘭: 70 }[site && site.city] || 60;
     }
     trainVisit(siteId) {
       const b = this.boss;

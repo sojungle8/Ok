@@ -1100,6 +1100,24 @@ T('自創新品：用基底做新菜、會被點、存檔後還在、可以下�
   }
 });
 
+T('展店：直營加加盟可以到 20 間以上（帝國終章的目標做得到）', () => {
+  const s = mk('noodle', { cash: 5e9, all: true });
+  while (s.level < 30) s.xp += 1e5;
+  for (let i = 0; i < 10; i++) ok(s.openBranch(null, 'medium'), `第 ${i + 1} 間分店開不了`);
+  let n = 0;
+  s.franchises = s.franchises || [];
+  for (let k = 0; k < 40 && s.branches.length + s.franchises.length < 22; k++) {
+    s.rollFranchiseApps();
+    for (const a of [...s.franchiseApps]) if (s.acceptFranchise(a.id)) n++;
+  }
+  const total = s.branches.length + s.franchises.length;
+  ok(total >= 20, `只開得到 ${total} 間（分店 ${s.branches.length}、加盟 ${s.franchises.length}／上限 ${s.franchiseCap}）`);
+  const sites = new Set([...s.branches.map((b) => b.site), ...s.franchises.map((f) => f.site)]);
+  ok(sites.size === total, '同一個地點開了兩間');
+  days(s, 7);
+  ok(Number.isFinite(s.cash), '20 間店結算出錯');
+});
+
 // ───── 執行 ─────
 const want = process.argv.slice(2);
 let pass = 0;
