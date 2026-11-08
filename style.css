@@ -1,0 +1,21 @@
+:root{--bg:#fff6f0;--fg:#2b2118;--accent:#ff7a59;--card:#fff;--muted:#8a7a6e}
+@media (prefers-color-scheme:dark){:root{--bg:#1d1714;--fg:#f5ebe4;--card:#2a221e;--muted:#b3a397}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"PingFang TC","Noto Sans TC",sans-serif}
+main{max-width:480px;margin:0 auto;padding:24px 16px;min-height:100dvh}
+.screen{display:none;text-align:center}
+.screen.active{display:block;animation:in .3s ease}
+@keyframes in{from{opacity:0;transform:translateY(8px)}}
+.big{font-size:72px;margin-top:10vh}
+h1{font-size:28px;margin:12px 0}
+h2{font-size:22px;margin:24px 0;line-height:1.4}
+.muted{color:var(--muted)}
+.btn{display:block;width:100%;padding:16px;margin:10px 0;border:0;border-radius:14px;background:var(--accent);color:#fff;font-size:17px;font-weight:700;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--accent);border:2px solid var(--accent)}
+.opt{display:block;width:100%;padding:18px;margin:12px 0;border:2px solid transparent;border-radius:14px;background:var(--card);color:var(--fg);font-size:17px;cursor:pointer;box-shadow:0 2px 8px #0001}
+.opt:hover,.opt:focus-visible{border-color:var(--accent);outline:none}
+.progress{height:8px;background:#0001;border-radius:4px;overflow:hidden}
+#bar{height:100%;width:0;background:var(--accent);transition:width .3s}
+canvas{width:100%;height:auto;border-radius:16px;box-shadow:0 4px 20px #0002}
+.friend{background:var(--card);padding:12px;border-radius:12px;margin:16px 0}
+.toast{min-height:1.5em;color:var(--accent);font-weight:700}

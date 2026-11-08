@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>你的靈魂動物是？</title>
+<meta name="description" content="8 題 30 秒，測出你的靈魂動物，看看你和誰最速配！">
+<meta property="og:title" content="你的靈魂動物是？30 秒測驗">
+<meta property="og:description" content="8 題測出你的靈魂動物，看看你和誰最速配！">
+<meta name="theme-color" content="#ff7a59">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main id="app">
+  <section id="home" class="screen active">
+    <div class="big">🐾</div>
+    <h1>你的靈魂動物是？</h1>
+    <p>8 題・30 秒・準到起雞皮疙瘩</p>
+    <div id="friend" class="friend" hidden></div>
+    <button id="start" class="btn">開始測驗</button>
+  </section>
+  <section id="quiz" class="screen">
+    <div class="progress"><div id="bar"></div></div>
+    <p id="count" class="muted"></p>
+    <h2 id="question"></h2>
+    <div id="options"></div>
+  </section>
+  <section id="result" class="screen">
+    <canvas id="card" width="1080" height="1350" aria-label="結果卡片"></canvas>
+    <div class="actions">
+      <button id="share" class="btn">分享給朋友</button>
+      <button id="save" class="btn ghost">下載結果圖</button>
+      <button id="again" class="btn ghost">再測一次</button>
+    </div>
+    <p id="toast" class="toast" role="status"></p>
+  </section>
+</main>
+<script type="module" src="app.js"></script>
+</body>
+</html>
