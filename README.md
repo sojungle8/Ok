@@ -23,3 +23,7 @@ npm test       # 邏輯單元測試（窮舉全部 256 種作答組合）
 - `logic.js` 題目、計分、URL 編碼（純函式，有測試）
 - `app.js` 畫面流程、圖卡繪製、分享
 - `index.html` / `style.css` / `manifest.webmanifest`
+
+---
+## 另一個專案：喵喵小窩（`cat-nook/`）
+原創療癒系貓咪收集遊戲，見 [cat-nook/README.md](cat-nook/README.md)。

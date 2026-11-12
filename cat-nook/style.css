@@ -1,0 +1,50 @@
+:root{--bg:#fff7f0;--fg:#3a2d25;--card:#fff;--muted:#8d7b6f;--accent:#ff8a5c;--line:#f0e2d6;
+--common:#b9a99c;--rare:#5bb0e8;--epic:#a678e6;--legendary:#f2b632}
+@media (prefers-color-scheme:dark){:root{--bg:#1f1916;--fg:#f6ece4;--card:#2b231f;--muted:#b5a397;--line:#3d322c}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"PingFang TC","Noto Sans TC",sans-serif;padding-bottom:84px}
+main{max-width:520px;margin:0 auto;padding:12px 16px}
+.hud{position:sticky;top:0;z-index:5;display:flex;gap:14px;align-items:center;flex-wrap:wrap;padding:10px 16px;background:var(--bg);border-bottom:1px solid var(--line);font-size:15px}
+.mats{display:flex;gap:10px;color:var(--muted);font-size:14px}
+.tab{display:none}.tab.active{display:block;animation:in .25s ease}
+@keyframes in{from{opacity:0;transform:translateY(6px)}}
+.center{text-align:center}.muted{color:var(--muted)}.small{font-size:13px;line-height:1.6}
+h2,h3{margin:14px 0 8px}
+.btn{display:block;width:100%;padding:14px;border:0;border-radius:14px;background:var(--accent);color:#fff;font-size:16px;font-weight:700;cursor:pointer}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.sm{display:inline-block;width:auto;padding:8px 14px;font-size:14px;border-radius:10px}
+.btn.ghost{background:transparent;color:var(--accent);border:2px solid var(--accent)}
+.card{background:var(--card);border-radius:16px;padding:14px;margin:10px 0;box-shadow:0 2px 10px #0000000d}
+.room{position:relative;height:360px;border-radius:20px;overflow:hidden;box-shadow:0 4px 16px #0001}
+.wall{position:absolute;inset:0 0 40%;background:repeating-linear-gradient(90deg,#ffe6d5 0 28px,#ffdcc6 28px 56px)}
+.floor{position:absolute;inset:60% 0 0;background:#e8c39e;display:flex;flex-wrap:wrap;align-content:flex-start;gap:4px;padding:8px;font-size:30px}
+.room .cat{position:absolute;cursor:pointer;transition:left 2.5s ease,top 2.5s ease;animation:bob 2.4s ease-in-out infinite}
+@keyframes bob{50%{transform:translateY(-4px)}}
+.heart{position:absolute;pointer-events:none;font-size:22px;animation:up 0.9s ease-out forwards}
+@keyframes up{to{transform:translateY(-50px);opacity:0}}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.catcard{background:var(--card);border-radius:14px;padding:8px;text-align:center;border:3px solid var(--line);font-size:13px}
+.catcard.common{border-color:var(--common)}.catcard.rare{border-color:var(--rare)}.catcard.epic{border-color:var(--epic)}.catcard.legendary{border-color:var(--legendary)}
+.catcard.locked{opacity:.5}
+.catcard b{display:block;font-size:15px}
+.hearts{color:#ff6b8a;letter-spacing:1px;min-height:1.2em}
+canvas{display:block;width:100%;max-width:360px;margin:8px auto;border-radius:18px;background:linear-gradient(#fff1e6,#ffd9c2);touch-action:manipulation}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.matbtn{flex:1 1 40%;background:var(--card);border:2px solid var(--line);border-radius:12px;padding:10px;color:var(--fg);font-size:14px;cursor:pointer}
+.bp{display:flex;gap:12px;align-items:center}
+.bp .ico{font-size:34px}
+.bp .info{flex:1}
+.need{display:inline-block;margin:2px 6px 0 0;font-size:13px}
+.need.lack{color:#e0533d;font-weight:700}
+.ok{color:#3aa55d;font-weight:700;font-size:13px}
+.bar{height:10px;background:var(--line);border-radius:5px;overflow:hidden;margin:6px 0}
+.bar i{display:block;height:100%;background:var(--accent)}
+.tabs{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);z-index:6}
+.tabs button{flex:1;border:0;background:none;color:var(--muted);font-size:22px;padding:8px 0;position:relative;cursor:pointer}
+.tabs button span{display:block;font-size:12px}
+.tabs button.on{color:var(--accent)}
+.tabs i{position:absolute;top:6px;right:calc(50% - 18px);width:9px;height:9px;border-radius:50%;background:#e0533d}
+.toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:#3a2d25;color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw;text-align:center;z-index:9}
+.toast.show{opacity:1}
+dialog{border:0;border-radius:20px;padding:20px;text-align:center;max-width:300px;background:var(--card);color:var(--fg)}
+dialog::backdrop{background:#0006}

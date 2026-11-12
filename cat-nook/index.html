@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>喵喵小窩</title>
+<meta name="description" content="收集原創貓咪、玩疊蛋糕小遊戲、做家具佈置你的貓咪小窩。">
+<meta name="theme-color" content="#ffb38a">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="hud">
+  <span title="金幣">🪙 <b id="coins">0</b></span>
+  <span title="餅乾">🍪 <b id="cookies">0</b></span>
+  <span id="mats" class="mats"></span>
+</header>
+<main>
+  <section id="tab-room" class="tab active">
+    <div class="room" id="room">
+      <div class="wall"></div><div class="floor" id="floor"></div>
+    </div>
+    <p class="muted center">舒適度 <b id="comfort">0</b>・點貓咪摸摸牠（每天前 8 次送餅乾 🍪）</p>
+  </section>
+  <section id="tab-cats" class="tab">
+    <div class="card summon">
+      <button id="summon" class="btn">召喚貓咪（🪙 100）</button>
+      <p class="muted small">機率：普通 60%・稀有 28%・史詩 10%・傳說 2%<br>保底：<b id="pity">0</b>/10，第 10 抽必出史詩以上・重複的貓轉成 3 塊餅乾</p>
+    </div>
+    <div id="catGrid" class="grid"></div>
+  </section>
+  <section id="tab-game" class="tab">
+    <h2 class="center">疊疊蛋糕</h2>
+    <p class="muted center small">點畫面放下蛋糕層，對越準疊越高！3 層 ⭐、6 層 ⭐⭐、10 層 ⭐⭐⭐</p>
+    <canvas id="stack" width="360" height="460" aria-label="疊蛋糕小遊戲"></canvas>
+    <button id="play" class="btn">開始遊戲</button>
+    <div id="gameResult" class="card center" hidden></div>
+  </section>
+  <section id="tab-shop" class="tab">
+    <h3>材料（也能從小遊戲和任務隨機獲得）</h3>
+    <div id="matShop" class="row"></div>
+    <h3>家具藍圖 <span class="muted small">買之前就看得到需要什麼材料</span></h3>
+    <div id="bpList"></div>
+  </section>
+  <section id="tab-quests" class="tab">
+    <h3>每日任務 <span class="muted small">每天換新，全部都能從零完成</span></h3>
+    <div id="questList"></div>
+  </section>
+</main>
+<nav class="tabs">
+  <button data-tab="room" class="on">🏠<span>小窩</span></button>
+  <button data-tab="cats">🐱<span>貓咪</span></button>
+  <button data-tab="game">🎂<span>遊戲</span></button>
+  <button data-tab="shop">🛠️<span>工坊</span></button>
+  <button data-tab="quests">📋<span>任務</span><i id="questDot" hidden></i></button>
+</nav>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<dialog id="reveal"><div id="revealBody"></div><button class="btn" id="revealOk">好耶！</button></dialog>
+<script type="module" src="app.js"></script>
+</body>
+</html>
