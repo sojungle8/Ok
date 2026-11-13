@@ -8,6 +8,11 @@ import {
 import { soulSprite, soulBig } from './soul.js';
 import { ITEMS, GRADES, STAT_NAME, BAG_SIZE, ensureInv, count, addStack, takeStack, pickupGear, pickupItem, equipFromBag, unequip, sellFromBag, sellStack, sellAllJunk, findGear, insertCard, REFINE_RATE, refineCost, refine, rollDrops, shopList, buy, pickPotion, gearSell, itemSell } from './items.js';
 import { iconCanvas, gearIcon } from './icons.js';
+import { loadAssets, asset, tinted } from './assets.js';
+import { COMPANIONS, COMPANION_IDS, ROLE_NAME, PARTY_MAX, ensureParty, unlocked, hire, toggleActive, allyStats } from './party.js';
+const TIER = ['common', 'good', 'rare', 'epic', 'legend'];
+const itemIcon = (id) => asset('icon/' + id) || iconCanvas(ITEMS[id].icon, ITEMS[id].color);
+const gearIconHD = (it) => asset('icon/' + (it.slot === 'weapon' ? `weapon_${C.weapon}_${it.rarity}` : `${it.slot}_${it.rarity}`)) || gearIcon(it, C.weapon, rarityIdx);
 import { PAL, CROWN, BOBBER, BANG, HEART, COIN, ORB, makeSprite, drawMap, monsterSprite } from './sprites.js';
 import { avatar, lookOf, npcLook, AW, AH } from './avatar.js';
 
@@ -45,7 +50,7 @@ for (const r of ['common', 'good', 'rare', 'epic', 'legend']) orbS[r] = makeSpri
 
 let hasSave = false, P;
 try { const raw = localStorage.getItem(KEY); hasSave = !!raw; P = loadPlayer(raw); } catch { P = newPlayer(); }
-ensureInv(P);
+ensureInv(P); ensureParty(P);
 
 const me = { x: P.x, y: P.y, px: P.x, py: P.y, fx: P.x, fy: P.y, face: 'down', moving: false, mt: 0, dur: 0.14, step: 0, atkT: 0, hurtT: 0, cool: 0, inv: 0, dodgeT: 0 };
 function save() { P.x = me.x; P.y = me.y; P.map = mapId; P.seen = Date.now(); hasSave = true; try { localStorage.setItem(KEY, JSON.stringify(P)); } catch { /* 無痕模式不存 */ } }
@@ -56,7 +61,8 @@ let C = CLASSES[P.cls], skills = [], myLook = null;
 let mons = [], floats = [], parts = [], drops = [], fx = [], projs = [], pending = [];
 let dialog = null, fishing = null, started = false, held = null, aHeld = false, auto = false, autoHit = false, autoCastT = 0;
 let anim = 0, regenT = 0, saveT = 0, shake = 0, freeze = 0, flash = 0, combo = 0, comboT = 0, auraT = 0;
-let soulPower = 0, cutinT = 0, pendingUlt = null, catT = 0, warns = [];
+let allies = [], atkOverride = 0, partyT = 0;
+let soulPower = 0, cutinT = 0, pendingUlt = null, catT = 0, warns = [], tintC = '#fff', tintT = 0;
 const soulPos = { x: 0, y: 0 };
 const fmt = (n) => Math.round(n).toLocaleString('en-US');
 const DROP_LIFT = 1.1; // 掉落物在地上停留、顯示名字的時間
@@ -76,8 +82,9 @@ function setupClass() {
 // ---------- 怪物 ----------
 const inBoss = (x, y) => x >= BZ.x0 && x <= BZ.x1 && y >= BZ.y0 && y <= BZ.y1;
 function occupied(x, y, self) {
-  if (me.x === x && me.y === y) return true;
+  if (self !== me && me.x === x && me.y === y) return true;
   if (npcs.some((n) => n.x === x && n.y === y)) return true;
+  if (allies.some((a) => a !== self && a.x === x && a.y === y)) return true;
   return mons.some((m) => m !== self && m.dead <= 0 && m.x === x && m.y === y);
 }
 const monCanGo = (m, x, y) => walkable(grid, x, y) && x >= FMIN && grid[y][x] !== T.PORTAL && !occupied(x, y, m) && (m.d.boss || m.minion ? inBoss(x, y) : !inBoss(x, y));
@@ -111,6 +118,7 @@ function loadMap(id, at) {
   Object.assign(me, { x: s0.x, y: s0.y, px: s0.x, py: s0.y, fx: s0.x, fy: s0.y, moving: false });
   soulPos.x = cx(me); soulPos.y = cy(me);
   const c = CHAPTERS[Math.max(1, id) - 1];
+  if (typeof buildAllies === 'function' && P) { allies = []; buildAllies(); }
   spawnRoster(id === 0 ? ROSTER : [...Array(9).fill(c.mons[0]), ...Array(8).fill(c.mons[1]), ...Array(7).fill(c.mons[2]), c.boss]);
 }
 const inSafe = () => (mapId === 0 ? me.x <= TOWN_EDGE : me.x < 5);
@@ -192,6 +200,7 @@ function updateWarns(dt) {
       burst(w.x * TS + 8, w.y * TS + 8, w.kind === 'slam' ? '#ff8a9b' : '#a6ec7a', 14, 100);
       if (w.kind === 'slam') shake = Math.max(shake, 0.25);
       if (Math.hypot(me.px - w.x, me.py - w.y) <= w.r + 0.3) hurt(w.dmg, null);
+      for (const a of allies) if (Math.hypot(a.px - w.x, a.py - w.y) <= w.r + 0.3) allyHurt(a, w.dmg);
     }
     return w.t < w.life + 0.15;
   });
@@ -274,7 +283,7 @@ function cell(canvas, label, color, sel, extra = '') {
   const b = document.createElement('button');
   b.type = 'button'; b.className = `bcell${sel ? ' on' : ''}`; b.style.setProperty('--rc', color);
   b.append(canvas.cloneNode ? canvas : canvas);
-  const c2 = document.createElement('canvas'); c2.width = 32; c2.height = 32; const x = c2.getContext('2d'); x.imageSmoothingEnabled = false; x.drawImage(canvas, 0, 0, 32, 32);
+  const c2 = document.createElement('canvas'); c2.width = 64; c2.height = 64; const x = c2.getContext('2d'); x.imageSmoothingEnabled = canvas instanceof HTMLImageElement; x.drawImage(canvas, 0, 0, 64, 64);
   b.replaceChildren(c2);
   b.insertAdjacentHTML('beforeend', `${label ? `<em>${label}</em>` : ''}${extra}`);
   return b;
@@ -287,20 +296,20 @@ function renderBag() {
   $('eqSlots').replaceChildren(...SLOTS.map((sl) => {
     const it = P.gear[sl];
     if (!it) { const b = document.createElement('div'); b.className = 'bcell empty'; b.textContent = SLOT_NAME[sl]; return b; }
-    const b = cell(gearIcon(it, C.weapon, rarityIdx), it.refine ? `+${it.refine}` : '', rarityName(it).color, bagSel === 'e' + it.uid);
+    const b = cell(gearIconHD(it), it.refine ? `+${it.refine}` : '', rarityName(it).color, bagSel === 'e' + it.uid);
     b.addEventListener('click', () => { bagSel = 'e' + it.uid; renderBag(); });
     return b;
   }));
   document.querySelectorAll('.btabs button').forEach((x) => x.classList.toggle('on', x.dataset.tab === bagTab));
   let cells = [];
   if (bagTab === 'gear') cells = [...P.bag.gear].sort((a, b) => rarityIdx(b.rarity) - rarityIdx(a.rarity) || b.val - a.val).map((it) => {
-    const b = cell(gearIcon(it, C.weapon, rarityIdx), it.refine ? `+${it.refine}` : '', rarityName(it).color, bagSel === 'g' + it.uid, it.locked ? '<i class="lock">鎖</i>' : '');
+    const b = cell(gearIconHD(it), it.refine ? `+${it.refine}` : '', rarityName(it).color, bagSel === 'g' + it.uid, it.locked ? '<i class="lock">鎖</i>' : '');
     b.addEventListener('click', () => { bagSel = 'g' + it.uid; renderBag(); });
     return b;
   });
   else cells = Object.keys(P.bag.stack).filter((id) => (bagTab === 'card') === (ITEMS[id].kind === 'card')).sort((a, b) => GRADES.findIndex((g) => g.id === ITEMS[b].grade) - GRADES.findIndex((g) => g.id === ITEMS[a].grade)).map((id) => {
     const it = ITEMS[id];
-    const b = cell(iconCanvas(it.icon, it.color), `${count(P, id)}`, GRADES.find((g) => g.id === it.grade).color, bagSel === 'i' + id);
+    const b = cell(itemIcon(id), `${count(P, id)}`, GRADES.find((g) => g.id === it.grade).color, bagSel === 'i' + id);
     b.addEventListener('click', () => { bagSel = 'i' + id; renderBag(); });
     return b;
   });
@@ -369,7 +378,7 @@ function openRefine() { refineSel = P.gear.weapon?.uid || null; renderRefine(); 
 function renderRefine() {
   const list = [...SLOTS.map((sl) => P.gear[sl]).filter(Boolean), ...P.bag.gear.filter((it) => rarityIdx(it.rarity) >= 2)];
   $('refineList').replaceChildren(...list.map((it) => {
-    const b = cell(gearIcon(it, C.weapon, rarityIdx), it.refine ? `+${it.refine}` : '', rarityName(it).color, refineSel === it.uid);
+    const b = cell(gearIconHD(it), it.refine ? `+${it.refine}` : '', rarityName(it).color, refineSel === it.uid);
     b.addEventListener('click', () => { refineSel = it.uid; renderRefine(); });
     return b;
   }));
@@ -462,11 +471,17 @@ function checkOffline() {
 
 // ---------- 對話 ----------
 function say(name, lines, opts, onClose) { dialog = { name, lines, i: 0, opts, onClose }; showDialog(); }
+function portraitKey(name) {
+  const n = [...townNpcs, ...CHAPTERS.slice(1).map((c) => ({ id: 'guide' + c.n, name: c.guide.name }))].find((x) => x.name === name);
+  return n ? 'portrait/' + n.id : null;
+}
 function showDialog() {
   const d = dialog;
   $('dialog').hidden = !d;
   if (!d) return;
   $('dlgName').textContent = d.name;
+  const pk = portraitKey(d.name), pim = pk && asset(pk);
+  $('dlgPortrait').hidden = !pim; if (pim) $('dlgPortrait').src = pim.src;
   $('dlgText').textContent = d.lines[d.i];
   const last = d.i === d.lines.length - 1;
   const box = $('dlgOpts');
@@ -593,7 +608,9 @@ function hurt(raw, m) {
   }
   if (P.hp <= 0) {
     P.hp = stats(P).hp; auto = false; syncAuto();
-    Object.assign(me, { x: INN_SPOT.x, y: INN_SPOT.y, px: INN_SPOT.x, py: INN_SPOT.y, moving: false, face: 'down' });
+    if (mapId !== 0) loadMap(0, INN_SPOT);
+    Object.assign(me, { x: INN_SPOT.x, y: INN_SPOT.y, px: INN_SPOT.x, py: INN_SPOT.y, fx: INN_SPOT.x, fy: INN_SPOT.y, moving: false, face: 'down' });
+    for (const al of allies) { al.down = 0; al.hp = al.max; }
     say('旅店・瑪莎', ['你昏倒在草原上，被路過的冒險者送回來了。', '提升戰鬥力再去吧！HP 已經恢復了。']);
   } else if (auto && P.hp < stats(P).hp * 0.35) usePotion(true);
   hud();
@@ -618,14 +635,16 @@ function dealDamage(m, mult, fromX = me.px, fromY = me.py, color, kind = 'skill'
   const st = stats(P);
   const crit = R() < st.crit;
   const k = kind === 'skill' ? st.skill : kind === 'ult' ? ultMult() : 1;
-  const dmg = Math.max(1, Math.round(st.atk * mult * k * (0.85 + R() * 0.3) * (crit ? st.critDmg : 1)));
-  if (st.leech && P.hp < st.hp) P.hp = Math.min(st.hp, P.hp + Math.max(1, Math.round(dmg * st.leech)));
-  if (kind !== 'ult') gainSoul(kind === 'skill' ? 1.2 : 1.6);
+  const base = kind === 'ally' ? atkOverride : st.atk;
+  const dmg = Math.max(1, Math.round(base * mult * k * (0.85 + R() * 0.3) * (crit ? st.critDmg : 1)));
+  if (st.leech && P.hp < st.hp && kind !== 'ally') P.hp = Math.min(st.hp, P.hp + Math.max(1, Math.round(dmg * st.leech)));
+  if (kind !== 'ult') gainSoul(kind === 'skill' ? 1.2 : kind === 'ally' ? 0.5 : 1.6);
   m.hp -= dmg; m.flash = 0.12;
   const a = Math.atan2(m.py - fromY, m.px - fromX);
   m.kx = Math.cos(a) * 4; m.ky = Math.sin(a) * 4;
   float(crit ? `${fmt(dmg)}!` : fmt(dmg), cx(m) + (R() - 0.5) * 12, m.py * TS - 2 - R() * 6, crit ? '#ff9f1c' : (color || '#fff8e7'), crit ? 1.45 : 1);
   burst(cx(m), cy(m) + 2, m.d.pal.g || '#c8ccdb', crit ? 9 : 4);
+  addFx('hit', crit ? 0.28 : 0.18, { x: cx(m) + (R() - 0.5) * 8, y: cy(m) - 2 + (R() - 0.5) * 8, color: crit ? '#ffd166' : (color || '#e6f2ff'), big: crit });
   combo++; comboT = 2.2; showCombo();
   freeze = Math.max(freeze, crit ? 0.06 : 0.025);
   if (crit) shake = Math.max(shake, 0.1);
@@ -708,7 +727,8 @@ function showCombo() {
 // ---------- 投射物 ----------
 function shoot(kind, ang, opt) {
   const sp = opt.speed;
-  projs.push({ kind, x: cx(me), y: cy(me) - 4, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, trav: 0, range: opt.range * TS, pierce: opt.pierce ?? 0, mult: opt.mult, r: opt.r ?? 6, hit: new Set(), home: opt.home || null, onEnd: opt.onEnd, color: opt.color, dk: opt.dk || 'skill' });
+  const org = opt.from || me;
+  projs.push({ kind, x: cx(org), y: cy(org) - 4, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, trav: 0, range: opt.range * TS, pierce: opt.pierce ?? 0, mult: opt.mult, r: opt.r ?? 6, hit: new Set(), home: opt.home || null, onEnd: opt.onEnd, color: opt.color, dk: opt.dk || 'skill', by: opt.by || null });
 }
 const faceAng = () => ({ right: 0, down: Math.PI / 2, left: Math.PI, up: -Math.PI / 2 })[me.face];
 const angTo = (m) => Math.atan2(cy(m) - (cy(me) - 4), cx(m) - cx(me));
@@ -725,13 +745,14 @@ function updateProjs(dt) {
     p.x += p.vx * dt; p.y += p.vy * dt; p.trav += Math.hypot(p.vx, p.vy) * dt;
     if (p.kind === 'fire' && R() < 0.8) parts.push({ x: p.x, y: p.y, vx: (R() - 0.5) * 20, vy: -20 - R() * 20, c: R() < 0.5 ? '#ffb347' : '#ff5a36', t: 0, g: 0, size: 2, life: 0.35 });
     if (p.kind === 'bolt' && R() < 0.6) parts.push({ x: p.x, y: p.y, vx: 0, vy: 0, c: '#d4b8ff', t: 0, g: 0, size: 1, life: 0.25 });
+    if (p.kind === 'arrow' || p.kind === 'bolt' || p.kind === 'bigarrow') addFx('trail', 0.18, { x0: p.x - p.vx * 0.03, y0: p.y - p.vy * 0.03, x1: p.x, y1: p.y, color: p.kind === 'bolt' ? '#c084ff' : p.kind === 'bigarrow' ? '#ffe08a' : '#e8ffe0' });
     if (p.kind === 'bigarrow') parts.push({ x: p.x, y: p.y, vx: (R() - 0.5) * 15, vy: (R() - 0.5) * 15, c: '#ffe08a', t: 0, g: 0, size: 2, life: 0.3 });
     if (p.kind === 'wave' && R() < 0.7) parts.push({ x: p.x + (R() - 0.5) * 10, y: p.y + (R() - 0.5) * 10, vx: 0, vy: 0, c: '#bdf1ff', t: 0, g: 0, size: 1, life: 0.3 });
     for (const m of alive()) {
       if (p.hit.has(m)) continue;
       if (Math.hypot(cx(m) - p.x, cy(m) - p.y) < p.r + (m.d.boss ? 12 : 6)) {
         p.hit.add(m);
-        if (p.kind !== 'fire') dealDamage(m, p.mult, (p.x - p.vx * 0.05) / TS - 0.5, (p.y - p.vy * 0.05) / TS - 0.5, p.color, p.dk);
+        if (p.kind !== 'fire') { if (p.by) atkOverride = p.by.atk; dealDamage(m, p.mult, (p.x - p.vx * 0.05) / TS - 0.5, (p.y - p.vy * 0.05) / TS - 0.5, p.color, p.dk); }
         if (p.pierce-- <= 0) { p.onEnd?.(p); return false; }
       }
     }
@@ -784,6 +805,8 @@ function castIdx(i) {
     hurt(Math.round(stats(P).hp * 0.3), null); lastSkill = null; return;
   }
   lastSkill = s.id;
+  addFx('circle', 0.55, { x: cx(me), y: cy(me), color: i === 2 ? '#ffb35c' : C.color });
+  tintC = i === 2 ? '#ffb35c' : C.color; tintT = 0.12;
   const [dx, dy] = DIRS[me.face];
   const wx = cx(me), wy = cy(me);
   me.atkT = 0.2;
@@ -907,7 +930,8 @@ function showCutin(id, label) {
   const S = SOULS[id];
   const el = $('cutin');
   el.style.setProperty('--sc', S.color); el.style.setProperty('--sc2', S.color2);
-  $('cutinArt').replaceChildren(soulBig(id, 8));
+  const art = asset('soul_art/' + id);
+  $('cutinArt').replaceChildren(art ? Object.assign(art.cloneNode(), { className: 'hdart' }) : soulBig(id, 8));
   $('cutName').innerHTML = `<small>${label || S.type}</small>${S.name}`;
   $('cutSfx').innerHTML = [...S.sfx].map((ch, i) => `<span style="animation-delay:${i * 0.07}s">${ch}</span>`).join('');
   el.hidden = false; el.classList.remove('go'); void el.offsetWidth; el.classList.add('go');
@@ -919,6 +943,7 @@ function castUlt() {
 }
 function doUlt(id) {
   const wx = cx(me), wy = cy(me);
+  addFx('circle', 0.9, { x: wx, y: wy, color: SOULS[id].color2 }); tintC = SOULS[id].color; tintT = 0.25;
   flash = 0.18; shake = 0.35;
   const thief = alive().find((m) => m.d.mech === 'steal' && tdist(m, me.px, me.py) <= 9);
   if (thief && !thief.stolen.has(id)) pending.push({ t: 1.7, fn: () => { if (thief.dead > 0) return; thief.stolen.add(id); banner(`瓦爾德偷走了「${SOULS[id].name}」！`); feed(`之後「${SOULS[id].name}」的大招對瓦爾德無效，換一隻魂像！`, '#c084ff'); } });
@@ -988,6 +1013,148 @@ function dodge() {
   burst(cx(me), cy(me) + 6, '#e8d8c0', 6, 50);
 }
 
+// ---------- 隊伍 ----------
+function buildAllies() {
+  const st = stats(P);
+  const old = new Map(allies.map((a) => [a.id, a]));
+  const slots = [[-1, 1], [1, 1], [0, 2], [-1, -1], [1, -1]];
+  allies = P.party.active.map((id, i) => {
+    const c = COMPANIONS[id], { max, atk } = allyStats(c, st);
+    const prev = old.get(id);
+    if (prev) return Object.assign(prev, { max, atk, hp: Math.min(max, prev.hp || max) });
+    let x = me.x, y = me.y;
+    for (const [ox, oy] of [slots[i], ...slots]) { const nx = me.x + ox, ny = me.y + oy; if (walkable(grid, nx, ny) && !occupied(nx, ny)) { x = nx; y = ny; break; } }
+    return { id, c, i, x, y, px: x, py: y, fx: x, fy: y, moving: false, mt: 0, step: 0, face: 'down', max, atk, hp: max, cool: R(), skT: c.skillCd * 0.5, down: 0, atkT: 0, hurtT: 0 };
+  });
+  renderPartyFrames();
+}
+function allyHurt(a, raw) {
+  if (a.down > 0) return;
+  const dmg = Math.max(1, Math.round(raw * (a.c.role === 'tank' ? 0.6 : 1)));
+  a.hp -= dmg; a.hurtT = 0.3;
+  float(`-${dmg}`, cx(a), a.py * TS, '#ff8fa0', 0.75);
+  if (a.hp <= 0) { a.hp = 0; a.down = 20; feed(`${a.c.name} 倒下了！20 秒後自己爬起來，或請牧師治療`, '#ff8fa0'); }
+}
+function monTarget(m) {
+  if (m.tauntT > 0 && m.tauntBy && m.tauntBy.down <= 0) return m.tauntBy;
+  let best = me, bd = Math.abs(me.x - m.x) + Math.abs(me.y - m.y);
+  for (const a of allies) { if (a.down > 0) continue; const d = Math.abs(a.x - m.x) + Math.abs(a.y - m.y); if (d < bd) { bd = d; best = a; } }
+  return best;
+}
+const okFoe = (m) => m.dead <= 0 && !m.hidden && !m.d.decoy && !m.shield;
+function allyStepTo(a, gx, gy) {
+  let best = null, bd = Math.hypot(a.x - gx, a.y - gy);
+  for (const [dx, dy] of Object.values(DIRS)) { const nx = a.x + dx, ny = a.y + dy; if (!walkable(grid, nx, ny) || occupied(nx, ny, a) || grid[ny][nx] === T.PORTAL) continue; const d = Math.hypot(nx - gx, ny - gy); if (d < bd - 0.01) { bd = d; best = [nx, ny, dx, dy]; } }
+  if (!best) return;
+  a.face = best[2] > 0 ? 'right' : best[2] < 0 ? 'left' : best[3] > 0 ? 'down' : 'up';
+  Object.assign(a, { fx: a.x, fy: a.y, x: best[0], y: best[1], moving: true, mt: 0 });
+}
+function allyFace(a, m) { const dx = m.px - a.px, dy = m.py - a.py; a.face = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'); }
+function allyAttack(a, m, mult) { atkOverride = a.atk; dealDamage(m, mult, a.px, a.py, a.c.color, 'ally'); }
+function updateAllies(dt) {
+  partyT -= dt;
+  if (partyT <= 0) { partyT = 2; const st = stats(P); for (const a of allies) { const { max, atk } = allyStats(a.c, st); a.hp = Math.round(a.hp * (max / (a.max || max))); a.max = max; a.atk = atk; } }
+  const members = [{ me: true, px: me.px, py: me.py, hp: P.hp, max: stats(P).hp }, ...allies.filter((a) => a.down <= 0).map((a) => ({ a, px: a.px, py: a.py, hp: a.hp, max: a.max }))];
+  for (const a of allies) {
+    a.cool -= dt; a.skT -= dt; a.atkT = Math.max(0, a.atkT - dt); a.hurtT = Math.max(0, a.hurtT - dt);
+    if (a.moving) { if (step(a, 0.16, dt)) a.step ^= 1; continue; }
+    if (a.down > 0) { a.down -= dt; if (a.down <= 0) { a.hp = Math.round(a.max * 0.5); floatT('復活！', a.x, a.y - 0.8, '#a6ec7a', 0.9); } continue; }
+    if (inSafe() && a.hp < a.max) a.hp = Math.min(a.max, a.hp + a.max * 0.08 * dt);
+    const far = Math.hypot(a.x - me.x, a.y - me.y);
+    if (far > 12) { const [ox, oy] = [[-1, 1], [1, 1], [0, 2]][a.i] || [0, 1]; if (walkable(grid, me.x + ox, me.y + oy) && !occupied(me.x + ox, me.y + oy, a)) Object.assign(a, { x: me.x + ox, y: me.y + oy, px: me.x + ox, py: me.y + oy, fx: me.x + ox, fy: me.y + oy }); continue; }
+    if (!started || dialog || cutinT > 0) continue;
+    const c = a.c;
+    // 治療
+    if (c.role === 'heal' && a.skT <= 0) {
+      const downed = allies.find((b) => b.down > 0 && Math.hypot(b.px - a.px, b.py - a.py) <= 6);
+      const low = members.filter((x) => x.hp / x.max < 0.65).sort((x, y) => x.hp / x.max - y.hp / y.max)[0];
+      if (downed) { downed.down = 0; downed.hp = Math.round(downed.max * 0.4); a.skT = 8; addFx('heal', 0.8, { x: cx(downed), y: cy(downed) }); floatT('復活！', downed.x, downed.y - 0.8, '#a6ec7a', 1); allyFace(a, downed); a.atkT = 0.3; continue; }
+      if (low) {
+        const amt = Math.round(low.max * 0.28);
+        if (low.me) { P.hp = Math.min(low.max, P.hp + amt); addFx('heal', 0.7, { x: cx(me), y: cy(me) }); floatT(`+${fmt(amt)}`, me.x, me.y, '#a6ec7a'); hud(); }
+        else { low.a.hp = Math.min(low.a.max, low.a.hp + amt); addFx('heal', 0.7, { x: cx(low.a), y: cy(low.a) }); }
+        addFx('circle', 0.5, { x: cx(a), y: cy(a), color: '#a6ec7a' }); a.skT = c.skillCd; a.atkT = 0.3; continue;
+      }
+    }
+    // 找目標：主動出擊＝主角附近 6 格；跟隨＝只打靠近隊伍的怪
+    const reach = P.party.tactic === 'assist' ? 6 : 2.5;
+    let tgt = null, td = 1e9;
+    for (const m of mons) { if (!okFoe(m)) continue; const dp = Math.hypot(m.px - me.px, m.py - me.py); if (dp > reach + (m.d.boss ? 1 : 0)) continue; const d = Math.hypot(m.px - a.px, m.py - a.py); if (d < td) { td = d; tgt = m; } }
+    if (c.role === 'tank' && a.skT <= 0) {
+      const near = mons.filter((m) => okFoe(m) && Math.hypot(m.px - a.px, m.py - a.py) <= 3.2);
+      if (near.length) { for (const m of near) { m.tauntT = 5; m.tauntBy = a; } a.skT = c.skillCd; ring(cx(a), cy(a), 42, '#ffd166', 0.5, 4); addFx('circle', 0.6, { x: cx(a), y: cy(a), color: '#ffd166' }); floatT('嘲諷！', a.x, a.y - 0.9, '#ffd166', 0.9); continue; }
+    }
+    if (tgt) {
+      const inRange = c.range > 1 ? td <= c.range : Math.abs(tgt.x - a.x) + Math.abs(tgt.y - a.y) === 1 || (tgt.d.boss && Math.max(Math.abs(tgt.x - a.x), Math.abs(tgt.y - a.y)) <= 1);
+      if (inRange) {
+        allyFace(a, tgt);
+        if (a.skT <= 0 && c.role === 'dps') {
+          a.skT = c.skillCd; a.atkT = 0.3; addFx('circle', 0.5, { x: cx(a), y: cy(a), color: c.color });
+          if (a.id === 'carlos') { const base = Math.atan2(cy(tgt) - cy(a) + 4, cx(tgt) - cx(a)); for (const o of [-0.3, -0.15, 0, 0.15, 0.3]) shoot('arrow', base + o, { speed: 340, range: 7, pierce: 1, mult: 1.3, r: 4, color: '#e8ffe0', from: a, by: a, dk: 'ally' }); }
+          else if (a.id === 'nova') shoot('fire', Math.atan2(cy(tgt) - cy(a) + 4, cx(tgt) - cx(a)), { speed: 200, range: 6, mult: 0, r: 7, home: tgt, color: '#ffb347', from: a, by: a, dk: 'ally', onEnd: (p) => { ring(p.x, p.y, 30, '#ff8a3d', 0.4, 5); addFx('boom', 0.3, { x: p.x, y: p.y }); burst(p.x, p.y, '#ff5a36', 14, 100); for (const m of alive()) if (Math.hypot(cx(m) - p.x, cy(m) - p.y) <= 28) allyAttack(a, m, 3); } });
+          else for (let k = 0; k < 6; k++) pending.push({ t: k * 0.06, fn: () => { if (tgt.dead <= 0) { allyAttack(a, tgt, 0.8); addFx('punch', 0.12, { x: cx(tgt) + (R() - 0.5) * 10, y: cy(tgt) + (R() - 0.5) * 10, color: '#ffd8a8', big: k === 5 }); } } });
+          continue;
+        }
+        if (a.cool <= 0) {
+          a.cool = c.cool; a.atkT = 0.18;
+          if (c.range > 1) shoot(c.role === 'heal' || a.id === 'nova' ? 'bolt' : 'arrow', Math.atan2(cy(tgt) - cy(a) + 4, cx(tgt) - cx(a)), { speed: c.role === 'heal' || a.id === 'nova' ? 200 : 320, range: c.range + 1, mult: 1, r: 5, home: c.role === 'heal' || a.id === 'nova' ? tgt : null, color: c.color, from: a, by: a, dk: 'ally' });
+          else { addFx('slash', 0.16, { x: (cx(a) + cx(tgt)) / 2, y: (cy(a) + cy(tgt)) / 2 - 3, ang: Math.atan2(cy(tgt) - cy(a), cx(tgt) - cx(a)), color: c.color, size: 15 }); allyAttack(a, tgt, 1); }
+        }
+        continue;
+      }
+      allyStepTo(a, tgt.x, tgt.y); continue;
+    }
+    // 跟隨隊形
+    const [ox, oy] = [[-1, 1], [1, 1], [0, 2]][a.i] || [0, 1];
+    if (Math.hypot(a.x - (me.x + ox), a.y - (me.y + oy)) > 1.2) allyStepTo(a, me.x + ox, me.y + oy);
+  }
+  for (const m of mons) if (m.tauntT > 0) m.tauntT -= dt;
+  renderPartyHp();
+}
+function renderPartyFrames() {
+  $('party').replaceChildren(...allies.map((a) => {
+    const d = document.createElement('div'); d.className = 'pmem'; d.dataset.id = a.id;
+    d.innerHTML = `<span class="pname" style="color:${a.c.color}">${a.c.name}<small>${ROLE_NAME[a.c.role]}</small></span><div class="pbar"><i></i></div>`;
+    return d;
+  }));
+  $('party').hidden = !allies.length;
+}
+function renderPartyHp() {
+  for (const a of allies) {
+    const el = $('party').querySelector(`[data-id="${a.id}"]`);
+    if (!el) continue;
+    el.querySelector('i').style.width = `${(a.hp / a.max) * 100}%`;
+    el.classList.toggle('down', a.down > 0);
+    el.querySelector('small').textContent = a.down > 0 ? `倒地 ${Math.ceil(a.down)}` : ROLE_NAME[a.c.role];
+  }
+}
+function renderPartyPanel() {
+  $('partyTactic').querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.t === P.party.tactic));
+  $('partyList').replaceChildren(...COMPANION_IDS.map((id) => {
+    const c = COMPANIONS[id], hired = P.party.hired.includes(id), on = P.party.active.includes(id);
+    const card = document.createElement('div'); card.className = `pcard${on ? ' on' : ''}`; card.style.setProperty('--c', c.color);
+    const art = asset('npc/ally_' + id);
+    card.append(art ? Object.assign(art.cloneNode(), { className: 'pimg' }) : previewCanvas(c.look, 2));
+    card.insertAdjacentHTML('beforeend', `<div class="pinfo"><b>${c.name}</b> <span class="prole">${c.title}・${ROLE_NAME[c.role]}</span><p>${c.desc}</p><p class="muted">技能：${c.skill}</p></div>`);
+    const b = document.createElement('button'); b.type = 'button';
+    if (!hired) {
+      const ok = unlocked(P, id);
+      b.className = 'startbtn'; b.textContent = ok ? `招募 ${c.price} 金幣` : `第 ${c.unlock[0]} 章開放`; b.disabled = !ok;
+      b.addEventListener('click', () => { const r = hire(P, id); if (!r.ok) feed(r.reason, '#ff8fa0'); else { feed(`${c.name} 加入了隊伍！`, c.color); banner(`${c.title}${c.name} 加入隊伍`); } buildAllies(); hud(); save(); renderPartyPanel(); });
+    } else {
+      b.className = on ? 'ghostbtn' : 'startbtn'; b.textContent = on ? '休息' : '出戰';
+      b.disabled = !on && P.party.active.length >= PARTY_MAX;
+      b.addEventListener('click', () => { toggleActive(P, id); buildAllies(); save(); renderPartyPanel(); });
+    }
+    card.append(b);
+    return card;
+  }));
+  $('partyCount').textContent = `出戰 ${P.party.active.length}/${PARTY_MAX}`;
+}
+$('partyBtn').addEventListener('click', () => { if (!started) return; renderPartyPanel(); $('partyPanel').hidden = false; });
+$('partyClose').addEventListener('click', () => { $('partyPanel').hidden = true; });
+$('partyTactic').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { P.party.tactic = b.dataset.t; save(); renderPartyPanel(); }));
+
 // ---------- 自動狩獵 ----------
 const dirTo = (x, y) => (x > me.x ? 'right' : x < me.x ? 'left' : y > me.y ? 'down' : 'up');
 let autoTarget = null;
@@ -1019,7 +1186,7 @@ function autoThink(dt) {
     const [x, y] = q.shift();
     for (const [ddx, ddy] of Object.values(DIRS)) {
       const nx = x + ddx, ny = y + ddy, k = `${nx},${ny}`;
-      if (k in prev || !walkable(grid, nx, ny) || occupied(nx, ny)) continue;
+      if (k in prev || !walkable(grid, nx, ny) || (occupied(nx, ny) && !allies.some((al) => al.x === nx && al.y === ny))) continue;
       prev[k] = `${x},${y}`;
       if (goal.has(k)) { found = k; break; }
       q.push([nx, ny]);
@@ -1030,6 +1197,8 @@ function autoThink(dt) {
   while (prev[k] !== start) k = prev[k];
   const [nx, ny] = k.split(',').map(Number);
   me.face = dirTo(nx, ny);
+  const mate = allies.find((al) => al.x === nx && al.y === ny);
+  if (mate) { if (mate.moving) return; Object.assign(mate, { fx: mate.x, fy: mate.y, x: me.x, y: me.y, moving: true, mt: 0 }); }
   Object.assign(me, { fx: me.x, fy: me.y, x: nx, y: ny, moving: true, mt: 0, dur: 0.14 });
 }
 function syncAuto() { $('autoBtn').classList.toggle('on', auto); $('autoBtn').innerHTML = auto ? '自動 <b>ON</b>' : '自動 <b>OFF</b>'; }
@@ -1163,7 +1332,9 @@ function update(dt) {
     const [dx, dy] = DIRS[dir];
     me.face = dir;
     const nx = me.x + dx, ny = me.y + dy;
-    if (walkable(grid, nx, ny) && !occupied(nx, ny)) Object.assign(me, { fx: me.x, fy: me.y, x: nx, y: ny, moving: true, mt: 0, dur: 0.14 });
+    const mate = allies.find((a) => a.x === nx && a.y === ny && !a.moving);
+    if (mate && walkable(grid, nx, ny)) { Object.assign(mate, { fx: mate.x, fy: mate.y, x: me.x, y: me.y, moving: true, mt: 0 }); Object.assign(me, { fx: me.x, fy: me.y, x: nx, y: ny, moving: true, mt: 0, dur: 0.14 }); }
+    else if (walkable(grid, nx, ny) && !occupied(nx, ny)) Object.assign(me, { fx: me.x, fy: me.y, x: nx, y: ny, moving: true, mt: 0, dur: 0.14 });
   }
   if (started && !held) autoThink(dt);
   me.atkT = Math.max(0, me.atkT - dt); me.hurtT = Math.max(0, me.hurtT - dt); me.cool = Math.max(0, me.cool - dt);
@@ -1173,13 +1344,14 @@ function update(dt) {
   const ranged = C.range > 1;
   if ((aHeld || autoHit) && me.cool <= 0 && !dialog && !fishing && (ranged || !me.moving) && started) basicAttack(autoTarget);
   for (const s of skills) s.t = Math.max(0, s.t - dt);
-  shake = Math.max(0, shake - dt); flash = Math.max(0, flash - dt);
+  shake = Math.max(0, shake - dt); flash = Math.max(0, flash - dt); tintT = Math.max(0, tintT - dt);
   comboT -= dt;
   if (comboT <= 0 && combo) { combo = 0; $('combo').hidden = true; }
   regenT += dt;
   if (regenT > 1) { regenT = 0; const st = stats(P), max = st.hp; if (P.hp < max) { P.hp = Math.min(max, P.hp + (inSafe() ? Math.ceil(max * 0.08) : 1 + Math.round(max * st.regen))); hud(); } }
   pending = pending.filter((p) => { p.t -= dt; if (p.t <= 0) { p.fn(); return false; } return true; });
   updateProjs(dt);
+  updateAllies(dt);
   for (const m of mons) {
     m.anim += dt;
     if (m.dead > 0) { if (m.minion || m.d.decoy) continue; m.dead -= dt; if (m.dead <= 0) placeMon(m); continue; }
@@ -1189,8 +1361,9 @@ function update(dt) {
     m.kx *= 0.8; m.ky *= 0.8;
     if (m.moving) { step(m, m.d.boss ? 0.5 : 0.35, dt); continue; }
     if (!started || dialog || m.frozen > 0 || m.d.still || m.hidden) continue;
-    const dx = me.x - m.x, dy = me.y - m.y, dist = Math.abs(dx) + Math.abs(dy);
-    if (m.d.atk > 0 && (dist === 1 || (m.d.boss && Math.max(Math.abs(dx), Math.abs(dy)) <= 1)) && m.cool <= 0) { hitPlayer(m); m.cool = m.d.boss ? 1.2 : 1.5; continue; }
+    const tg = monTarget(m);
+    const dx = tg.x - m.x, dy = tg.y - m.y, dist = Math.abs(dx) + Math.abs(dy);
+    if (m.d.atk > 0 && (dist === 1 || (m.d.boss && Math.max(Math.abs(dx), Math.abs(dy)) <= 1)) && m.cool <= 0) { if (tg === me) hitPlayer(m); else allyHurt(tg, m.d.atk); m.cool = m.d.boss ? 1.2 : 1.5; continue; }
     m.think -= dt;
     if (m.think > 0) continue;
     const chase = dist <= m.d.sight && dist > 1;
@@ -1282,18 +1455,19 @@ function render() {
     if (d.kind === 'gear') {
       const r = rarityOf(d.val.rarity);
       if (['rare', 'epic', 'legend'].includes(r.id)) { ctx.globalAlpha = 0.35 + Math.sin(anim * 10) * 0.1; ctx.fillStyle = r.color; ctx.fillRect(x - 2, y - 40, 4, 40); ctx.globalAlpha = 1; }
-      ctx.drawImage(gearIcon(d.val, C.weapon, rarityIdx), x - 6, y - 8, 12, 12);
+      ctx.drawImage(gearIconHD(d.val), x - 6, y - 8, 12, 12);
     } else if (d.kind === 'loot') {
       const it = ITEMS[d.val.id];
       if (it.kind === 'card') { ctx.globalAlpha = 0.4 + Math.sin(anim * 12) * 0.15; ctx.fillStyle = '#ffb03b'; ctx.fillRect(x - 3, y - 48, 6, 48); ctx.globalAlpha = 1; }
-      ctx.drawImage(iconCanvas(it.icon, it.color), x - 5, y - 7, 10, 10);
+      ctx.imageSmoothingEnabled = !!asset('icon/' + d.val.id); ctx.drawImage(itemIcon(d.val.id), x - 5, y - 7, 10, 10); ctx.imageSmoothingEnabled = false;
     } else ctx.drawImage(coinS, x - 3, y - 3);
   }
   const ents = [
     ...npcs.map((n) => ({ y: n.y, f: () => drawPerson(avatar(n.L, n.face, 0), n.x * TS, n.y * TS - (Math.floor(anim * 1.6 + n.seed) % 2)) })),
     ...alive().map((m) => ({ y: m.py, f: () => drawMon(m) })),
     { y: me.py + 0.01, f: drawMe },
-    ...(P.soul && started ? [{ y: (soulPos.y + 14 - 8) / TS + 0.02, f: () => { ctx.globalAlpha = 0.9; ctx.drawImage(soulSprite(P.soul, Math.floor(anim * 2) % 2), Math.round(soulPos.x - 12), Math.round(soulPos.y - 22)); ctx.globalAlpha = 1; } }] : []),
+    ...allies.map((a) => ({ y: a.py + 0.005, f: () => drawAlly(a) })),
+    ...(P.soul && started ? [{ y: (soulPos.y + 14 - 8) / TS + 0.02, f: () => { ctx.globalAlpha = 0.9; const sh = asset('soul/' + P.soul); if (sh) { ctx.imageSmoothingEnabled = true; ctx.drawImage(sh, soulPos.x - 14, soulPos.y - 26 + Math.sin(anim * 3), 28, 28); ctx.imageSmoothingEnabled = false; } else ctx.drawImage(soulSprite(P.soul, Math.floor(anim * 2) % 2), Math.round(soulPos.x - 12), Math.round(soulPos.y - 22)); ctx.globalAlpha = 1; } }] : []),
   ].sort((a, b) => a.y - b.y);
   ents.forEach((e) => e.f());
   for (const p of projs) drawProj(p);
@@ -1313,6 +1487,7 @@ function render() {
   ctx.globalAlpha = 1;
   ctx.restore();
   if (flash > 0) { ctx.fillStyle = `rgba(255,248,231,${Math.min(0.6, flash * 3)})`; ctx.fillRect(0, 0, VW, VH); }
+  if (tintT > 0) { ctx.globalAlpha = Math.min(0.22, tintT * 1.6); ctx.fillStyle = tintC; ctx.fillRect(0, 0, VW, VH); ctx.globalAlpha = 1; }
   // 高解析度文字層：名字、傷害數字
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
@@ -1322,6 +1497,7 @@ function render() {
     ctx.fillStyle = color; ctx.fillText(text, (wx - camX) * S, (wy - camY) * S);
   };
   if (started) label(P.name, cx(me), me.py * TS - 20, C.color, 12);
+  for (const a of allies) label(a.down > 0 ? `${a.c.name}（倒地）` : a.c.name, cx(a), a.py * TS - 20, a.c.color, 10.5);
   for (const d of drops) {
     if (d.kind === 'coin' || d.t > DROP_LIFT) continue;
     const nm = d.kind === 'gear' ? `${d.val.name}${d.val.slots ? `[${d.val.slots}]` : ''}` : ITEMS[d.val.id].name;
@@ -1352,12 +1528,38 @@ function drawMe() {
   if (me.hurtT > 0 && Math.floor(me.hurtT * 20) % 2) { shadow(x, y); return; }
   if (me.inv > 0) ctx.globalAlpha = 0.6;
   if (myLook?.aura) { ctx.globalAlpha = 0.25 + Math.sin(anim * 4) * 0.08; ctx.fillStyle = '#ffd75e'; ctx.beginPath(); ctx.ellipse(x + 8, y + 15, 12, 4, 0, 0, 7); ctx.fill(); ctx.globalAlpha = 1; }
-  drawPerson(avatar(myLook, me.face, frame), x, y);
+  let lx = 0, ly = 0;
+  if (me.atkT > 0) { const [dx, dy] = DIRS[me.face], k = Math.sin((me.atkT / 0.18) * Math.PI), d = C.range > 1 ? -1.2 : 3; lx = Math.round(dx * k * d); ly = Math.round(dy * k * d); }
+  drawPerson(avatar(myLook, me.face, frame), x + lx, y + ly);
   ctx.globalAlpha = 1;
+}
+function drawAlly(a) {
+  const x = Math.round(a.px * TS), y = Math.round(a.py * TS);
+  if (a.down > 0) { ctx.globalAlpha = 0.45; ctx.save(); ctx.translate(x + 8, y + 12); ctx.rotate(Math.PI / 2); ctx.drawImage(avatar(a.c.look, 'down', 0), -12, -16); ctx.restore(); ctx.globalAlpha = 1; return; }
+  if (a.hurtT > 0 && Math.floor(a.hurtT * 20) % 2) { shadow(x, y); return; }
+  const frame = a.atkT > 0 ? 2 : a.moving ? ((a.mt > 0.5 ? 1 : 0) ^ a.step) : 0;
+  const hd = asset('npc/ally_' + a.id);
+  if (hd) { shadow(x, y); ctx.imageSmoothingEnabled = true; ctx.drawImage(hd, x - 6, y - 20, 28, 37); ctx.imageSmoothingEnabled = false; }
+  else drawPerson(avatar(a.c.look, a.face, frame), x, y);
+  ctx.fillStyle = '#1b1420'; ctx.fillRect(x + 1, y + 17, 14, 3); ctx.fillStyle = a.c.role === 'heal' ? '#7ad35a' : '#e8506a'; ctx.fillRect(x + 2, y + 18, Math.max(1, Math.round((a.hp / a.max) * 12)), 1);
 }
 function drawMon(m) {
   const x = Math.round(m.px * TS + m.kx), y = Math.round(m.py * TS + m.ky);
   if (m.d.decoy) { if (!m.real) shadow(x, y); ctx.drawImage(avatar(m.look, 'down', 0), x - 4, y - 17); return; }
+  const hd = asset('monster/' + (m.d.tpl === 'mirror' ? 'mirror_obj' : m.type));
+  if (hd) {
+    const big = m.d.boss, size = big ? 46 : 24, bob = m.frozen > 0 ? 0 : Math.sin(m.anim * 5) * (big ? 1.5 : 1);
+    shadow(x, y, big ? 24 : 13);
+    ctx.imageSmoothingEnabled = true;
+    const draw = () => ctx.drawImage(hd, x + 8 - size / 2, y + 16 - size * 0.92 + bob, size, size * (1 - bob * 0.01));
+    draw();
+    if (m.flash > 0) { ctx.globalCompositeOperation = 'lighter'; draw(); ctx.globalCompositeOperation = 'source-over'; }
+    ctx.imageSmoothingEnabled = false;
+    if (m.frozen > 0) { ctx.fillStyle = 'rgba(150,220,255,.4)'; ctx.fillRect(x + 8 - size / 2, y + 16 - size * 0.85, size, size * 0.8); }
+    if (m.shield) { ctx.strokeStyle = 'rgba(189,241,255,.9)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(x + 8, y + 16 - size / 2, size * 0.6, 0, 7); ctx.stroke(); }
+    if (m.hp < m.d.hp && !big) { ctx.fillStyle = '#2a1d2e'; ctx.fillRect(x + 1, y + 17, 14, 4); ctx.fillStyle = '#e8506a'; ctx.fillRect(x + 2, y + 18, Math.max(1, Math.round((m.hp / m.d.hp) * 12)), 2); }
+    return;
+  }
   const spr = monsterSprite(m.d.tpl, m.d.pal)[m.frozen > 0 ? 0 : Math.floor(m.anim * 2.4) % 2];
   const big = m.d.boss;
   shadow(x, y, big ? 22 : 12);
@@ -1406,12 +1608,51 @@ function zig(x0, y0, x1, y1, seed) {
   for (let i = 1; i < n; i++) { const k = i / n; pts.push([x0 + (x1 - x0) * k + (Math.sin(seed * 99 + i * 7) * 6), y0 + (y1 - y0) * k + (Math.cos(seed * 77 + i * 5) * 6)]); }
   pts.push([x1, y1]); return pts;
 }
+const GLOW = new Set(['ring', 'spin', 'nova', 'lightning', 'pillar', 'boom', 'punch', 'slash', 'clock', 'pull', 'claw', 'hit', 'circle', 'trail']);
+function tex(id, color, x, y, size, rot = 0, alpha = 1, sx = 1) {
+  const t = tinted('vfx/' + id, color);
+  if (!t) return false;
+  ctx.save(); ctx.globalAlpha = alpha; ctx.translate(x, y); ctx.rotate(rot); ctx.scale(sx, 1); ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(t, -size / 2, -size / 2, size, size); ctx.restore(); return true;
+}
 function drawFx(f) {
   const k = f.t / f.life;
   ctx.globalAlpha = 1;
+  if (GLOW.has(f.kind)) ctx.globalCompositeOperation = 'lighter';
+  drawFxInner(f, k);
+  ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+}
+function drawFxInner(f, k) {
   switch (f.kind) {
+    case 'hit': {
+      const s = (f.big ? 14 : 8) * (0.6 + k * 0.8);
+      if (tex('spark_star', f.color, f.x, f.y, s * 3, k, 1 - k)) break;
+      ctx.globalAlpha = 1 - k; ctx.strokeStyle = f.color; ctx.lineWidth = f.big ? 2.5 : 1.5;
+      ctx.beginPath(); ctx.moveTo(f.x - s, f.y); ctx.lineTo(f.x + s, f.y); ctx.moveTo(f.x, f.y - s); ctx.lineTo(f.x, f.y + s); ctx.stroke();
+      ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(f.x - s * 0.6, f.y - s * 0.6); ctx.lineTo(f.x + s * 0.6, f.y + s * 0.6); ctx.moveTo(f.x + s * 0.6, f.y - s * 0.6); ctx.lineTo(f.x - s * 0.6, f.y + s * 0.6); ctx.stroke();
+      ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(f.x, f.y, s * 0.35 * (1 - k), 0, 7); ctx.fill();
+      break;
+    }
+    case 'circle': {
+      const r = 14 + 6 * Math.min(1, k * 3), a = anim * 3;
+      if (tex('magic_circle', f.color, f.x, f.y + 6, r * 2.6, a, (1 - k) * 0.9)) break;
+      ctx.globalAlpha = (1 - k) * 0.85; ctx.strokeStyle = f.color; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.ellipse(f.x, f.y + 6, r, r * 0.45, 0, 0, 7); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(f.x, f.y + 6, r * 0.7, r * 0.32, 0, 0, 7); ctx.stroke();
+      for (let i = 0; i < 8; i++) { const t = a + (i / 8) * Math.PI * 2; ctx.fillStyle = i % 2 ? '#ffffff' : f.color; ctx.fillRect(f.x + Math.cos(t) * r * 0.85 - 1, f.y + 6 + Math.sin(t) * r * 0.38 - 1, 2, 2); }
+      ctx.globalAlpha = (1 - k) * 0.25; ctx.fillStyle = f.color; ctx.fillRect(f.x - 3, f.y - 30 * (1 - k), 6, 36 * (1 - k));
+      break;
+    }
+    case 'trail': {
+      ctx.globalAlpha = (1 - k) * 0.7; ctx.strokeStyle = f.color; ctx.lineWidth = 2 * (1 - k) + 0.5;
+      ctx.beginPath(); ctx.moveTo(f.x0, f.y0); ctx.lineTo(f.x1, f.y1); ctx.stroke();
+      break;
+    }
     case 'ring': ctx.globalAlpha = 1 - k; ctx.strokeStyle = f.color; ctx.lineWidth = f.w; ctx.beginPath(); ctx.arc(Math.round(f.x), Math.round(f.y), 2 + f.max * k, 0, Math.PI * 2); ctx.stroke(); break;
     case 'slash': {
+      if (tex('slash_arc', f.color, f.x, f.y, f.size * 3, f.ang + (k - 0.5) * 0.8, 1 - k)) break;
+      const cx0 = f.x - Math.cos(f.ang) * 8, cy0 = f.y - Math.sin(f.ang) * 8;
+      for (let e = 3; e >= 1; e--) { ctx.globalAlpha = (1 - k) * 0.18 * e; ctx.strokeStyle = f.color; ctx.lineWidth = 3 + e * 2.5; ctx.beginPath(); ctx.arc(cx0, cy0, f.size - e, f.ang - 1.1 + k * 0.4 - e * 0.12, f.ang + 1.1 + k * 0.4 - e * 0.12); ctx.stroke(); }
       ctx.globalAlpha = 1 - k; ctx.strokeStyle = f.color; ctx.lineWidth = 4;
       ctx.beginPath(); ctx.arc(f.x - Math.cos(f.ang) * 8, f.y - Math.sin(f.ang) * 8, f.size, f.ang - 1.1 + k * 0.4, f.ang + 1.1 + k * 0.4); ctx.stroke();
       ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(f.x - Math.cos(f.ang) * 8, f.y - Math.sin(f.ang) * 8, f.size - 2, f.ang - 0.8, f.ang + 0.8); ctx.stroke();
@@ -1514,6 +1755,13 @@ function drawFx(f) {
       ctx.globalAlpha = 0.45 * (1 - k); ctx.drawImage(avatar(myLook, f.face, 1), Math.round(f.x * TS) - 4, Math.round(f.y * TS) - 17);
       break;
     }
+    case 'heal': {
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = 1 - k; ctx.fillStyle = '#7ad35a';
+      for (let i = 0; i < 5; i++) { const ox = Math.sin(i * 2.1) * 9, oy = -k * 26 - i * 4; ctx.fillRect(f.x + ox - 1, f.y + oy - 4, 2, 8); ctx.fillRect(f.x + ox - 4, f.y + oy - 1, 8, 2); }
+      ctx.strokeStyle = '#c8ffb0'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(f.x, f.y + 6, 10 + k * 8, 4 + k * 3, 0, 0, 7); ctx.stroke();
+      break;
+    }
     case 'pillar': {
       ctx.globalAlpha = (1 - k) * 0.55; ctx.fillStyle = f.color;
       const w = 18 * (1 - k * 0.5); ctx.fillRect(f.x - w / 2, f.y - 80, w, 84);
@@ -1573,7 +1821,7 @@ function buildClassGrid() {
 $('newBtn').addEventListener('click', () => { buildClassGrid(); $('overwriteNote').hidden = !hasSave; $('title').hidden = true; $('classPanel').hidden = false; });
 $('classBack').addEventListener('click', () => { $('classPanel').hidden = true; $('title').hidden = false; });
 $('classGo').addEventListener('click', () => {
-  P = ensureInv(newPlayer(pickCls, $('nameInput').value.trim() || '冒險者'));
+  P = ensureParty(ensureInv(newPlayer(pickCls, $('nameInput').value.trim() || '冒險者')));
   soulPower = 0; loadMap(0);
   Object.assign(me, { x: P.x, y: P.y, px: P.x, py: P.y, fx: P.x, fy: P.y, moving: false, face: 'down' });
   drops = []; projs = []; pending = []; fx = [];
@@ -1588,6 +1836,7 @@ function titleScreen() {
   const looks = CLASS_IDS.map((id, i) => lookOf({ cls: id, gear: i % 2 ? { armor: { rarity: 'epic' }, weapon: { rarity: 'epic' }, helm: { rarity: 'epic' } } : { armor: { rarity: 'rare' }, weapon: { rarity: 'rare' } } }, CLASSES, rarityIdx));
   $('titleArt').replaceChildren(...looks.map((L) => previewCanvas(L, 2)));
 }
+loadAssets().then(() => { if (typeof render === 'function') render(); });
 loadMap(P.map && P.map <= Math.min(6, P.ch) ? P.map : 0, { x: P.x, y: P.y });
 setupClass();
 resize();
@@ -1598,4 +1847,4 @@ document.fonts?.ready.then(render);
 requestAnimationFrame(frame);
 
 // 自動化測試用（網址加 ?debug 才開）
-if (location.search.includes('debug')) globalThis.__game = { get P() { return P; }, newDrop, get drops() { return drops; }, set dropsAdd(d) { drops.push(d); }, me, get grid() { return grid; }, loadMap, get mapId() { return mapId; }, get mons() { return mons; }, get fishing() { return fishing; }, get dialog() { return dialog; }, get drops() { return drops; }, get skills() { return skills; }, castIdx };
+if (location.search.includes('debug')) globalThis.__game = { get allies() { return allies; }, buildAllies, get P() { return P; }, newDrop, get drops() { return drops; }, set dropsAdd(d) { drops.push(d); }, me, get grid() { return grid; }, loadMap, get mapId() { return mapId; }, get mons() { return mons; }, get fishing() { return fishing; }, get dialog() { return dialog; }, get drops() { return drops; }, get skills() { return skills; }, castIdx };

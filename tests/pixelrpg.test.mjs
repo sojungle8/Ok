@@ -320,3 +320,24 @@ test('掉落與商店：每隻怪都有素材與卡片、商店依章節開放',
   assert.ok(It.buy(p, 'red', 2).ok); assert.equal(It.buy(p, 'red', 10).ok, false);
   assert.equal(It.pickPotion(p, 0.9), 'red');
 });
+
+import * as Pt from '../pixel-rpg/party.js';
+test('隊伍：招募條件、價格、出戰上限 3 人、數值跟著主角', () => {
+  const p = Pt.ensureParty(Wd.newPlayer());
+  p.coins = 99999;
+  assert.equal(Pt.hire(p, 'lena').ok, false, '第 1 章覺醒前不能招募');
+  p.step = 2;
+  assert.ok(Pt.hire(p, 'lena').ok); assert.ok(Pt.hire(p, 'mia').ok);
+  assert.equal(Pt.hire(p, 'carlos').ok, false, '第 2 章才開放');
+  p.ch = 3; p.step = 0;
+  for (const id of ['carlos', 'nova', 'buck']) assert.ok(Pt.hire(p, id).ok, id);
+  assert.equal(p.party.active.length, 3);
+  assert.equal(Pt.toggleActive(p, 'buck'), false, '出戰已滿');
+  Pt.toggleActive(p, 'lena'); assert.ok(Pt.toggleActive(p, 'buck'));
+  const st = Wd.stats(p);
+  const a = Pt.allyStats(Pt.COMPANIONS.lena, st);
+  assert.ok(a.max > st.hp, '坦克血比主角多');
+  const back = Pt.ensureParty(JSON.parse(JSON.stringify(p)));
+  assert.deepEqual(back.party, p.party);
+  assert.deepEqual(Pt.ensureParty({ party: { hired: ['nope', 'mia'], active: ['nope', 'mia', 'x'], tactic: 'bad' } }).party, { hired: ['mia'], active: ['mia'], tactic: 'assist' });
+});

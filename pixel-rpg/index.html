@@ -25,6 +25,7 @@
         <span class="chip" id="coinBox"><i class="dot gold"></i><b id="coins">0</b></span>
         <div class="tools">
           <button id="gearBtn" class="tbtn" type="button">背包</button>
+          <button id="partyBtn" class="tbtn" type="button">隊伍</button>
           <button id="soulMenuBtn" class="tbtn" type="button">魂像</button>
           <button id="talentBtn" class="tbtn" type="button">天賦<em id="talentDot" class="tdot" hidden></em></button>
           <button id="fontBtn" class="tbtn" type="button">字級：大</button>
@@ -32,13 +33,14 @@
       </div>
     </header>
     <div class="quest"><span class="qlbl">任務</span><span id="quest"></span></div>
+    <div id="party" class="party" hidden></div>
     <div id="bossBar" class="bossbar" hidden><span id="bossName">史萊姆王</span><div class="bb"><i id="bossFill"></i></div></div>
     <div id="combo" class="combo" hidden></div>
     <div id="cpPop" class="cppop"></div>
     <div id="banner" class="banner"></div>
     <div id="feed" class="feed" aria-live="polite"></div>
     <div id="dialog" class="dialog" hidden>
-      <div class="who" id="dlgName"></div>
+      <img id="dlgPortrait" class="portrait" alt="" hidden><div class="who" id="dlgName"></div>
       <div class="text" id="dlgText"></div>
       <div class="opts" id="dlgOpts"></div>
       <div class="next" id="dlgNext">▼</div>
@@ -89,6 +91,13 @@
     <div id="bagGrid" class="bgrid"></div>
     <div id="bagDetail" class="bdetail"></div>
     <div class="crow wrap"><button id="sellJunkBtn" class="ghostbtn" type="button">賣掉全部雜物</button><button id="autoSellBtn" class="ghostbtn" type="button">自動販賣設定</button><button id="bagClose" class="startbtn" type="button">關閉</button></div>
+  </div>
+  <div id="partyPanel" class="panel" hidden>
+    <h3>隊伍 <small id="partyCount" class="muted"></small></h3>
+    <p class="small muted">最多 3 位夥伴一起出戰。夥伴的能力會跟著你一起成長；倒地 20 秒後會自己爬起來，牧師也能把人救起來。</p>
+    <div id="partyTactic" class="btabs"><button type="button" data-t="assist">主動出擊</button><button type="button" data-t="follow">跟緊我</button></div>
+    <div id="partyList" class="soullist"></div>
+    <button id="partyClose" class="startbtn" type="button">關閉</button>
   </div>
   <div id="sellPanel" class="panel" hidden>
     <h3>自動販賣設定</h3>
