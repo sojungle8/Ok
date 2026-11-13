@@ -659,6 +659,7 @@ function killMon(m) {
   gainSoul(5);
   const pc = m.d.pal.l || '#e6f2ff';
   burst(wx, wy, pc, m.d.boss ? 40 : 14, m.d.boss ? 140 : 90);
+  addFx('smoke', 0.5, { x: wx, y: wy, big: m.d.boss });
   ring(wx, wy, m.d.boss ? 40 : 14, pc);
   let coins = m.d.coin[0] + Math.floor(R() * (m.d.coin[1] - m.d.coin[0] + 1));
   const n = Math.min(m.d.boss ? 14 : 5, coins);
@@ -1009,6 +1010,7 @@ function dodge() {
   while (path.length && occupied(path.at(-1)[0], path.at(-1)[1])) path.pop();
   me.face = dir; me.inv = 0.4; me.dodgeT = 3;
   addFx('ghost', 0.3, { x: me.px, y: me.py, face: dir });
+  addFx('smoke', 0.4, { x: cx(me), y: cy(me) + 6 });
   if (path.length) { const [ex, ey] = path.at(-1); Object.assign(me, { fx: me.px, fy: me.py, x: ex, y: ey, moving: true, mt: 0, dur: 0.18 }); }
   burst(cx(me), cy(me) + 6, '#e8d8c0', 6, 50);
 }
@@ -1548,7 +1550,7 @@ function drawMon(m) {
   if (m.d.decoy) { if (!m.real) shadow(x, y); ctx.drawImage(avatar(m.look, 'down', 0), x - 4, y - 17); return; }
   const hd = asset('monster/' + (m.d.tpl === 'mirror' ? 'mirror_obj' : m.type));
   if (hd) {
-    const big = m.d.boss, size = big ? 46 : 24, bob = m.frozen > 0 ? 0 : Math.sin(m.anim * 5) * (big ? 1.5 : 1);
+    const big = m.d.boss, size = big ? 52 : 26, bob = m.frozen > 0 ? 0 : Math.sin(m.anim * 5) * (big ? 1.5 : 1);
     shadow(x, y, big ? 24 : 13);
     ctx.imageSmoothingEnabled = true;
     const draw = () => ctx.drawImage(hd, x + 8 - size / 2, y + 16 - size * 0.92 + bob, size, size * (1 - bob * 0.01));
@@ -1597,6 +1599,8 @@ function drawProj(p) {
   } else if (p.kind === 'bolt') {
     ctx.fillStyle = 'rgba(192,132,255,.45)'; ctx.beginPath(); ctx.arc(0, 0, 7, 0, 7); ctx.fill();
     ctx.fillStyle = '#c084ff'; ctx.beginPath(); ctx.arc(0, 0, 4, 0, 7); ctx.fill(); ctx.fillStyle = '#fff'; ctx.fillRect(-1, -1, 2, 2);
+  } else if (p.kind === 'fire' && asset('vfx/fire_burst')) {
+    ctx.restore(); ctx.save(); ctx.globalCompositeOperation = 'lighter'; tex('glow_soft', '#ff8a3d', p.x, p.y, 34, 0, 0.9); tex('fire_burst', '#ffb347', p.x, p.y - 2, 24, Math.atan2(p.vy, p.vx) + Math.PI / 2, 1);
   } else if (p.kind === 'fire') {
     ctx.fillStyle = 'rgba(255,90,54,.4)'; ctx.beginPath(); ctx.arc(-3, 0, 12, 0, 7); ctx.fill();
     ctx.fillStyle = '#ff8a3d'; ctx.beginPath(); ctx.arc(0, 0, 8, 0, 7); ctx.fill(); ctx.fillStyle = '#ffe08a'; ctx.beginPath(); ctx.arc(2, 0, 4, 0, 7); ctx.fill();
@@ -1648,7 +1652,7 @@ function drawFxInner(f, k) {
       ctx.beginPath(); ctx.moveTo(f.x0, f.y0); ctx.lineTo(f.x1, f.y1); ctx.stroke();
       break;
     }
-    case 'ring': ctx.globalAlpha = 1 - k; ctx.strokeStyle = f.color; ctx.lineWidth = f.w; ctx.beginPath(); ctx.arc(Math.round(f.x), Math.round(f.y), 2 + f.max * k, 0, Math.PI * 2); ctx.stroke(); break;
+    case 'ring': if (tex('ring_wave', f.color, f.x, f.y, (2 + f.max * k) * 2.3, 0, (1 - k) * 0.95)) break; ctx.globalAlpha = 1 - k; ctx.strokeStyle = f.color; ctx.lineWidth = f.w; ctx.beginPath(); ctx.arc(Math.round(f.x), Math.round(f.y), 2 + f.max * k, 0, Math.PI * 2); ctx.stroke(); break;
     case 'slash': {
       if (tex('slash_arc', f.color, f.x, f.y, f.size * 3, f.ang + (k - 0.5) * 0.8, 1 - k)) break;
       const cx0 = f.x - Math.cos(f.ang) * 8, cy0 = f.y - Math.sin(f.ang) * 8;
@@ -1659,18 +1663,21 @@ function drawFxInner(f, k) {
       break;
     }
     case 'punch': {
+      if (tex('impact_burst', f.color, f.x, f.y, ((f.big ? 13 : 7) + k * 8) * 3, k * 2, 1 - k)) break;
       ctx.globalAlpha = 1 - k; const s = (f.big ? 13 : 7) + k * 8;
       ctx.fillStyle = f.color; ctx.beginPath(); ctx.arc(f.x, f.y, s, 0, 7); ctx.fill();
       ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(f.x, f.y, s + 4, 0, 7); ctx.stroke();
       break;
     }
     case 'spin': {
+      if (tex('wind_swirl', f.color, f.x, f.y, 70, -k * 9, (1 - k * 0.6))) { tex('slash_arc', '#ffffff', f.x, f.y, 60, k * 12, 1 - k); break; }
       ctx.globalAlpha = 1 - k * 0.7;
       ctx.fillStyle = 'rgba(189,241,255,.18)'; ctx.beginPath(); ctx.arc(f.x, f.y, 26, 0, 7); ctx.fill();
       for (let i = 0; i < 3; i++) { const a = k * 9 + (i * Math.PI * 2) / 3; ctx.strokeStyle = i ? '#bdf1ff' : '#fff'; ctx.lineWidth = 4.5; ctx.beginPath(); ctx.arc(f.x, f.y, 24, a, a + 1.6); ctx.stroke(); }
       break;
     }
     case 'bigsword': {
+      if (f.t > f.life * 0.8) tex('impact_burst', '#ffd166', f.x, f.y, 80, 0, 1);
       const drop = Math.min(1, k / 0.85), y = f.y - 70 * (1 - drop);
       ctx.fillStyle = 'rgba(255,224,138,.35)'; ctx.fillRect(f.x - 6, y - 40, 12, 44);
       ctx.fillStyle = '#241a2b'; ctx.fillRect(f.x - 4, y - 38, 8, 40); ctx.fillRect(f.x - 10, y - 42, 20, 5);
@@ -1696,6 +1703,7 @@ function drawFxInner(f, k) {
       break;
     }
     case 'nova': {
+      if (tex('ring_wave', '#7fd8ff', f.x, f.y, (8 + 44 * k) * 2.3, 0, 1 - k)) { for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2, r = 8 + 44 * k; tex('ice_shard', '#dff6ff', f.x + Math.cos(a) * r, f.y + Math.sin(a) * r, 16, a + Math.PI / 2, 1 - k); } break; }
       const r = 8 + 44 * k;
       ctx.globalAlpha = 1 - k; ctx.fillStyle = 'rgba(127,216,255,.25)'; ctx.beginPath(); ctx.arc(f.x, f.y, r, 0, 7); ctx.fill();
       ctx.strokeStyle = '#dff6ff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(f.x, f.y, r, 0, 7); ctx.stroke();
@@ -1703,6 +1711,7 @@ function drawFxInner(f, k) {
       break;
     }
     case 'lightning': {
+      if (asset('vfx/lightning')) { ctx.globalAlpha = 1 - k; for (let i = 0; i < f.pts.length - 1; i++) { const [x0, y0] = f.pts[i], [x1, y1] = f.pts[i + 1], len = Math.hypot(x1 - x0, y1 - y0); const t = tinted('vfx/lightning', '#fff7a8'); ctx.save(); ctx.translate((x0 + x1) / 2, (y0 + y1) / 2); ctx.rotate(Math.atan2(y1 - y0, x1 - x0) - Math.PI / 2); ctx.imageSmoothingEnabled = true; ctx.drawImage(t, -len * 0.35, -len * 0.6, len * 0.7, len * 1.2); ctx.restore(); } break; }
       ctx.globalAlpha = 1 - k;
       for (let i = 0; i < f.pts.length - 1; i++) {
         const [x0, y0] = f.pts[i], [x1, y1] = f.pts[i + 1];
@@ -1726,6 +1735,7 @@ function drawFxInner(f, k) {
       break;
     }
     case 'boom': {
+      if (tex('fire_burst', '#ff8a3d', f.x, f.y - 6, 30 + 40 * k, 0, 1 - k)) { tex('glow_soft', '#ffd166', f.x, f.y, 50, 0, (1 - k) * 0.8); break; }
       ctx.globalAlpha = 1 - k; ctx.fillStyle = '#ff8a3d'; ctx.beginPath(); ctx.arc(f.x, f.y, 10 + 22 * k, 0, 7); ctx.fill();
       ctx.fillStyle = '#ffe08a'; ctx.beginPath(); ctx.arc(f.x, f.y, 6 + 12 * k, 0, 7); ctx.fill();
       break;
@@ -1747,6 +1757,7 @@ function drawFxInner(f, k) {
       break;
     }
     case 'claw': {
+      if (tex('slash_heavy', '#ffe066', f.x, f.y, 34, f.ang, 1 - k)) break;
       ctx.globalAlpha = 1 - k; ctx.strokeStyle = '#ffe066'; ctx.lineWidth = 2.5;
       for (let i = -1; i <= 1; i++) { const ox = Math.cos(f.ang + Math.PI / 2) * i * 5, oy = Math.sin(f.ang + Math.PI / 2) * i * 5; ctx.beginPath(); ctx.moveTo(f.x + ox - Math.cos(f.ang) * 14, f.y + oy - Math.sin(f.ang) * 14); ctx.lineTo(f.x + ox + Math.cos(f.ang) * 14, f.y + oy + Math.sin(f.ang) * 14); ctx.stroke(); }
       break;
@@ -1756,13 +1767,19 @@ function drawFxInner(f, k) {
       break;
     }
     case 'heal': {
+      if (asset('vfx/feather_glow')) { ctx.globalCompositeOperation = 'lighter'; tex('glow_soft', '#7ad35a', f.x, f.y, 40, 0, (1 - k) * 0.8); for (let i = 0; i < 4; i++) tex('feather_glow', '#c8ffb0', f.x + Math.sin(i * 2.1) * 9, f.y - k * 26 - i * 5, 12, i, 1 - k); break; }
       ctx.globalCompositeOperation = 'lighter';
       ctx.globalAlpha = 1 - k; ctx.fillStyle = '#7ad35a';
       for (let i = 0; i < 5; i++) { const ox = Math.sin(i * 2.1) * 9, oy = -k * 26 - i * 4; ctx.fillRect(f.x + ox - 1, f.y + oy - 4, 2, 8); ctx.fillRect(f.x + ox - 4, f.y + oy - 1, 8, 2); }
       ctx.strokeStyle = '#c8ffb0'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(f.x, f.y + 6, 10 + k * 8, 4 + k * 3, 0, 0, 7); ctx.stroke();
       break;
     }
+    case 'smoke': {
+      if (!tex('smoke_puff', '#e8e4f0', f.x, f.y - k * 6, (f.big ? 40 : 22) * (0.6 + k), 0, (1 - k) * 0.7)) { ctx.globalAlpha = (1 - k) * 0.4; ctx.fillStyle = '#e8e4f0'; ctx.beginPath(); ctx.arc(f.x, f.y, 6 + k * 8, 0, 7); ctx.fill(); }
+      break;
+    }
     case 'pillar': {
+      if (tex('light_pillar', f.color, f.x, f.y - 36, 90, 0, (1 - k) * 0.95)) break;
       ctx.globalAlpha = (1 - k) * 0.55; ctx.fillStyle = f.color;
       const w = 18 * (1 - k * 0.5); ctx.fillRect(f.x - w / 2, f.y - 80, w, 84);
       ctx.globalAlpha = (1 - k) * 0.9; ctx.fillStyle = '#fff'; ctx.fillRect(f.x - 2, f.y - 80, 4, 84);
@@ -1847,4 +1864,4 @@ document.fonts?.ready.then(render);
 requestAnimationFrame(frame);
 
 // 自動化測試用（網址加 ?debug 才開）
-if (location.search.includes('debug')) globalThis.__game = { get allies() { return allies; }, buildAllies, get P() { return P; }, newDrop, get drops() { return drops; }, set dropsAdd(d) { drops.push(d); }, me, get grid() { return grid; }, loadMap, get mapId() { return mapId; }, get mons() { return mons; }, get fishing() { return fishing; }, get dialog() { return dialog; }, get drops() { return drops; }, get skills() { return skills; }, castIdx };
+if (location.search.includes('debug')) globalThis.__game = { showCutin, get allies() { return allies; }, buildAllies, get P() { return P; }, newDrop, get drops() { return drops; }, set dropsAdd(d) { drops.push(d); }, me, get grid() { return grid; }, loadMap, get mapId() { return mapId; }, get mons() { return mons; }, get fishing() { return fishing; }, get dialog() { return dialog; }, get drops() { return drops; }, get skills() { return skills; }, castIdx };

@@ -239,7 +239,8 @@ button{font-family:inherit;color:inherit}
 .panel h4{margin:6px 0 2px;font-weight:400;font-size:.85em;color:var(--gold)}
 #refineInfo{font-size:.8em}
 .dialog .portrait{position:absolute;right:8px;bottom:calc(100% - 8px);width:110px;height:110px;object-fit:contain;filter:drop-shadow(0 4px 0 #0006);pointer-events:none}
-.cart2 .hdart{width:min(60vw,340px);height:auto;image-rendering:auto}
+.cart2 .hdart{width:min(82vw,460px);height:auto;image-rendering:auto}
+.cutin .cart2:has(.hdart){right:-4%}
 
 /* 隊伍 */
 .party{margin-top:6px;display:flex;flex-direction:column;gap:3px;width:min(46%,170px)}
