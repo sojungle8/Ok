@@ -1,0 +1,247 @@
+{
+  "tool": "built-in image_gen",
+  "date": "2026-11-14",
+  "batch": 1,
+  "export": {
+    "format": "PNG RGBA sRGB",
+    "margin": "at least 6%",
+    "monsterAnchor": [
+      0.5,
+      0.92
+    ],
+    "vfx": "Generated luminance encoded into alpha with neutral white RGB for additive tinting",
+    "dimensions": {
+      "monster": 256,
+      "boss": 512,
+      "vfx": 512,
+      "soul_art": 1024
+    }
+  },
+  "assets": [
+    {
+      "path": "monster/armor.png",
+      "size": 256,
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nAsset: monster/armor.png. Empty silver knight armor, visibly hollow helmet, no human inside. Single full-body subject facing viewer seen slightly from above. Bold readable silhouette. Do not add wings unless subject explicitly has wings; do not add crowns unless specified. Entire subject fully visible inside square canvas, central 80% width and height. Foot/base center at (50%,92%). No floor, cast shadow, scenery or text. Readable at 256x256."
+    },
+    {
+      "path": "monster/bat.png",
+      "size": 256,
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nAsset: monster/bat.png. Purple bat with very large ears, wings spread. Single full-body subject facing the viewer. Clear expressive face, clean bold silhouette, consistent original chibi fantasy bestiary design. Entire subject fully visible inside square canvas, empty transparent margin at least 8% all sides. Foot/base center at (50%,92%). No floor, no cast shadow, no scenery, no text. Readable when reduced to 256x256."
+    },
+    {
+      "path": "monster/berry.png",
+      "size": 256,
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nAsset: monster/berry.png. Pink jelly slime with a single berry atop its head. Single full-body subject facing the viewer. Clear expressive face, clean bold silhouette, consistent original chibi fantasy bestiary design. Entire subject fully visible inside square canvas, empty transparent margin at least 8% all sides. Foot/base center at (50%,92%). No floor, no cast shadow, no scenery, no text. Readable when reduced to 256x256."
+    },
+    {
+      "path": "monster/clock.png",
+      "size": 512,
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nAsset: monster/clock.png. Boss: an elderly brass mechanical clockmaker carrying a huge clock on his back. Single full-body subject facing viewer seen slightly from above. Bold readable silhouette. Do not add wings unless subject explicitly has wings; do not add crowns unless specified. Entire subject fully visible inside square canvas, central 80% width and height. Foot/base center at (50%,92%). No floor, cast shadow, scenery or text. Readable at 512x512."
+    },
+    {
+      "path": "monster/cog.png",
+      "size": 256,
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nAsset: monster/cog.png. Iron-grey clockwork toy soldier with winding key. Single full-body subject facing viewer, seen slightly from above. Clear expressive face, bold silhouette, original chibi fantasy bestiary design. Entire subject including wings fully visible inside square canvas, subject fits central 80% width and height, empty transparent margin. Foot/base center at (50%,92%). No floor, cast shadow, scenery or text. Readable at 256x256."
+    },
+    {
+      "path": "monster/crab.png",
+      "size": 256,
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nAsset: monster/crab.png. Red-clawed crab. Single full-body subject facing viewer seen slightly from above. Bold readable silhouette, original design. Entire subject fully visible inside square canvas with 10% empty transparent margin. Foot/base center at (50%,92%). No floor, cast shadow, scenery, lettering or watermark. Readable at 256x256."
+    },
+    {
+      "path": "monster/cultist.png",
+      "size": 256,
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nAsset: monster/cultist.png. Small imp cultist in a purple robe. Single full-body subject facing viewer seen slightly from above. Bold readable silhouette, original design. Entire subject fully visible inside square canvas with 10% empty transparent margin. Foot/base center at (50%,92%). No floor, cast shadow, scenery, lettering or watermark. Readable at 256x256."
+    },
+    {
+      "path": "monster/echo.png",
+      "size": 512,
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nAsset: monster/echo.png. Boss: a giant bat gentleman wearing an elegant sound-wave-pattern cloak. Single full-body subject facing viewer, seen slightly from above. Clear expressive face, bold silhouette, original chibi fantasy bestiary design. Entire subject including wings fully visible inside square canvas, subject fits central 80% width and height, empty transparent margin. Foot/base center at (50%,92%). No floor, cast shadow, scenery or text. Readable at 512x512."
+    },
+    {
+      "path": "monster/eclipse.png",
+      "size": 256,
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nAsset: monster/eclipse.png. Deep purple jelly slime with eclipse halo. Single full-body subject facing viewer seen slightly from above. Bold readable silhouette, original design. Entire subject fully visible inside square canvas with 10% empty transparent margin. Foot/base center at (50%,92%). No floor, cast shadow, scenery, lettering or watermark. Readable at 256x256."
+    },
+    {
+      "path": "monster/ember.png",
+      "size": 256,
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nAsset: monster/ember.png. Orange-red jelly slime containing tiny glowing embers. Single full-body subject facing the viewer. Clear expressive face, clean bold silhouette, consistent original chibi fantasy bestiary design. Entire subject fully visible inside square canvas, empty transparent margin at least 8% all sides. Foot/base center at (50%,92%). No floor, no cast shadow, no scenery, no text. Readable when reduced to 256x256."
+    },
+    {
+      "path": "monster/faceless.png",
+      "size": 512,
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nAsset: monster/faceless.png. Boss: golden-clothed merchant wearing multiple theatrical masks. Single full-body subject facing viewer seen slightly from above. Bold readable silhouette, original design. Entire subject fully visible inside square canvas with 10% empty transparent margin. Foot/base center at (50%,92%). No floor, cast shadow, scenery, lettering or watermark. Readable at 512x512."
+    },
+    {
+      "path": "monster/gargoyle.png",
+      "size": 256,
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nAsset: monster/gargoyle.png. Small grey stone imp with stone wings. Single full-body subject facing viewer seen slightly from above. Bold readable silhouette. Do not add wings unless subject explicitly has wings; do not add crowns unless specified. Entire subject fully visible inside square canvas, central 80% width and height. Foot/base center at (50%,92%). No floor, cast shadow, scenery or text. Readable at 256x256."
+    },
+    {
+      "path": "monster/howl.png",
+      "size": 256,
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nAsset: monster/howl.png. Red bat with conspicuous fangs. Single full-body subject facing viewer, seen slightly from above. Clear expressive face, bold silhouette, original chibi fantasy bestiary design. Entire subject including wings fully visible inside square canvas, subject fits central 80% width and height, empty transparent margin. Foot/base center at (50%,92%). No floor, cast shadow, scenery or text. Readable at 256x256."
+    },
+    {
+      "path": "monster/king.png",
+      "size": 512,
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nAsset: monster/king.png. Boss: a huge green jelly slime wearing a small golden crown. Single full-body subject facing the viewer. Clear expressive face, clean bold silhouette, consistent original chibi fantasy bestiary design. Entire subject fully visible inside square canvas, empty transparent margin at least 8% all sides. Foot/base center at (50%,92%). No floor, no cast shadow, no scenery, no text. Readable when reduced to 512x512."
+    },
+    {
+      "path": "monster/lantern.png",
+      "size": 256,
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nAsset: monster/lantern.png. Orange paper lantern ghost. Single full-body subject facing viewer seen slightly from above. Bold readable silhouette, original design. Entire subject fully visible inside square canvas with 10% empty transparent margin. Foot/base center at (50%,92%). No floor, cast shadow, scenery, lettering or watermark. Readable at 256x256."
+    },
+    {
+      "path": "monster/mirror_obj.png",
+      "size": 256,
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nAsset: monster/mirror_obj.png. Golden framed freestanding floor mirror with purple glowing reflection. Single full-body subject facing viewer seen slightly from above. Bold readable silhouette, original design. Entire subject fully visible inside square canvas with 10% empty transparent margin. Foot/base center at (50%,92%). No floor, cast shadow, scenery, lettering or watermark. Readable at 256x256."
+    },
+    {
+      "path": "monster/mirror.png",
+      "size": 512,
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nAsset: monster/mirror.png. Boss: translucent ghost noblewoman in a white gown, holding a hand mirror. Single full-body subject facing viewer seen slightly from above. Bold readable silhouette. Do not add wings unless subject explicitly has wings; do not add crowns unless specified. Entire subject fully visible inside square canvas, central 80% width and height. Foot/base center at (50%,92%). No floor, cast shadow, scenery or text. Readable at 512x512."
+    },
+    {
+      "path": "monster/pebble.png",
+      "size": 256,
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nAsset: monster/pebble.png. Small sandstone rock golem. Single full-body subject facing the viewer. Clear expressive face, clean bold silhouette, consistent original chibi fantasy bestiary design. Entire subject fully visible inside square canvas, empty transparent margin at least 8% all sides. Foot/base center at (50%,92%). No floor, no cast shadow, no scenery, no text. Readable when reduced to 256x256."
+    },
+    {
+      "path": "monster/pirate.png",
+      "size": 256,
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nAsset: monster/pirate.png. Teal small imp pirate. Single full-body subject facing viewer seen slightly from above. Bold readable silhouette, original design. Entire subject fully visible inside square canvas with 10% empty transparent margin. Foot/base center at (50%,92%). No floor, cast shadow, scenery, lettering or watermark. Readable at 256x256."
+    },
+    {
+      "path": "monster/shade.png",
+      "size": 256,
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nAsset: monster/shade.png. Black silhouette ghost with readable dark charcoal shaded contours. Single full-body subject facing viewer seen slightly from above. Bold readable silhouette, original design. Entire subject fully visible inside square canvas with 10% empty transparent margin. Foot/base center at (50%,92%). No floor, cast shadow, scenery, lettering or watermark. Readable at 256x256."
+    },
+    {
+      "path": "monster/slime.png",
+      "size": 256,
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nOne water-blue dewdrop jelly slime, single full body facing camera, base at (50%,92%), transparent square canvas."
+    },
+    {
+      "path": "monster/smelter.png",
+      "size": 256,
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nAsset: monster/smelter.png. Orange furnace robot golem, glowing furnace belly. Single full-body subject facing viewer, seen slightly from above. Clear expressive face, bold silhouette, original chibi fantasy bestiary design. Entire subject including wings fully visible inside square canvas, subject fits central 80% width and height, empty transparent margin. Foot/base center at (50%,92%). No floor, cast shadow, scenery or text. Readable at 256x256."
+    },
+    {
+      "path": "monster/spark.png",
+      "size": 256,
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nAsset: monster/spark.png. Yellow electric orb spirit with expressive face. Single full-body subject facing viewer, seen slightly from above. Clear expressive face, bold silhouette, original chibi fantasy bestiary design. Entire subject including wings fully visible inside square canvas, subject fits central 80% width and height, empty transparent margin. Foot/base center at (50%,92%). No floor, cast shadow, scenery or text. Readable at 256x256."
+    },
+    {
+      "path": "monster/valde.png",
+      "size": 512,
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nAsset: monster/valde.png. Boss: elegant three-hundred-year-old demon king, black-purple long robe, crown and red eyes. Single full-body subject facing viewer seen slightly from above. Bold readable silhouette, original design. Entire subject fully visible inside square canvas with 10% empty transparent margin. Foot/base center at (50%,92%). No floor, cast shadow, scenery, lettering or watermark. Readable at 512x512."
+    },
+    {
+      "path": "monster/wisp.png",
+      "size": 256,
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nAsset: monster/wisp.png. Blue ghostly will-o-the-wisp flame. Single full-body subject facing viewer seen slightly from above. Bold readable silhouette. Do not add wings unless subject explicitly has wings; do not add crowns unless specified. Entire subject fully visible inside square canvas, central 80% width and height. Foot/base center at (50%,92%). No floor, cast shadow, scenery or text. Readable at 256x256."
+    },
+    {
+      "path": "soul_art/bird.png",
+      "size": 1024,
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nAsset: soul_art/bird.png. Glowing glass nightingale humanoid spirit with transparent glass wings and avian features. Ultimate ability freeze-frame full-body illustration, not a human in costume: preserve the stated creature or mannequin material. Exaggerated foreshortening, strong theatrical attack pose, thick black outlines. Dynamic diagonal composition with an arm thrust toward viewer. Entire figure and effects fully visible in central 80% square canvas, 8% transparent margins. No floor, scene, text or watermark. 1024x1024."
+    },
+    {
+      "path": "soul_art/cat.png",
+      "size": 1024,
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nAsset: soul_art/cat.png. Midnight black anthropomorphic cat humanoid with golden eyes. Ultimate ability freeze-frame full-body illustration, not a human in costume: preserve the stated creature or mannequin material. Exaggerated foreshortening, strong theatrical attack pose, thick black outlines. Dynamic diagonal composition with an arm thrust toward viewer. Entire figure and effects fully visible in central 80% square canvas, 8% transparent margins. No floor, scene, text or watermark. 1024x1024."
+    },
+    {
+      "path": "soul_art/gear.png",
+      "size": 1024,
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nAsset: soul_art/gear.png. Rust-red robot with a gear-shaped head. Ultimate ability freeze-frame full-body character illustration. Exaggerated foreshortening, strong theatrical action pose, bold thick near-black outlines. Dynamic diagonal composition with a hand thrust toward viewer, flowing motion accents consistent with the subject. Entire subject fully visible within a square 1024x1024 canvas, 8% empty transparent margins on all sides. No scene, no floor, no text, no watermark. This is original fantasy guardian spirit design."
+    },
+    {
+      "path": "soul_art/magnet.png",
+      "size": 1024,
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nEDIT: Redesign these as TWO MALE TWIN BROTHERS, purple and pink anthropomorphic MAGNET MEN with metallic horseshoe magnet heads and masculine robot bodies, not girls. Dramatic ultimate attack pose, original chibi fantasy style, thick black outline. BOTH entire bodies and effects fit central 80% canvas, transparent border. No text."
+    },
+    {
+      "path": "soul_art/post.png",
+      "size": 1024,
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nAsset: soul_art/post.png. Blue uniformed many-armed supernatural postman, multiple distinct arms in a controlled radial fan. Ultimate ability freeze-frame full-body character illustration. Exaggerated foreshortening, strong theatrical action pose, bold thick near-black outlines. Dynamic diagonal composition with a hand thrust toward viewer, flowing motion accents consistent with the subject. Entire subject fully visible within a square 1024x1024 canvas, 8% empty transparent margins on all sides. No scene, no floor, no text, no watermark. This is original fantasy guardian spirit design."
+    },
+    {
+      "path": "soul_art/thread.png",
+      "size": 1024,
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nEDIT: Keep this white tailor mannequin and dynamic pose, but zoom out so BOTH scissor blades and ALL thread trails fit fully within the image with 8% transparent margins. Complete clipped scissor tips. Keep transparent background and character design."
+    },
+    {
+      "path": "vfx/feather_glow.png",
+      "size": 512,
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nAsset: vfx/feather_glow.png. One luminous feather, diagonal, clear central shaft and fine barbs.\nVFX texture only. MONOCHROME WHITE AND LIGHT NEUTRAL GRAY ONLY, no blue orange yellow purple or other colors, no dark outlines. Effect occupies CENTRAL 65% square canvas. Wide completely transparent border on all four sides; all tips contained in frame. Soft variable alpha glow, no backdrop, no ground, no text. Intended for additive blending at 512x512."
+    },
+    {
+      "path": "vfx/fire_burst.png",
+      "size": 512,
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nAsset: vfx/fire_burst.png. One dramatic flame explosion, rising curling flame tongues.\nVFX texture only. MONOCHROME WHITE AND LIGHT NEUTRAL GRAY ONLY, no blue orange yellow purple or other colors, no dark outlines. Effect occupies CENTRAL 65% square canvas. Wide completely transparent border on all four sides; all tips contained in frame. Soft variable alpha glow, no backdrop, no ground, no text. Intended for additive blending at 512x512."
+    },
+    {
+      "path": "vfx/glow_soft.png",
+      "size": 512,
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nEDIT: Replace this with a SMALL soft radial circular white glow centered on the transparent canvas. The glow diameter INCLUDING feathered edge is 65% of canvas width. Full outer 15% border is COMPLETELY TRANSPARENT (alpha zero). A smoothly fading radial glow, no solid white square. No colored pixels. Preserve transparency."
+    },
+    {
+      "path": "vfx/ice_shard.png",
+      "size": 512,
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nEDIT: Remove ALL blue and colored tint. Strict neutral white and light gray grayscale crystalline ice shards. Retain composition and transparent background, scale entire effect down to central 75% of canvas with fully transparent margins."
+    },
+    {
+      "path": "vfx/impact_burst.png",
+      "size": 512,
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nAsset: vfx/impact_burst.png. One radial explosive impact burst with energetic pointed rays.\nVFX texture only, no character. The effect occupies only the CENTRAL 70% of a square canvas, with a wide completely transparent empty border on all four sides. All rays contained in frame. ONLY neutral white or light gray, no colored edges, no dark outlines. Soft variable alpha for glow; no background, no opaque square, no ground or letters. Intended for additive blending at 512x512."
+    },
+    {
+      "path": "vfx/light_pillar.png",
+      "size": 512,
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nAsset: vfx/light_pillar.png. One vertical luminous pillar, narrow upright beam with soft luminous edges.\nVFX texture only, no character. The effect occupies only the CENTRAL 70% of a square canvas, wide completely transparent empty border on all four sides. All rays contained in frame. ONLY neutral white or light gray, no colored edges, no dark outlines. Soft variable alpha for glow; no background, no opaque square, no ground or letters. Intended for additive blending at 512x512."
+    },
+    {
+      "path": "vfx/lightning.png",
+      "size": 512,
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nAsset: vfx/lightning.png. One jagged vertical lightning bolt with thin branching forks.\nVFX texture only, no character. The effect occupies only the CENTRAL 70% of a square canvas, wide completely transparent empty border on all four sides. All rays contained in frame. ONLY neutral white or light gray, no colored edges, no dark outlines. Soft variable alpha for glow; no background, no opaque square, no ground or letters. Intended for additive blending at 512x512."
+    },
+    {
+      "path": "vfx/magic_circle.png",
+      "size": 512,
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nAsset: vfx/magic_circle.png. One circular magic sigil with concentric rings and abstract decorative rune shapes, viewed face-on, transparent center gaps, rotationally balanced. No readable lettering.\nVFX texture only, no character. The effect occupies only the CENTRAL 70% of a square canvas, wide completely transparent empty border on all four sides. All rays contained in frame. ONLY neutral white or light gray, no colored edges, no dark outlines. Soft variable alpha for glow; no background, no opaque square, no ground or letters. Intended for additive blending at 512x512."
+    },
+    {
+      "path": "vfx/ring_wave.png",
+      "size": 512,
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nAsset: vfx/ring_wave.png. One circular shockwave ring, hollow transparent center.\nVFX texture only, no character. The effect occupies only the CENTRAL 70% of a square canvas, with a wide completely transparent empty border on all four sides. All rays contained in frame. ONLY neutral white or light gray, no colored edges, no dark outlines. Soft variable alpha for glow; no background, no opaque square, no ground or letters. Intended for additive blending at 512x512."
+    },
+    {
+      "path": "vfx/slash_arc.png",
+      "size": 512,
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nEDIT: Keep this crescent slash shape but scale it down and complete any clipped ends. Entire shape fits central 75% of canvas with transparent margins. Neutral grayscale white/light gray only, no colored fringes."
+    },
+    {
+      "path": "vfx/slash_heavy.png",
+      "size": 512,
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nAsset: vfx/slash_heavy.png. A powerful thick heavy sword slash crescent with jagged cracks and torn edges.\nThis is a VFX texture, NOT a character or icon. Override colored palette and dark outline: use ONLY white and very light neutral gray visible pixels, soft alpha transparency for glow. Absolutely no black background, no opaque square, no colored pixels, no outline, no ground, no lettering. Square canvas, centered, 6% transparent border, all rays and glow contained inside frame. Readable as a 512x512 additive game effect."
+    },
+    {
+      "path": "vfx/smoke_puff.png",
+      "size": 512,
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nAsset: vfx/smoke_puff.png. One rounded billowing puff of smoke, softly fading transparent edges.\nVFX texture only, no character. The effect occupies only the CENTRAL 70% of a square canvas, with a wide completely transparent empty border on all four sides. All rays contained in frame. ONLY neutral white or light gray, no colored edges, no dark outlines. Soft variable alpha for glow; no background, no opaque square, no ground or letters. Intended for additive blending at 512x512."
+    },
+    {
+      "path": "vfx/spark_star.png",
+      "size": 512,
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nAsset: vfx/spark_star.png. One crisp four-point star impact sparkle, elongated vertical and horizontal tapered rays.\nVFX texture only, no character. The effect occupies only the CENTRAL 70% of a square canvas, with a wide completely transparent empty border on all four sides. All rays contained in frame. ONLY neutral white or light gray, no colored edges, no dark outlines. Soft variable alpha for glow; no background, no opaque square, no ground or letters. Intended for additive blending at 512x512."
+    },
+    {
+      "path": "vfx/wind_swirl.png",
+      "size": 512,
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nAsset: vfx/wind_swirl.png. One dynamic spiral whirlwind of curved wind ribbons, hollow transparent gaps.\nVFX texture only. MONOCHROME WHITE AND LIGHT NEUTRAL GRAY ONLY, no blue orange yellow purple or other colors, no dark outlines. Effect occupies CENTRAL 65% square canvas. Wide completely transparent border on all four sides; all tips contained in frame. Soft variable alpha glow, no backdrop, no ground, no text. Intended for additive blending at 512x512."
+    }
+  ]
+}

@@ -1,7 +1,8 @@
 // 掃描 assets/ 底下的 PNG，產生 assets/manifest.json（遊戲只會嘗試載入清單裡有的檔案）
 import { readdirSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
-const root = new URL('../assets/', import.meta.url).pathname;
+import { fileURLToPath } from 'node:url';
+const root = fileURLToPath(new URL('../assets/', import.meta.url));
 const files = [];
 (function walk(d) { for (const f of readdirSync(d)) { const p = join(d, f); if (statSync(p).isDirectory()) walk(p); else if (f.endsWith('.png')) files.push(relative(root, p).replace(/\\/g, '/')); } })(root);
 files.sort();
