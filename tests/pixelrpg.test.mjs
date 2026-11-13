@@ -37,7 +37,41 @@ test('升級：經驗溢出可連升、升級補滿血', () => {
   assert.equal(ups, 2);
   assert.equal(p.lv, 3);
   assert.equal(p.exp, 1);
-  assert.equal(p.hp, Wd.maxHp(3));
+  assert.equal(p.hp, Wd.stats(p).hp);
+});
+
+test('節奏：1 級打露珠史萊姆 2 刀內、4 隻內升級', () => {
+  const p = Wd.newPlayer();
+  assert.ok(Math.ceil(Wd.MONSTERS.slime.hp / Wd.stats(p).atk) <= 2);
+  assert.ok(Math.ceil(Wd.expNeed(1) / Wd.MONSTERS.slime.exp) <= 4);
+});
+
+test('裝備：更好的自動穿上並提升戰鬥力，較差的自動賣掉', () => {
+  const p = Wd.newPlayer();
+  const cp0 = Wd.stats(p).cp;
+  const r1 = Wd.equipIfBetter(p, { slot: 'weapon', rarity: 'rare', name: '鐵劍', stat: 'atk', val: 10, lv: 3 });
+  assert.ok(r1.equipped && r1.after > r1.before && r1.before === cp0);
+  const c = p.coins;
+  const r2 = Wd.equipIfBetter(p, { slot: 'weapon', rarity: 'common', name: '木劍', stat: 'atk', val: 3, lv: 1 });
+  assert.equal(r2.equipped, false);
+  assert.equal(p.coins, c + Wd.sellValue({ val: 3 }));
+  assert.equal(p.gear.weapon.val, 10);
+});
+
+test('掉寶：稀有度分布合理、頭目必出稀有以上、數值為正', () => {
+  const r = Wd.rng(9); const c = {};
+  for (let i = 0; i < 20000; i++) { const it = Wd.rollGear(r, 1 + (i % 9)); c[it.rarity] = (c[it.rarity] || 0) + 1; assert.ok(it.val >= 1); assert.ok(Wd.SLOTS.includes(it.slot)); }
+  assert.ok(c.common > c.good && c.good > c.rare && c.rare > c.epic && c.epic > c.legend && c.legend > 50);
+  for (let i = 0; i < 500; i++) assert.ok(['rare', 'epic', 'legend'].includes(Wd.rollGear(r, 9, true).rarity));
+});
+
+test('怪物分區都有可走的格子', () => {
+  for (const m of Object.values(Wd.MONSTERS)) {
+    if (m.boss) continue;
+    let n = 0;
+    for (let y = 1; y < Wd.H - 1; y++) for (let x = m.zone[0]; x <= m.zone[1]; x++) if (Wd.walkable(g, x, y)) n++;
+    assert.ok(n > 40, m.name);
+  }
 });
 
 test('釣魚機率分布', () => {
@@ -46,10 +80,12 @@ test('釣魚機率分布', () => {
   assert.ok(c.carp > c.trout && c.trout > c.gold && c.gold > 500);
 });
 
-test('讀檔：壞檔重開、欄位型別修正、血量夾在範圍內', () => {
+test('讀檔：壞檔重開、舊版存檔升級、壞裝備清掉、血量夾在範圍內', () => {
   assert.equal(Wd.loadPlayer('x').lv, 1);
-  const p = Wd.loadPlayer(JSON.stringify({ v: 1, lv: 2, hp: 999, coins: 'a' }));
-  assert.equal(p.hp, Wd.maxHp(2));
+  const p = Wd.loadPlayer(JSON.stringify({ v: 1, lv: 2, hp: 999, coins: 'a', gear: { weapon: { slot: 'weapon', val: 'x' }, hat: {} } }));
+  assert.equal(p.v, 2);
+  assert.equal(p.hp, Wd.stats(p).hp);
   assert.equal(p.coins, 0);
+  assert.deepEqual(p.gear, {});
   assert.deepEqual(p.fish, {});
 });

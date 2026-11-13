@@ -83,17 +83,68 @@ export function reachable(g, from) {
   return seen;
 }
 
-// ---- 數值 ----
+// ---- 數值（快節奏：幾刀一隻、幾十秒升一級）----
 export const MONSTERS = {
-  slime: { name: '露珠史萊姆', hp: 4, atk: 1, exp: 3, coin: [1, 3], sight: 3 },
-  berry: { name: '莓果史萊姆', hp: 9, atk: 2, exp: 8, coin: [3, 6], sight: 4 },
-  king: { name: '史萊姆王', hp: 45, atk: 4, exp: 60, coin: [30, 50], sight: 5, boss: true },
+  slime: { name: '露珠史萊姆', hp: 8, atk: 2, exp: 4, coin: [2, 5], lv: 1, sight: 3, zone: [21, 28] },
+  berry: { name: '莓果史萊姆', hp: 24, atk: 5, exp: 12, coin: [5, 10], lv: 4, sight: 4, zone: [27, 33] },
+  ember: { name: '餘燼史萊姆', hp: 55, atk: 9, exp: 28, coin: [10, 18], lv: 7, sight: 4, zone: [32, 38] },
+  king: { name: '史萊姆王', hp: 420, atk: 13, exp: 320, coin: [150, 250], lv: 9, sight: 5, boss: true },
 };
-export const expNeed = (lv) => 8 + lv * lv * 4;
-export const maxHp = (lv) => 10 + lv * 4;
-export const playerAtk = (lv, sword) => 1 + Math.floor(lv / 2) + sword;
+export const ROSTER = [...Array(10).fill('slime'), ...Array(8).fill('berry'), ...Array(6).fill('ember'), 'king'];
+export const expNeed = (lv) => 10 + lv * lv * 6;
+export const baseHp = (lv) => 20 + lv * 8;
+export const baseAtk = (lv) => 3 + lv * 2;
 export const swordCost = (sword) => 30 + sword * 40 + sword * sword * 20;
-export const POTION_PRICE = 15, POTION_HEAL = 12;
+export const POTION_PRICE = 15, POTION_HEAL_PCT = 0.5;
+
+export function stats(p) {
+  let atk = baseAtk(p.lv) + p.sword * 3, hp = baseHp(p.lv);
+  for (const it of Object.values(p.gear || {})) { if (!it) continue; if (it.stat === 'atk') atk += it.val; else hp += it.val; }
+  return { atk, hp, cp: Math.round(atk * 12 + hp * 3 + p.lv * 20) };
+}
+
+export const RARITY = [
+  { id: 'common', name: '普通', color: '#e8e4f0', w: 58, mult: 1 },
+  { id: 'good', name: '優良', color: '#7ad35a', w: 26, mult: 1.4 },
+  { id: 'rare', name: '稀有', color: '#4fb3ff', w: 11, mult: 2 },
+  { id: 'epic', name: '史詩', color: '#c084ff', w: 4, mult: 2.9 },
+  { id: 'legend', name: '傳說', color: '#ffb03b', w: 1, mult: 4.2 },
+];
+const GEAR = {
+  weapon: { stat: 'atk', v: 2, names: ['木劍', '鐵劍', '騎士長劍', '龍牙劍', '星辰聖劍'] },
+  armor: { stat: 'hp', v: 8, names: ['布衣', '皮甲', '鎖子甲', '騎士鎧', '星辰戰鎧'] },
+  ring: { stat: 'atk', v: 1, names: ['銅戒', '銀戒', '紅玉戒', '龍眼戒', '星辰之戒'] },
+};
+export const SLOTS = ['weapon', 'armor', 'ring'];
+export const SLOT_NAME = { weapon: '武器', armor: '防具', ring: '戒指' };
+export const DROP_RATE = 0.22;
+
+export function rollGear(rand, mlv, boss = false) {
+  const slot = SLOTS[Math.floor(rand() * 3)];
+  const pool = boss ? RARITY.slice(2) : RARITY;
+  let t = rand() * pool.reduce((a, r) => a + r.w, 0);
+  let rar = pool[0];
+  for (const r of pool) { t -= r.w; if (t < 0) { rar = r; break; } }
+  const g = GEAR[slot];
+  const tier = Math.min(4, Math.floor((mlv - 1) / 2));
+  return { slot, rarity: rar.id, name: g.names[tier], stat: g.stat, val: Math.max(1, Math.round(g.v * (1 + mlv * 0.7) * rar.mult)), lv: mlv };
+}
+export const rarityOf = (id) => RARITY.find((r) => r.id === id) || RARITY[0];
+export const sellValue = (it) => Math.max(1, Math.round(it.val * 1.5));
+
+// 比身上好就自動穿上，否則自動賣掉換金幣
+export function equipIfBetter(p, it) {
+  const cur = p.gear[it.slot];
+  if (!cur || it.val > cur.val) {
+    const before = stats(p).cp;
+    p.gear[it.slot] = it;
+    return { equipped: true, before, after: stats(p).cp };
+  }
+  const sold = sellValue(it);
+  p.coins += sold;
+  return { equipped: false, sold };
+}
+
 export const FISH = [
   { id: 'carp', name: '小鯽魚', weight: 60, price: 3 },
   { id: 'trout', name: '彩虹鱒', weight: 30, price: 8 },
@@ -105,26 +156,31 @@ export function rollFish(rand) {
   return FISH[0];
 }
 
-// 經驗值結算：可能連升多級
 export function gainExp(p, amount) {
   p.exp += amount;
   let ups = 0;
   while (p.exp >= expNeed(p.lv)) { p.exp -= expNeed(p.lv); p.lv++; ups++; }
-  if (ups) p.hp = maxHp(p.lv);
+  if (ups) p.hp = stats(p).hp;
   return ups;
 }
 
 export function newPlayer() {
-  return { v: 1, lv: 1, exp: 0, hp: maxHp(1), coins: 0, potions: 1, sword: 0, fish: {}, kills: 0, quest: 0, x: SPAWN.x, y: SPAWN.y };
+  const p = { v: 2, lv: 1, exp: 0, hp: 0, coins: 0, potions: 3, sword: 0, gear: {}, fish: {}, kills: 0, quest: 0, x: SPAWN.x, y: SPAWN.y };
+  p.hp = stats(p).hp;
+  return p;
 }
+
+const validItem = (it) => it && SLOTS.includes(it.slot) && typeof it.val === 'number' && (it.stat === 'atk' || it.stat === 'hp') && typeof it.name === 'string';
 
 export function loadPlayer(raw) {
   try {
     const p = JSON.parse(raw);
-    if (!p || p.v !== 1 || !Number.isInteger(p.lv) || p.lv < 1) throw 0;
+    if (!p || (p.v !== 1 && p.v !== 2) || !Number.isInteger(p.lv) || p.lv < 1) throw 0;
     const d = newPlayer();
-    for (const k of Object.keys(d)) if (typeof p[k] !== typeof d[k]) p[k] = d[k];
-    p.hp = Math.min(Math.max(1, p.hp), maxHp(p.lv));
+    for (const k of Object.keys(d)) if (typeof p[k] !== typeof d[k] || p[k] === null) p[k] = d[k];
+    p.v = 2;
+    for (const k of Object.keys(p.gear)) if (!SLOTS.includes(k) || !validItem(p.gear[k])) delete p.gear[k];
+    p.hp = Math.min(Math.max(1, p.hp), stats(p).hp);
     return p;
   } catch { return newPlayer(); }
 }

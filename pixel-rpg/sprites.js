@@ -70,6 +70,9 @@ export const BOBBER = pad(['.kk.', 'krrk', 'kwwk', '.kk.']);
 export const BANG = pad(['.kkk.', 'kyyyk', 'kyyyk', 'kyyyk', '.kyk.', '.kkk.', 'kyyyk', '.kkk.']);
 export const HEART = pad(['.kk.kk.', 'krrkrrk', 'krwrrrk', 'krrrrrk', '.krrrk.', '..krk..', '...k...']);
 
+export const COIN = pad(['.kkkk.', 'kyyyYk', 'kywyYk', 'kyyyYk', '.kkkk.']);
+export const ORB = pad(['..kkk..', '.kxxxk.', 'kxwxxxk', 'kxxxxxk', 'kxxxxxk', '.kxxxk.', '..kkk..']);
+
 export function makeSprite(rows, pal = PAL, scale = 1) {
   const c = document.createElement('canvas');
   c.width = 16 * scale; c.height = rows.length * scale;
@@ -103,6 +106,7 @@ export function charSet(look) {
 export const SLIME_COLORS = {
   slime: { g: '#62c7e8', G: '#2f7fb3', l: '#c4f2ff' },
   berry: { g: '#e8628f', G: '#a3305d', l: '#ffc4d8', m: '#fff1a8', M: '#d9a63b' },
+  ember: { g: '#ff8a3d', G: '#b34a1f', l: '#ffd29e', m: '#fff1a8', M: '#e8502e' },
   king: { g: '#7ad35a', G: '#3a8a3a', l: '#d0ff9e' },
 };
 
