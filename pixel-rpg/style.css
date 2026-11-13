@@ -38,14 +38,15 @@ button{font-family:inherit;color:inherit}
 .dot{display:inline-block;width:.7em;height:.7em;border:2px solid #0b0816}
 .dot.gold{background:var(--gold)}
 .tools{display:flex;gap:5px}
-.tbtn{background:var(--glass);border:2px solid #ffffff33;border-radius:8px;padding:3px 9px;font-size:.8em;cursor:pointer}
+.tbtn{position:relative;background:var(--glass);border:2px solid #ffffff33;border-radius:8px;padding:3px 8px;font-size:.74em;cursor:pointer;white-space:nowrap}
+.tdot{position:absolute!important;top:-4px;right:-4px;margin:0!important}
 .bump{animation:bump .35s ease}
 @keyframes bump{40%{transform:scale(1.2)}}
 .quest{margin-top:6px;display:flex;gap:6px;align-items:center;font-size:.68em;max-width:min(78%,360px)}
 .quest span:last-child{background:var(--glass);border-radius:8px;padding:3px 8px;min-width:0}
 .qlbl{background:var(--gold);color:#2a1d2e;border-radius:6px;padding:2px 6px;flex:none}
 /* 戰鬥資訊 */
-.bossbar{position:absolute;left:18%;right:18%;top:calc(var(--st) + 118px);font-size:.7em;text-align:center;text-shadow:0 2px 0 #000}
+.bossbar{position:absolute;left:18%;right:18%;top:calc(var(--st) + 156px);font-size:.7em;text-align:center;text-shadow:0 2px 0 #000}
 .bb{height:12px;background:#140f26;border:3px solid #140f26;border-radius:6px;overflow:hidden;margin-top:2px}
 .bb i{display:block;height:100%;background:linear-gradient(90deg,#ff5a6e,#ffb03b);transition:width .2s}
 .combo{position:absolute;right:max(12px,var(--sr));top:34%;text-align:right;font-family:var(--pixel);font-size:.75em;color:#ffd166;text-shadow:0 3px 0 #2a1d2e,3px 0 0 #2a1d2e,-3px 0 0 #2a1d2e,0 -3px 0 #2a1d2e}
@@ -84,7 +85,7 @@ button{font-family:inherit;color:inherit}
 .stick::before{content:"";position:absolute;inset:-3px;border-radius:50%;background:conic-gradient(from -45deg,#ffffff18 0 25%,transparent 0 50%,#ffffff18 0 75%,transparent 0)}
 .knob{position:absolute;left:50%;top:50%;width:58px;height:58px;margin:-29px 0 0 -29px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ffffffcc,#c9c0e6aa);box-shadow:0 4px 10px #0006;transition:transform .08s}
 .stick.on .knob{transition:none}
-.acts{position:relative;width:206px;height:196px;flex:none}
+.acts{position:relative;width:232px;height:252px;flex:none}
 .acts button{position:absolute;border:0;border-radius:50%;cursor:pointer;touch-action:none;color:#fff8e7;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.1;text-shadow:0 2px 0 #0008}
 .round.a{right:0;bottom:6px;width:96px;height:96px;font-size:22px;background:radial-gradient(circle at 35% 30%,#ff8a9bee,#e8506add);box-shadow:0 5px 0 #9e2a3aaa,0 0 0 3px #ffffff33}
 .round.a.down{transform:translateY(4px) scale(.96)}
@@ -95,11 +96,11 @@ button{font-family:inherit;color:inherit}
 .skill em{font-style:normal;font-family:var(--pixel);font-size:20px;position:absolute;inset:0;display:grid;place-items:center;text-shadow:0 2px 0 #000;background:#0b081666;border-radius:50%}
 .skill em:empty{display:none}
 .skill.down{transform:translateY(3px) scale(.95)}
-.sk0{right:104px;bottom:8px}
-.sk1{right:84px;bottom:80px}
-.sk2{right:12px;bottom:112px;width:66px!important;height:66px!important}
-.pot{right:154px;bottom:100px;width:46px!important;height:46px!important;font-size:12px;background:radial-gradient(circle at 35% 30%,#8fd3ff,var(--btnB));box-shadow:0 4px 0 #2d78b3}
-.pot small{font-family:var(--pixel);font-size:14px}
+.sk0{right:104px;bottom:6px}
+.sk1{right:88px;bottom:80px}
+.sk2{right:20px;bottom:112px;width:66px!important;height:66px!important}
+.dodge{right:176px;bottom:2px;width:52px!important;height:52px!important;--c:#6b7a99}
+.dodge span{visibility:visible!important}
 .ui button:focus-visible,.panel button:focus-visible,.title button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 /* 標題、面板 */
 .title{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:linear-gradient(#140f26e0,#211a3ae8);text-align:center;padding:calc(16px + var(--st)) 16px calc(16px + var(--sb))}
@@ -144,3 +145,68 @@ button{font-family:inherit;color:inherit}
 }
 @media (max-width:360px){.stick{width:116px;height:116px}.acts{transform:scale(.9);transform-origin:right bottom}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+.prow{display:flex;gap:8px;align-items:center}
+.potbtn{background:radial-gradient(circle at 35% 30%,#8fd3ff,var(--btnB));border:0;border-radius:12px;padding:6px 12px;font-size:.72em;color:#fff;box-shadow:0 3px 0 #2d78b3;cursor:pointer}
+.potbtn small{font-family:var(--pixel);font-size:1em}
+.tdot{position:relative;display:inline-block;width:8px;height:8px;border-radius:50%;background:#ff5a6e;margin-left:4px;vertical-align:.2em}
+/* 魂像大招鍵：外圈是魂力 */
+.soulbtn{position:absolute;right:96px;bottom:150px;width:72px;height:72px;border-radius:50%;border:0;padding:0;cursor:pointer;touch-action:none;
+  background:conic-gradient(var(--sc,#e0533d) var(--fill,0%),#0b0816aa 0);box-shadow:0 0 0 3px #ffffff33;display:grid;place-items:center}
+.soulbtn i{position:absolute;inset:6px;border-radius:50%;background:#140f26;overflow:hidden;display:grid;place-items:center}
+.soulbtn i canvas{width:40px;height:50px;image-rendering:pixelated;margin-top:6px}
+.soulbtn span{position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);font-size:11px;background:#140f26;border-radius:6px;padding:0 6px;white-space:nowrap}
+.soulbtn.ready{box-shadow:0 0 0 3px var(--gold),0 0 24px var(--sc);animation:soulglow .6s ease-in-out infinite alternate}
+@keyframes soulglow{to{box-shadow:0 0 0 3px #fff,0 0 36px var(--sc)}}
+.soulbtn.down{transform:scale(.94)}
+/* 大招定格：放射線背景＋魂像＋狀聲字 */
+.cutin{position:absolute;inset:0;z-index:20;overflow:hidden;pointer-events:none;background:#0b0816cc}
+.crays{position:absolute;left:50%;top:50%;width:260vmax;height:260vmax;margin:-130vmax 0 0 -130vmax;background:repeating-conic-gradient(var(--sc) 0 4deg,transparent 4deg 11deg);opacity:.55}
+.cutin.go .crays{animation:spinr 1.2s linear}
+@keyframes spinr{to{transform:rotate(25deg)}}
+.cart2{position:absolute;right:6%;top:50%;transform:translate(0,-50%);filter:drop-shadow(8px 8px 0 #0b0816) drop-shadow(-3px 0 0 #fff)}
+.cart2 canvas{width:min(46vw,260px);height:auto;image-rendering:pixelated}
+.cutin.go .cart2{animation:slidein .35s cubic-bezier(.2,1.4,.4,1)}
+@keyframes slidein{from{transform:translate(120%,-50%) scale(1.4)}}
+.cutname{position:absolute;left:6%;bottom:26%;font-size:2em;color:#fff;text-shadow:4px 4px 0 #0b0816,-2px -2px 0 var(--sc);transform:skewX(-10deg)}
+.cutname small{display:block;font-size:.45em;color:var(--sc2);letter-spacing:.2em}
+.cutin.go .cutname{animation:slidel .4s .1s cubic-bezier(.2,1.4,.4,1) both}
+@keyframes slidel{from{transform:translateX(-140%) skewX(-10deg)}}
+.sfx{position:absolute;left:5%;top:14%;font-size:3.2em;color:var(--sc2);text-shadow:3px 0 0 #0b0816,-3px 0 0 #0b0816,0 3px 0 #0b0816,0 -3px 0 #0b0816,3px 3px 0 #0b0816,-3px -3px 0 #0b0816,3px -3px 0 #0b0816,-3px 3px 0 #0b0816,8px 8px 0 #0b0816;transform:rotate(-10deg);letter-spacing:.02em;white-space:nowrap}
+.sfx span{display:inline-block;animation:shk .12s steps(2) infinite}
+.cutin.go .sfx{animation:pop2 .3s .15s cubic-bezier(.2,1.6,.4,1) both}
+@keyframes pop2{from{transform:rotate(-10deg) scale(3);opacity:0}}
+@keyframes shk{50%{transform:translate(2px,-2px)}}
+/* 回憶：褪色 */
+.app.memory #cv{filter:sepia(.85) contrast(.95) brightness(.95)}
+/* 天賦 */
+.tgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.tcol{display:flex;flex-direction:column;gap:6px;min-width:0}
+.tcol h4{margin:0;text-align:center;font-weight:400;color:var(--gold);font-size:.85em}
+.tnode{display:flex;flex-direction:column;gap:2px;text-align:left;background:#140f26;border:2px solid var(--line);border-radius:10px;padding:6px 8px;cursor:pointer;font-size:.7em;min-width:0}
+.tnode b{font-weight:400;font-size:1.1em}
+.tnode span{color:var(--muted);font-size:.9em;line-height:1.35}
+.tnode em{font-style:normal;font-family:var(--pixel);color:var(--gold)}
+.tnode small{color:#ff8fa0;font-size:.85em}
+.tnode.on{border-color:var(--xp)}
+.tnode:disabled{opacity:.55;cursor:default}
+.tnode.locked{opacity:.4}
+.tfull{grid-column:1/-1}
+/* 魂像 */
+.soullist{display:flex;flex-direction:column;gap:8px}
+.soulcard{display:grid;grid-template-columns:48px minmax(0,1fr) auto;gap:8px;align-items:center;border:2px solid var(--line);border-radius:12px;padding:8px;background:#140f26}
+.soulcard.on{border-color:var(--sc);box-shadow:0 0 12px color-mix(in srgb,var(--sc) 60%,transparent)}
+.soulcard canvas{width:48px;height:60px;image-rendering:pixelated}
+.soulcard.locked canvas{filter:brightness(0) opacity(.5)}
+.sinfo{font-size:.7em;min-width:0}
+.sinfo b{font-weight:400;font-size:1.15em}
+.sinfo p{margin:2px 0;line-height:1.4;color:var(--ink)}
+.stype{font-size:.85em;color:#140f26;background:var(--sc);border-radius:6px;padding:0 5px}
+.stars{color:var(--gold);letter-spacing:1px}
+.soulcard .startbtn,.soulcard .ghostbtn{font-size:.7em;padding:6px 10px}
+.summonbox{border:2px dashed var(--line);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:6px;font-size:.85em}
+.summonbox p{margin:0}
+.affs{flex-basis:100%;display:flex;flex-wrap:wrap;gap:4px}
+.aff{font-size:.66em;background:#2a2148;border-radius:6px;padding:1px 6px;color:#c9f0ff}
+.loot{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:8px 0}
+.panel .chip{font-size:.8em}

@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div class="app">
+<div class="app" id="app">
   <canvas id="cv" width="390" height="844" aria-label="遊戲畫面"></canvas>
   <div class="ui" id="ui" hidden>
     <header class="hud">
@@ -25,6 +25,8 @@
         <span class="chip" id="coinBox"><i class="dot gold"></i><b id="coins">0</b></span>
         <div class="tools">
           <button id="gearBtn" class="tbtn" type="button">裝備</button>
+          <button id="soulMenuBtn" class="tbtn" type="button">魂像</button>
+          <button id="talentBtn" class="tbtn" type="button">天賦<em id="talentDot" class="tdot" hidden></em></button>
           <button id="fontBtn" class="tbtn" type="button">字級：大</button>
         </div>
       </div>
@@ -43,17 +45,41 @@
     </div>
     <div class="pad">
       <div class="padl">
-        <button id="autoBtn" class="autobtn" type="button">自動 <b>OFF</b></button>
+        <div class="prow"><button id="autoBtn" class="autobtn" type="button">自動 <b>OFF</b></button><button id="bBtn" class="potbtn" type="button" aria-label="喝藥水">藥水 <small id="potions">3</small></button></div>
         <div id="stick" class="stick" aria-label="移動搖桿"><div id="knob" class="knob"></div></div>
       </div>
       <div class="acts">
         <button id="sk2Btn" class="skill sk2" type="button"><span></span><em></em></button>
         <button id="sk1Btn" class="skill sk1" type="button"><span></span><em></em></button>
         <button id="sk0Btn" class="skill sk0" type="button"><span></span><em></em></button>
-        <button id="bBtn" class="skill pot" type="button" aria-label="喝藥水">藥水<small id="potions">3</small></button>
+        <button id="dodgeBtn" class="skill dodge" type="button" aria-label="閃避"><span>閃避</span></button>
+        <button id="soulBtn" class="soulbtn" type="button" aria-label="魂像大招" hidden><i></i><span>魂像</span></button>
         <button id="aBtn" class="round a" type="button" aria-label="攻擊（按住連續攻擊）">攻擊</button>
       </div>
     </div>
+  </div>
+  <div id="cutin" class="cutin" hidden><div class="crays"></div><div id="cutinArt" class="cart2"></div><div id="cutName" class="cutname"></div><div id="cutSfx" class="sfx"></div></div>
+  <div id="talentPanel" class="panel" hidden>
+    <h3>天賦</h3>
+    <p id="talentPts" class="small"></p>
+    <div id="talentGrid" class="tgrid"></div>
+    <div class="crow"><button id="talentReset" class="ghostbtn" type="button">全部重置</button><button id="talentClose" class="startbtn" type="button">關閉</button></div>
+  </div>
+  <div id="soulPanel" class="panel" hidden>
+    <h3>魂像</h3>
+    <div id="soulList" class="soullist"></div>
+    <div class="summonbox">
+      <div>魂石 <b id="stoneN">0</b></div>
+      <p class="small muted">星痕召喚機率：魂像 25%（千手郵差、磁極兄弟、午夜黑貓各約 8.3%），金幣與藥水 75%。保底 <b id="pityN">0</b>/8：第 8 抽必得魂像。重複的魂像會升星，大招傷害每星 +20%。</p>
+      <button id="summonBtn" class="startbtn" type="button">星痕召喚（100 魂石）</button>
+      <div id="summonRes" class="small" aria-live="polite"></div>
+    </div>
+    <button id="soulClose" class="ghostbtn" type="button">關閉</button>
+  </div>
+  <div id="offlinePanel" class="panel" hidden>
+    <h3>離線收益</h3>
+    <div id="offlineBody"></div>
+    <button id="offlineOk" class="startbtn" type="button">領取</button>
   </div>
   <div id="gearPanel" class="panel gearpanel" hidden>
     <h3>我的裝備</h3>
@@ -66,7 +92,7 @@
     <div class="title-art" id="titleArt"></div>
     <button id="startBtn" class="startbtn" type="button" hidden>繼續冒險</button>
     <button id="newBtn" class="startbtn" type="button">建立角色・開始冒險</button>
-    <p class="tip">四大職業・專屬技能・換裝外觀・自動狩獵<br>鍵盤：方向鍵移動、空白鍵攻擊、Q／E／F 技能、X 藥水、R 自動</p>
+    <p class="tip">四大職業・專屬技能・換裝外觀・自動狩獵<br>鍵盤：方向鍵移動、空白鍵攻擊、Q／E／F 技能、C 閃避、V 魂像大招、X 藥水、R 自動</p>
   </div>
   <div id="classPanel" class="panel classpanel" hidden>
     <h3>選擇職業</h3>

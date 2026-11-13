@@ -2,7 +2,10 @@ import {
   W, H, T, TOWN_EDGE, FIELD_MIN_X, BOSS_ZONE, HOUSES, NPCS, SIGN, SPAWN, INN_SPOT, buildWorld, walkable,
   MONSTERS, ROSTER, expNeed, stats, swordCost, POTION_PRICE, POTION_HEAL_PCT, FISH, rollFish, gainExp, newPlayer, loadPlayer,
   rollGear, rarityOf, rarityIdx, equipIfBetter, SLOTS, SLOT_NAME, DROP_RATE, CLASSES, CLASS_IDS,
+  TALENTS, TALENT_MAX, TALENT_REQ, talentPoints, talentSpent, canLearn, learn, resetTalents,
+  SOULS, SOUL_IDS, SUMMON_COST, SUMMON_PITY, summon, offlineReward, affixName, LV_CAP,
 } from './world.js';
+import { soulSprite, soulBig } from './soul.js';
 import { PAL, SLIME, CROWN, BOBBER, BANG, HEART, COIN, ORB, makeSprite, SLIME_COLORS, drawMap } from './sprites.js';
 import { avatar, lookOf, npcLook, AW, AH } from './avatar.js';
 
@@ -37,8 +40,8 @@ for (const r of ['common', 'good', 'rare', 'epic', 'legend']) orbS[r] = makeSpri
 let hasSave = false, P;
 try { const raw = localStorage.getItem(KEY); hasSave = !!raw; P = loadPlayer(raw); } catch { P = newPlayer(); }
 if (!walkable(grid, P.x, P.y)) { P.x = SPAWN.x; P.y = SPAWN.y; }
-const me = { x: P.x, y: P.y, px: P.x, py: P.y, fx: P.x, fy: P.y, face: 'down', moving: false, mt: 0, dur: 0.14, step: 0, atkT: 0, hurtT: 0, cool: 0 };
-function save() { P.x = me.x; P.y = me.y; hasSave = true; try { localStorage.setItem(KEY, JSON.stringify(P)); } catch { /* 無痕模式不存 */ } }
+const me = { x: P.x, y: P.y, px: P.x, py: P.y, fx: P.x, fy: P.y, face: 'down', moving: false, mt: 0, dur: 0.14, step: 0, atkT: 0, hurtT: 0, cool: 0, inv: 0, dodgeT: 0 };
+function save() { P.x = me.x; P.y = me.y; P.seen = Date.now(); hasSave = true; try { localStorage.setItem(KEY, JSON.stringify(P)); } catch { /* 無痕模式不存 */ } }
 
 const R = Math.random;
 const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
@@ -46,6 +49,8 @@ let C = CLASSES[P.cls], skills = [], myLook = null;
 let mons = [], floats = [], parts = [], drops = [], fx = [], projs = [], pending = [];
 let dialog = null, fishing = null, started = false, held = null, aHeld = false, auto = false, autoHit = false, autoCastT = 0;
 let anim = 0, regenT = 0, saveT = 0, shake = 0, freeze = 0, flash = 0, combo = 0, comboT = 0, auraT = 0;
+let soulPower = 0, cutinT = 0, pendingUlt = null, catT = 0, warns = [];
+const soulPos = { x: 0, y: 0 };
 const fmt = (n) => Math.round(n).toLocaleString('en-US');
 const cx = (o) => o.px * TS + 8, cy = (o) => o.py * TS + 8;
 
@@ -67,7 +72,7 @@ function occupied(x, y, self) {
   if (npcs.some((n) => n.x === x && n.y === y)) return true;
   return mons.some((m) => m !== self && m.dead <= 0 && m.x === x && m.y === y);
 }
-const monCanGo = (m, x, y) => walkable(grid, x, y) && x >= FIELD_MIN_X && !occupied(x, y, m) && (m.d.boss ? inBoss(x, y) : !inBoss(x, y));
+const monCanGo = (m, x, y) => walkable(grid, x, y) && x >= FIELD_MIN_X && !occupied(x, y, m) && (m.d.boss || m.minion ? inBoss(x, y) : !inBoss(x, y));
 function spawnTile(m) {
   for (let i = 0; i < 300; i++) {
     let x, y;
@@ -80,12 +85,53 @@ function spawnTile(m) {
 function placeMon(m) {
   const t = spawnTile(m);
   if (!t) { m.dead = 1; return; }
-  Object.assign(m, { x: t.x, y: t.y, px: t.x, py: t.y, fx: t.x, fy: t.y, moving: false, hp: m.d.hp, dead: 0, cool: 1, think: R() * 1.5, flash: 0, kx: 0, ky: 0, spawnT: 0.4, frozen: 0 });
+  Object.assign(m, { x: t.x, y: t.y, px: t.x, py: t.y, fx: t.x, fy: t.y, moving: false, hp: m.d.hp, dead: 0, cool: 1, think: R() * 1.5, flash: 0, kx: 0, ky: 0, spawnT: 0.4, frozen: 0, letter: 0, shield: false, phases: [], slamT: 3, spitT: 5 });
 }
 mons = ROSTER.map((type) => { const m = { type, d: MONSTERS[type], anim: R() * 2 }; placeMon(m); return m; });
 const alive = () => mons.filter((m) => m.dead <= 0);
 const tdist = (m, x, y) => Math.hypot(m.px - x, m.py - y);
 function nearest(range, from = me) { let best = null, bd = 1e9; for (const m of alive()) { const d = tdist(m, from.px, from.py); if (d <= range + (m.d.boss ? 0.6 : 0) && d < bd) { bd = d; best = m; } } return best; }
+
+const MINION = { name: '小史萊姆王', hp: 160, atk: 8, exp: 10, coin: [2, 4], lv: 8, sight: 7 };
+function spawnMinions(boss, n) {
+  let made = 0;
+  for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1], [2, 0], [-2, 0]]) {
+    if (made >= n) break;
+    const x = boss.x + dx, y = boss.y + dy;
+    if (!walkable(grid, x, y) || occupied(x, y) || !inBoss(x, y)) continue;
+    mons.push({ type: 'king', d: MINION, minion: true, anim: R() * 2, x, y, px: boss.px, py: boss.py, fx: boss.x, fy: boss.y, moving: true, mt: 0, hp: MINION.hp, dead: 0, cool: 1.2, think: 0.5, flash: 0, kx: 0, ky: 0, spawnT: 0.3, frozen: 0, letter: 0 });
+    made++;
+  }
+}
+function bossThink(m, dt) {
+  const ratio = m.hp / m.d.hp;
+  for (const th of [0.75, 0.5, 0.25]) if (ratio <= th && !m.phases.includes(th)) {
+    m.phases.push(th); spawnMinions(m, 3); m.shield = true;
+    banner('史萊姆王分裂了！'); feed('打倒<b>小史萊姆王</b>才能打破護盾', '#ff8a3d'); shake = 0.3;
+  }
+  if (m.shield && !mons.some((x) => x.minion && x.dead <= 0)) { m.shield = false; floatT('護盾破了！', m.x, m.y - 1.2, '#ffd166', 1.2); burst(cx(m), cy(m), '#bdf1ff', 24, 120); }
+  const d = tdist(m, me.px, me.py);
+  if (d > 7) return;
+  m.slamT -= dt; m.spitT -= dt;
+  if (d <= 4 && m.slamT <= 0) { m.slamT = 6; warns.push({ x: m.px, y: m.py, r: 2.2, t: 0, life: 1.1, dmg: Math.round(m.d.atk * 2.2), kind: 'slam' }); }
+  if (m.spitT <= 0) {
+    m.spitT = 8.5;
+    for (let i = 0; i < 3; i++) warns.push({ x: me.px + (i ? (R() - 0.5) * 3 : 0), y: me.py + (i ? (R() - 0.5) * 3 : 0), r: 1, t: -i * 0.15, life: 1.1, dmg: Math.round(m.d.atk * 1.5), kind: 'spit' });
+  }
+}
+function updateWarns(dt) {
+  warns = warns.filter((w) => {
+    w.t += dt;
+    if (w.t >= w.life && !w.fired) {
+      w.fired = true;
+      ring(w.x * TS + 8, w.y * TS + 8, w.r * 16 + 6, w.kind === 'slam' ? '#ff5a6e' : '#a6ec7a', 0.35, 4);
+      burst(w.x * TS + 8, w.y * TS + 8, w.kind === 'slam' ? '#ff8a9b' : '#a6ec7a', 14, 100);
+      if (w.kind === 'slam') shake = Math.max(shake, 0.25);
+      if (Math.hypot(me.px - w.x, me.py - w.y) <= w.r + 0.3) hurt(w.dmg, null);
+    }
+    return w.t < w.life + 0.15;
+  });
+}
 
 // ---------- 特效工具 ----------
 function float(text, wx, wy, color = '#fff8e7', size = 1) { floats.push({ text, x: wx, y: wy, color, size, t: 0 }); }
@@ -122,21 +168,27 @@ function hud() {
   $('hpBar').style.width = `${Math.max(0, P.hp / st.hp) * 100}%`;
   $('hpText').textContent = `${fmt(Math.max(0, P.hp))} / ${fmt(st.hp)}`;
   $('xpBar').style.width = `${(P.exp / expNeed(P.lv)) * 100}%`;
-  $('xpText').textContent = `${Math.floor((P.exp / expNeed(P.lv)) * 100)}%`;
+  $('xpText').textContent = P.lv >= LV_CAP ? 'MAX' : `${Math.floor((P.exp / expNeed(P.lv)) * 100)}%`;
   $('coins').textContent = fmt(P.coins);
   $('cp').textContent = fmt(st.cp);
   if (lastCp && st.cp !== lastCp) bump('cpBox');
   lastCp = st.cp;
   $('potions').textContent = P.potions;
+  $('stoneN') && ($('stoneN').textContent = fmt(P.stones));
+  $('talentDot').hidden = talentSpent(P) >= talentPoints(P);
   $('quest').textContent = questText();
 }
 function questText() {
-  return ['找廣場北邊的村長歐文聊聊', `打倒史萊姆 ${Math.min(P.kills, 20)} / 20，再回報村長`, `挑戰東北方的史萊姆王（建議戰鬥力 ${fmt(1800)}）`,
-    '回村子告訴村長好消息', '自由狩獵：刷傳說裝備、換上最帥的外觀'][P.quest] || '';
+  return ['第 1 章｜找廣場北邊的村長歐文聊聊', `第 1 章｜打倒史萊姆 ${Math.min(P.kills, 20)} / 20，再回報村長`, `第 1 章｜擊敗東北方的史萊姆王（建議戰力 ${fmt(2000)}）`,
+    '第 1 章｜回村子向村長報告', '第 1 章完｜第 2 章「迴聲峽谷」製作中'][P.quest] || '';
 }
 function previewCanvas(L, size = 4, dir = 'down') {
   const c = document.createElement('canvas'); c.width = AW * size; c.height = AH * size;
   const x = c.getContext('2d'); x.imageSmoothingEnabled = false; x.drawImage(avatar(L, dir, 0), 0, 0, AW * size, AH * size); return c;
+}
+function statLine() {
+  const st = stats(P);
+  return `攻擊 ${fmt(st.atk)}・生命 ${fmt(st.hp)}・暴擊 ${Math.round(st.crit * 100)}%・暴傷 ${Math.round(st.critDmg * 100)}%・攻速 ${Math.round(st.aspd * 100)}%・冷卻縮減 ${Math.round(st.cdr * 100)}%`;
 }
 function renderGear() {
   $('gearDoll').replaceChildren(previewCanvas(myLook, 4, 'down'), previewCanvas(myLook, 4, 'right'));
@@ -144,14 +196,84 @@ function renderGear() {
     const it = P.gear[s];
     if (!it) return `<div class="gslot"><span class="gname muted">${SLOT_NAME[s]}：未裝備</span></div>`;
     const r = rarityOf(it.rarity);
-    return `<div class="gslot" style="border-color:${r.color}"><span class="gtag" style="background:${r.color}">${r.name}</span><span class="gname" style="color:${r.color}">${it.name}</span><span class="gval">${it.stat === 'atk' ? '攻擊' : 'HP'} +${fmt(it.val)}</span></div>`;
-  }).join('') + `<p class="muted small">裝備稀有度越高，角色外觀越華麗：史詩有披風與翅膀，傳說會發出金色光芒。</p>`;
+    const aff = (it.affixes || []).map((a) => `<span class="aff">${affixName(a.id)} +${a.val}%</span>`).join('');
+    return `<div class="gslot" style="border-color:${r.color}"><span class="gtag" style="background:${r.color}">${r.name}</span><span class="gname" style="color:${r.color}">${it.name}</span><span class="gval">${it.stat === 'atk' ? '攻擊' : 'HP'} +${fmt(it.val)}</span>${aff ? `<div class="affs">${aff}</div>` : ''}</div>`;
+  }).join('') + `<p class="muted small">${statLine()}</p><p class="muted small">稀有以上的裝備有隨機詞綴。稀有度越高外觀越華麗：史詩有披風與翅膀，傳說會發出金色光芒。</p>`;
 }
 $('gearBtn').addEventListener('click', () => { if (!started) return; renderGear(); $('gearPanel').hidden = false; });
 $('gearClose').addEventListener('click', () => { $('gearPanel').hidden = true; });
 
+// ---------- 天賦 ----------
+function renderTalents() {
+  const left = talentPoints(P) - talentSpent(P);
+  $('talentPts').innerHTML = `可用點數 <b>${left}</b>・每升 1 級得到 1 點・重置免費`;
+  $('talentGrid').innerHTML = TALENTS.map((br, bi) => `<div class="tcol"><h4>${br.name}</h4>${br.nodes.map((n, ni) => {
+    const v = P.talents[n.id] || 0, ok = canLearn(P, bi, ni);
+    const locked = br.nodes.reduce((a, x) => a + (P.talents[x.id] || 0), 0) < TALENT_REQ[ni];
+    return `<button class="tnode${v ? ' on' : ''}${locked ? ' locked' : ''}" data-b="${bi}" data-n="${ni}" ${ok ? '' : 'disabled'} type="button"><b>${n.name}</b><span>${n.desc}</span><em>${v}/${TALENT_MAX}</em>${locked ? `<small>此分支先投 ${TALENT_REQ[ni]} 點</small>` : ''}</button>`;
+  }).join('')}</div>`).join('') + `<p class="muted small tfull">${statLine()}</p>`;
+  $('talentGrid').querySelectorAll('.tnode').forEach((b) => b.addEventListener('click', () => { if (learn(P, +b.dataset.b, +b.dataset.n)) { hud(); save(); renderTalents(); } }));
+}
+$('talentBtn').addEventListener('click', () => { if (!started) return; renderTalents(); $('talentPanel').hidden = false; });
+$('talentClose').addEventListener('click', () => { $('talentPanel').hidden = true; });
+$('talentReset').addEventListener('click', () => { resetTalents(P); hud(); save(); renderTalents(); });
+
+// ---------- 魂像 ----------
+function renderSouls() {
+  $('stoneN').textContent = fmt(P.stones);
+  $('pityN').textContent = P.pity || 0;
+  $('soulList').replaceChildren(...SOUL_IDS.map((id) => {
+    const S = SOULS[id], star = P.souls[id] || 0;
+    const card = document.createElement('div');
+    card.className = `soulcard${star ? '' : ' locked'}${P.soul === id ? ' on' : ''}`;
+    card.style.setProperty('--sc', S.color);
+    const art = soulBig(id, 2);
+    card.append(art);
+    card.insertAdjacentHTML('beforeend', `<div class="sinfo"><b>${star ? S.name : '？？？'}</b> <span class="stype">${S.type}</span> <span class="stars">${'★'.repeat(star)}${'☆'.repeat(5 - star)}</span><p>被動：${S.passive}</p><p>大招：${S.ult}</p>${star ? '' : `<p class="muted">${S.story ? '主線第 1 章取得' : '星痕召喚取得'}</p>`}</div>`);
+    if (star) {
+      const b = document.createElement('button'); b.type = 'button'; b.className = P.soul === id ? 'ghostbtn' : 'startbtn'; b.textContent = P.soul === id ? '使用中' : '裝上';
+      b.disabled = P.soul === id;
+      b.addEventListener('click', () => { P.soul = id; soulPower = 0; hud(); save(); renderSouls(); });
+      card.append(b);
+    }
+    return card;
+  }));
+}
+$('soulMenuBtn').addEventListener('click', () => { if (!started) return; $('summonRes').textContent = ''; renderSouls(); $('soulPanel').hidden = false; });
+$('soulClose').addEventListener('click', () => { $('soulPanel').hidden = true; });
+$('summonBtn').addEventListener('click', () => {
+  const r = summon(P, R);
+  if (!r.ok) { $('summonRes').textContent = r.reason; return; }
+  if (r.kind === 'soul') {
+    const S = SOULS[r.id];
+    $('summonRes').innerHTML = r.maxed ? `${S.name} 已滿星，轉換成 ${r.coins} 金幣` : r.isNew ? `<b style="color:${S.color2}">獲得新魂像【${S.name}】！</b>` : `${S.name} 升到 ${r.star} 星！大招傷害提升`;
+    if (r.isNew) { $('soulPanel').hidden = true; showCutin(r.id, '召喚'); cutinT = 1.4; pendingUlt = null; setTimeout(() => { renderSouls(); $('soulPanel').hidden = false; }, 1500); }
+  } else $('summonRes').textContent = `獲得 ${r.coins} 金幣、藥水 ×1`;
+  hud(); save(); renderSouls();
+});
+
+// ---------- 離線收益 ----------
+function checkOffline() {
+  if (!P.seen) return;
+  const r = offlineReward(P, (Date.now() - P.seen) / 60000, R);
+  if (!r) return;
+  const h = Math.floor(r.mins / 60), mm = r.mins % 60;
+  $('offlineBody').innerHTML = `<p>你離開了 <b>${h ? `${h} 小時 ` : ''}${mm} 分鐘</b>，角色在「${r.zone}」持續狩獵：</p><div class="loot"><span class="chip">擊倒 ${fmt(r.kills)} 隻</span><span class="chip">經驗 +${fmt(r.exp)}</span><span class="chip"><i class="dot gold"></i>${fmt(r.coins)}</span><span class="chip">裝備 ×${r.items.length}</span></div><p class="muted small">離線最多累積 12 小時，效率約為在線的 60%。</p>`;
+  $('offlinePanel').hidden = false;
+  $('offlineOk').onclick = () => {
+    $('offlinePanel').hidden = true;
+    const before = P.lv;
+    P.coins += r.coins;
+    let eq = 0;
+    for (const it of r.items) if (equipIfBetter(P, it).equipped) eq++;
+    if (gainExp(P, r.exp)) levelUp(before);
+    if (eq) feed(`離線撿到的裝備有 ${eq} 件比較好，已自動換上`, '#7ad35a');
+    hud(); save();
+  };
+}
+
 // ---------- 對話 ----------
-function say(name, lines, opts) { dialog = { name, lines, i: 0, opts }; showDialog(); }
+function say(name, lines, opts, onClose) { dialog = { name, lines, i: 0, opts, onClose }; showDialog(); }
 function showDialog() {
   const d = dialog;
   $('dialog').hidden = !d;
@@ -173,7 +295,9 @@ function advance() {
   if (!dialog) return;
   if (dialog.i < dialog.lines.length - 1) { dialog.i++; showDialog(); return; }
   if (dialog.opts) { $('dlgOpts').querySelector('button')?.click(); return; }
+  const done = dialog.onClose;
   dialog = null; showDialog();
+  done?.();
 }
 $('dialog').addEventListener('click', () => { if (!dialog?.opts || dialog.i < dialog.lines.length - 1) advance(); });
 
@@ -187,11 +311,16 @@ function talk(n) {
     shopMenu(nm, total ? [`我來收購你的魚，一共 ${total} 金幣！`, '還需要什麼嗎？'] : ['歡迎光臨！要買點什麼嗎？']);
   } else if (n.id === 'elder') {
     if (P.quest === 0) { P.quest = 1; P.kills = 0; say(nm, [`${P.name}，你來得正好！草原上的史萊姆多到快滿出來了。`, '過了東邊的橋就是史萊姆草原。', '幫我清掉 20 隻。懶得操作就按「自動」吧！']); }
-    else if (P.quest === 1 && P.kills >= 20) { P.quest = 2; P.coins += 200; P.potions += 3; say(nm, ['太厲害了！這是謝禮：200 金幣和 3 瓶藥水。', '東北方的空地住著史萊姆王，牠必掉稀有以上的裝備。', `戰鬥力到 ${fmt(1800)} 左右再去挑戰吧。`]); }
+    else if (P.quest === 1 && P.kills >= 20) {
+      say(nm, ['……等等，你身上那道光是怎麼回事？', '那是「星痕」！艾斯特家的血脈，終於又覺醒了！', '別怕，閉上眼睛，聽聽你靈魂的聲音——'], null, awaken);
+    }
     else if (P.quest === 1) say(nm, [`還差 ${20 - P.kills} 隻，加油！`]);
-    else if (P.quest === 2) say(nm, ['史萊姆王很硬，把大招留著對付牠。', '先刷裝備、到鐵匠鋪強化武器，再去挑戰。']);
-    else if (P.quest === 3) { P.quest = 4; P.coins += 500; say(nm, ['你真的打倒了史萊姆王！', `${P.name}，你是微光村的英雄。收下這 500 金幣吧！`]); }
-    else say(nm, ['英雄，草原上的史萊姆又長回來了，隨時去刷吧！']);
+    else if (P.quest === 2) say(nm, ['史萊姆王受傷會分裂，分裂時會張開護盾。', '先打倒小史萊姆王，護盾才會破。', '地上出現紅圈就快點「閃避」！']);
+    else if (P.quest === 3) {
+      P.coins += 500; P.stones += 200;
+      say(nm, ['你真的打倒了史萊姆王！收下這 500 金幣和 200 魂石。', '……那隻魂像，我以前見過。', '六十年前，你的曾祖父雷歐也帶著一模一樣的齒輪。', '他最後去了東邊的迴聲峽谷，就再也沒有回來。', '來，握住這塊懷錶，你會看到他的記憶。'], null, memoryCorridor);
+    }
+    else say(nm, ['迴聲峽谷的路還被落石擋著，等村裡的工匠清好就能出發。', '（第 2 章製作中）']);
   } else if (n.id === 'inn') {
     P.hp = stats(P).hp;
     say(nm, ['歡迎來到微光旅店！', '（你好好休息了一下，HP 全部恢復了）']);
@@ -201,6 +330,22 @@ function talk(n) {
     say(nm, ['想釣魚嗎？面向河邊按攻擊鍵就能拋竿。', '浮標旁邊跳出「！」的時候，馬上再按一次！', '釣到的魚可以賣給雜貨店的莉莉。']);
   }
   hud(); save();
+}
+function awaken() {
+  P.souls.gear = P.souls.gear || 1; P.soul = 'gear'; soulPower = 100; P.stones += 200; P.quest = 2;
+  showCutin('gear', '覺醒'); cutinT = 1.8; pendingUlt = null;
+  setTimeout(() => {
+    banner('獲得魂像【鏽紅齒輪】');
+    say('村長・歐文', ['……鏽紅齒輪。它能讓時間倒轉。', '魂力集滿時，按右下角發光的「魂像」鍵就能發動大招。', '我另外給你 200 魂石，可以到「魂像」選單試試星痕召喚。', '現在，你有資格挑戰史萊姆王了。']);
+    hud(); save();
+  }, 1900);
+}
+function memoryCorridor() {
+  $('app').classList.add('memory');
+  say('記憶迴廊・六十年前', ['（懷錶的指針開始倒轉，四周的顏色褪成了褐色……）', '雷歐：「齒輪，再幫我一次。只要倒轉三秒就夠了！」', '雷歐：「瓦爾德……你偷走的那些魂像，我一定會一個一個拿回來。」', '雷歐：「如果我回不來，就讓下一個艾斯特來結束這一切吧。」', '（指針停住了。你回到了微光村。）'], null, () => {
+    $('app').classList.remove('memory');
+    P.quest = 4; banner('第 1 章　完'); feed('第 2 章「迴聲峽谷」製作中，敬請期待', '#f6c945'); hud(); save();
+  });
 }
 function shopMenu(nm, lines) {
   say(nm, lines, [[`買藥水（${POTION_PRICE} 金幣）`, () => {
@@ -217,10 +362,17 @@ function smithMenu(nm, lines) {
 }
 
 // ---------- 傷害與掉落 ----------
-function hitPlayer(m) {
+function hitPlayer(m) { hurt(m.d.atk, m); }
+function hurt(raw, m) {
+  if (me.inv > 0) { floatT('閃避！', me.x, me.y - 0.4, '#bdf1ff', 0.9); return; }
   if (fishing) { fishing = null; floatT('魚跑了', me.x, me.y - 0.5, '#bdf1ff'); }
-  P.hp -= m.d.atk; me.hurtT = 0.4; shake = Math.max(shake, 0.12);
-  floatT(`-${m.d.atk}`, me.x, me.y, '#ff5a6e');
+  const dmg = Math.max(1, Math.round(raw * (1 - stats(P).dr)));
+  P.hp -= dmg; me.hurtT = 0.4; shake = Math.max(shake, 0.12);
+  floatT(`-${dmg}`, me.x, me.y, '#ff5a6e');
+  if (P.hp <= 0 && P.soul === 'cat' && P.souls.cat && catT <= 0) {
+    catT = 180; P.hp = Math.round(stats(P).hp * 0.5); me.inv = 1.2;
+    banner('九命發動！'); burst(cx(me), cy(me), '#ffe066', 24, 120); hud(); return;
+  }
   if (P.hp <= 0) {
     P.hp = stats(P).hp; auto = false; syncAuto();
     Object.assign(me, { x: INN_SPOT.x, y: INN_SPOT.y, px: INN_SPOT.x, py: INN_SPOT.y, moving: false, face: 'down' });
@@ -228,10 +380,17 @@ function hitPlayer(m) {
   } else if (auto && P.hp < stats(P).hp * 0.35 && P.potions > 0) usePotion();
   hud();
 }
-function dealDamage(m, mult, fromX = me.px, fromY = me.py, color) {
+const ultMult = () => 1 + 0.2 * ((P.souls[P.soul] || 1) - 1);
+function gainSoul(x) { if (P.soul && cutinT <= 0) soulPower = Math.min(100, soulPower + x * stats(P).soulGain); }
+function dealDamage(m, mult, fromX = me.px, fromY = me.py, color, kind = 'skill') {
   if (m.dead > 0 || m.hp <= 0) return;
-  const crit = R() < 0.15;
-  const dmg = Math.max(1, Math.round(stats(P).atk * mult * (0.85 + R() * 0.3) * (crit ? 2 : 1)));
+  if (m.shield) { if (R() < 0.35) float('護盾', cx(m), m.py * TS - 10, '#bdf1ff', 0.8); burst(cx(m), cy(m), '#bdf1ff', 3); return; }
+  const st = stats(P);
+  const crit = R() < st.crit;
+  const k = kind === 'skill' ? st.skill : kind === 'ult' ? ultMult() : 1;
+  const dmg = Math.max(1, Math.round(st.atk * mult * k * (0.85 + R() * 0.3) * (crit ? st.critDmg : 1)));
+  if (st.leech && P.hp < st.hp) P.hp = Math.min(st.hp, P.hp + Math.max(1, Math.round(dmg * st.leech)));
+  if (kind !== 'ult') gainSoul(kind === 'skill' ? 1.2 : 1.6);
   m.hp -= dmg; m.flash = 0.12;
   const a = Math.atan2(m.py - fromY, m.px - fromX);
   m.kx = Math.cos(a) * 4; m.ky = Math.sin(a) * 4;
@@ -242,27 +401,30 @@ function dealDamage(m, mult, fromX = me.px, fromY = me.py, color) {
   if (crit) shake = Math.max(shake, 0.1);
   if (m.hp <= 0) killMon(m);
 }
-function hitArea(tx, ty, radius, mult, color, each) {
-  for (const m of alive()) if (tdist(m, tx, ty) <= radius + (m.d.boss ? 0.8 : 0)) { dealDamage(m, mult, tx, ty, color); each?.(m); }
+function hitArea(tx, ty, radius, mult, color, each, kind = 'skill') {
+  for (const m of alive()) if (tdist(m, tx, ty) <= radius + (m.d.boss ? 0.8 : 0)) { dealDamage(m, mult, tx, ty, color, kind); each?.(m); }
 }
 function killMon(m) {
   const wx = cx(m), wy = cy(m);
   m.dead = m.d.boss ? 30 : 2.5;
+  gainSoul(5);
   burst(wx, wy, SLIME_COLORS[m.type].l, m.d.boss ? 40 : 14, m.d.boss ? 140 : 90);
   ring(wx, wy, m.d.boss ? 40 : 14, SLIME_COLORS[m.type].l);
   let coins = m.d.coin[0] + Math.floor(R() * (m.d.coin[1] - m.d.coin[0] + 1));
   const n = Math.min(m.d.boss ? 14 : 5, coins);
   for (let i = 0; i < n; i++) { const v = i === n - 1 ? coins : Math.floor(coins / (n - i)); coins -= v; drops.push(newDrop('coin', wx, wy, v)); }
-  const rolls = m.d.boss ? 3 : R() < DROP_RATE ? 1 : 0;
+  const rolls = m.d.boss ? 3 : m.minion ? 0 : R() < DROP_RATE ? 1 : 0;
   for (let i = 0; i < rolls; i++) drops.push(newDrop('item', wx, wy, rollGear(R, m.d.lv + Math.floor(R() * 2), m.d.boss, P.cls)));
   if (P.quest === 1 && !m.d.boss) P.kills++;
-  if (m.d.boss) { if (P.quest === 2) P.quest = 3; shake = 0.4; flash = 0.25; banner('擊敗史萊姆王！'); }
+  if (m.d.boss) { if (P.quest === 2) { P.quest = 3; P.stones += 300; feed('首次擊敗獎勵：魂石 ×300', '#c084ff'); } shake = 0.4; flash = 0.25; banner('擊敗史萊姆王！'); for (const x of mons) if (x.minion) x.dead = 1; }
   floatT(`+${m.d.exp} EXP`, m.x, m.y - 0.9, '#a6ec7a', 0.8);
   const before = P.lv;
   if (gainExp(P, m.d.exp)) levelUp(before);
   hud();
 }
 function levelUp(before) {
+  P.stones += 20 * (P.lv - before);
+  if (talentPoints(P) > talentSpent(P)) feed('獲得天賦點，到「天賦」選單分配', '#7ad35a');
   banner(`等級提升！Lv ${before} → Lv ${P.lv}`);
   const wx = cx(me), wy = cy(me);
   ring(wx, wy, 30, '#f6c945', 0.6, 3); ring(wx, wy, 18, '#fff8e7', 0.45);
@@ -297,7 +459,7 @@ function showCombo() {
 // ---------- 投射物 ----------
 function shoot(kind, ang, opt) {
   const sp = opt.speed;
-  projs.push({ kind, x: cx(me), y: cy(me) - 4, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, trav: 0, range: opt.range * TS, pierce: opt.pierce ?? 0, mult: opt.mult, r: opt.r ?? 6, hit: new Set(), home: opt.home || null, onEnd: opt.onEnd, color: opt.color });
+  projs.push({ kind, x: cx(me), y: cy(me) - 4, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, trav: 0, range: opt.range * TS, pierce: opt.pierce ?? 0, mult: opt.mult, r: opt.r ?? 6, hit: new Set(), home: opt.home || null, onEnd: opt.onEnd, color: opt.color, dk: opt.dk || 'skill' });
 }
 const faceAng = () => ({ right: 0, down: Math.PI / 2, left: Math.PI, up: -Math.PI / 2 })[me.face];
 const angTo = (m) => Math.atan2(cy(m) - (cy(me) - 4), cx(m) - cx(me));
@@ -320,7 +482,7 @@ function updateProjs(dt) {
       if (p.hit.has(m)) continue;
       if (Math.hypot(cx(m) - p.x, cy(m) - p.y) < p.r + (m.d.boss ? 12 : 6)) {
         p.hit.add(m);
-        if (p.kind !== 'fire') dealDamage(m, p.mult, (p.x - p.vx * 0.05) / TS - 0.5, (p.y - p.vy * 0.05) / TS - 0.5, p.color);
+        if (p.kind !== 'fire') dealDamage(m, p.mult, (p.x - p.vx * 0.05) / TS - 0.5, (p.y - p.vy * 0.05) / TS - 0.5, p.color, p.dk);
         if (p.pierce-- <= 0) { p.onEnd?.(p); return false; }
       }
     }
@@ -339,24 +501,25 @@ function frontTiles() {
 }
 const onTiles = (m, tiles) => tiles.some(([x, y]) => (m.d.boss ? Math.abs(m.x - x) <= 1 && Math.abs(m.y - y) <= 1 : m.x === x && m.y === y));
 function basicAttack(target) {
-  me.cool = C.cool; me.atkT = Math.min(0.18, C.cool * 0.8);
+  const aspd = stats(P).aspd;
+  me.cool = C.cool / aspd; me.atkT = Math.min(0.18, me.cool * 0.8);
   const [dx, dy] = DIRS[me.face];
   if (P.cls === 'sword') {
     addFx('slash', 0.18, { x: cx(me) + dx * 13, y: cy(me) + dy * 13 - 3, ang: faceAng(), color: '#dff6ff', size: 19 });
-    for (const m of alive()) if (onTiles(m, frontTiles())) dealDamage(m, 1);
+    for (const m of alive()) if (onTiles(m, frontTiles())) dealDamage(m, 1, me.px, me.py, null, 'basic');
   } else if (P.cls === 'monk') {
     const off = (R() - 0.5) * 8;
     addFx('punch', 0.12, { x: cx(me) + dx * 14 + (dy ? off : 0), y: cy(me) + dy * 14 - 3 + (dx ? off : 0), color: '#ffd8a8' });
     const t = [frontTiles()[0]];
-    for (const m of alive()) if (onTiles(m, t)) dealDamage(m, 1);
+    for (const m of alive()) if (onTiles(m, t)) dealDamage(m, 1, me.px, me.py, null, 'basic');
   } else if (P.cls === 'archer') {
     const m = target || nearest(C.range);
     if (m) faceToward(m);
-    shoot('arrow', m ? angTo(m) : faceAng(), { speed: 320, range: C.range + 1, mult: 1, r: 4, color: '#e8ffe0' });
+    shoot('arrow', m ? angTo(m) : faceAng(), { speed: 320, range: C.range + 1, mult: 1, r: 4, color: '#e8ffe0', dk: 'basic' });
   } else if (P.cls === 'mage') {
     const m = target || nearest(C.range);
     if (m) faceToward(m);
-    shoot('bolt', m ? angTo(m) : faceAng(), { speed: 200, range: C.range + 1.5, mult: 1, r: 5, home: m, color: '#e3d0ff' });
+    shoot('bolt', m ? angTo(m) : faceAng(), { speed: 200, range: C.range + 1.5, mult: 1, r: 5, home: m, color: '#e3d0ff', dk: 'basic' });
   }
 }
 
@@ -364,8 +527,8 @@ function basicAttack(target) {
 function castIdx(i) {
   if (!started || dialog || fishing) return;
   const s = skills[i];
-  if (!s || s.t > 0) return;
-  s.t = s.cd;
+  if (!s || s.t > 0 || cutinT > 0) return;
+  s.t = s.cd * (1 - stats(P).cdr);
   const [dx, dy] = DIRS[me.face];
   const wx = cx(me), wy = cy(me);
   me.atkT = 0.2;
@@ -484,6 +647,81 @@ function castIdx(i) {
   }
 }
 
+// ---------- 魂像大招 ----------
+function showCutin(id, label) {
+  const S = SOULS[id];
+  const el = $('cutin');
+  el.style.setProperty('--sc', S.color); el.style.setProperty('--sc2', S.color2);
+  $('cutinArt').replaceChildren(soulBig(id, 8));
+  $('cutName').innerHTML = `<small>${label || S.type}</small>${S.name}`;
+  $('cutSfx').innerHTML = [...S.sfx].map((ch, i) => `<span style="animation-delay:${i * 0.07}s">${ch}</span>`).join('');
+  el.hidden = false; el.classList.remove('go'); void el.offsetWidth; el.classList.add('go');
+}
+function castUlt() {
+  if (!started || dialog || !P.soul || soulPower < 100 || cutinT > 0) return;
+  soulPower = 0; pendingUlt = P.soul;
+  showCutin(P.soul); cutinT = 1.1;
+}
+function doUlt(id) {
+  const wx = cx(me), wy = cy(me);
+  flash = 0.18; shake = 0.35;
+  if (id === 'gear') {
+    addFx('clock', 0.9, { x: wx, y: wy });
+    hitArea(me.px, me.py, 3.2, 4, '#ffb35c', (m) => {
+      m.frozen = 2.5;
+      if (m.moving) { m.x = m.fx; m.y = m.fy; }
+      m.px = m.x; m.py = m.y; m.moving = false;
+    }, 'ult');
+  } else if (id === 'post') {
+    const ts = alive().filter((m) => Math.abs(m.px - me.px) <= 6 && Math.abs(m.py - me.py) <= 7);
+    ts.forEach((m, i) => {
+      m.letter = 1.5;
+      for (let k = 0; k < 3; k++) parts.push({ x: wx, y: wy - 10, vx: (cx(m) - wx) * 2.4 + (R() - 0.5) * 40, vy: (cy(m) - wy) * 2.4 - 30, c: k ? '#fff8e7' : '#4fa3ff', t: -i * 0.02, g: 0, size: 3, life: 0.4 });
+      pending.push({ t: 1.5, fn: () => { if (m.dead > 0) return; m.letter = 0; ring(cx(m), cy(m), 22, '#4fa3ff', 0.35, 4); addFx('boom', 0.3, { x: cx(m), y: cy(m) }); dealDamage(m, 5, me.px, me.py, '#bfe3ff', 'ult'); } });
+    });
+    pending.push({ t: 1.5, fn: () => { shake = 0.4; flash = 0.12; } });
+  } else if (id === 'magnet') {
+    const ts = alive().filter((m) => tdist(m, me.px, me.py) <= 4 + (m.d.boss ? 1 : 0));
+    addFx('pull', 0.45, { x: wx, y: wy, pts: ts.map((m) => [cx(m), cy(m)]) });
+    for (const m of ts) {
+      if (m.d.boss) continue;
+      for (let k = 0; k < 3; k++) {
+        const dx = Math.sign(me.x - m.x), dy = Math.sign(me.y - m.y), nx = m.x + (Math.abs(me.x - m.x) >= Math.abs(me.y - m.y) ? dx : 0), ny = m.y + (Math.abs(me.x - m.x) < Math.abs(me.y - m.y) ? dy : 0);
+        if (Math.abs(nx - me.x) + Math.abs(ny - me.y) < 1 || !walkable(grid, nx, ny) || occupied(nx, ny, m)) break;
+        m.x = nx; m.y = ny;
+      }
+      Object.assign(m, { fx: m.px, fy: m.py, moving: true, mt: 0 });
+    }
+    pending.push({ t: 0.45, fn: () => {
+      ring(cx(me), cy(me), 50, '#b48cff', 0.45, 6); ring(cx(me), cy(me), 32, '#ff6b8a', 0.4, 4); shake = 0.4;
+      hitArea(me.px, me.py, 2.4, 4.5, '#ffd1dc', (m) => {
+        const kx = Math.sign(m.x - me.x), ky = Math.sign(m.y - me.y);
+        if (!m.d.boss && m.dead <= 0 && !m.moving && monCanGo(m, m.x + kx, m.y + ky)) Object.assign(m, { fx: m.x, fy: m.y, x: m.x + kx, y: m.y + ky, moving: true, mt: 0 });
+      }, 'ult');
+    } });
+  } else if (id === 'cat') {
+    for (let k = 0; k < 9; k++) pending.push({ t: k * 0.07, fn: () => {
+      const a = R() * Math.PI * 2;
+      addFx('claw', 0.18, { x: cx(me) + Math.cos(a) * 14, y: cy(me) + Math.sin(a) * 12, ang: a + Math.PI / 2 });
+      hitArea(me.px, me.py, 1.7, 1, '#ffe066', null, 'ult');
+      if (k === 8) { ring(cx(me), cy(me), 36, '#ffe066', 0.4, 5); shake = 0.35; }
+    } });
+  }
+}
+function dodge() {
+  if (!started || dialog || me.dodgeT > 0 || cutinT > 0) return;
+  const dir = held || me.face, [dx, dy] = DIRS[dir];
+  if (fishing) fishing = null;
+  const path = [];
+  let x = me.x, y = me.y;
+  for (let k = 0; k < 2; k++) { const nx = x + dx, ny = y + dy; if (!walkable(grid, nx, ny) || npcs.some((n) => n.x === nx && n.y === ny)) break; x = nx; y = ny; path.push([x, y]); }
+  while (path.length && occupied(path.at(-1)[0], path.at(-1)[1])) path.pop();
+  me.face = dir; me.inv = 0.4; me.dodgeT = 3;
+  addFx('ghost', 0.3, { x: me.px, y: me.py, face: dir });
+  if (path.length) { const [ex, ey] = path.at(-1); Object.assign(me, { fx: me.px, fy: me.py, x: ex, y: ey, moving: true, mt: 0, dur: 0.18 }); }
+  burst(cx(me), cy(me) + 6, '#e8d8c0', 6, 50);
+}
+
 // ---------- 自動狩獵 ----------
 const dirTo = (x, y) => (x > me.x ? 'right' : x < me.x ? 'left' : y > me.y ? 'down' : 'up');
 let autoTarget = null;
@@ -491,7 +729,7 @@ function autoThink(dt) {
   autoHit = false; autoTarget = null;
   if (!auto || dialog || fishing || me.moving) return;
   const st = stats(P);
-  const ok = (m) => m.dead <= 0 && (m.d.boss ? P.quest >= 2 && st.cp >= 1500 : m.d.lv <= P.lv + 2);
+  const ok = (m) => m.dead <= 0 && !m.shield && (m.d.boss ? P.quest >= 2 && st.cp >= 1500 : m.d.lv <= P.lv + 2);
   const targets = mons.filter(ok);
   autoCastT -= dt;
   const near = targets.filter((m) => tdist(m, me.px, me.py) <= (C.range > 1 ? 4.5 : 2.2));
@@ -570,7 +808,7 @@ function usePotion() {
   const max = stats(P).hp;
   if (P.potions < 1) { floatT('沒有藥水了', me.x, me.y - 0.6, '#ff8fb1', 0.8); return; }
   if (P.hp >= max) { floatT('HP 已經是滿的', me.x, me.y - 0.6, '#a6ec7a', 0.8); return; }
-  const heal = Math.round(max * POTION_HEAL_PCT);
+  const heal = Math.round(max * stats(P).potion);
   P.potions--; P.hp = Math.min(max, P.hp + heal);
   floatT(`+${heal}`, me.x, me.y, '#a6ec7a'); burst(cx(me), cy(me), '#ff8fb1', 8);
   hud(); save();
@@ -597,6 +835,8 @@ stick.addEventListener('pointerup', stickEnd); stick.addEventListener('pointerca
 bindHold($('aBtn'), pressA, () => { aHeld = false; });
 bindHold($('bBtn'), usePotion);
 [0, 1, 2].forEach((i) => bindHold($(`sk${i}Btn`), () => castIdx(i)));
+bindHold($('dodgeBtn'), dodge);
+bindHold($('soulBtn'), castUlt);
 const KEYS = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', KeyW: 'up', KeyS: 'down', KeyA: 'left', KeyD: 'right' };
 addEventListener('keydown', (e) => {
   if (e.target instanceof HTMLInputElement) return;
@@ -607,6 +847,8 @@ addEventListener('keydown', (e) => {
   else if (e.code === 'KeyE') castIdx(1);
   else if (e.code === 'KeyF') castIdx(2);
   else if (e.code === 'KeyX') usePotion();
+  else if (e.code === 'KeyC' || e.code === 'ShiftLeft') dodge();
+  else if (e.code === 'KeyV') castUlt();
   else if (e.code === 'KeyR') $('autoBtn').click();
 });
 addEventListener('keyup', (e) => {
@@ -619,7 +861,7 @@ const SIZES = [['中', 17], ['大', 20], ['特大', 24]];
 let fsIdx = 1;
 try { const raw = localStorage.getItem('glimmer-fs'); if (raw !== null && SIZES[+raw]) fsIdx = +raw; } catch { /* 忽略 */ }
 const fsK = () => SIZES[fsIdx][1] / 20;
-function applyFs() { document.documentElement.style.setProperty('--fs', `${SIZES[fsIdx][1]}px`); $('fontBtn').textContent = `字級：${SIZES[fsIdx][0]}`; }
+function applyFs() { document.documentElement.style.setProperty('--fs', `${SIZES[fsIdx][1]}px`); $('fontBtn').textContent = `字 ${SIZES[fsIdx][0]}`; }
 $('fontBtn').addEventListener('click', () => { fsIdx = (fsIdx + 1) % SIZES.length; applyFs(); try { localStorage.setItem('glimmer-fs', fsIdx); } catch { /* 忽略 */ } });
 applyFs();
 
@@ -641,6 +883,9 @@ function update(dt) {
   }
   if (started && !held) autoThink(dt);
   me.atkT = Math.max(0, me.atkT - dt); me.hurtT = Math.max(0, me.hurtT - dt); me.cool = Math.max(0, me.cool - dt);
+  me.inv = Math.max(0, me.inv - dt); me.dodgeT = Math.max(0, me.dodgeT - dt); catT = Math.max(0, catT - dt);
+  updateWarns(dt);
+  { const fx2 = { up: 10, down: -12, left: 12, right: -12 }[me.face]; const tx = cx(me) + fx2, ty = cy(me) - 14 + Math.sin(anim * 3) * 2; soulPos.x += (tx - soulPos.x) * Math.min(1, dt * 6); soulPos.y += (ty - soulPos.y) * Math.min(1, dt * 6); }
   const ranged = C.range > 1;
   if ((aHeld || autoHit) && me.cool <= 0 && !dialog && !fishing && (ranged || !me.moving) && started) basicAttack(autoTarget);
   for (const s of skills) s.t = Math.max(0, s.t - dt);
@@ -648,12 +893,14 @@ function update(dt) {
   comboT -= dt;
   if (comboT <= 0 && combo) { combo = 0; $('combo').hidden = true; }
   regenT += dt;
-  if (regenT > 1) { regenT = 0; const max = stats(P).hp; if (P.hp < max) { P.hp = Math.min(max, P.hp + (me.x <= TOWN_EDGE ? Math.ceil(max * 0.08) : 1)); hud(); } }
+  if (regenT > 1) { regenT = 0; const st = stats(P), max = st.hp; if (P.hp < max) { P.hp = Math.min(max, P.hp + (me.x <= TOWN_EDGE ? Math.ceil(max * 0.08) : 1 + Math.round(max * st.regen))); hud(); } }
   pending = pending.filter((p) => { p.t -= dt; if (p.t <= 0) { p.fn(); return false; } return true; });
   updateProjs(dt);
   for (const m of mons) {
     m.anim += dt;
-    if (m.dead > 0) { m.dead -= dt; if (m.dead <= 0) placeMon(m); continue; }
+    if (m.dead > 0) { if (m.minion) continue; m.dead -= dt; if (m.dead <= 0) placeMon(m); continue; }
+    if (m.letter > 0) m.letter -= dt;
+    if (m.d.boss && started && !dialog) bossThink(m, dt);
     m.flash = Math.max(0, m.flash - dt); m.cool -= dt; m.spawnT = Math.max(0, m.spawnT - dt); m.frozen = Math.max(0, m.frozen - dt);
     m.kx *= 0.8; m.ky *= 0.8;
     if (m.moving) { step(m, m.d.boss ? 0.5 : 0.35, dt); continue; }
@@ -679,15 +926,17 @@ function update(dt) {
   const px = cx(me), py = cy(me);
   drops = drops.filter((d) => {
     d.t += dt;
-    if (d.t < 0.55) { d.x += d.vx * dt; d.y += d.vy * dt; d.vz -= 320 * dt; d.z = Math.max(0, d.z + d.vz * dt); if (d.z === 0) d.vz = Math.abs(d.vz) * 0.4; return true; }
+    const lift = P.soul === 'magnet' ? 0.3 : 0.55;
+    if (d.t < lift) { d.x += d.vx * dt; d.y += d.vy * dt; d.vz -= 320 * dt; d.z = Math.max(0, d.z + d.vz * dt); if (d.z === 0) d.vz = Math.abs(d.vz) * 0.4; return true; }
     const ax = px - d.x, ay = py - d.y, dist = Math.hypot(ax, ay);
     if (dist < 6 || d.t > 3) { collect(d); return false; }
-    const sp = 80 + (d.t - 0.55) * 400;
+    const sp = 80 + (d.t - lift) * 400;
     d.x += (ax / dist) * sp * dt; d.y += (ay / dist) * sp * dt; d.z = Math.max(0, d.z - dt * 30);
     return true;
   });
   // 傳說光環
   if (myLook?.aura) { auraT -= dt; if (auraT <= 0) { auraT = 0.08; parts.push({ x: px + (R() - 0.5) * 18, y: py + 6, vx: 0, vy: -25 - R() * 20, c: R() < 0.5 ? '#ffd75e' : '#fff3c4', t: 0, g: 0, size: 1, life: 0.7 }); } }
+  mons = mons.filter((m) => !(m.minion && m.dead > 0));
   floats = floats.filter((f) => (f.t += dt) < 0.9);
   parts = parts.filter((p) => { p.t += dt; if (p.t < 0) return true; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += (p.g ?? 240) * dt; return p.t < (p.life ?? 0.6); });
   fx = fx.filter((f) => (f.t += dt) < f.life);
@@ -699,6 +948,15 @@ function update(dt) {
   if (showBoss) $('bossFill').style.width = `${Math.max(0, boss.hp / boss.d.hp) * 100}%`;
 }
 function updateSkillUi() {
+  const sb = $('soulBtn');
+  sb.hidden = !P.soul;
+  if (P.soul) {
+    sb.style.setProperty('--fill', `${soulPower}%`); sb.style.setProperty('--sc', SOULS[P.soul].color);
+    sb.classList.toggle('ready', soulPower >= 100);
+    if (sb.dataset.id !== P.soul) { sb.dataset.id = P.soul; sb.querySelector('i').replaceChildren(soulBig(P.soul, 2)); }
+  }
+  const db = $('dodgeBtn');
+  db.style.setProperty('--p', `${(me.dodgeT / 3) * 360}deg`); db.classList.toggle('ready', me.dodgeT <= 0);
   skills.forEach((s, i) => {
     const el = $(`sk${i}Btn`);
     el.style.setProperty('--p', `${(s.t / s.cd) * 360}deg`);
@@ -726,6 +984,13 @@ function render() {
   }
   ctx.save(); ctx.translate(-camX, -camY);
   for (const f of fx) if (f.kind === 'crack' || f.kind === 'target') drawFx(f);
+  for (const w of warns) {
+    if (w.t < 0 || w.fired) continue;
+    const k = Math.min(1, w.t / w.life), X = w.x * TS + 8, Y = w.y * TS + 10;
+    ctx.fillStyle = w.kind === 'slam' ? 'rgba(255,60,80,.22)' : 'rgba(140,220,90,.22)'; ctx.beginPath(); ctx.ellipse(X, Y, w.r * 16, w.r * 11, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = w.kind === 'slam' ? 'rgba(255,60,80,.45)' : 'rgba(140,220,90,.45)'; ctx.beginPath(); ctx.ellipse(X, Y, w.r * 16 * k, w.r * 11 * k, 0, 0, 7); ctx.fill();
+    ctx.strokeStyle = w.kind === 'slam' ? '#ff5a6e' : '#7ad35a'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.ellipse(X, Y, w.r * 16, w.r * 11, 0, 0, 7); ctx.stroke();
+  }
   for (const d of drops) {
     const x = Math.round(d.x), y = Math.round(d.y - d.z);
     if (d.kind === 'item') {
@@ -738,6 +1003,7 @@ function render() {
     ...npcs.map((n) => ({ y: n.y, f: () => drawPerson(avatar(n.L, n.face, 0), n.x * TS, n.y * TS - (Math.floor(anim * 1.6 + n.seed) % 2)) })),
     ...alive().map((m) => ({ y: m.py, f: () => drawMon(m) })),
     { y: me.py + 0.01, f: drawMe },
+    ...(P.soul && started ? [{ y: (soulPos.y + 14 - 8) / TS + 0.02, f: () => { ctx.globalAlpha = 0.9; ctx.drawImage(soulSprite(P.soul, Math.floor(anim * 2) % 2), Math.round(soulPos.x - 12), Math.round(soulPos.y - 22)); ctx.globalAlpha = 1; } }] : []),
   ].sort((a, b) => a.y - b.y);
   ents.forEach((e) => e.f());
   for (const p of projs) drawProj(p);
@@ -783,8 +1049,10 @@ function drawMe() {
   const x = Math.round(me.px * TS), y = Math.round(me.py * TS);
   const frame = me.atkT > 0 ? 2 : me.moving ? ((me.mt > 0.5 ? 1 : 0) ^ me.step) : 0;
   if (me.hurtT > 0 && Math.floor(me.hurtT * 20) % 2) { shadow(x, y); return; }
+  if (me.inv > 0) ctx.globalAlpha = 0.6;
   if (myLook?.aura) { ctx.globalAlpha = 0.25 + Math.sin(anim * 4) * 0.08; ctx.fillStyle = '#ffd75e'; ctx.beginPath(); ctx.ellipse(x + 8, y + 15, 12, 4, 0, 0, 7); ctx.fill(); ctx.globalAlpha = 1; }
   drawPerson(avatar(myLook, me.face, frame), x, y);
+  ctx.globalAlpha = 1;
 }
 function drawMon(m) {
   const x = Math.round(m.px * TS + m.kx), y = Math.round(m.py * TS + m.ky);
@@ -805,6 +1073,9 @@ function drawMon(m) {
     ctx.strokeStyle = '#e6f8ff'; ctx.lineWidth = 1; ctx.strokeRect(ox + 0.5, oy + 0.5, s - 1, s - 3);
     ctx.fillStyle = '#fff'; ctx.fillRect(ox + 2, oy + 2, 2, 1);
   }
+  if (m.shield) { ctx.strokeStyle = 'rgba(189,241,255,.9)'; ctx.lineWidth = 1.5; ctx.fillStyle = 'rgba(189,241,255,.18)'; ctx.beginPath(); ctx.arc(x + 8, y + 2, 22 + Math.sin(anim * 6), 0, 7); ctx.fill(); ctx.stroke(); }
+  if (m.letter > 0) { const ly = y - (big ? 22 : 8) - Math.sin(anim * 8) * 1.5; ctx.fillStyle = '#241a2b'; ctx.fillRect(x + 3, ly - 1, 11, 9); ctx.fillStyle = '#fff8e7'; ctx.fillRect(x + 4, ly, 9, 7); ctx.fillStyle = '#e0533d'; ctx.fillRect(x + 7, ly + 2, 3, 3); }
+  if (m.minion) { ctx.drawImage(crownS, x, y - 2, 16, 6); }
   if (m.hp < m.d.hp && !big) {
     const w = 12, bx = x + 2, by = y + 2;
     ctx.fillStyle = '#2a1d2e'; ctx.fillRect(bx - 1, by - 1, w + 2, 4);
@@ -916,6 +1187,31 @@ function drawFx(f) {
       ctx.fillStyle = '#ffe08a'; ctx.beginPath(); ctx.arc(f.x, f.y, 6 + 12 * k, 0, 7); ctx.fill();
       break;
     }
+    case 'clock': {
+      const r = 10 + 44 * Math.min(1, k * 2);
+      ctx.globalAlpha = 1 - k * 0.8; ctx.strokeStyle = '#ffb35c'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(f.x, f.y, r, 0, 7); ctx.stroke();
+      ctx.fillStyle = 'rgba(224,83,61,.15)'; ctx.beginPath(); ctx.arc(f.x, f.y, r, 0, 7); ctx.fill();
+      for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2; ctx.fillStyle = '#fff1a8'; ctx.fillRect(f.x + Math.cos(a) * (r - 5) - 1, f.y + Math.sin(a) * (r - 5) - 1, 3, 3); }
+      const h = -k * Math.PI * 6;
+      ctx.strokeStyle = '#fff8e7'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(f.x, f.y); ctx.lineTo(f.x + Math.cos(h) * r * 0.8, f.y + Math.sin(h) * r * 0.8); ctx.stroke();
+      ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(f.x, f.y); ctx.lineTo(f.x + Math.cos(h * 0.2) * r * 0.5, f.y + Math.sin(h * 0.2) * r * 0.5); ctx.stroke();
+      break;
+    }
+    case 'pull': {
+      ctx.globalAlpha = 1 - k;
+      for (const [x, y] of f.pts) { ctx.strokeStyle = '#b48cff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(f.x + (x - f.x) * k, f.y + (y - f.y) * k); ctx.stroke(); ctx.strokeStyle = '#ff6b8a'; ctx.lineWidth = 1.5; ctx.stroke(); }
+      ctx.strokeStyle = '#ff6b8a'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(f.x, f.y, 60 * (1 - k) + 6, 0, 7); ctx.stroke();
+      break;
+    }
+    case 'claw': {
+      ctx.globalAlpha = 1 - k; ctx.strokeStyle = '#ffe066'; ctx.lineWidth = 2.5;
+      for (let i = -1; i <= 1; i++) { const ox = Math.cos(f.ang + Math.PI / 2) * i * 5, oy = Math.sin(f.ang + Math.PI / 2) * i * 5; ctx.beginPath(); ctx.moveTo(f.x + ox - Math.cos(f.ang) * 14, f.y + oy - Math.sin(f.ang) * 14); ctx.lineTo(f.x + ox + Math.cos(f.ang) * 14, f.y + oy + Math.sin(f.ang) * 14); ctx.stroke(); }
+      break;
+    }
+    case 'ghost': {
+      ctx.globalAlpha = 0.45 * (1 - k); ctx.drawImage(avatar(myLook, f.face, 1), Math.round(f.x * TS) - 4, Math.round(f.y * TS) - 17);
+      break;
+    }
     case 'pillar': {
       ctx.globalAlpha = (1 - k) * 0.55; ctx.fillStyle = f.color;
       const w = 18 * (1 - k * 0.5); ctx.fillRect(f.x - w / 2, f.y - 80, w, 84);
@@ -934,6 +1230,11 @@ function frame(t) {
   let dt = Math.min(0.1, (t - last) / 1000 || 0);
   last = t;
   if (document.hidden) return;
+  if (cutinT > 0) {
+    cutinT -= dt; render();
+    if (cutinT <= 0) { $('cutin').hidden = true; if (pendingUlt) { doUlt(pendingUlt); pendingUlt = null; } }
+    return;
+  }
   if (freeze > 0) { freeze -= dt; dt *= 0.15; }
   update(dt);
   updateSkillUi();
@@ -948,6 +1249,7 @@ function start() {
   $('title').hidden = true; $('classPanel').hidden = true;
   $('ui').hidden = false;
   setupClass(); hud();
+  checkOffline();
   if (P.quest === 0 && P.lv === 1) say('村長・歐文', [`歡迎來到微光村，${C.name}${P.name}！`, '按住紅色「攻擊」鍵連續攻擊，旁邊三顆是職業專屬技能。', '懶得操作就按左上的「自動」，角色會自己去打怪！', '先來廣場北邊找我說話吧。']);
 }
 function buildClassGrid() {
@@ -970,6 +1272,7 @@ $('newBtn').addEventListener('click', () => { buildClassGrid(); $('overwriteNote
 $('classBack').addEventListener('click', () => { $('classPanel').hidden = true; $('title').hidden = false; });
 $('classGo').addEventListener('click', () => {
   P = newPlayer(pickCls, $('nameInput').value.trim() || '冒險者');
+  soulPower = 0;
   Object.assign(me, { x: P.x, y: P.y, px: P.x, py: P.y, fx: P.x, fy: P.y, moving: false, face: 'down' });
   drops = []; projs = []; pending = []; fx = [];
   save(); start();

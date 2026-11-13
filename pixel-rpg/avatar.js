@@ -30,12 +30,15 @@ export function lookOf(p, CLASSES, rarityIdx) {
   const wr = g.weapon ? rarityIdx(g.weapon.rarity) : 0;
   const hr = g.helm ? rarityIdx(g.helm.rarity) : -1;
   const legend = Object.values(g).some((it) => it && it.rarity === 'legend');
+  const gl = g.gloves ? rarityIdx(g.gloves.rarity) : -1, bt = g.boots ? rarityIdx(g.boots.rarity) : -1;
   return {
     hair: c.hair, outfit, trimClass: c.color,
     cape: ar >= 3 ? (ar === 4 ? '#d64550' : c.color) : null,
     helm: hr >= 0 ? { style: c.helm, color: HELM[hr], tier: hr } : null,
     weapon: { type: c.weapon, color: METAL[wr], tier: wr },
     aura: legend,
+    gloves: gl >= 0 ? HELM[gl] : null,
+    boots: bt >= 0 ? HELM[bt] : null,
   };
 }
 export const npcLook = (n) => ({ hair: n.look.hair, outfit: { main: n.look.tunic, dark: n.look.tunicD, trim: n.look.band }, trimClass: n.look.band, cape: null, helm: null, weapon: null });
@@ -135,6 +138,7 @@ export function avatar(L, dir, frame) {
     // 腿
     if (step) { P.r(8, 25, 3, 6, o.dark); P.r(14, 26, 3, 5, o.dark); } else { P.r(10, 26, 3, 5, o.dark); P.r(13, 26, 3, 5, o.dark); }
     P.flush();
+    if (L.boots) { if (step) { px(8, 29, 3, 2, L.boots); px(14, 29, 3, 2, L.boots); } else { px(10, 29, 3, 2, L.boots); px(13, 29, 3, 2, L.boots); } }
     // 身體
     P.r(8, 17, 9, 10, o.main); P.flush();
     px(8, 24, 9, 1, o.dark); px(15, 18, 1, 6, o.trim);
@@ -149,7 +153,7 @@ export function avatar(L, dir, frame) {
       px(atk ? 22 : 11, atk ? 18 : 24, 2, 1, mix(L.weapon.color, 0.5));
     } else {
       drawWeapon(P, px, L, 'side', atk);
-      P.r(atk ? 13 : 11, 18, 3, 6, o.main); P.r(atk ? 13 : 11, 23, 3, 2, SKIN); P.flush();
+      P.r(atk ? 13 : 11, 18, 3, 6, o.main); P.r(atk ? 13 : 11, 23, 3, 2, L.gloves || SKIN); P.flush();
     }
   } else {
     const back = d === 'up';
@@ -158,11 +162,12 @@ export function avatar(L, dir, frame) {
     // 腿
     if (step) { P.r(8, 25, 3, 5, o.dark); P.r(13, 26, 3, 5, o.dark); } else { P.r(8, 26, 3, 5, o.dark); P.r(13, 26, 3, 5, o.dark); }
     P.flush();
-    px(8, step ? 28 : 29, 3, 2, mix(o.dark, -0.35)); px(13, 29, 3, 2, mix(o.dark, -0.35));
+    const bootC = L.boots || mix(o.dark, -0.35);
+    px(8, step ? 28 : 29, 3, 2, bootC); px(13, 29, 3, 2, bootC);
     // 身體＋手
     P.r(7, 17, 10, 10, o.main);
     if (L.weapon?.type === 'fist') { P.r(4, 18, 3, 6, o.main); P.r(17, 18, 3, 6, o.main); P.r(3, 23, 5, 5, L.weapon.color); P.r(16, atk ? 21 : 23, 5, 5, L.weapon.color); }
-    else { P.r(4, 18, 3, 7, o.main); P.r(17, 18, 3, 7, o.main); P.r(4, 24, 3, 2, SKIN); P.r(17, 24, 3, 2, SKIN); }
+    else { P.r(4, 18, 3, 7, o.main); P.r(17, 18, 3, 7, o.main); P.r(4, 24, 3, 2, L.gloves || SKIN); P.r(17, 24, 3, 2, L.gloves || SKIN); }
     P.flush();
     px(7, 24, 10, 1, o.dark); px(9, 17, 6, 1, o.trim);
     if (!back) { px(11, 18, 2, 6, o.trim); px(11, 24, 2, 1, '#f6c945'); }

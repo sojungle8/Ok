@@ -88,7 +88,7 @@ export const MONSTERS = {
   slime: { name: '露珠史萊姆', hp: 8, atk: 2, exp: 4, coin: [2, 5], lv: 1, sight: 3, zone: [21, 28] },
   berry: { name: '莓果史萊姆', hp: 24, atk: 5, exp: 12, coin: [5, 10], lv: 4, sight: 4, zone: [27, 33] },
   ember: { name: '餘燼史萊姆', hp: 55, atk: 9, exp: 28, coin: [10, 18], lv: 7, sight: 4, zone: [32, 38] },
-  king: { name: '史萊姆王', hp: 420, atk: 13, exp: 320, coin: [150, 250], lv: 9, sight: 5, boss: true },
+  king: { name: '史萊姆王', hp: 6000, atk: 18, exp: 600, coin: [150, 250], lv: 9, sight: 5, boss: true },
 };
 export const ROSTER = [...Array(10).fill('slime'), ...Array(8).fill('berry'), ...Array(6).fill('ember'), 'king'];
 export const expNeed = (lv) => 10 + lv * lv * 6;
@@ -130,13 +130,93 @@ export const CLASSES = {
 };
 export const CLASS_IDS = Object.keys(CLASSES);
 
+// ---- 天賦樹：三條分支，每格最多 3 點；第 2、3 格要先在該分支投 2、4 點 ----
+export const TALENTS = [
+  { id: 'atk', name: '攻擊', nodes: [
+    { id: 'might', name: '力量', desc: '攻擊力 +5%' },
+    { id: 'precision', name: '精準', desc: '暴擊率 +3%' },
+    { id: 'ferocity', name: '兇猛', desc: '暴擊傷害 +15%' }] },
+  { id: 'guard', name: '生存', nodes: [
+    { id: 'vigor', name: '體魄', desc: '生命 +6%' },
+    { id: 'recover', name: '恢復', desc: '藥水回復 +10%，每秒回血 +0.3%' },
+    { id: 'iron', name: '鐵壁', desc: '受到傷害 -5%' }] },
+  { id: 'arts', name: '技藝', nodes: [
+    { id: 'haste', name: '迅捷', desc: '攻擊速度 +5%' },
+    { id: 'focus', name: '專注', desc: '技能冷卻 -5%' },
+    { id: 'resonance', name: '共鳴', desc: '魂力累積 +15%' }] },
+];
+export const TALENT_MAX = 3, TALENT_REQ = [0, 2, 4];
+export const talentPoints = (p) => Math.max(0, p.lv - 1);
+export const talentSpent = (p) => Object.values(p.talents || {}).reduce((a, b) => a + b, 0);
+export function canLearn(p, branchIdx, nodeIdx) {
+  const br = TALENTS[branchIdx], node = br?.nodes[nodeIdx];
+  if (!node) return false;
+  const cur = p.talents[node.id] || 0;
+  const inBranch = br.nodes.reduce((a, n) => a + (p.talents[n.id] || 0), 0);
+  return cur < TALENT_MAX && talentSpent(p) < talentPoints(p) && inBranch >= TALENT_REQ[nodeIdx];
+}
+export function learn(p, branchIdx, nodeIdx) {
+  if (!canLearn(p, branchIdx, nodeIdx)) return false;
+  const id = TALENTS[branchIdx].nodes[nodeIdx].id;
+  p.talents[id] = (p.talents[id] || 0) + 1;
+  return true;
+}
+export function resetTalents(p) { p.talents = {}; }
+
+// ---- 魂像 ----
+export const SOULS = {
+  gear: { name: '鏽紅齒輪', type: '規則型', color: '#e0533d', color2: '#ffb35c', passive: '技能冷卻 -12%', ult: '時間倒轉：3 格內的敵人被拉回原位並凍結 2.5 秒，受到 4 倍傷害', sfx: '喀嚓喀嚓', story: true },
+  post: { name: '千手郵差', type: '遠隔型', color: '#4fa3ff', color2: '#fff1a8', passive: '暴擊率 +8%', ult: '郵件轟炸：畫面內所有敵人被貼上信件，1.5 秒後同時爆炸，5 倍傷害', sfx: '咻咻咻' },
+  magnet: { name: '磁極兄弟', type: '力量型', color: '#b48cff', color2: '#ff6b8a', passive: '攻擊 +8%，撿東西範圍變大', ult: '先把 4 格內的敵人吸到身邊，再一口氣彈飛，4.5 倍傷害', sfx: '嗡嗡嗡' },
+  cat: { name: '午夜黑貓', type: '力量型', color: '#3b3350', color2: '#ffe066', passive: '受到致命傷時復活一次（冷卻 3 分鐘）', ult: '九命爪擊：在身邊連斬 9 次，每次 1 倍傷害', sfx: '喵喵喵' },
+};
+export const SOUL_IDS = Object.keys(SOULS);
+export const SUMMON_COST = 100, SUMMON_SOUL_RATE = 0.25, SUMMON_PITY = 8, SOUL_MAX_STAR = 5;
+// 召喚：25% 抽到魂像（三隻平均），第 8 抽保底；重複的魂像升星
+export function summon(p, rand) {
+  if (p.stones < SUMMON_COST) return { ok: false, reason: `魂石不足（需要 ${SUMMON_COST}）` };
+  p.stones -= SUMMON_COST;
+  p.pity = (p.pity || 0) + 1;
+  const pool = SOUL_IDS.filter((id) => !SOULS[id].story);
+  if (p.pity >= SUMMON_PITY || rand() < SUMMON_SOUL_RATE) {
+    p.pity = 0;
+    const id = pool[Math.floor(rand() * pool.length)];
+    const had = p.souls[id] || 0;
+    if (had >= SOUL_MAX_STAR) { p.coins += 500; return { ok: true, kind: 'soul', id, star: had, maxed: true, coins: 500 }; }
+    p.souls[id] = had + 1;
+    return { ok: true, kind: 'soul', id, star: had + 1, isNew: !had };
+  }
+  const coins = 150 + Math.floor(rand() * 250);
+  p.coins += coins; p.potions += 1;
+  return { ok: true, kind: 'loot', coins };
+}
+
 export function stats(p) {
   const c = CLASSES[p.cls] || CLASSES.sword;
+  const t = p.talents || {};
+  const tv = (id) => t[id] || 0;
+  const aff = { crit: 0, aspd: 0, skill: 0, leech: 0, hpPct: 0, soul: 0 };
   let atk = (baseAtk(p.lv) + p.sword * 3) * c.atkMul, hp = baseHp(p.lv) * c.hpMul;
-  for (const it of Object.values(p.gear || {})) { if (!it) continue; if (it.stat === 'atk') atk += it.val * c.atkMul; else hp += it.val; }
+  for (const it of Object.values(p.gear || {})) {
+    if (!it) continue;
+    if (it.stat === 'atk') atk += it.val * c.atkMul; else hp += it.val;
+    for (const a of it.affixes || []) if (a.id in aff) aff[a.id] += a.val;
+  }
+  const soul = p.soul && p.souls?.[p.soul] ? p.soul : null;
+  atk *= 1 + 0.05 * tv('might') + (soul === 'magnet' ? 0.08 : 0);
+  hp *= 1 + 0.06 * tv('vigor') + aff.hpPct / 100;
+  const crit = Math.min(0.75, 0.1 + 0.03 * tv('precision') + aff.crit / 100 + (soul === 'post' ? 0.08 : 0));
+  const critDmg = 2 + 0.15 * tv('ferocity');
+  const aspd = 1 + 0.05 * tv('haste') + aff.aspd / 100;
+  const cdr = Math.min(0.5, 0.05 * tv('focus') + (soul === 'gear' ? 0.12 : 0));
   atk = Math.round(atk); hp = Math.round(hp);
-  // 戰鬥力用「每秒傷害」估算，讓不同攻速的職業可以比較
-  return { atk, hp, cp: Math.round((atk / c.cool) * 3 + hp * 3 + p.lv * 20) };
+  const dps = (atk * aspd / c.cool) * (1 + crit * (critDmg - 1));
+  return {
+    atk, hp, crit, critDmg, aspd, cdr,
+    skill: 1 + aff.skill / 100, leech: aff.leech / 100, soulGain: 1 + 0.15 * tv('resonance') + aff.soul / 100,
+    dr: 0.05 * tv('iron'), regen: 0.003 * tv('recover'), potion: 0.5 + 0.1 * tv('recover'),
+    cp: Math.round(dps * 3 + hp * 3 + p.lv * 20 + (soul ? 150 * (p.souls[soul] || 1) : 0)),
+  };
 }
 
 export const RARITY = [
@@ -149,13 +229,24 @@ export const RARITY = [
 export const rarityIdx = (id) => Math.max(0, RARITY.findIndex((r) => r.id === id));
 const GEAR = {
   weapon: { stat: 'atk', v: 2 },
-  armor: { stat: 'hp', v: 8, names: ['布衣', '皮甲', '鎖子甲', '騎士鎧', '星辰戰鎧'] },
   helm: { stat: 'hp', v: 5 },
+  armor: { stat: 'hp', v: 8, names: ['布衣', '皮甲', '鎖子甲', '騎士鎧', '星辰戰鎧'] },
+  gloves: { stat: 'atk', v: 1.2, names: ['布護腕', '皮護腕', '鐵護腕', '龍鱗護腕', '星辰護腕'] },
+  boots: { stat: 'hp', v: 4, names: ['布鞋', '皮靴', '鐵靴', '疾風靴', '星辰戰靴'] },
   ring: { stat: 'atk', v: 1, names: ['銅戒', '銀戒', '紅玉戒', '龍眼戒', '星辰之戒'] },
 };
-export const SLOTS = ['weapon', 'helm', 'armor', 'ring'];
-export const SLOT_NAME = { weapon: '武器', helm: '頭部', armor: '防具', ring: '戒指' };
+export const SLOTS = ['weapon', 'helm', 'armor', 'gloves', 'boots', 'ring'];
+export const SLOT_NAME = { weapon: '武器', helm: '頭部', armor: '身體', gloves: '手部', boots: '腳部', ring: '飾品' };
 export const DROP_RATE = 0.22;
+export const AFFIXES = [
+  { id: 'crit', name: '暴擊率', lo: 3, hi: 8 },
+  { id: 'aspd', name: '攻擊速度', lo: 4, hi: 10 },
+  { id: 'skill', name: '技能傷害', lo: 6, hi: 15 },
+  { id: 'leech', name: '吸血', lo: 1, hi: 3 },
+  { id: 'hpPct', name: '生命', lo: 4, hi: 10 },
+  { id: 'soul', name: '魂力累積', lo: 8, hi: 20 },
+];
+export const affixName = (id) => AFFIXES.find((a) => a.id === id)?.name || id;
 
 export function rollGear(rand, mlv, boss = false, cls = 'sword') {
   const slot = SLOTS[Math.floor(rand() * SLOTS.length)];
@@ -165,16 +256,22 @@ export function rollGear(rand, mlv, boss = false, cls = 'sword') {
   for (const r of pool) { t -= r.w; if (t < 0) { rar = r; break; } }
   const g = GEAR[slot];
   const names = g.names || (CLASSES[cls] || CLASSES.sword).names[slot];
-  // 外觀跟稀有度走：稀有度越高，名字和外觀越華麗
   const tier = rarityIdx(rar.id);
-  return { slot, rarity: rar.id, name: names[tier], stat: g.stat, val: Math.max(1, Math.round(g.v * (1 + mlv * 0.7) * rar.mult)), lv: mlv };
+  // 稀有 1 條、史詩 2 條、傳說 3 條隨機詞綴，不重複
+  const left = [...AFFIXES], affixes = [];
+  for (let i = 0; i < Math.max(0, tier - 1); i++) {
+    const a = left.splice(Math.floor(rand() * left.length), 1)[0];
+    affixes.push({ id: a.id, val: a.lo + Math.floor(rand() * (a.hi - a.lo + 1)) });
+  }
+  return { slot, rarity: rar.id, name: names[tier], stat: g.stat, val: Math.max(1, Math.round(g.v * (1 + mlv * 0.7) * rar.mult)), lv: mlv, affixes };
 }
+export const itemPower = (it) => it.val * (1 + 0.12 * (it.affixes?.length || 0));
 export const rarityOf = (id) => RARITY.find((r) => r.id === id) || RARITY[0];
 export const sellValue = (it) => Math.max(1, Math.round(it.val * 1.5));
 
 export function equipIfBetter(p, it) {
   const cur = p.gear[it.slot];
-  if (!cur || it.val > cur.val) {
+  if (!cur || itemPower(it) > itemPower(cur)) {
     const before = stats(p).cp;
     p.gear[it.slot] = it;
     return { equipped: true, before, after: stats(p).cp };
@@ -195,16 +292,32 @@ export function rollFish(rand) {
   return FISH[0];
 }
 
+export const LV_CAP = 15; // 第 1 章等級上限，之後每章提高
 export function gainExp(p, amount) {
   p.exp += amount;
   let ups = 0;
-  while (p.exp >= expNeed(p.lv)) { p.exp -= expNeed(p.lv); p.lv++; ups++; }
+  while (p.lv < LV_CAP && p.exp >= expNeed(p.lv)) { p.exp -= expNeed(p.lv); p.lv++; ups++; }
+  if (p.lv >= LV_CAP) p.exp = 0;
   if (ups) p.hp = stats(p).hp;
   return ups;
 }
 
+// ---- 離線掛機：最多 12 小時，效率約為在線的 60% ----
+export const OFFLINE_MAX_MIN = 720;
+export function offlineReward(p, minutes, rand) {
+  const mins = Math.min(OFFLINE_MAX_MIN, Math.floor(minutes));
+  if (mins < 1) return null;
+  const zone = Object.values(MONSTERS).filter((m) => !m.boss && m.lv <= p.lv).sort((a, b) => b.lv - a.lv)[0] || MONSTERS.slime;
+  const kills = Math.floor(mins * 4);
+  const exp = kills * zone.exp;
+  const coins = Math.round(kills * (zone.coin[0] + zone.coin[1]) / 2);
+  const items = [];
+  for (let i = 0; i < Math.min(8, Math.floor(kills * 0.01)); i++) items.push(rollGear(rand, zone.lv, false, p.cls));
+  return { mins, kills, exp, coins, items, zone: zone.name };
+}
+
 export function newPlayer(cls = 'sword', name = '冒險者') {
-  const p = { v: 3, cls: CLASSES[cls] ? cls : 'sword', name: String(name).slice(0, 8) || '冒險者', lv: 1, exp: 0, hp: 0, coins: 0, potions: 3, sword: 0, gear: {}, fish: {}, kills: 0, quest: 0, x: SPAWN.x, y: SPAWN.y };
+  const p = { v: 4, cls: CLASSES[cls] ? cls : 'sword', name: String(name).slice(0, 8) || '冒險者', lv: 1, exp: 0, hp: 0, coins: 0, potions: 3, sword: 0, gear: {}, fish: {}, kills: 0, quest: 0, talents: {}, souls: {}, soul: '', stones: 0, pity: 0, seen: 0, x: SPAWN.x, y: SPAWN.y };
   p.hp = stats(p).hp;
   return p;
 }
@@ -214,10 +327,13 @@ const validItem = (it) => it && SLOTS.includes(it.slot) && typeof it.val === 'nu
 export function loadPlayer(raw) {
   try {
     const p = JSON.parse(raw);
-    if (!p || ![1, 2, 3].includes(p.v) || !Number.isInteger(p.lv) || p.lv < 1) throw 0;
+    if (!p || ![1, 2, 3, 4].includes(p.v) || !Number.isInteger(p.lv) || p.lv < 1) throw 0;
     const d = newPlayer(p.cls, p.name);
     for (const k of Object.keys(d)) if (typeof p[k] !== typeof d[k] || p[k] === null) p[k] = d[k];
-    p.v = 3;
+    p.v = 4;
+    for (const it of Object.values(p.gear)) if (it && typeof it === 'object' && !Array.isArray(it.affixes)) it.affixes = [];
+    for (const k of Object.keys(p.souls)) if (!SOULS[k]) delete p.souls[k];
+    if (p.soul && !p.souls[p.soul]) p.soul = '';
     if (!CLASSES[p.cls]) p.cls = 'sword';
     for (const k of Object.keys(p.gear)) if (!SLOTS.includes(k) || !validItem(p.gear[k])) delete p.gear[k];
     p.hp = Math.min(Math.max(1, p.hp), stats(p).hp);
