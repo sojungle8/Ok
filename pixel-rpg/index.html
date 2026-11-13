@@ -11,7 +11,7 @@
 <body>
 <div class="app">
   <header class="hud">
-    <div class="lvbox"><span class="lbl">Lv</span><b id="lv">1</b></div>
+    <div class="lvbox"><span class="lbl" id="clsName">劍士</span><b id="lv">1</b></div>
     <div class="bars">
       <div class="bar hp"><i id="hpBar"></i><span><em>HP</em> <b id="hpText">0</b></span></div>
       <div class="bar xp"><i id="xpBar"></i><span><em>EXP</em> <b id="xpText">0%</b></span></div>
@@ -41,14 +41,23 @@
     </div>
     <div id="gearPanel" class="gearpanel" hidden>
       <h3>我的裝備</h3>
+      <div id="gearDoll" class="doll"></div>
       <div id="gearList"></div>
       <button id="gearClose" class="startbtn" type="button">關閉</button>
     </div>
     <div id="title" class="title">
       <div class="logo">微光大陸<small>GLIMMERLAND</small></div>
       <div class="title-art" id="titleArt"></div>
-      <button id="startBtn" class="startbtn" type="button">開始冒險</button>
-      <p class="tip">按住「攻擊」連續砍・技能清怪・開「自動」掛機刷寶<br>鍵盤：方向鍵移動、空白鍵攻擊、Q／E 技能、X 藥水、R 自動</p>
+      <button id="startBtn" class="startbtn" type="button" hidden>繼續冒險</button>
+      <button id="newBtn" class="startbtn" type="button">建立角色・開始冒險</button>
+      <p class="tip">四大職業・專屬技能・換裝外觀・自動狩獵<br>鍵盤：方向鍵移動、空白鍵攻擊、Q／E／F 技能、X 藥水、R 自動</p>
+    </div>
+    <div id="classPanel" class="classpanel" hidden>
+      <h3>選擇職業</h3>
+      <div id="classGrid" class="classgrid"></div>
+      <label class="namefield">角色名稱 <input id="nameInput" maxlength="8" value="冒險者" autocomplete="off"></label>
+      <p id="overwriteNote" class="warn" hidden>建立新角色會取代目前的存檔。</p>
+      <div class="crow"><button id="classBack" class="ghostbtn" type="button">返回</button><button id="classGo" class="startbtn" type="button">出發！</button></div>
     </div>
   </div>
   <div class="pad">
@@ -62,8 +71,9 @@
       </div>
     </div>
     <div class="acts">
-      <button id="meteorBtn" class="skill sk2" type="button" aria-label="流星雨">流星<em></em></button>
-      <button id="spinBtn" class="skill sk1" type="button" aria-label="旋風斬">旋風<em></em></button>
+      <button id="sk2Btn" class="skill sk2" type="button"><span></span><em></em></button>
+      <button id="sk1Btn" class="skill sk1" type="button"><span></span><em></em></button>
+      <button id="sk0Btn" class="skill sk0" type="button"><span></span><em></em></button>
       <button id="bBtn" class="skill pot" type="button" aria-label="喝藥水">藥水<small id="potions">3</small></button>
       <button id="aBtn" class="round a" type="button" aria-label="攻擊（按住連續攻擊）">攻擊</button>
     </div>

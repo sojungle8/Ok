@@ -40,9 +40,13 @@ test('升級：經驗溢出可連升、升級補滿血', () => {
   assert.equal(p.hp, Wd.stats(p).hp);
 });
 
-test('節奏：1 級打露珠史萊姆 2 刀內、4 隻內升級', () => {
+test('節奏：每個職業 1 級打露珠史萊姆都在 0.8 秒內、4 隻內升級', () => {
+  for (const c of Wd.CLASS_IDS) {
+    const p = Wd.newPlayer(c);
+    const hits = Math.ceil(Wd.MONSTERS.slime.hp / Wd.stats(p).atk);
+    assert.ok(hits * Wd.CLASSES[c].cool <= 0.8, `${c}: ${hits} hits`);
+  }
   const p = Wd.newPlayer();
-  assert.ok(Math.ceil(Wd.MONSTERS.slime.hp / Wd.stats(p).atk) <= 2);
   assert.ok(Math.ceil(Wd.expNeed(1) / Wd.MONSTERS.slime.exp) <= 4);
 });
 
@@ -83,9 +87,37 @@ test('釣魚機率分布', () => {
 test('讀檔：壞檔重開、舊版存檔升級、壞裝備清掉、血量夾在範圍內', () => {
   assert.equal(Wd.loadPlayer('x').lv, 1);
   const p = Wd.loadPlayer(JSON.stringify({ v: 1, lv: 2, hp: 999, coins: 'a', gear: { weapon: { slot: 'weapon', val: 'x' }, hat: {} } }));
-  assert.equal(p.v, 2);
+  assert.equal(p.v, 3);
+  assert.equal(p.cls, 'sword');
   assert.equal(p.hp, Wd.stats(p).hp);
   assert.equal(p.coins, 0);
   assert.deepEqual(p.gear, {});
   assert.deepEqual(p.fish, {});
+});
+
+test('職業：四職業都有 3 個技能、名稱齊全，各職業的 DPS 差距不超過 1.6 倍', () => {
+  const dps = [];
+  for (const c of Wd.CLASS_IDS) {
+    const k = Wd.CLASSES[c];
+    assert.equal(k.skills.length, 3);
+    assert.equal(k.names.weapon.length, 5); assert.equal(k.names.helm.length, 5);
+    const st = Wd.stats(Wd.newPlayer(c));
+    dps.push(st.atk / k.cool);
+  }
+  assert.ok(Math.max(...dps) / Math.min(...dps) < 1.6, dps.join(','));
+});
+
+test('裝備名稱依職業與稀有度決定', () => {
+  const r = Wd.rng(3);
+  for (let i = 0; i < 300; i++) {
+    const it = Wd.rollGear(r, 5, false, 'archer');
+    if (it.slot === 'weapon') assert.equal(it.name, Wd.CLASSES.archer.names.weapon[Wd.rarityIdx(it.rarity)]);
+    assert.ok(typeof it.name === 'string' && it.name.length > 0);
+  }
+});
+
+test('新角色名稱與職業', () => {
+  const p = Wd.newPlayer('mage', '小明小明小明小明小明');
+  assert.equal(p.cls, 'mage'); assert.equal(p.name.length, 8);
+  assert.equal(Wd.newPlayer('nope').cls, 'sword');
 });
