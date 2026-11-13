@@ -24,7 +24,7 @@
         <span class="chip cpstat" id="cpBox">戰力 <b id="cp">0</b></span>
         <span class="chip" id="coinBox"><i class="dot gold"></i><b id="coins">0</b></span>
         <div class="tools">
-          <button id="gearBtn" class="tbtn" type="button">裝備</button>
+          <button id="gearBtn" class="tbtn" type="button">背包</button>
           <button id="soulMenuBtn" class="tbtn" type="button">魂像</button>
           <button id="talentBtn" class="tbtn" type="button">天賦<em id="talentDot" class="tdot" hidden></em></button>
           <button id="fontBtn" class="tbtn" type="button">字級：大</button>
@@ -81,11 +81,30 @@
     <div id="offlineBody"></div>
     <button id="offlineOk" class="startbtn" type="button">領取</button>
   </div>
-  <div id="gearPanel" class="panel gearpanel" hidden>
-    <h3>我的裝備</h3>
-    <div id="gearDoll" class="doll"></div>
-    <div id="gearList"></div>
-    <button id="gearClose" class="startbtn" type="button">關閉</button>
+  <div id="bagPanel" class="panel bagpanel" hidden>
+    <h3>背包 <small id="bagCount" class="muted"></small></h3>
+    <div class="eqrow"><div id="gearDoll" class="doll"></div><div id="eqSlots" class="eqslots"></div></div>
+    <p id="statLine" class="muted small"></p>
+    <div class="btabs"><button type="button" data-tab="gear" class="on">裝備</button><button type="button" data-tab="use">道具</button><button type="button" data-tab="card">卡片</button></div>
+    <div id="bagGrid" class="bgrid"></div>
+    <div id="bagDetail" class="bdetail"></div>
+    <div class="crow wrap"><button id="sellJunkBtn" class="ghostbtn" type="button">賣掉全部雜物</button><button id="autoSellBtn" class="ghostbtn" type="button">自動販賣設定</button><button id="bagClose" class="startbtn" type="button">關閉</button></div>
+  </div>
+  <div id="sellPanel" class="panel" hidden>
+    <h3>自動販賣設定</h3>
+    <p class="small muted">勾選的等級在撿到時就自動賣成金幣。有精煉、插卡或上鎖的裝備永遠不會被賣掉。</p>
+    <h4>裝備（依稀有度）</h4><div id="sellEquip" class="chkrow"></div>
+    <label class="chk"><input type="checkbox" id="autoEquipChk"><span>撿到更好的裝備時自動穿上</span></label>
+    <h4>道具（依品級）</h4><div id="sellItem" class="chkrow"></div>
+    <p class="small muted">雜物＝怪物素材；一般道具＝藥水、卷軸、羽毛；稀有道具＝精煉石、魂之藥、魔王素材。</p>
+    <button id="sellClose" class="startbtn" type="button">完成</button>
+  </div>
+  <div id="refinePanel" class="panel" hidden>
+    <h3>精煉</h3>
+    <p class="small muted">+1～+4 必定成功；+5 起可能失敗，失敗只會消耗材料，不會損壞裝備。+7 起改用強化原石。</p>
+    <div id="refineList" class="bgrid"></div>
+    <div id="refineInfo"></div>
+    <div class="crow"><button id="refineGo" class="startbtn" type="button">精煉</button><button id="refineClose" class="ghostbtn" type="button">關閉</button></div>
   </div>
   <div id="title" class="title">
     <div class="logo">微光大陸<small>GLIMMERLAND</small></div>

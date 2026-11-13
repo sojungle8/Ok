@@ -6,6 +6,8 @@ import {
   SOULS, SOUL_IDS, SUMMON_COST, SUMMON_PITY, summon, offlineReward, affixName, LV_CAP, capFor, CHAPTERS, FIELD, buildField,
 } from './world.js';
 import { soulSprite, soulBig } from './soul.js';
+import { ITEMS, GRADES, STAT_NAME, BAG_SIZE, ensureInv, count, addStack, takeStack, pickupGear, pickupItem, equipFromBag, unequip, sellFromBag, sellStack, sellAllJunk, findGear, insertCard, REFINE_RATE, refineCost, refine, rollDrops, shopList, buy, pickPotion, gearSell, itemSell } from './items.js';
+import { iconCanvas, gearIcon } from './icons.js';
 import { PAL, CROWN, BOBBER, BANG, HEART, COIN, ORB, makeSprite, drawMap, monsterSprite } from './sprites.js';
 import { avatar, lookOf, npcLook, AW, AH } from './avatar.js';
 
@@ -43,6 +45,7 @@ for (const r of ['common', 'good', 'rare', 'epic', 'legend']) orbS[r] = makeSpri
 
 let hasSave = false, P;
 try { const raw = localStorage.getItem(KEY); hasSave = !!raw; P = loadPlayer(raw); } catch { P = newPlayer(); }
+ensureInv(P);
 
 const me = { x: P.x, y: P.y, px: P.x, py: P.y, fx: P.x, fy: P.y, face: 'down', moving: false, mt: 0, dur: 0.14, step: 0, atkT: 0, hurtT: 0, cool: 0, inv: 0, dodgeT: 0 };
 function save() { P.x = me.x; P.y = me.y; P.map = mapId; P.seen = Date.now(); hasSave = true; try { localStorage.setItem(KEY, JSON.stringify(P)); } catch { /* 無痕模式不存 */ } }
@@ -56,6 +59,7 @@ let anim = 0, regenT = 0, saveT = 0, shake = 0, freeze = 0, flash = 0, combo = 0
 let soulPower = 0, cutinT = 0, pendingUlt = null, catT = 0, warns = [];
 const soulPos = { x: 0, y: 0 };
 const fmt = (n) => Math.round(n).toLocaleString('en-US');
+const DROP_LIFT = 1.1; // 掉落物在地上停留、顯示名字的時間
 const cx = (o) => o.px * TS + 8, cy = (o) => o.py * TS + 8;
 
 function setupClass() {
@@ -233,7 +237,7 @@ function hud() {
   $('cp').textContent = fmt(st.cp);
   if (lastCp && st.cp !== lastCp) bump('cpBox');
   lastCp = st.cp;
-  $('potions').textContent = P.potions;
+  $('potions').textContent = count(P, 'red') + count(P, 'orange') + count(P, 'white');
   $('stoneN') && ($('stoneN').textContent = fmt(P.stones));
   $('talentDot').hidden = talentSpent(P) >= talentPoints(P);
   $('quest').textContent = questText();
@@ -255,18 +259,137 @@ function statLine() {
   const st = stats(P);
   return `攻擊 ${fmt(st.atk)}・生命 ${fmt(st.hp)}・暴擊 ${Math.round(st.crit * 100)}%・暴傷 ${Math.round(st.critDmg * 100)}%・攻速 ${Math.round(st.aspd * 100)}%・冷卻縮減 ${Math.round(st.cdr * 100)}%`;
 }
-function renderGear() {
-  $('gearDoll').replaceChildren(previewCanvas(myLook, 4, 'down'), previewCanvas(myLook, 4, 'right'));
-  $('gearList').innerHTML = SLOTS.map((s) => {
-    const it = P.gear[s];
-    if (!it) return `<div class="gslot"><span class="gname muted">${SLOT_NAME[s]}：未裝備</span></div>`;
-    const r = rarityOf(it.rarity);
-    const aff = (it.affixes || []).map((a) => `<span class="aff">${affixName(a.id)} +${a.val}%</span>`).join('');
-    return `<div class="gslot" style="border-color:${r.color}"><span class="gtag" style="background:${r.color}">${r.name}</span><span class="gname" style="color:${r.color}">${it.name}</span><span class="gval">${it.stat === 'atk' ? '攻擊' : 'HP'} +${fmt(it.val)}</span>${aff ? `<div class="affs">${aff}</div>` : ''}</div>`;
-  }).join('') + `<p class="muted small">${statLine()}</p><p class="muted small">稀有以上的裝備有隨機詞綴。稀有度越高外觀越華麗：史詩有披風與翅膀，傳說會發出金色光芒。</p>`;
+// ---------- 背包 ----------
+let bagTab = 'gear', bagSel = null;
+const rarityName = (it) => rarityOf(it.rarity);
+function gearTitle(it) { return `${it.refine ? `+${it.refine} ` : ''}${it.name}${it.slots ? `［${it.cards.length}/${it.slots}］` : ''}`; }
+function gearLines(it) {
+  const r = rarityName(it);
+  const aff = (it.affixes || []).map((a) => `<span class="aff">${affixName(a.id)} +${a.val}%</span>`).join('');
+  const cards = (it.cards || []).map((c) => `<span class="aff card">${ITEMS[c.id].name}：${STAT_NAME[c.stat]} +${c.val}%</span>`).join('');
+  const v = Math.round(it.val * (1 + 0.08 * (it.refine || 0)));
+  return `<span class="gtag" style="background:${r.color}">${r.name}</span> <b style="color:${r.color}">${gearTitle(it)}</b> <span class="gval">${SLOT_NAME[it.slot]}・${it.stat === 'atk' ? '攻擊' : 'HP'} +${fmt(v)}</span><div class="affs">${aff}${cards}</div>`;
 }
-$('gearBtn').addEventListener('click', () => { if (!started) return; renderGear(); $('gearPanel').hidden = false; });
-$('gearClose').addEventListener('click', () => { $('gearPanel').hidden = true; });
+function cell(canvas, label, color, sel, extra = '') {
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = `bcell${sel ? ' on' : ''}`; b.style.setProperty('--rc', color);
+  b.append(canvas.cloneNode ? canvas : canvas);
+  const c2 = document.createElement('canvas'); c2.width = 32; c2.height = 32; const x = c2.getContext('2d'); x.imageSmoothingEnabled = false; x.drawImage(canvas, 0, 0, 32, 32);
+  b.replaceChildren(c2);
+  b.insertAdjacentHTML('beforeend', `${label ? `<em>${label}</em>` : ''}${extra}`);
+  return b;
+}
+function renderBag() {
+  myLook = lookOf(P, CLASSES, rarityIdx);
+  $('gearDoll').replaceChildren(previewCanvas(myLook, 3, 'down'), previewCanvas(myLook, 3, 'right'));
+  $('bagCount').textContent = `裝備 ${P.bag.gear.length}/${BAG_SIZE}`;
+  $('statLine').textContent = statLine();
+  $('eqSlots').replaceChildren(...SLOTS.map((sl) => {
+    const it = P.gear[sl];
+    if (!it) { const b = document.createElement('div'); b.className = 'bcell empty'; b.textContent = SLOT_NAME[sl]; return b; }
+    const b = cell(gearIcon(it, C.weapon, rarityIdx), it.refine ? `+${it.refine}` : '', rarityName(it).color, bagSel === 'e' + it.uid);
+    b.addEventListener('click', () => { bagSel = 'e' + it.uid; renderBag(); });
+    return b;
+  }));
+  document.querySelectorAll('.btabs button').forEach((x) => x.classList.toggle('on', x.dataset.tab === bagTab));
+  let cells = [];
+  if (bagTab === 'gear') cells = [...P.bag.gear].sort((a, b) => rarityIdx(b.rarity) - rarityIdx(a.rarity) || b.val - a.val).map((it) => {
+    const b = cell(gearIcon(it, C.weapon, rarityIdx), it.refine ? `+${it.refine}` : '', rarityName(it).color, bagSel === 'g' + it.uid, it.locked ? '<i class="lock">鎖</i>' : '');
+    b.addEventListener('click', () => { bagSel = 'g' + it.uid; renderBag(); });
+    return b;
+  });
+  else cells = Object.keys(P.bag.stack).filter((id) => (bagTab === 'card') === (ITEMS[id].kind === 'card')).sort((a, b) => GRADES.findIndex((g) => g.id === ITEMS[b].grade) - GRADES.findIndex((g) => g.id === ITEMS[a].grade)).map((id) => {
+    const it = ITEMS[id];
+    const b = cell(iconCanvas(it.icon, it.color), `${count(P, id)}`, GRADES.find((g) => g.id === it.grade).color, bagSel === 'i' + id);
+    b.addEventListener('click', () => { bagSel = 'i' + id; renderBag(); });
+    return b;
+  });
+  $('bagGrid').replaceChildren(...cells);
+  if (!cells.length) $('bagGrid').innerHTML = `<p class="muted small">${bagTab === 'card' ? '還沒有卡片。每種怪物都有極低機率掉落自己的卡片，魔王的機率比較高。' : '空空的。'}</p>`;
+  renderDetail();
+}
+function act(label, fn, cls = 'startbtn', disabled = false) {
+  const b = document.createElement('button'); b.type = 'button'; b.className = cls; b.textContent = label; b.disabled = disabled;
+  b.addEventListener('click', () => { fn(); hud(); save(); renderBag(); });
+  return b;
+}
+function renderDetail() {
+  const box = $('bagDetail');
+  box.replaceChildren();
+  if (!bagSel) { box.innerHTML = '<p class="muted small">點一下物品查看詳細資料。</p>'; return; }
+  const kind = bagSel[0], key = bagSel.slice(1);
+  const row = document.createElement('div'); row.className = 'crow wrap';
+  if (kind === 'e' || kind === 'g') {
+    const it = findGear(P, +key);
+    if (!it) { bagSel = null; renderDetail(); return; }
+    box.innerHTML = `<div class="dline">${gearLines(it)}</div>`;
+    if (kind === 'e') row.append(act('卸下', () => { if (!unequip(P, it.slot)) feed('背包滿了，無法卸下', '#ff8fa0'); bagSel = 'g' + it.uid; }, 'ghostbtn'));
+    else {
+      row.append(act('裝備', () => { equipFromBag(P, it.uid); bagSel = 'e' + it.uid; }));
+      row.append(act(`賣出 +${fmt(gearSell(it))}`, () => { sellFromBag(P, it.uid); bagSel = null; }, 'ghostbtn', !!it.locked));
+    }
+    row.append(act(it.locked ? '解除上鎖' : '上鎖（不會被賣掉）', () => { it.locked = !it.locked; }, 'ghostbtn'));
+    const cards = Object.keys(P.bag.stack).filter((id) => ITEMS[id].kind === 'card');
+    if (it.cards.length < it.slots) for (const id of cards) row.append(act(`插入 ${ITEMS[id].name}`, () => { const r = insertCard(P, it.uid, id); feed(r.ok ? `${ITEMS[id].name} 插入成功！` : r.reason, '#ffb03b'); }, 'ghostbtn'));
+    else if (!it.slots) box.insertAdjacentHTML('beforeend', '<p class="muted small">這件裝備沒有卡槽。</p>');
+  } else {
+    const it = ITEMS[key];
+    if (!count(P, key)) { bagSel = null; renderDetail(); return; }
+    const g = GRADES.find((x) => x.id === it.grade);
+    box.innerHTML = `<div class="dline"><span class="gtag" style="background:${g.color}">${g.name}</span> <b>${it.name}</b> ×${count(P, key)}<p class="small">${it.desc}</p></div>`;
+    if (it.kind === 'use') row.append(act('使用', () => { $('bagPanel').hidden = it.effect === 'home' || it.effect === 'blink' ? true : $('bagPanel').hidden; useItem(key); }));
+    if (it.kind === 'card') {
+      for (const sl of SLOTS) { const tg = P.gear[sl]; if (tg && tg.cards.length < tg.slots) row.append(act(`插進 ${tg.name}`, () => { const r = insertCard(P, tg.uid, key); feed(r.ok ? `${it.name} 插入成功！` : r.reason, '#ffb03b'); })); }
+    }
+    row.append(act(`賣出 1 個 +${itemSell(key)}`, () => sellStack(P, key, 1), 'ghostbtn'));
+    if (count(P, key) > 1) row.append(act(`全部賣出 +${fmt(itemSell(key) * count(P, key))}`, () => sellStack(P, key), 'ghostbtn'));
+  }
+  box.append(row);
+}
+document.querySelectorAll('.btabs button').forEach((b) => b.addEventListener('click', () => { bagTab = b.dataset.tab; bagSel = null; renderBag(); }));
+$('gearBtn').addEventListener('click', () => { if (!started) return; bagSel = null; renderBag(); $('bagPanel').hidden = false; });
+$('bagClose').addEventListener('click', () => { $('bagPanel').hidden = true; });
+$('sellJunkBtn').addEventListener('click', () => { const c = sellAllJunk(P); feed(c ? `賣掉全部雜物 +${fmt(c)} 金幣` : '沒有雜物可以賣', '#b8b0a4'); hud(); save(); renderBag(); });
+
+// ---------- 自動販賣設定 ----------
+function renderSell() {
+  const chk = (id, label, on, color) => `<label class="chk"><input type="checkbox" data-k="${id}" ${on ? 'checked' : ''}><span style="color:${color}">${label}</span></label>`;
+  $('sellEquip').innerHTML = ['common', 'good', 'rare', 'epic', 'legend'].map((r) => chk('equip.' + r, rarityOf(r).name, P.autoSell.equip[r], rarityOf(r).color)).join('');
+  $('sellItem').innerHTML = GRADES.map((g) => chk('item.' + g.id, g.name, P.autoSell.item[g.id], g.color)).join('');
+  $('autoEquipChk').checked = P.autoSell.autoEquip;
+  document.querySelectorAll('#sellPanel input[data-k]').forEach((el) => el.addEventListener('change', () => { const [g, k] = el.dataset.k.split('.'); P.autoSell[g][k] = el.checked; save(); }));
+}
+$('autoEquipChk').addEventListener('change', () => { P.autoSell.autoEquip = $('autoEquipChk').checked; save(); });
+$('autoSellBtn').addEventListener('click', () => { renderSell(); $('sellPanel').hidden = false; });
+$('sellClose').addEventListener('click', () => { $('sellPanel').hidden = true; });
+
+// ---------- 精煉 ----------
+let refineSel = null;
+function openRefine() { refineSel = P.gear.weapon?.uid || null; renderRefine(); $('refinePanel').hidden = false; }
+function renderRefine() {
+  const list = [...SLOTS.map((sl) => P.gear[sl]).filter(Boolean), ...P.bag.gear.filter((it) => rarityIdx(it.rarity) >= 2)];
+  $('refineList').replaceChildren(...list.map((it) => {
+    const b = cell(gearIcon(it, C.weapon, rarityIdx), it.refine ? `+${it.refine}` : '', rarityName(it).color, refineSel === it.uid);
+    b.addEventListener('click', () => { refineSel = it.uid; renderRefine(); });
+    return b;
+  }));
+  const it = refineSel && findGear(P, refineSel);
+  if (!it) { $('refineInfo').innerHTML = '<p class="muted small">選一件裝備。</p>'; $('refineGo').disabled = true; return; }
+  const cost = refineCost(it);
+  const rate = it.refine >= 10 ? 0 : REFINE_RATE[it.refine];
+  $('refineInfo').innerHTML = `<div class="dline">${gearLines(it)}</div><p class="small">${it.refine >= 10 ? '已經是 +10 了！' : `+${it.refine} → +${it.refine + 1}　成功率 <b>${Math.round(rate * 100)}%</b>　需要 ${fmt(cost.coins)} 金幣＋${ITEMS[cost.ore].name} ×1（有 ${count(P, cost.ore)}）`}</p><p class="muted small">每 +1 讓裝備數值 +8%，武器 +7 以上會發光。</p>`;
+  $('refineGo').disabled = it.refine >= 10;
+}
+$('refineGo').addEventListener('click', () => {
+  if (!refineSel) return;
+  const before = stats(P).cp;
+  const r = refine(P, refineSel, R);
+  if (!r.ok) feed(r.reason, '#ff8fa0');
+  else if (r.success) { banner(`精煉成功！+${r.level}`); flash = 0.12; burst(cx(me), cy(me), '#fff1a8', 24, 110); const after = stats(P).cp; if (after > before) popCp(before, after); }
+  else { feed('精煉失敗……材料消失了，裝備沒事', '#ff8fa0'); shake = 0.2; }
+  hud(); save(); renderRefine();
+});
+$('refineClose').addEventListener('click', () => { $('refinePanel').hidden = true; });
 
 // ---------- 天賦 ----------
 function renderTalents() {
@@ -330,7 +453,7 @@ function checkOffline() {
     const before = P.lv;
     P.coins += r.coins;
     let eq = 0;
-    for (const it of r.items) if (equipIfBetter(P, it).equipped) eq++;
+    for (const it of r.items) if (pickupGear(P, it).action === 'equip') eq++;
     if (gainExp(P, r.exp)) levelUp(before);
     if (eq) feed(`離線撿到的裝備有 ${eq} 件比較好，已自動換上`, '#7ad35a');
     hud(); save();
@@ -406,7 +529,7 @@ function talk(n) {
     P.hp = stats(P).hp;
     say(nm, ['歡迎來到微光旅店！', '（你好好休息了一下，HP 全部恢復了）']);
   } else if (n.id === 'smith') {
-    smithMenu(nm, [`你的武器強化是 +${P.sword}。`, `強化到 +${P.sword + 1} 要 ${fmt(swordCost(P.sword))} 金幣。`]);
+    say(nm, ['想讓裝備更強嗎？我這裡可以「精煉」。', '+4 以內保證成功，再往上就看運氣了。失敗只會吃掉材料，不會弄壞你的裝備。'], [['精煉裝備', () => openRefine()], ['離開', null]]);
   } else if (n.id === 'fisher') {
     say(nm, ['想釣魚嗎？面向河邊按攻擊鍵就能拋竿。', '浮標旁邊跳出「！」的時候，馬上再按一次！', '釣到的魚可以賣給雜貨店的莉莉。']);
   }
@@ -440,10 +563,13 @@ function memoryCorridor() {
   });
 }
 function shopMenu(nm, lines) {
-  say(nm, lines, [[`買藥水（${POTION_PRICE} 金幣）`, () => {
-    if (P.coins < POTION_PRICE) shopMenu(nm, ['金幣不夠喔，去打怪賺一點吧。']);
-    else { P.coins -= POTION_PRICE; P.potions++; shopMenu(nm, [`謝謝惠顧！你現在有 ${P.potions} 瓶藥水。`]); }
-  }], ['離開', null]]);
+  const opts = shopList(P.ch).map((id) => [`${ITEMS[id].name} ${ITEMS[id].price} 金幣（有 ${count(P, id)}）`, () => {
+    const r = buy(P, id, 1);
+    shopMenu(nm, [r.ok ? `謝謝惠顧！${ITEMS[id].name}：${ITEMS[id].desc}。` : r.reason]);
+  }]);
+  const junk = Object.keys(P.bag.stack).filter((id) => ITEMS[id].grade === 'junk').reduce((a, id) => a + itemSell(id) * count(P, id), 0);
+  if (junk) opts.push([`賣掉全部雜物（+${fmt(junk)} 金幣）`, () => { const c = sellAllJunk(P); shopMenu(nm, [`收購完成，一共 ${fmt(c)} 金幣！`]); }]);
+  say(nm, lines, [...opts, ['離開', null]]);
 }
 function smithMenu(nm, lines) {
   say(nm, lines, [[`強化（${fmt(swordCost(P.sword))} 金幣）`, () => {
@@ -469,7 +595,7 @@ function hurt(raw, m) {
     P.hp = stats(P).hp; auto = false; syncAuto();
     Object.assign(me, { x: INN_SPOT.x, y: INN_SPOT.y, px: INN_SPOT.x, py: INN_SPOT.y, moving: false, face: 'down' });
     say('旅店・瑪莎', ['你昏倒在草原上，被路過的冒險者送回來了。', '提升戰鬥力再去吧！HP 已經恢復了。']);
-  } else if (auto && P.hp < stats(P).hp * 0.35 && P.potions > 0) usePotion();
+  } else if (auto && P.hp < stats(P).hp * 0.35) usePotion(true);
   hud();
 }
 const ultMult = () => 1 + 0.2 * ((P.souls[P.soul] || 1) - 1);
@@ -519,7 +645,8 @@ function killMon(m) {
   const n = Math.min(m.d.boss ? 14 : 5, coins);
   for (let i = 0; i < n; i++) { const v = i === n - 1 ? coins : Math.floor(coins / (n - i)); coins -= v; drops.push(newDrop('coin', wx, wy, v)); }
   const rolls = m.d.boss ? 3 : m.minion ? 0 : R() < DROP_RATE ? 1 : 0;
-  for (let i = 0; i < rolls; i++) drops.push(newDrop('item', wx, wy, rollGear(R, m.d.lv + Math.floor(R() * 2), m.d.boss, P.cls)));
+  for (let i = 0; i < rolls; i++) drops.push(newDrop('gear', wx, wy, rollGear(R, m.d.lv + Math.floor(R() * 2), m.d.boss, P.cls)));
+  if (!m.d.still && !m.d.decoy) for (const it of rollDrops(R, m.minion ? '' : m.type)) drops.push(newDrop('loot', wx, wy, it));
   const curCh = CHAPTERS[P.ch - 1];
   if (P.step === 1 && curCh && curCh.mons.includes(m.type) && !m.minion) P.kills++;
   if (m.d.boss) {
@@ -551,13 +678,23 @@ function newDrop(kind, wx, wy, val) {
 }
 function collect(d) {
   if (d.kind === 'coin') { P.coins += d.val; bump('coinBox'); return; }
+  if (d.kind === 'loot') {
+    const it = ITEMS[d.val.id], g = GRADES.find((x) => x.id === it.grade);
+    const res = pickupItem(P, d.val.id, d.val.n);
+    if (it.kind === 'card') { banner(`獲得【${it.name}】！`); flash = 0.15; shake = 0.2; addFx('pillar', 0.8, { x: cx(me), y: cy(me), color: '#ffb03b' }); }
+    if (it.grade !== 'junk') feed(`<span style="color:${g.color}">${it.name}</span> ×${d.val.n}${res.action === 'sell' ? `　自動賣出 +${res.coins}` : ''}`, g.color);
+    hud(); save(); return;
+  }
   const it = d.val, r = rarityOf(it.rarity);
-  const res = equipIfBetter(P, it);
-  if (res.equipped) {
-    feed(`<b style="color:${r.color}">【${r.name}】${it.name}</b> 已裝備，外觀改變！`, r.color);
+  const res = pickupGear(P, it);
+  const oldNote = res.old === 'sell' ? `（換下的自動賣出 +${res.coins}）` : res.old === 'bag' ? '（換下的放進背包）' : '';
+  if (res.action === 'equip') {
+    feed(`<b style="color:${r.color}">【${r.name}】${it.name}</b> 已裝備${oldNote}`, r.color);
     popCp(res.before, res.after);
     addFx('pillar', 0.6, { x: cx(me), y: cy(me), color: r.color });
-  } else feed(`<span style="color:${r.color}">【${r.name}】${it.name}</span> 自動賣出 +${res.sold}`, r.color);
+  } else if (res.action === 'sell') feed(`<span style="color:${r.color}">【${r.name}】${it.name}</span> 自動賣出 +${res.coins}`, r.color);
+  else if (res.action === 'full') feed(`背包滿了！<span style="color:${r.color}">${it.name}</span> 已賣出 +${res.coins}`, '#ff8fa0');
+  else feed(`<span style="color:${r.color}">【${r.name}】${it.name}</span> 放進背包${it.slots ? `［${it.slots} 孔］` : ''}`, r.color);
   if (it.rarity === 'epic' || it.rarity === 'legend') { flash = Math.max(flash, 0.1); shake = Math.max(shake, 0.15); }
   hud(); save();
 }
@@ -932,14 +1069,30 @@ function pressA() {
   if (!monHere && t === T.HOUSE) { const h = HOUSES.find((v) => tx >= v.x && tx <= v.x + 2 && ty >= v.y && ty <= v.y + 2); say(h ? h.name : '房子', ['門口的人就是店主，直接跟他說話吧。']); return; }
   aHeld = true;
 }
-function usePotion() {
+function usePotion(quiet, which) {
   if (!started || dialog) return;
-  const max = stats(P).hp;
-  if (P.potions < 1) { floatT('沒有藥水了', me.x, me.y - 0.6, '#ff8fb1', 0.8); return; }
-  if (P.hp >= max) { floatT('HP 已經是滿的', me.x, me.y - 0.6, '#a6ec7a', 0.8); return; }
-  const heal = Math.round(max * stats(P).potion);
-  P.potions--; P.hp = Math.min(max, P.hp + heal);
-  floatT(`+${heal}`, me.x, me.y, '#a6ec7a'); burst(cx(me), cy(me), '#ff8fb1', 8);
+  const st = stats(P), max = st.hp;
+  if (P.hp >= max) { if (!quiet) floatT('HP 已經是滿的', me.x, me.y - 0.6, '#a6ec7a', 0.8); return; }
+  const id = which || pickPotion(P, 1 - P.hp / max);
+  if (!id || !takeStack(P, id)) { if (!quiet) floatT('沒有藥水了', me.x, me.y - 0.6, '#ff8fb1', 0.8); return; }
+  const heal = Math.round(max * ITEMS[id].heal * (st.potion / 0.5));
+  P.hp = Math.min(max, P.hp + heal);
+  floatT(`+${fmt(heal)}`, me.x, me.y, '#a6ec7a'); burst(cx(me), cy(me), ITEMS[id].color, 8);
+  hud(); save();
+}
+function useItem(id) {
+  const d = ITEMS[id];
+  if (d.heal) { usePotion(false, id); return; }
+  if (!count(P, id)) return;
+  if (d.effect === 'home') { if (mapId === 0) { floatT('已經在村子裡了', me.x, me.y - 0.6, '#bdf1ff', 0.8); return; } takeStack(P, id); loadMap(0, { x: 11, y: 17 }); feed('使用回城卷軸，回到微光村', '#e8d29a'); }
+  else if (d.effect === 'blink') {
+    const spots = [];
+    for (let y = 1; y < H - 1; y++) for (let x = FMIN; x < W - 1; x++) if (walkable(grid, x, y) && !occupied(x, y) && !inBoss(x, y) && grid[y][x] !== T.PORTAL) spots.push([x, y]);
+    const [x, y] = spots[Math.floor(R() * spots.length)];
+    takeStack(P, id); burst(cx(me), cy(me), '#bfe3ff', 14, 80);
+    Object.assign(me, { x, y, px: x, py: y, fx: x, fy: y, moving: false }); soulPos.x = cx(me); soulPos.y = cy(me);
+    burst(cx(me), cy(me), '#bfe3ff', 14, 80);
+  } else if (d.effect === 'soul') { if (!P.soul) return; takeStack(P, id); soulPower = Math.min(100, soulPower + 50); floatT('魂力 +50%', me.x, me.y - 0.6, '#c084ff', 0.9); }
   hud(); save();
 }
 function bindHold(el, down, up) {
@@ -1057,7 +1210,7 @@ function update(dt) {
   const px = cx(me), py = cy(me);
   drops = drops.filter((d) => {
     d.t += dt;
-    const lift = P.soul === 'magnet' ? 0.3 : 0.55;
+    const lift = P.soul === 'magnet' ? 0.5 : DROP_LIFT;
     if (d.t < lift) { d.x += d.vx * dt; d.y += d.vy * dt; d.vz -= 320 * dt; d.z = Math.max(0, d.z + d.vz * dt); if (d.z === 0) d.vz = Math.abs(d.vz) * 0.4; return true; }
     const ax = px - d.x, ay = py - d.y, dist = Math.hypot(ax, ay);
     if (dist < 6 || d.t > 3) { collect(d); return false; }
@@ -1065,6 +1218,8 @@ function update(dt) {
     d.x += (ax / dist) * sp * dt; d.y += (ay / dist) * sp * dt; d.z = Math.max(0, d.z - dt * 30);
     return true;
   });
+  const wr = P.gear.weapon?.refine || 0;
+  if (wr >= 7 && R() < 0.15 + (wr - 7) * 0.1) parts.push({ x: px + (me.face === 'left' ? -8 : 8) + (R() - 0.5) * 6, y: py - 4 + (R() - 0.5) * 10, vx: 0, vy: -15, c: wr >= 10 ? '#ff6b8a' : '#fff1a8', t: 0, g: 0, size: 1, life: 0.5 });
   // 傳說光環
   if (myLook?.aura) { auraT -= dt; if (auraT <= 0) { auraT = 0.08; parts.push({ x: px + (R() - 0.5) * 18, y: py + 6, vx: 0, vy: -25 - R() * 20, c: R() < 0.5 ? '#ffd75e' : '#fff3c4', t: 0, g: 0, size: 1, life: 0.7 }); } }
   mons = mons.filter((m) => !(m.minion && m.dead > 0));
@@ -1124,10 +1279,14 @@ function render() {
   }
   for (const d of drops) {
     const x = Math.round(d.x), y = Math.round(d.y - d.z);
-    if (d.kind === 'item') {
+    if (d.kind === 'gear') {
       const r = rarityOf(d.val.rarity);
       if (['rare', 'epic', 'legend'].includes(r.id)) { ctx.globalAlpha = 0.35 + Math.sin(anim * 10) * 0.1; ctx.fillStyle = r.color; ctx.fillRect(x - 2, y - 40, 4, 40); ctx.globalAlpha = 1; }
-      ctx.drawImage(orbS[r.id], x - 3, y - 4);
+      ctx.drawImage(gearIcon(d.val, C.weapon, rarityIdx), x - 6, y - 8, 12, 12);
+    } else if (d.kind === 'loot') {
+      const it = ITEMS[d.val.id];
+      if (it.kind === 'card') { ctx.globalAlpha = 0.4 + Math.sin(anim * 12) * 0.15; ctx.fillStyle = '#ffb03b'; ctx.fillRect(x - 3, y - 48, 6, 48); ctx.globalAlpha = 1; }
+      ctx.drawImage(iconCanvas(it.icon, it.color), x - 5, y - 7, 10, 10);
     } else ctx.drawImage(coinS, x - 3, y - 3);
   }
   const ents = [
@@ -1163,6 +1322,12 @@ function render() {
     ctx.fillStyle = color; ctx.fillText(text, (wx - camX) * S, (wy - camY) * S);
   };
   if (started) label(P.name, cx(me), me.py * TS - 20, C.color, 12);
+  for (const d of drops) {
+    if (d.kind === 'coin' || d.t > DROP_LIFT) continue;
+    const nm = d.kind === 'gear' ? `${d.val.name}${d.val.slots ? `[${d.val.slots}]` : ''}` : ITEMS[d.val.id].name;
+    const col = d.kind === 'gear' ? rarityOf(d.val.rarity).color : GRADES.find((g) => g.id === ITEMS[d.val.id].grade).color;
+    label(nm, d.x, d.y - d.z - 12, col, 9);
+  }
   for (const m of alive()) {
     if (m.d.mech === 'echo' && lastSkill) label(`回音記得：${skills.find((k) => k.id === lastSkill)?.name || ''}`, cx(m), m.py * TS - 24, '#d4b8ff', 11);
     if (m.d.mech === 'rewind' && m.engaged && m.rwT <= 3) label(`倒轉 ${Math.ceil(m.rwT)}`, cx(m), m.py * TS - 24, '#f6d77a', 14);
@@ -1408,7 +1573,7 @@ function buildClassGrid() {
 $('newBtn').addEventListener('click', () => { buildClassGrid(); $('overwriteNote').hidden = !hasSave; $('title').hidden = true; $('classPanel').hidden = false; });
 $('classBack').addEventListener('click', () => { $('classPanel').hidden = true; $('title').hidden = false; });
 $('classGo').addEventListener('click', () => {
-  P = newPlayer(pickCls, $('nameInput').value.trim() || '冒險者');
+  P = ensureInv(newPlayer(pickCls, $('nameInput').value.trim() || '冒險者'));
   soulPower = 0; loadMap(0);
   Object.assign(me, { x: P.x, y: P.y, px: P.x, py: P.y, fx: P.x, fy: P.y, moving: false, face: 'down' });
   drops = []; projs = []; pending = []; fx = [];
@@ -1433,4 +1598,4 @@ document.fonts?.ready.then(render);
 requestAnimationFrame(frame);
 
 // 自動化測試用（網址加 ?debug 才開）
-if (location.search.includes('debug')) globalThis.__game = { get P() { return P; }, me, get grid() { return grid; }, loadMap, get mapId() { return mapId; }, get mons() { return mons; }, get fishing() { return fishing; }, get dialog() { return dialog; }, get drops() { return drops; }, get skills() { return skills; }, castIdx };
+if (location.search.includes('debug')) globalThis.__game = { get P() { return P; }, newDrop, get drops() { return drops; }, set dropsAdd(d) { drops.push(d); }, me, get grid() { return grid; }, loadMap, get mapId() { return mapId; }, get mons() { return mons; }, get fishing() { return fishing; }, get dialog() { return dialog; }, get drops() { return drops; }, get skills() { return skills; }, castIdx };

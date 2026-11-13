@@ -86,7 +86,7 @@ export function reachable(g, from) {
 
 // ---- 數值（快節奏：幾刀一隻、幾十秒升一級）----
 // 怪物：tpl = 造型模板，pal = 配色。第 2 章以後的數值用公式依等級產生。
-const PAL = {
+const MPAL = {
   dew: { g: '#62c7e8', G: '#2f7fb3', l: '#c4f2ff' }, berry: { g: '#e8628f', G: '#a3305d', l: '#ffc4d8', m: '#fff1a8', M: '#d9a63b' },
   ember: { g: '#ff8a3d', G: '#b34a1f', l: '#ffd29e', m: '#fff1a8', M: '#e8502e' }, king: { g: '#7ad35a', G: '#3a8a3a', l: '#d0ff9e' },
 };
@@ -98,10 +98,10 @@ const mk = (name, tpl, pal, lv, zone, extra = {}) => ({
 const boss = (name, tpl, pal, lv, hp, atk, mech) => ({ name, tpl, pal, lv, hp, atk, mech, boss: true, sight: 6, exp: lv * 70, coin: [lv * 20, lv * 30] });
 const ZA = [5, 16], ZB = [15, 27], ZC = [26, 37];
 export const MONSTERS = {
-  slime: { name: '露珠史萊姆', tpl: 'slime', pal: PAL.dew, hp: 8, atk: 2, exp: 4, coin: [2, 5], lv: 1, sight: 3, zone: [21, 28] },
-  berry: { name: '莓果史萊姆', tpl: 'slime', pal: PAL.berry, hp: 24, atk: 5, exp: 12, coin: [5, 10], lv: 4, sight: 4, zone: [27, 33] },
-  ember: { name: '餘燼史萊姆', tpl: 'slime', pal: PAL.ember, hp: 55, atk: 9, exp: 28, coin: [10, 18], lv: 7, sight: 4, zone: [32, 38] },
-  king: { name: '史萊姆王', tpl: 'slime', pal: PAL.king, hp: 6000, atk: 18, exp: 600, coin: [150, 250], lv: 9, sight: 5, boss: true, mech: 'split' },
+  slime: { name: '露珠史萊姆', tpl: 'slime', pal: MPAL.dew, hp: 8, atk: 2, exp: 4, coin: [2, 5], lv: 1, sight: 3, zone: [21, 28] },
+  berry: { name: '莓果史萊姆', tpl: 'slime', pal: MPAL.berry, hp: 24, atk: 5, exp: 12, coin: [5, 10], lv: 4, sight: 4, zone: [27, 33] },
+  ember: { name: '餘燼史萊姆', tpl: 'slime', pal: MPAL.ember, hp: 55, atk: 9, exp: 28, coin: [10, 18], lv: 7, sight: 4, zone: [32, 38] },
+  king: { name: '史萊姆王', tpl: 'slime', pal: MPAL.king, hp: 6000, atk: 18, exp: 600, coin: [150, 250], lv: 9, sight: 5, boss: true, mech: 'split' },
   bat: mk('回音蝙蝠', 'bat', { g: '#9b6be0', G: '#5b3a8f', l: '#d4b8ff', m: '#ffd1dc' }, 12, ZA),
   pebble: mk('碎石怪', 'golem', { g: '#c9a77a', G: '#8a6a44', l: '#efd8b0', m: '#ffe066' }, 15, ZB),
   howl: mk('嚎叫蝙蝠', 'bat', { g: '#e0533d', G: '#8f2c1f', l: '#ffb39c', m: '#fff1a8' }, 18, ZC),
@@ -283,7 +283,7 @@ export function summon(p, rand) {
     return { ok: true, kind: 'soul', id, star: had + 1, isNew: !had };
   }
   const coins = 150 + Math.floor(rand() * 250);
-  p.coins += coins; p.potions += 1;
+  p.coins += coins; if (p.bag?.stack) p.bag.stack.red = (p.bag.stack.red || 0) + 1; else p.potions += 1;
   return { ok: true, kind: 'loot', coins };
 }
 
@@ -291,15 +291,16 @@ export function stats(p) {
   const c = CLASSES[p.cls] || CLASSES.sword;
   const t = p.talents || {};
   const tv = (id) => t[id] || 0;
-  const aff = { crit: 0, aspd: 0, skill: 0, leech: 0, hpPct: 0, soul: 0 };
+  const aff = { crit: 0, aspd: 0, skill: 0, leech: 0, hpPct: 0, soul: 0, atkPct: 0, dr: 0 };
   let atk = (baseAtk(p.lv) + p.sword * 3) * c.atkMul, hp = baseHp(p.lv) * c.hpMul;
   for (const it of Object.values(p.gear || {})) {
     if (!it) continue;
-    if (it.stat === 'atk') atk += it.val * c.atkMul; else hp += it.val;
-    for (const a of it.affixes || []) if (a.id in aff) aff[a.id] += a.val;
+    const v = it.val * (1 + 0.08 * (it.refine || 0));
+    if (it.stat === 'atk') atk += v * c.atkMul; else hp += v;
+    for (const a of [...(it.affixes || []), ...(it.cards || []).map((x) => ({ id: x.stat, val: x.val }))]) if (a.id in aff) aff[a.id] += a.val;
   }
   const soul = p.soul && p.souls?.[p.soul] ? p.soul : null;
-  atk *= 1 + 0.05 * tv('might') + (soul === 'magnet' ? 0.08 : 0);
+  atk *= 1 + 0.05 * tv('might') + (soul === 'magnet' ? 0.08 : 0) + aff.atkPct / 100;
   hp *= 1 + 0.06 * tv('vigor') + aff.hpPct / 100 + (soul === 'thread' ? 0.1 : 0) + (p.cardBonus?.hpPct || 0) / 100;
   const crit = Math.min(0.75, 0.1 + 0.03 * tv('precision') + aff.crit / 100 + (soul === 'post' ? 0.08 : 0));
   const critDmg = 2 + 0.15 * tv('ferocity');
@@ -310,7 +311,7 @@ export function stats(p) {
   return {
     atk, hp, crit, critDmg, aspd, cdr,
     skill: 1 + aff.skill / 100, leech: aff.leech / 100, soulGain: 1 + 0.15 * tv('resonance') + aff.soul / 100 + (soul === 'bird' ? 0.2 : 0),
-    dr: 0.05 * tv('iron'), regen: 0.003 * tv('recover'), potion: 0.5 + 0.1 * tv('recover'),
+    dr: Math.min(0.6, 0.05 * tv('iron') + aff.dr / 100), regen: 0.003 * tv('recover'), potion: 0.5 + 0.1 * tv('recover'),
     cp: Math.round(dps * 3 + hp * 3 + p.lv * 20 + (soul ? 150 * (p.souls[soul] || 1) : 0)),
   };
 }
@@ -359,9 +360,10 @@ export function rollGear(rand, mlv, boss = false, cls = 'sword') {
     const a = left.splice(Math.floor(rand() * left.length), 1)[0];
     affixes.push({ id: a.id, val: a.lo + Math.floor(rand() * (a.hi - a.lo + 1)) });
   }
-  return { slot, rarity: rar.id, name: names[tier], stat: g.stat, val: Math.max(1, Math.round(g.v * (1 + mlv * 0.7) * rar.mult)), lv: mlv, affixes };
+  const slots = [rand() < 0.2 ? 1 : 0, rand() < 0.5 ? 1 : 0, 1, rand() < 0.5 ? 2 : 1, 2][tier];
+  return { slot, rarity: rar.id, name: names[tier], stat: g.stat, val: Math.max(1, Math.round(g.v * (1 + mlv * 0.7) * rar.mult)), lv: mlv, affixes, slots, refine: 0, cards: [] };
 }
-export const itemPower = (it) => it.val * (1 + 0.12 * (it.affixes?.length || 0));
+export const itemPower = (it) => it.val * (1 + 0.08 * (it.refine || 0)) * (1 + 0.12 * (it.affixes?.length || 0) + 0.15 * (it.cards?.length || 0));
 export const rarityOf = (id) => RARITY.find((r) => r.id === id) || RARITY[0];
 export const sellValue = (it) => Math.max(1, Math.round(it.val * 1.5));
 

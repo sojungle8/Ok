@@ -230,3 +230,93 @@ test('數值曲線：怪物越後面越強，每章入口等級的玩家 4 刀�
     assert.ok(weak.hp / atk <= 4, `ch${c.n}: ${weak.hp} / ${atk}`);
   }
 });
+
+import * as It from '../pixel-rpg/items.js';
+const gearOf = (o) => ({ slot: 'weapon', rarity: 'common', name: 'x', stat: 'atk', val: 10, lv: 5, affixes: [], slots: 1, refine: 0, cards: [], ...o });
+
+test('背包：舊存檔的藥水搬進背包、預設只自動賣普通裝備', () => {
+  const p = It.ensureInv(Wd.loadPlayer(JSON.stringify({ v: 4, lv: 3, hp: 5, potions: 4 })));
+  assert.equal(It.count(p, 'red'), 4);
+  assert.equal(p.potions, 0);
+  assert.equal(It.count(It.ensureInv(Wd.newPlayer()), 'red'), 3, '新角色的 3 瓶藥水也放進背包');
+  assert.equal(p.autoSell.equip.common, true);
+  assert.equal(p.autoSell.equip.rare, false);
+});
+
+test('自動販賣依稀有度：普通賣掉、稀有收進背包；更好的自動穿上，換下的依設定處理', () => {
+  const p = It.ensureInv(Wd.newPlayer());
+  const c0 = p.coins;
+  assert.equal(It.pickupGear(p, gearOf({ val: 10 })).action, 'equip');
+  assert.equal(It.pickupGear(p, gearOf({ val: 5 })).action, 'sell');
+  assert.ok(p.coins > c0);
+  assert.equal(It.pickupGear(p, gearOf({ val: 5, rarity: 'rare' })).action, 'bag');
+  const r = It.pickupGear(p, gearOf({ val: 50, rarity: 'epic' }));
+  assert.equal(r.action, 'equip'); assert.equal(r.old, 'sell', '換下的普通武器依設定賣掉');
+  p.autoSell.autoEquip = false; p.autoSell.equip.legend = true;
+  assert.equal(It.pickupGear(p, gearOf({ val: 999, rarity: 'legend' })).action, 'sell');
+});
+
+test('有精煉、卡片或上鎖的裝備不會被自動賣掉；背包滿了才賣', () => {
+  const p = It.ensureInv(Wd.newPlayer());
+  p.autoSell.autoEquip = false;
+  assert.equal(It.pickupGear(p, gearOf({ refine: 3 })).action, 'bag');
+  assert.equal(It.pickupGear(p, gearOf({ locked: true })).action, 'bag');
+  p.autoSell.equip.common = false;
+  for (let i = 0; i < It.BAG_SIZE; i++) It.pickupGear(p, gearOf({}));
+  assert.equal(p.bag.gear.length, It.BAG_SIZE);
+  assert.equal(It.pickupGear(p, gearOf({})).action, 'full');
+});
+
+test('道具依品級自動販賣，卡片預設保留；一鍵賣雜物', () => {
+  const p = It.ensureInv(Wd.newPlayer());
+  p.autoSell.item.junk = true;
+  assert.equal(It.pickupItem(p, 'mat_slime').action, 'sell');
+  assert.equal(It.pickupItem(p, 'card_slime').action, 'bag');
+  p.autoSell.item.junk = false;
+  It.pickupItem(p, 'mat_bat', 5); It.pickupItem(p, 'ore', 2);
+  const c = p.coins; It.sellAllJunk(p);
+  assert.ok(p.coins > c); assert.equal(It.count(p, 'mat_bat'), 0); assert.equal(It.count(p, 'ore'), 2);
+});
+
+test('卡片：要有空卡槽，插入後屬性上升', () => {
+  const p = It.ensureInv(Wd.newPlayer()); p.lv = 40;
+  It.pickupGear(p, gearOf({ slots: 1 }));
+  const uid = p.gear.weapon.uid;
+  It.addStack(p, 'card_berry', 2);
+  const atk0 = Wd.stats(p).atk, hp0 = Wd.stats(p).hp;
+  assert.ok(It.insertCard(p, uid, 'card_berry').ok);
+  assert.equal(It.insertCard(p, uid, 'card_berry').ok, false, '卡槽已滿');
+  const card = It.ITEMS.card_berry;
+  const s1 = Wd.stats(p);
+  assert.ok(s1.atk > atk0 || s1.hp > hp0 || s1.crit > 0.1 || s1.aspd > 1 || s1.skill > 1 || s1.dr > 0 || s1.leech > 0 || s1.soulGain > 1, card.stat);
+});
+
+test('精煉：+4 以內必成功、失敗只扣材料不掉級、+7 起要強化原石', () => {
+  const p = It.ensureInv(Wd.newPlayer());
+  It.pickupGear(p, gearOf({}));
+  const uid = p.gear.weapon.uid;
+  p.coins = 1e7; It.addStack(p, 'ore', 20); It.addStack(p, 'ore2', 20);
+  for (let i = 0; i < 4; i++) assert.ok(It.refine(p, uid, () => 0.99).success);
+  const fail = It.refine(p, uid, () => 0.99);
+  assert.equal(fail.success, false); assert.equal(p.gear.weapon.refine, 4);
+  for (let i = 0; i < 2; i++) It.refine(p, uid, () => 0);
+  assert.equal(It.refineCost(p.gear.weapon).ore, 'ore2');
+  const atk6 = Wd.stats(p).atk;
+  It.refine(p, uid, () => 0);
+  assert.ok(Wd.stats(p).atk > atk6);
+  for (let i = 0; i < 10; i++) It.refine(p, uid, () => 0);
+  assert.equal(p.gear.weapon.refine, 10);
+  assert.equal(It.refine(p, uid, () => 0).ok, false);
+});
+
+test('掉落與商店：每隻怪都有素材與卡片、商店依章節開放', () => {
+  for (const k of Object.keys(Wd.MONSTERS)) { assert.ok(It.ITEMS['mat_' + k]); assert.ok(It.ITEMS['card_' + k].val > 0); }
+  let cards = 0; const r = Wd.rng(4);
+  for (let i = 0; i < 20000; i++) cards += It.rollDrops(r, 'slime').filter((d) => d.id.startsWith('card_')).length;
+  assert.ok(cards > 20 && cards < 120, `cards ${cards}`);
+  assert.deepEqual(It.shopList(1), ['red']);
+  assert.ok(It.shopList(4).includes('white'));
+  const p = It.ensureInv(Wd.newPlayer()); p.coins = 100;
+  assert.ok(It.buy(p, 'red', 2).ok); assert.equal(It.buy(p, 'red', 10).ok, false);
+  assert.equal(It.pickPotion(p, 0.9), 'red');
+});

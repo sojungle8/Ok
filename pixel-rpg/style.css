@@ -210,3 +210,31 @@ button{font-family:inherit;color:inherit}
 .aff{font-size:.66em;background:#2a2148;border-radius:6px;padding:1px 6px;color:#c9f0ff}
 .loot{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:8px 0}
 .panel .chip{font-size:.8em}
+
+/* 背包 */
+.bagpanel{gap:6px}
+.eqrow{display:flex;gap:8px;align-items:center}
+.eqrow .doll{flex:none;padding:2px}
+.eqrow .doll canvas{width:54px;height:72px}
+.eqslots{display:grid;grid-template-columns:repeat(3,44px);gap:5px}
+.bgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:5px;max-height:30vh;overflow:auto;padding:2px}
+.bcell{position:relative;width:44px;height:44px;border-radius:8px;border:2px solid color-mix(in srgb,var(--rc,#4a3f78) 70%,transparent);background:#0b0816;display:grid;place-items:center;padding:0;cursor:pointer}
+.bcell canvas{width:32px;height:32px;image-rendering:pixelated}
+.bcell em{position:absolute;right:2px;bottom:0;font-style:normal;font-family:var(--pixel);font-size:10px;text-shadow:0 1px 0 #000,1px 0 0 #000}
+.bcell .lock{position:absolute;left:2px;top:1px;font-style:normal;font-size:9px;color:#ffd166}
+.bcell.on{box-shadow:0 0 0 2px var(--gold)}
+.bcell.empty{font-size:.55em;color:var(--muted);border-style:dashed;border-color:var(--line);cursor:default}
+.btabs{display:flex;gap:4px}
+.btabs button{flex:1;background:#140f26;border:2px solid var(--line);border-radius:8px;padding:5px;font-size:.75em;cursor:pointer}
+.btabs button.on{border-color:var(--gold);color:var(--gold)}
+.bdetail{border:2px solid var(--line);border-radius:10px;padding:8px;font-size:.78em;min-height:3em}
+.bdetail p{margin:4px 0}
+.dline b{font-weight:400}
+.crow.wrap{flex-wrap:wrap}
+.crow .startbtn,.crow .ghostbtn,.bdetail .startbtn,.bdetail .ghostbtn{font-size:.82em;padding:6px 12px}
+.aff.card{background:#4a3410;color:#ffd78a}
+.chkrow{display:flex;flex-wrap:wrap;gap:6px 14px}
+.chk{display:inline-flex;align-items:center;gap:6px;font-size:.8em;cursor:pointer}
+.chk input{width:18px;height:18px;accent-color:var(--gold)}
+.panel h4{margin:6px 0 2px;font-weight:400;font-size:.85em;color:var(--gold)}
+#refineInfo{font-size:.8em}
