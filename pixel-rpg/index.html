@@ -10,23 +10,25 @@
 </head>
 <body>
 <div class="app">
-  <header class="hud">
-    <div class="lvbox"><span class="lbl" id="clsName">劍士</span><b id="lv">1</b></div>
-    <div class="bars">
-      <div class="bar hp"><i id="hpBar"></i><span><em>HP</em> <b id="hpText">0</b></span></div>
-      <div class="bar xp"><i id="xpBar"></i><span><em>EXP</em> <b id="xpText">0%</b></span></div>
-    </div>
-  </header>
-  <div class="stats">
-    <span class="stat cpstat" id="cpBox">戰鬥力 <b id="cp">0</b></span>
-    <span class="stat" id="coinBox"><i class="dot gold"></i><b id="coins">0</b></span>
-    <span class="tools">
-      <button id="gearBtn" class="tbtn" type="button">裝備</button>
-      <button id="fontBtn" class="tbtn" type="button">字級：大</button>
-    </span>
-  </div>
-  <div class="stage">
-    <canvas id="cv" width="960" height="1056" aria-label="遊戲畫面"></canvas>
+  <canvas id="cv" width="390" height="844" aria-label="遊戲畫面"></canvas>
+  <div class="ui" id="ui" hidden>
+    <header class="hud">
+      <div class="me">
+        <div class="lvbox"><span class="lbl" id="clsName">劍士</span><b id="lv">1</b></div>
+        <div class="bars">
+          <div class="bar hp"><i id="hpBar"></i><span><em>HP</em> <b id="hpText">0</b></span></div>
+          <div class="bar xp"><i id="xpBar"></i><span><em>EXP</em> <b id="xpText">0%</b></span></div>
+        </div>
+      </div>
+      <div class="side">
+        <span class="chip cpstat" id="cpBox">戰力 <b id="cp">0</b></span>
+        <span class="chip" id="coinBox"><i class="dot gold"></i><b id="coins">0</b></span>
+        <div class="tools">
+          <button id="gearBtn" class="tbtn" type="button">裝備</button>
+          <button id="fontBtn" class="tbtn" type="button">字級：大</button>
+        </div>
+      </div>
+    </header>
     <div class="quest"><span class="qlbl">任務</span><span id="quest"></span></div>
     <div id="bossBar" class="bossbar" hidden><span>史萊姆王</span><div class="bb"><i id="bossFill"></i></div></div>
     <div id="combo" class="combo" hidden></div>
@@ -39,44 +41,39 @@
       <div class="opts" id="dlgOpts"></div>
       <div class="next" id="dlgNext">▼</div>
     </div>
-    <div id="gearPanel" class="gearpanel" hidden>
-      <h3>我的裝備</h3>
-      <div id="gearDoll" class="doll"></div>
-      <div id="gearList"></div>
-      <button id="gearClose" class="startbtn" type="button">關閉</button>
-    </div>
-    <div id="title" class="title">
-      <div class="logo">微光大陸<small>GLIMMERLAND</small></div>
-      <div class="title-art" id="titleArt"></div>
-      <button id="startBtn" class="startbtn" type="button" hidden>繼續冒險</button>
-      <button id="newBtn" class="startbtn" type="button">建立角色・開始冒險</button>
-      <p class="tip">四大職業・專屬技能・換裝外觀・自動狩獵<br>鍵盤：方向鍵移動、空白鍵攻擊、Q／E／F 技能、X 藥水、R 自動</p>
-    </div>
-    <div id="classPanel" class="classpanel" hidden>
-      <h3>選擇職業</h3>
-      <div id="classGrid" class="classgrid"></div>
-      <label class="namefield">角色名稱 <input id="nameInput" maxlength="8" value="冒險者" autocomplete="off"></label>
-      <p id="overwriteNote" class="warn" hidden>建立新角色會取代目前的存檔。</p>
-      <div class="crow"><button id="classBack" class="ghostbtn" type="button">返回</button><button id="classGo" class="startbtn" type="button">出發！</button></div>
-    </div>
-  </div>
-  <div class="pad">
-    <div class="padl">
-      <button id="autoBtn" class="autobtn" type="button">自動 <b>OFF</b></button>
-      <div class="dpad" aria-label="方向鍵">
-        <button data-dir="up" class="u" aria-label="上">▲</button>
-        <button data-dir="left" class="l" aria-label="左">◀</button>
-        <button data-dir="right" class="r" aria-label="右">▶</button>
-        <button data-dir="down" class="d" aria-label="下">▼</button>
+    <div class="pad">
+      <div class="padl">
+        <button id="autoBtn" class="autobtn" type="button">自動 <b>OFF</b></button>
+        <div id="stick" class="stick" aria-label="移動搖桿"><div id="knob" class="knob"></div></div>
+      </div>
+      <div class="acts">
+        <button id="sk2Btn" class="skill sk2" type="button"><span></span><em></em></button>
+        <button id="sk1Btn" class="skill sk1" type="button"><span></span><em></em></button>
+        <button id="sk0Btn" class="skill sk0" type="button"><span></span><em></em></button>
+        <button id="bBtn" class="skill pot" type="button" aria-label="喝藥水">藥水<small id="potions">3</small></button>
+        <button id="aBtn" class="round a" type="button" aria-label="攻擊（按住連續攻擊）">攻擊</button>
       </div>
     </div>
-    <div class="acts">
-      <button id="sk2Btn" class="skill sk2" type="button"><span></span><em></em></button>
-      <button id="sk1Btn" class="skill sk1" type="button"><span></span><em></em></button>
-      <button id="sk0Btn" class="skill sk0" type="button"><span></span><em></em></button>
-      <button id="bBtn" class="skill pot" type="button" aria-label="喝藥水">藥水<small id="potions">3</small></button>
-      <button id="aBtn" class="round a" type="button" aria-label="攻擊（按住連續攻擊）">攻擊</button>
-    </div>
+  </div>
+  <div id="gearPanel" class="panel gearpanel" hidden>
+    <h3>我的裝備</h3>
+    <div id="gearDoll" class="doll"></div>
+    <div id="gearList"></div>
+    <button id="gearClose" class="startbtn" type="button">關閉</button>
+  </div>
+  <div id="title" class="title">
+    <div class="logo">微光大陸<small>GLIMMERLAND</small></div>
+    <div class="title-art" id="titleArt"></div>
+    <button id="startBtn" class="startbtn" type="button" hidden>繼續冒險</button>
+    <button id="newBtn" class="startbtn" type="button">建立角色・開始冒險</button>
+    <p class="tip">四大職業・專屬技能・換裝外觀・自動狩獵<br>鍵盤：方向鍵移動、空白鍵攻擊、Q／E／F 技能、X 藥水、R 自動</p>
+  </div>
+  <div id="classPanel" class="panel classpanel" hidden>
+    <h3>選擇職業</h3>
+    <div id="classGrid" class="classgrid"></div>
+    <label class="namefield">角色名稱 <input id="nameInput" maxlength="8" value="冒險者" autocomplete="off"></label>
+    <p id="overwriteNote" class="warn" hidden>建立新角色會取代目前的存檔。</p>
+    <div class="crow"><button id="classBack" class="ghostbtn" type="button">返回</button><button id="classGo" class="startbtn" type="button">出發！</button></div>
   </div>
 </div>
 <script type="module" src="game.js"></script>

@@ -8,9 +8,20 @@ import { avatar, lookOf, npcLook, AW, AH } from './avatar.js';
 
 const KEY = 'glimmer-rpg-v1';
 const $ = (id) => document.getElementById(id);
-const TS = 16, VW = 10 * TS, VH = 11 * TS, SC = 6;
+const TS = 16;
+let VW = 11 * TS, VH = 20 * TS, S = 6, DPR = 1;
+// 全螢幕：短邊固定顯示約 11 格，長邊依螢幕比例延伸
+function resize() {
+  DPR = Math.min(3, window.devicePixelRatio || 1);
+  const w = cv.clientWidth || innerWidth, h = cv.clientHeight || innerHeight;
+  cv.width = Math.round(w * DPR); cv.height = Math.round(h * DPR);
+  S = (Math.min(w, h) * DPR) / (11 * TS);
+  VW = cv.width / S; VH = cv.height / S;
+  if (typeof render === 'function' && myLook) render();
+}
 const cv = $('cv');
 const ctx = cv.getContext('2d');
+addEventListener('resize', () => resize());
 const grid = buildWorld();
 const mapC = document.createElement('canvas');
 mapC.width = W * TS; mapC.height = H * TS;
@@ -569,7 +580,20 @@ function bindHold(el, down, up) {
   const end = () => { el.classList.remove('down'); up?.(); };
   el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end); el.addEventListener('lostpointercapture', end);
 }
-document.querySelectorAll('[data-dir]').forEach((b) => bindHold(b, () => { held = b.dataset.dir; }, () => { if (held === b.dataset.dir) held = null; }));
+// 虛擬搖桿：拖曳方向決定移動，放開就停
+const stick = $('stick'), knob = $('knob');
+let stickId = null;
+function stickMove(e) {
+  const r = stick.getBoundingClientRect();
+  const dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2);
+  const max = r.width * 0.36, d = Math.hypot(dx, dy), k = d > max ? max / d : 1;
+  knob.style.transform = `translate(${dx * k}px, ${dy * k}px)`;
+  held = d < r.width * 0.12 ? null : Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
+}
+stick.addEventListener('pointerdown', (e) => { e.preventDefault(); stickId = e.pointerId; stick.setPointerCapture?.(e.pointerId); stick.classList.add('on'); stickMove(e); });
+stick.addEventListener('pointermove', (e) => { if (e.pointerId === stickId) stickMove(e); });
+const stickEnd = (e) => { if (e.pointerId !== stickId) return; stickId = null; held = null; knob.style.transform = ''; stick.classList.remove('on'); };
+stick.addEventListener('pointerup', stickEnd); stick.addEventListener('pointercancel', stickEnd); stick.addEventListener('lostpointercapture', stickEnd);
 bindHold($('aBtn'), pressA, () => { aHeld = false; });
 bindHold($('bBtn'), usePotion);
 [0, 1, 2].forEach((i) => bindHold($(`sk${i}Btn`), () => castIdx(i)));
@@ -594,6 +618,7 @@ document.addEventListener('contextmenu', (e) => { if (e.target.closest('.pad')) 
 const SIZES = [['中', 17], ['大', 20], ['特大', 24]];
 let fsIdx = 1;
 try { const raw = localStorage.getItem('glimmer-fs'); if (raw !== null && SIZES[+raw]) fsIdx = +raw; } catch { /* 忽略 */ }
+const fsK = () => SIZES[fsIdx][1] / 20;
 function applyFs() { document.documentElement.style.setProperty('--fs', `${SIZES[fsIdx][1]}px`); $('fontBtn').textContent = `字級：${SIZES[fsIdx][0]}`; }
 $('fontBtn').addEventListener('click', () => { fsIdx = (fsIdx + 1) % SIZES.length; applyFs(); try { localStorage.setItem('glimmer-fs', fsIdx); } catch { /* 忽略 */ } });
 applyFs();
@@ -685,15 +710,16 @@ function updateSkillUi() {
 // ---------- 繪製 ----------
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 function render() {
-  ctx.setTransform(SC, 0, 0, SC, 0, 0);
+  ctx.setTransform(S, 0, 0, S, 0, 0);
   ctx.imageSmoothingEnabled = false;
-  let camX = clamp(Math.round(cx(me) - VW / 2), 0, W * TS - VW);
-  let camY = clamp(Math.round(cy(me) - 4 - VH / 2), 0, H * TS - VH);
+  ctx.fillStyle = '#0b0816'; ctx.fillRect(0, 0, VW, VH);
+  let camX = W * TS <= VW ? Math.round((W * TS - VW) / 2) : clamp(Math.round(cx(me) - VW / 2), 0, W * TS - VW);
+  let camY = H * TS <= VH ? Math.round((H * TS - VH) / 2) : clamp(Math.round(cy(me) - 4 - VH / 2), 0, H * TS - VH);
   if (shake > 0) { const s = Math.min(4, shake * 14); camX += Math.round((R() - 0.5) * s); camY += Math.round((R() - 0.5) * s); }
-  ctx.drawImage(mapC, camX, camY, VW, VH, 0, 0, VW, VH);
+  ctx.drawImage(mapC, -camX, -camY);
   ctx.fillStyle = 'rgba(255,255,255,.45)';
   const tx0 = Math.floor(camX / TS), ty0 = Math.floor(camY / TS);
-  for (let ty = ty0; ty <= ty0 + 12; ty++) for (let tx = tx0; tx <= tx0 + 11; tx++) {
+  for (let ty = ty0; ty <= ty0 + Math.ceil(VH / TS) + 1; ty++) for (let tx = tx0; tx <= tx0 + Math.ceil(VW / TS) + 1; tx++) {
     if (grid[ty]?.[tx] !== T.WATER && grid[ty]?.[tx] !== T.FOUNTAIN) continue;
     const ph = (anim * 1.3 + tx * 0.37 + ty * 0.61) % 3;
     if (ph < 1) ctx.fillRect(tx * TS - camX + 3 + Math.floor(ph * 8), ty * TS - camY + 4 + ((tx + ty) % 3) * 4, 3, 1);
@@ -735,18 +761,18 @@ function render() {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
   const label = (text, wx, wy, color, size) => {
-    ctx.font = `${size}px Huninn, "PingFang TC", sans-serif`;
-    ctx.lineWidth = 8; ctx.strokeStyle = '#1b1420'; ctx.strokeText(text, (wx - camX) * SC, (wy - camY) * SC);
-    ctx.fillStyle = color; ctx.fillText(text, (wx - camX) * SC, (wy - camY) * SC);
+    ctx.font = `${size * DPR * fsK()}px Huninn, "PingFang TC", sans-serif`;
+    ctx.lineWidth = 3 * DPR; ctx.strokeStyle = '#1b1420'; ctx.strokeText(text, (wx - camX) * S, (wy - camY) * S);
+    ctx.fillStyle = color; ctx.fillText(text, (wx - camX) * S, (wy - camY) * S);
   };
-  if (started) label(P.name, cx(me), me.py * TS - 20, C.color, 30);
-  for (const n of npcs) if (Math.abs(n.x - me.px) < 7 && Math.abs(n.y - me.py) < 7) label(n.name.split('・')[1], n.x * TS + 8, n.y * TS - 20, '#fff8e7', 26);
+  if (started) label(P.name, cx(me), me.py * TS - 20, C.color, 12);
+  for (const n of npcs) if (Math.abs(n.x - me.px) < VW / TS && Math.abs(n.y - me.py) < VH / TS) label(n.name.split('・')[1], n.x * TS + 8, n.y * TS - 20, '#fff8e7', 11);
   for (const f of floats) {
     const pop = 1 + Math.max(0, 0.12 - f.t) * 5;
-    const x = (f.x - camX) * SC, y = (f.y - camY - f.t * 18) * SC;
+    const x = (f.x - camX) * S, y = (f.y - camY - f.t * 18) * S;
     ctx.globalAlpha = f.t > 0.65 ? (0.9 - f.t) / 0.25 : 1;
-    ctx.font = `${Math.round(48 * f.size * pop)}px Silkscreen, Huninn, monospace`;
-    ctx.lineWidth = 12; ctx.strokeStyle = '#2a1d2e'; ctx.strokeText(f.text, x, y);
+    ctx.font = `${Math.round(18 * DPR * fsK() * f.size * pop)}px Silkscreen, Huninn, monospace`;
+    ctx.lineWidth = 4.5 * DPR; ctx.strokeStyle = '#2a1d2e'; ctx.strokeText(f.text, x, y);
     ctx.fillStyle = f.color; ctx.fillText(f.text, x, y);
   }
   ctx.globalAlpha = 1;
@@ -920,6 +946,7 @@ function start() {
   if (started) return;
   started = true;
   $('title').hidden = true; $('classPanel').hidden = true;
+  $('ui').hidden = false;
   setupClass(); hud();
   if (P.quest === 0 && P.lv === 1) say('村長・歐文', [`歡迎來到微光村，${C.name}${P.name}！`, '按住紅色「攻擊」鍵連續攻擊，旁邊三顆是職業專屬技能。', '懶得操作就按左上的「自動」，角色會自己去打怪！', '先來廣場北邊找我說話吧。']);
 }
@@ -957,6 +984,7 @@ function titleScreen() {
   $('titleArt').replaceChildren(...looks.map((L) => previewCanvas(L, 2)));
 }
 setupClass();
+resize();
 titleScreen();
 hud();
 render();
