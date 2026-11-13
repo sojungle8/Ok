@@ -1,4 +1,5 @@
 // 微光大陸：紙娃娃角色（24×32）。身體、頭髮、衣服、披風、頭盔、武器分層畫，換裝備外觀就跟著變。
+import { cutoutAvatar } from './cutout.js';
 export const AW = 24, AH = 32;
 const INK = '#241a2b';
 const SKIN = '#f7c9a3', SKIN_D = '#e6a882';
@@ -32,6 +33,7 @@ export function lookOf(p, CLASSES, rarityIdx) {
   const legend = Object.values(g).some((it) => it && it.rarity === 'legend');
   const gl = g.gloves ? rarityIdx(g.gloves.rarity) : -1, bt = g.boots ? rarityIdx(g.boots.rarity) : -1;
   return {
+    cls: p.cls, armorTier: ar, glovesTier: gl, bootsTier: bt,
     hair: c.hair, outfit, trimClass: c.color,
     cape: ar >= 3 ? (ar === 4 ? '#d64550' : c.color) : null,
     helm: hr >= 0 ? { style: c.helm, color: HELM[hr], tier: hr } : null,
@@ -120,6 +122,8 @@ function drawHelm(P, px, L, dir) {
 
 const cache = new Map();
 export function avatar(L, dir, frame) {
+  const hd = cutoutAvatar(L, dir, frame);
+  if (hd) return hd;
   const key = `${JSON.stringify(L)}|${dir}|${frame}`;
   if (cache.has(key)) return cache.get(key);
   const c = document.createElement('canvas');

@@ -1465,7 +1465,7 @@ function render() {
     } else ctx.drawImage(coinS, x - 3, y - 3);
   }
   const ents = [
-    ...npcs.map((n) => ({ y: n.y, f: () => drawPerson(avatar(n.L, n.face, 0), n.x * TS, n.y * TS - (Math.floor(anim * 1.6 + n.seed) % 2)) })),
+    ...npcs.map((n) => ({ y: n.y, f: () => drawNpc(n, n.x * TS, n.y * TS - (Math.floor(anim * 1.6 + n.seed) % 2)) })),
     ...alive().map((m) => ({ y: m.py, f: () => drawMon(m) })),
     { y: me.py + 0.01, f: drawMe },
     ...allies.map((a) => ({ y: a.py + 0.005, f: () => drawAlly(a) })),
@@ -1523,7 +1523,14 @@ function render() {
   ctx.globalAlpha = 1;
 }
 function shadow(x, y, w = 12) { ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.fillRect(x + 8 - w / 2, y + 14, w, 2); ctx.fillRect(x + 9 - w / 2, y + 16, w - 2, 1); }
-function drawPerson(img, x, y) { shadow(x, y); ctx.drawImage(img, Math.round(x) - 4, Math.round(y) - 17); }
+function drawNpc(n, x, y) {
+  const hd = asset('npc/' + (n.id === 'guide' ? 'guide' + n.ch : n.id));
+  if (!hd) { drawPerson(avatar(n.L, n.face, 0), x, y); return; }
+  shadow(x, y); ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(hd, Math.round(x) - 6, Math.round(y) - 20, 28, 37);
+  ctx.imageSmoothingEnabled = false;
+}
+function drawPerson(img, x, y) { shadow(x, y); ctx.imageSmoothingEnabled = img.width > AW; ctx.drawImage(img, Math.round(x) - 4, Math.round(y) - 17, AW, AH); ctx.imageSmoothingEnabled = false; }
 function drawMe() {
   const x = Math.round(me.px * TS), y = Math.round(me.py * TS);
   const frame = me.atkT > 0 ? 2 : me.moving ? ((me.mt > 0.5 ? 1 : 0) ^ me.step) : 0;
@@ -1537,7 +1544,7 @@ function drawMe() {
 }
 function drawAlly(a) {
   const x = Math.round(a.px * TS), y = Math.round(a.py * TS);
-  if (a.down > 0) { ctx.globalAlpha = 0.45; ctx.save(); ctx.translate(x + 8, y + 12); ctx.rotate(Math.PI / 2); ctx.drawImage(avatar(a.c.look, 'down', 0), -12, -16); ctx.restore(); ctx.globalAlpha = 1; return; }
+  if (a.down > 0) { ctx.globalAlpha = 0.45; ctx.save(); ctx.translate(x + 8, y + 12); ctx.rotate(Math.PI / 2); ctx.drawImage(avatar(a.c.look, 'down', 0), -12, -16, AW, AH); ctx.restore(); ctx.globalAlpha = 1; return; }
   if (a.hurtT > 0 && Math.floor(a.hurtT * 20) % 2) { shadow(x, y); return; }
   const frame = a.atkT > 0 ? 2 : a.moving ? ((a.mt > 0.5 ? 1 : 0) ^ a.step) : 0;
   const hd = asset('npc/ally_' + a.id);
@@ -1547,7 +1554,7 @@ function drawAlly(a) {
 }
 function drawMon(m) {
   const x = Math.round(m.px * TS + m.kx), y = Math.round(m.py * TS + m.ky);
-  if (m.d.decoy) { if (!m.real) shadow(x, y); ctx.drawImage(avatar(m.look, 'down', 0), x - 4, y - 17); return; }
+  if (m.d.decoy) { if (!m.real) shadow(x, y); ctx.drawImage(avatar(m.look, 'down', 0), x - 4, y - 17, AW, AH); return; }
   const hd = asset('monster/' + (m.d.tpl === 'mirror' ? 'mirror_obj' : m.type));
   if (hd) {
     const big = m.d.boss, size = big ? 52 : 26, bob = m.frozen > 0 ? 0 : Math.sin(m.anim * 5) * (big ? 1.5 : 1);
@@ -1763,7 +1770,7 @@ function drawFxInner(f, k) {
       break;
     }
     case 'ghost': {
-      ctx.globalAlpha = 0.45 * (1 - k); ctx.drawImage(avatar(myLook, f.face, 1), Math.round(f.x * TS) - 4, Math.round(f.y * TS) - 17);
+      ctx.globalAlpha = 0.45 * (1 - k); ctx.drawImage(avatar(myLook, f.face, 1), Math.round(f.x * TS) - 4, Math.round(f.y * TS) - 17, AW, AH);
       break;
     }
     case 'heal': {

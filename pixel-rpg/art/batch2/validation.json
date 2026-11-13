@@ -1,0 +1,1174 @@
+{
+  "count": 167,
+  "assets": [
+    {
+      "id": "char/body/head_back",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "char/body/torso_front",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "char/body/torso_back",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "char/body/head_side",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "char/body/head_front",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "char/body/torso_side",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "char/body/hand_back",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "char/body/hand_front",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "char/body/hand_side",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "char/body/leg_front",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "char/body/leg_back",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "char/body/leg_side",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "char/sword/hair_front",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "char/sword/hair_back",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "char/sword/hair_side",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "char/archer/hair_front",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "char/archer/hair_side",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "char/archer/hair_back",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "char/mage/hair_back",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "char/mage/hair_front",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "char/mage/hair_side",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "char/monk/hair_back",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "char/monk/hair_front",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "char/monk/hair_side",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/armor/common_back",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/armor/common_front",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/armor/common_side",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/armor/epic_back",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/armor/epic_front",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/armor/epic_side",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/armor/good_back",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/armor/good_front",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/armor/good_side",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/armor/legend_back",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/armor/legend_front",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/armor/legend_side",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/armor/rare_back",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/armor/rare_front",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/armor/rare_side",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/boots/common",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/boots/epic",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/boots/good",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/boots/legend",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/boots/rare",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/cape/purple_back",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/cape/purple_front",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/cape/purple_side",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/cape/red_back",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/cape/red_front",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/cape/red_side",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/gloves/common",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/gloves/epic",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/gloves/good",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/gloves/legend",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/gloves/rare",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/band_common_back",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/band_common_front",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/band_common_side",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/band_epic_back",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/band_epic_front",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/band_epic_side",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/band_good_back",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/band_good_front",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/band_good_side",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/band_legend_back",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/band_legend_front",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/band_legend_side",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/band_rare_back",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/band_rare_front",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/band_rare_side",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/hat_common_back",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/hat_common_front",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/hat_common_side",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/hat_epic_back",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/hat_epic_front",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/hat_epic_side",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/hat_good_back",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/hat_good_front",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/hat_good_side",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/hat_legend_back",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/hat_legend_front",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/hat_legend_side",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/hat_rare_back",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/hat_rare_front",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/hat_rare_side",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/helm_common_back",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/helm_common_front",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/helm_common_side",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/helm_epic_back",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/helm_epic_front",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/helm_epic_side",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/helm_good_back",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/helm_good_front",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/helm_good_side",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/helm_legend_back",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/helm_legend_front",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/helm_legend_side",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/helm_rare_back",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/helm_rare_front",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/helm_rare_side",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/hood_common_back",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/hood_common_front",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/hood_common_side",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/hood_epic_back",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/hood_epic_front",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/hood_epic_side",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/hood_good_back",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/hood_good_front",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/hood_good_side",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/hood_legend_back",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/hood_legend_front",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/hood_legend_side",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/hood_rare_back",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/hood_rare_front",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/helm/hood_rare_side",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/weapon/bow_common",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/weapon/bow_epic",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/weapon/bow_good",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/weapon/bow_legend",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/weapon/bow_rare",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/weapon/fist_common",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/weapon/fist_epic",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/weapon/fist_good",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/weapon/fist_legend",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/weapon/fist_rare",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/weapon/staff_common",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/weapon/staff_epic",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/weapon/staff_good",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/weapon/staff_legend",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/weapon/staff_rare",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/weapon/sword_common",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/weapon/sword_epic",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/weapon/sword_good",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/weapon/sword_legend",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "gear/weapon/sword_rare",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "npc/ally_buck",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "npc/ally_carlos",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "npc/ally_lena",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "npc/ally_mia",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "npc/ally_nova",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "npc/elder",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "npc/fisher",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "npc/guide2",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "npc/guide3",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "npc/guide4",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "npc/guide5",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "npc/guide6",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "npc/inn",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "npc/porter",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "npc/shop",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "npc/smith",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "portrait/ally_buck",
+      "width": 512,
+      "height": 512,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "portrait/ally_carlos",
+      "width": 512,
+      "height": 512,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "portrait/ally_lena",
+      "width": 512,
+      "height": 512,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "portrait/ally_mia",
+      "width": 512,
+      "height": 512,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "portrait/ally_nova",
+      "width": 512,
+      "height": 512,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "portrait/elder",
+      "width": 512,
+      "height": 512,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "portrait/fisher",
+      "width": 512,
+      "height": 512,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "portrait/guide2",
+      "width": 512,
+      "height": 512,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "portrait/guide3",
+      "width": 512,
+      "height": 512,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "portrait/guide4",
+      "width": 512,
+      "height": 512,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "portrait/guide5",
+      "width": 512,
+      "height": 512,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "portrait/guide6",
+      "width": 512,
+      "height": 512,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "portrait/inn",
+      "width": 512,
+      "height": 512,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "portrait/porter",
+      "width": 512,
+      "height": 512,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "portrait/shop",
+      "width": 512,
+      "height": 512,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "portrait/smith",
+      "width": 512,
+      "height": 512,
+      "alpha": true,
+      "srgb": true
+    }
+  ]
+}
