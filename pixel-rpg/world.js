@@ -334,6 +334,7 @@ export function loadPlayer(raw) {
     for (const it of Object.values(p.gear)) if (it && typeof it === 'object' && !Array.isArray(it.affixes)) it.affixes = [];
     for (const k of Object.keys(p.souls)) if (!SOULS[k]) delete p.souls[k];
     if (p.soul && !p.souls[p.soul]) p.soul = '';
+    if (p.quest >= 2 && !p.souls.gear) { p.souls.gear = 1; if (!p.soul) p.soul = 'gear'; } // 舊存檔補發覺醒魂像
     if (!CLASSES[p.cls]) p.cls = 'sword';
     for (const k of Object.keys(p.gear)) if (!SLOTS.includes(k) || !validItem(p.gear[k])) delete p.gear[k];
     p.hp = Math.min(Math.max(1, p.hp), stats(p).hp);

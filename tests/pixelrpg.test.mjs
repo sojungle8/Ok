@@ -192,3 +192,9 @@ test('等級上限：第 1 章最高 Lv 15，超過的經驗不累積', () => {
   assert.equal(p.exp, 0);
   assert.equal(Wd.talentPoints(p), Wd.LV_CAP - 1);
 });
+
+test('舊存檔已過覺醒劇情：讀檔補發鏽紅齒輪', () => {
+  const p = Wd.loadPlayer(JSON.stringify({ v: 3, cls: 'mage', lv: 9, hp: 10, quest: 2 }));
+  assert.equal(p.souls.gear, 1);
+  assert.equal(p.soul, 'gear');
+});
