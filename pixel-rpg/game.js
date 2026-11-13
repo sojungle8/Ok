@@ -3,10 +3,10 @@ import {
   MONSTERS, ROSTER, expNeed, stats, swordCost, POTION_PRICE, POTION_HEAL_PCT, FISH, rollFish, gainExp, newPlayer, loadPlayer,
   rollGear, rarityOf, rarityIdx, equipIfBetter, SLOTS, SLOT_NAME, DROP_RATE, CLASSES, CLASS_IDS,
   TALENTS, TALENT_MAX, TALENT_REQ, talentPoints, talentSpent, canLearn, learn, resetTalents,
-  SOULS, SOUL_IDS, SUMMON_COST, SUMMON_PITY, summon, offlineReward, affixName, LV_CAP,
+  SOULS, SOUL_IDS, SUMMON_COST, SUMMON_PITY, summon, offlineReward, affixName, LV_CAP, capFor, CHAPTERS, FIELD, buildField,
 } from './world.js';
 import { soulSprite, soulBig } from './soul.js';
-import { PAL, SLIME, CROWN, BOBBER, BANG, HEART, COIN, ORB, makeSprite, SLIME_COLORS, drawMap } from './sprites.js';
+import { PAL, CROWN, BOBBER, BANG, HEART, COIN, ORB, makeSprite, drawMap, monsterSprite } from './sprites.js';
 import { avatar, lookOf, npcLook, AW, AH } from './avatar.js';
 
 const KEY = 'glimmer-rpg-v1';
@@ -25,23 +25,27 @@ function resize() {
 const cv = $('cv');
 const ctx = cv.getContext('2d');
 addEventListener('resize', () => resize());
-const grid = buildWorld();
-const mapC = document.createElement('canvas');
-mapC.width = W * TS; mapC.height = H * TS;
-drawMap(mapC.getContext('2d'), grid, T, HOUSES);
-
-const npcs = NPCS.map((n, i) => ({ ...n, face: n.id === 'fisher' ? 'right' : 'down', L: npcLook(n), seed: i }));
-const slimeS = {};
-for (const k of Object.keys(SLIME_COLORS)) slimeS[k] = SLIME.map((f) => makeSprite(f, { ...PAL, ...SLIME_COLORS[k] }));
+// 地圖：0 = 微光村與史萊姆草原；2～6 = 各章野外
+let mapId = 0, grid = buildWorld(), mapC = null, BZ = BOSS_ZONE, FMIN = FIELD_MIN_X;
+const townNpcs = NPCS.map((n, i) => ({ ...n, face: n.id === 'fisher' ? 'right' : 'down', L: npcLook(n), seed: i }));
+let npcs = townNpcs;
+const mapCache = {};
+function renderMapCanvas(id) {
+  if (mapCache[id]) return mapCache[id];
+  const c = document.createElement('canvas'); c.width = W * TS; c.height = H * TS;
+  drawMap(c.getContext('2d'), grid, T, id === 0 ? HOUSES : [], 3, id === 0 ? 'meadow' : CHAPTERS[id - 1].theme);
+  return (mapCache[id] = c);
+}
+mapC = renderMapCanvas(0);
 const crownS = makeSprite(CROWN), bobberS = makeSprite(BOBBER), bangS = makeSprite(BANG), heartS = makeSprite(HEART), coinS = makeSprite(COIN);
 const orbS = {};
 for (const r of ['common', 'good', 'rare', 'epic', 'legend']) orbS[r] = makeSprite(ORB, { ...PAL, x: rarityOf(r).color });
 
 let hasSave = false, P;
 try { const raw = localStorage.getItem(KEY); hasSave = !!raw; P = loadPlayer(raw); } catch { P = newPlayer(); }
-if (!walkable(grid, P.x, P.y)) { P.x = SPAWN.x; P.y = SPAWN.y; }
+
 const me = { x: P.x, y: P.y, px: P.x, py: P.y, fx: P.x, fy: P.y, face: 'down', moving: false, mt: 0, dur: 0.14, step: 0, atkT: 0, hurtT: 0, cool: 0, inv: 0, dodgeT: 0 };
-function save() { P.x = me.x; P.y = me.y; P.seen = Date.now(); hasSave = true; try { localStorage.setItem(KEY, JSON.stringify(P)); } catch { /* 無痕模式不存 */ } }
+function save() { P.x = me.x; P.y = me.y; P.map = mapId; P.seen = Date.now(); hasSave = true; try { localStorage.setItem(KEY, JSON.stringify(P)); } catch { /* 無痕模式不存 */ } }
 
 const R = Math.random;
 const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
@@ -66,52 +70,108 @@ function setupClass() {
 }
 
 // ---------- 怪物 ----------
-const inBoss = (x, y) => x >= BOSS_ZONE.x0 && x <= BOSS_ZONE.x1 && y >= BOSS_ZONE.y0 && y <= BOSS_ZONE.y1;
+const inBoss = (x, y) => x >= BZ.x0 && x <= BZ.x1 && y >= BZ.y0 && y <= BZ.y1;
 function occupied(x, y, self) {
   if (me.x === x && me.y === y) return true;
   if (npcs.some((n) => n.x === x && n.y === y)) return true;
   return mons.some((m) => m !== self && m.dead <= 0 && m.x === x && m.y === y);
 }
-const monCanGo = (m, x, y) => walkable(grid, x, y) && x >= FIELD_MIN_X && !occupied(x, y, m) && (m.d.boss || m.minion ? inBoss(x, y) : !inBoss(x, y));
+const monCanGo = (m, x, y) => walkable(grid, x, y) && x >= FMIN && grid[y][x] !== T.PORTAL && !occupied(x, y, m) && (m.d.boss || m.minion ? inBoss(x, y) : !inBoss(x, y));
 function spawnTile(m) {
   for (let i = 0; i < 300; i++) {
     let x, y;
-    if (m.d.boss) { x = BOSS_ZONE.x0 + 1 + Math.floor(R() * 5); y = BOSS_ZONE.y0 + 1 + Math.floor(R() * 4); }
+    if (m.d.boss) { x = BZ.x0 + 1 + Math.floor(R() * 5); y = BZ.y0 + 1 + Math.floor(R() * 4); }
     else { const [a, b] = m.d.zone; x = a + Math.floor(R() * (b - a + 1)); y = 1 + Math.floor(R() * (H - 2)); if (inBoss(x, y)) continue; }
-    if (x >= FIELD_MIN_X && walkable(grid, x, y) && !occupied(x, y) && Math.abs(x - me.x) + Math.abs(y - me.y) > 3) return { x, y };
+    if (x >= FMIN && walkable(grid, x, y) && grid[y][x] !== T.PORTAL && !occupied(x, y) && Math.abs(x - me.x) + Math.abs(y - me.y) > 3) return { x, y };
   }
   return null;
 }
 function placeMon(m) {
   const t = spawnTile(m);
   if (!t) { m.dead = 1; return; }
-  Object.assign(m, { x: t.x, y: t.y, px: t.x, py: t.y, fx: t.x, fy: t.y, moving: false, hp: m.d.hp, dead: 0, cool: 1, think: R() * 1.5, flash: 0, kx: 0, ky: 0, spawnT: 0.4, frozen: 0, letter: 0, shield: false, phases: [], slamT: 3, spitT: 5 });
+  Object.assign(m, { x: t.x, y: t.y, px: t.x, py: t.y, fx: t.x, fy: t.y, moving: false, hp: m.d.hp, dead: 0, cool: 1, think: R() * 1.5, flash: 0, kx: 0, ky: 0, spawnT: 0.4, frozen: 0, letter: 0, shield: false, phases: [], slamT: 3, spitT: 5, hidden: false, engaged: false, stolen: new Set(), rwT: 10, hist: [], histT: 0 });
 }
-mons = ROSTER.map((type) => { const m = { type, d: MONSTERS[type], anim: R() * 2 }; placeMon(m); return m; });
-const alive = () => mons.filter((m) => m.dead <= 0);
+function spawnRoster(list) { mons = []; for (const type of list) { const m = { type, d: MONSTERS[type], anim: R() * 2 }; mons.push(m); placeMon(m); } }
+function fieldNpc(id) {
+  const c = CHAPTERS[id - 1];
+  return [{ id: 'guide', ch: id, x: FIELD.guide.x, y: FIELD.guide.y, name: c.guide.name, look: c.guide.look, face: 'down', L: npcLook(c.guide), seed: 0 }];
+}
+function loadMap(id, at) {
+  mapId = id;
+  grid = id === 0 ? buildWorld() : buildField(id);
+  mapC = renderMapCanvas(id);
+  BZ = id === 0 ? BOSS_ZONE : FIELD.boss; FMIN = id === 0 ? FIELD_MIN_X : 5;
+  npcs = id === 0 ? townNpcs : fieldNpc(id);
+  drops = []; projs = []; pending = []; fx = []; warns = []; fishing = null;
+  const s0 = at && walkable(grid, at.x, at.y) ? at : id === 0 ? SPAWN : FIELD.spawn;
+  Object.assign(me, { x: s0.x, y: s0.y, px: s0.x, py: s0.y, fx: s0.x, fy: s0.y, moving: false });
+  soulPos.x = cx(me); soulPos.y = cy(me);
+  const c = CHAPTERS[Math.max(1, id) - 1];
+  spawnRoster(id === 0 ? ROSTER : [...Array(9).fill(c.mons[0]), ...Array(8).fill(c.mons[1]), ...Array(7).fill(c.mons[2]), c.boss]);
+}
+const inSafe = () => (mapId === 0 ? me.x <= TOWN_EDGE : me.x < 5);
+const alive = () => mons.filter((m) => m.dead <= 0 && !m.hidden);
 const tdist = (m, x, y) => Math.hypot(m.px - x, m.py - y);
 function nearest(range, from = me) { let best = null, bd = 1e9; for (const m of alive()) { const d = tdist(m, from.px, from.py); if (d <= range + (m.d.boss ? 0.6 : 0) && d < bd) { bd = d; best = m; } } return best; }
 
-const MINION = { name: '小史萊姆王', hp: 160, atk: 8, exp: 10, coin: [2, 4], lv: 8, sight: 7 };
-function spawnMinions(boss, n) {
-  let made = 0;
-  for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1], [2, 0], [-2, 0]]) {
-    if (made >= n) break;
-    const x = boss.x + dx, y = boss.y + dy;
-    if (!walkable(grid, x, y) || occupied(x, y) || !inBoss(x, y)) continue;
-    mons.push({ type: 'king', d: MINION, minion: true, anim: R() * 2, x, y, px: boss.px, py: boss.py, fx: boss.x, fy: boss.y, moving: true, mt: 0, hp: MINION.hp, dead: 0, cool: 1.2, think: 0.5, flash: 0, kx: 0, ky: 0, spawnT: 0.3, frozen: 0, letter: 0 });
-    made++;
+const MINION = { name: '小史萊姆王', tpl: 'slime', pal: MONSTERS.king.pal, hp: 160, atk: 8, exp: 10, coin: [2, 4], lv: 8, sight: 7 };
+const MIRROR_OBJ = (b) => ({ name: '魔鏡', tpl: 'mirror', pal: {}, hp: Math.round(b.d.hp * 0.035), atk: 0, exp: 40, coin: [20, 40], lv: b.d.lv, sight: 0, still: true });
+const DECOY = { name: '路人', tpl: 'decoy', pal: {}, hp: 1, atk: 0, exp: 0, coin: [0, 0], lv: 1, sight: 0, still: true, decoy: true };
+let invertT = 0, lastSkill = null, lastUltId = null;
+function spawnMinions(boss, n, d = MINION, opts = {}) {
+  const spots = [];
+  for (let y = BZ.y0; y <= BZ.y1; y++) for (let x = BZ.x0; x <= BZ.x1; x++) if (walkable(grid, x, y) && !occupied(x, y)) spots.push([x, y]);
+  spots.sort((a, b) => (opts.spread ? R() - 0.5 : Math.hypot(a[0] - boss.x, a[1] - boss.y) - Math.hypot(b[0] - boss.x, b[1] - boss.y)));
+  const made = [];
+  for (const [x, y] of spots.slice(0, n)) {
+    const m = { type: boss.type, d, minion: true, anim: R() * 2, x, y, px: x, py: y, fx: x, fy: y, moving: false, mt: 0, hp: d.hp, dead: 0, cool: 1.2, think: 0.5, flash: 0, kx: 0, ky: 0, spawnT: 0.3, frozen: 0, letter: 0 };
+    mons.push(m); made.push(m);
   }
+  return made;
+}
+function revealFaceless(boss, at) {
+  for (const x of mons) if (x.d.decoy) x.dead = 1;
+  Object.assign(boss, { x: at.x, y: at.y, px: at.x, py: at.y, fx: at.x, fy: at.y, hidden: false, shield: false, moving: false });
+  floatT('找到你了！', at.x, at.y - 1.4, '#ffd166', 1.3); burst(cx(boss), cy(boss), '#fff1a8', 30, 140); shake = 0.3;
 }
 function bossThink(m, dt) {
-  const ratio = m.hp / m.d.hp;
-  for (const th of [0.75, 0.5, 0.25]) if (ratio <= th && !m.phases.includes(th)) {
+  const ratio = m.hp / m.d.hp, mech = m.d.mech;
+  const d = tdist(m, me.px, me.py);
+  const firstLook = !m.engaged && d <= 7;
+  if (firstLook) m.engaged = true;
+  if (mech === 'split') for (const th of [0.75, 0.5, 0.25]) if (ratio <= th && !m.phases.includes(th)) {
     m.phases.push(th); spawnMinions(m, 3); m.shield = true;
     banner('史萊姆王分裂了！'); feed('打倒<b>小史萊姆王</b>才能打破護盾', '#ff8a3d'); shake = 0.3;
   }
-  if (m.shield && !mons.some((x) => x.minion && x.dead <= 0)) { m.shield = false; floatT('護盾破了！', m.x, m.y - 1.2, '#ffd166', 1.2); burst(cx(m), cy(m), '#bdf1ff', 24, 120); }
-  const d = tdist(m, me.px, me.py);
-  if (d > 7) return;
+  if (mech === 'mirror') for (const th of [1, 0.5]) if ((th === 1 ? firstLook : ratio <= th) && !m.phases.includes(th)) {
+    m.phases.push(th); spawnMinions(m, 3, MIRROR_OBJ(m), { spread: true }); m.shield = true;
+    banner('魔鏡出現了！'); feed('魔鏡還在時：<b>左右操作顛倒</b>、夫人無敵。先打破魔鏡！', '#c084ff');
+  }
+  if (mech === 'faceless') for (const th of [1, 0.66, 0.33]) if ((th === 1 ? firstLook : ratio <= th) && !m.phases.includes(th)) {
+    m.phases.push(th); m.hidden = true; m.shield = true;
+    const ds = spawnMinions(m, 5, DECOY, { spread: true });
+    const real = ds[Math.floor(R() * ds.length)];
+    ds.forEach((x, i) => { x.look = npcLook(NPCS[i % NPCS.length]); x.real = x === real; });
+    banner('千面商人消失了！'); feed('五個路人裡只有一個是本尊——<b>他沒有影子</b>', '#f6c945');
+  }
+  if ((mech === 'split' || mech === 'mirror') && m.shield && !mons.some((x) => x.minion && x.dead <= 0 && !x.d.decoy)) { m.shield = false; floatT('護盾破了！', m.x, m.y - 1.2, '#ffd166', 1.2); burst(cx(m), cy(m), '#bdf1ff', 24, 120); }
+  invertT = mech === 'mirror' && mons.some((x) => x.minion && x.dead <= 0) && d <= 9 ? 0.3 : invertT;
+  if (mech === 'rewind' && m.engaged && !m.hidden) {
+    m.histT += dt;
+    if (m.histT >= 0.25) { m.histT = 0; m.hist.push({ hp: m.hp, x: me.x, y: me.y }); if (m.hist.length > 16) m.hist.shift(); }
+    m.rwT -= dt;
+    if (m.rwT <= 2.5 && !m.warned) { m.warned = true; feed('時鐘匠要<b>倒轉時間</b>了！先停手', '#f6d77a'); }
+    if (m.rwT <= 0) {
+      m.rwT = 10; m.warned = false;
+      const past = m.hist.at(-12) || m.hist[0];
+      if (past) {
+        if (past.hp > m.hp) { floatT(`+${fmt(past.hp - m.hp)}`, m.x, m.y - 1, '#7fd8ff', 1.2); m.hp = past.hp; }
+        if (walkable(grid, past.x, past.y) && !occupied(past.x, past.y)) Object.assign(me, { x: past.x, y: past.y, px: past.x, py: past.y, moving: false });
+      }
+      addFx('clock', 0.9, { x: cx(m), y: cy(m) }); flash = 0.15; banner('時間倒轉！');
+    }
+  }
+  if (d > 7 || m.hidden) return;
   m.slamT -= dt; m.spitT -= dt;
   if (d <= 4 && m.slamT <= 0) { m.slamT = 6; warns.push({ x: m.px, y: m.py, r: 2.2, t: 0, life: 1.1, dmg: Math.round(m.d.atk * 2.2), kind: 'slam' }); }
   if (m.spitT <= 0) {
@@ -168,7 +228,7 @@ function hud() {
   $('hpBar').style.width = `${Math.max(0, P.hp / st.hp) * 100}%`;
   $('hpText').textContent = `${fmt(Math.max(0, P.hp))} / ${fmt(st.hp)}`;
   $('xpBar').style.width = `${(P.exp / expNeed(P.lv)) * 100}%`;
-  $('xpText').textContent = P.lv >= LV_CAP ? 'MAX' : `${Math.floor((P.exp / expNeed(P.lv)) * 100)}%`;
+  $('xpText').textContent = P.lv >= capFor(P) ? 'MAX' : `${Math.floor((P.exp / expNeed(P.lv)) * 100)}%`;
   $('coins').textContent = fmt(P.coins);
   $('cp').textContent = fmt(st.cp);
   if (lastCp && st.cp !== lastCp) bump('cpBox');
@@ -179,8 +239,13 @@ function hud() {
   $('quest').textContent = questText();
 }
 function questText() {
-  return ['第 1 章｜找廣場北邊的村長歐文聊聊', `第 1 章｜打倒史萊姆 ${Math.min(P.kills, 20)} / 20，再回報村長`, `第 1 章｜擊敗東北方的史萊姆王（建議戰力 ${fmt(2000)}）`,
-    '第 1 章｜回村子向村長報告', '第 1 章完｜第 2 章「迴聲峽谷」製作中'][P.quest] || '';
+  const c = CHAPTERS[P.ch - 1];
+  if (!c) return '全章節完成｜自由冒險：收集卡片、精煉、刷傳說裝備';
+  const pre = `第 ${c.n} 章｜`;
+  if (c.n === 1) return pre + ['找廣場北邊的村長歐文聊聊', `打倒史萊姆 ${Math.min(P.kills, 20)} / 20，再回報村長`, '擊敗東北方的史萊姆王（建議 Lv 7 以上）', '回村子向村長報告'][P.step];
+  const gn = c.guide.name.split('・')[1];
+  if (P.step === 0) return pre + (mapId === c.n ? `和入口的${gn}說話` : `找村裡的傳送師小葵，前往「${c.name}」`);
+  return pre + [`和${gn}說話`, `打倒${c.name}的怪物 ${Math.min(P.kills, c.kills)} / ${c.kills}，再找${gn}`, `擊敗${MONSTERS[c.boss].name}（建議 Lv ${MONSTERS[c.boss].lv - 3} 以上）`, `回報${gn}`][P.step];
 }
 function previewCanvas(L, size = 4, dir = 'down') {
   const c = document.createElement('canvas'); c.width = AW * size; c.height = AH * size;
@@ -310,17 +375,33 @@ function talk(n) {
     P.coins += total;
     shopMenu(nm, total ? [`我來收購你的魚，一共 ${total} 金幣！`, '還需要什麼嗎？'] : ['歡迎光臨！要買點什麼嗎？']);
   } else if (n.id === 'elder') {
-    if (P.quest === 0) { P.quest = 1; P.kills = 0; say(nm, [`${P.name}，你來得正好！草原上的史萊姆多到快滿出來了。`, '過了東邊的橋就是史萊姆草原。', '幫我清掉 20 隻。懶得操作就按「自動」吧！']); }
-    else if (P.quest === 1 && P.kills >= 20) {
+    const c1 = P.ch === 1;
+    if (c1 && P.step === 0) { P.step = 1; P.kills = 0; say(nm, [`${P.name}，你來得正好！草原上的史萊姆多到快滿出來了。`, '過了東邊的橋就是史萊姆草原。', '幫我清掉 20 隻。懶得操作就按「自動」吧！']); }
+    else if (c1 && P.step === 1 && P.kills >= 20) {
       say(nm, ['……等等，你身上那道光是怎麼回事？', '那是「星痕」！艾斯特家的血脈，終於又覺醒了！', '別怕，閉上眼睛，聽聽你靈魂的聲音——'], null, awaken);
     }
-    else if (P.quest === 1) say(nm, [`還差 ${20 - P.kills} 隻，加油！`]);
-    else if (P.quest === 2) say(nm, ['史萊姆王受傷會分裂，分裂時會張開護盾。', '先打倒小史萊姆王，護盾才會破。', '地上出現紅圈就快點「閃避」！']);
-    else if (P.quest === 3) {
+    else if (c1 && P.step === 1) say(nm, [`還差 ${20 - P.kills} 隻，加油！`]);
+    else if (c1 && P.step === 2) say(nm, ['史萊姆王受傷會分裂，分裂時會張開護盾。', '先打倒小史萊姆王，護盾才會破。', '地上出現紅圈就快點「閃避」！']);
+    else if (c1 && P.step === 3) {
       P.coins += 500; P.stones += 200;
       say(nm, ['你真的打倒了史萊姆王！收下這 500 金幣和 200 魂石。', '……那隻魂像，我以前見過。', '六十年前，你的曾祖父雷歐也帶著一模一樣的齒輪。', '他最後去了東邊的迴聲峽谷，就再也沒有回來。', '來，握住這塊懷錶，你會看到他的記憶。'], null, memoryCorridor);
     }
-    else say(nm, ['迴聲峽谷的路還被落石擋著，等村裡的工匠清好就能出發。', '（第 2 章製作中）']);
+    else if (P.ch <= 6) say(nm, [`${P.name}，${CHAPTERS[P.ch - 1].name}那邊就拜託你了。`, '傳送師小葵就在廣場南邊。']);
+    else say(nm, ['你結束了三百年的黑夜。整個微光大陸都在說你的故事。']);
+  } else if (n.id === 'porter') {
+    if (P.ch === 1) say(nm, ['我能把你傳送到大陸各地。', '不過外面很危險，先完成村長的委託再來吧！']);
+    else {
+      const opts = CHAPTERS.slice(1).filter((c) => c.n <= Math.min(6, P.ch)).map((c) => [`第 ${c.n} 章・${c.name}（Lv ${MONSTERS[c.mons[0]].lv}～）`, () => { loadMap(c.n); feed(`來到了「${c.name}」`, '#c084ff'); hud(); save(); }]);
+      say(nm, ['要去哪裡呢？回來時踩上入口的傳送陣就好。'], [...opts, ['留在村子', null]]);
+    }
+  } else if (n.id === 'guide') {
+    const c = CHAPTERS[n.ch - 1], here = P.ch === n.ch;
+    if (!here) say(nm, P.ch > n.ch ? ['謝謝你，英雄。這裡的怪物還會再長回來，隨時來練功吧。'] : ['……你還不該來這裡。']);
+    else if (P.step === 0) { P.step = 1; P.kills = 0; say(nm, c.intro); }
+    else if (P.step === 1 && P.kills >= c.kills) { P.step = 2; say(nm, c.bossHint); }
+    else if (P.step === 1) say(nm, [`還差 ${c.kills - P.kills} 隻。`]);
+    else if (P.step === 2) say(nm, c.bossHint);
+    else say(nm, c.report, null, () => memoryScene(c));
   } else if (n.id === 'inn') {
     P.hp = stats(P).hp;
     say(nm, ['歡迎來到微光旅店！', '（你好好休息了一下，HP 全部恢復了）']);
@@ -332,7 +413,7 @@ function talk(n) {
   hud(); save();
 }
 function awaken() {
-  P.souls.gear = P.souls.gear || 1; P.soul = 'gear'; soulPower = 100; P.stones += 200; P.quest = 2;
+  P.souls.gear = P.souls.gear || 1; P.soul = 'gear'; soulPower = 100; P.stones += 200; P.step = 2;
   showCutin('gear', '覺醒'); cutinT = 1.8; pendingUlt = null;
   setTimeout(() => {
     banner('獲得魂像【鏽紅齒輪】');
@@ -340,11 +421,22 @@ function awaken() {
     hud(); save();
   }, 1900);
 }
+function memoryScene(c) {
+  $('app').classList.add('memory');
+  say('記憶迴廊', c.memory, null, () => {
+    $('app').classList.remove('memory');
+    P.coins += 500 * c.n; P.stones += 200;
+    banner(`第 ${c.n} 章　完`);
+    if (c.n === 6) { P.ch = 7; P.step = 0; setTimeout(() => banner('微光大陸　完'), 2000); feed('恭喜通關！等級上限提高到 60，繼續收集卡片與傳說裝備吧', '#f6c945'); }
+    else { P.ch = c.n + 1; P.step = 0; feed(`第 ${c.n + 1} 章「${CHAPTERS[c.n].name}」開放了，找傳送師小葵`, '#f6c945'); }
+    hud(); save();
+  });
+}
 function memoryCorridor() {
   $('app').classList.add('memory');
   say('記憶迴廊・六十年前', ['（懷錶的指針開始倒轉，四周的顏色褪成了褐色……）', '雷歐：「齒輪，再幫我一次。只要倒轉三秒就夠了！」', '雷歐：「瓦爾德……你偷走的那些魂像，我一定會一個一個拿回來。」', '雷歐：「如果我回不來，就讓下一個艾斯特來結束這一切吧。」', '（指針停住了。你回到了微光村。）'], null, () => {
     $('app').classList.remove('memory');
-    P.quest = 4; banner('第 1 章　完'); feed('第 2 章「迴聲峽谷」製作中，敬請期待', '#f6c945'); hud(); save();
+    P.ch = 2; P.step = 0; banner('第 1 章　完'); feed('第 2 章「迴聲峽谷」開放了！找廣場南邊的傳送師小葵', '#f6c945'); hud(); save();
   });
 }
 function shopMenu(nm, lines) {
@@ -381,10 +473,22 @@ function hurt(raw, m) {
   hud();
 }
 const ultMult = () => 1 + 0.2 * ((P.souls[P.soul] || 1) - 1);
+function stealCheck(m, kind) {
+  if (m.d.mech !== 'steal' || kind !== 'ult') return false;
+  if (m.stolen.has(lastUltId)) { if (R() < 0.5) float('無效！', cx(m), m.py * TS - 12, '#c084ff', 1); return true; }
+  return false;
+}
 function gainSoul(x) { if (P.soul && cutinT <= 0) soulPower = Math.min(100, soulPower + x * stats(P).soulGain); }
 function dealDamage(m, mult, fromX = me.px, fromY = me.py, color, kind = 'skill') {
   if (m.dead > 0 || m.hp <= 0) return;
+  if (m.d.decoy) {
+    const boss = mons.find((x) => x.d.mech === 'faceless');
+    if (m.real && boss) revealFaceless(boss, m);
+    else { m.dead = 1; floatT('猜錯了！', m.x, m.y - 1, '#ff5a6e', 1.2); addFx('boom', 0.35, { x: cx(m), y: cy(m) }); hurt(Math.round(stats(P).hp * 0.2), null); }
+    return;
+  }
   if (m.shield) { if (R() < 0.35) float('護盾', cx(m), m.py * TS - 10, '#bdf1ff', 0.8); burst(cx(m), cy(m), '#bdf1ff', 3); return; }
+  if (stealCheck(m, kind)) return;
   const st = stats(P);
   const crit = R() < st.crit;
   const k = kind === 'skill' ? st.skill : kind === 'ult' ? ultMult() : 1;
@@ -395,7 +499,7 @@ function dealDamage(m, mult, fromX = me.px, fromY = me.py, color, kind = 'skill'
   const a = Math.atan2(m.py - fromY, m.px - fromX);
   m.kx = Math.cos(a) * 4; m.ky = Math.sin(a) * 4;
   float(crit ? `${fmt(dmg)}!` : fmt(dmg), cx(m) + (R() - 0.5) * 12, m.py * TS - 2 - R() * 6, crit ? '#ff9f1c' : (color || '#fff8e7'), crit ? 1.45 : 1);
-  burst(cx(m), cy(m) + 2, SLIME_COLORS[m.type].g, crit ? 9 : 4);
+  burst(cx(m), cy(m) + 2, m.d.pal.g || '#c8ccdb', crit ? 9 : 4);
   combo++; comboT = 2.2; showCombo();
   freeze = Math.max(freeze, crit ? 0.06 : 0.025);
   if (crit) shake = Math.max(shake, 0.1);
@@ -408,15 +512,23 @@ function killMon(m) {
   const wx = cx(m), wy = cy(m);
   m.dead = m.d.boss ? 30 : 2.5;
   gainSoul(5);
-  burst(wx, wy, SLIME_COLORS[m.type].l, m.d.boss ? 40 : 14, m.d.boss ? 140 : 90);
-  ring(wx, wy, m.d.boss ? 40 : 14, SLIME_COLORS[m.type].l);
+  const pc = m.d.pal.l || '#e6f2ff';
+  burst(wx, wy, pc, m.d.boss ? 40 : 14, m.d.boss ? 140 : 90);
+  ring(wx, wy, m.d.boss ? 40 : 14, pc);
   let coins = m.d.coin[0] + Math.floor(R() * (m.d.coin[1] - m.d.coin[0] + 1));
   const n = Math.min(m.d.boss ? 14 : 5, coins);
   for (let i = 0; i < n; i++) { const v = i === n - 1 ? coins : Math.floor(coins / (n - i)); coins -= v; drops.push(newDrop('coin', wx, wy, v)); }
   const rolls = m.d.boss ? 3 : m.minion ? 0 : R() < DROP_RATE ? 1 : 0;
   for (let i = 0; i < rolls; i++) drops.push(newDrop('item', wx, wy, rollGear(R, m.d.lv + Math.floor(R() * 2), m.d.boss, P.cls)));
-  if (P.quest === 1 && !m.d.boss) P.kills++;
-  if (m.d.boss) { if (P.quest === 2) { P.quest = 3; P.stones += 300; feed('首次擊敗獎勵：魂石 ×300', '#c084ff'); } shake = 0.4; flash = 0.25; banner('擊敗史萊姆王！'); for (const x of mons) if (x.minion) x.dead = 1; }
+  const curCh = CHAPTERS[P.ch - 1];
+  if (P.step === 1 && curCh && curCh.mons.includes(m.type) && !m.minion) P.kills++;
+  if (m.d.boss) {
+    shake = 0.4; flash = 0.25; banner(`擊敗${m.d.name}！`); for (const x of mons) if (x.minion) x.dead = 1;
+    if (curCh && curCh.boss === m.type && P.step === 2) {
+      P.step = 3; P.stones += 300; feed('首次擊敗獎勵：魂石 ×300', '#c084ff');
+      if (curCh.soul) { P.souls[curCh.soul] = Math.min(5, (P.souls[curCh.soul] || 0) + 1); setTimeout(() => { showCutin(curCh.soul, '覺醒'); cutinT = 1.6; pendingUlt = null; feed(`獲得魂像【${SOULS[curCh.soul].name}】，到「魂像」選單裝上`, SOULS[curCh.soul].color2); }, 900); }
+    }
+  }
   floatT(`+${m.d.exp} EXP`, m.x, m.y - 0.9, '#a6ec7a', 0.8);
   const before = P.lv;
   if (gainExp(P, m.d.exp)) levelUp(before);
@@ -529,6 +641,12 @@ function castIdx(i) {
   const s = skills[i];
   if (!s || s.t > 0 || cutinT > 0) return;
   s.t = s.cd * (1 - stats(P).cdr);
+  const echo = alive().find((m) => m.d.mech === 'echo' && tdist(m, me.px, me.py) <= 8);
+  if (echo && lastSkill === s.id) {
+    floatT('回音反彈！', me.x, me.y - 1.2, '#b48cff', 1.3); ring(cx(echo), cy(echo), 40, '#b48cff', 0.4, 4);
+    hurt(Math.round(stats(P).hp * 0.3), null); lastSkill = null; return;
+  }
+  lastSkill = s.id;
   const [dx, dy] = DIRS[me.face];
   const wx = cx(me), wy = cy(me);
   me.atkT = 0.2;
@@ -659,12 +777,23 @@ function showCutin(id, label) {
 }
 function castUlt() {
   if (!started || dialog || !P.soul || soulPower < 100 || cutinT > 0) return;
-  soulPower = 0; pendingUlt = P.soul;
+  soulPower = 0; pendingUlt = P.soul; lastUltId = P.soul;
   showCutin(P.soul); cutinT = 1.1;
 }
 function doUlt(id) {
   const wx = cx(me), wy = cy(me);
   flash = 0.18; shake = 0.35;
+  const thief = alive().find((m) => m.d.mech === 'steal' && tdist(m, me.px, me.py) <= 9);
+  if (thief && !thief.stolen.has(id)) pending.push({ t: 1.7, fn: () => { if (thief.dead > 0) return; thief.stolen.add(id); banner(`瓦爾德偷走了「${SOULS[id].name}」！`); feed(`之後「${SOULS[id].name}」的大招對瓦爾德無效，換一隻魂像！`, '#c084ff'); } });
+  if (id === 'thread') {
+    const ts = alive().filter((m) => tdist(m, me.px, me.py) <= 5);
+    addFx('pull', 0.8, { x: wx, y: wy, pts: ts.map((m) => [cx(m), cy(m)]), thread: true });
+    ts.forEach((m) => dealDamage(m, 3.5, me.px, me.py, '#ffd1dc', 'ult'));
+    pending.push({ t: 0.8, fn: () => { ring(wx, wy, 60, '#ff6b8a', 0.4, 4); ts.forEach((m) => dealDamage(m, 2, me.px, me.py, '#ffd1dc', 'ult')); shake = 0.3; } });
+  } else if (id === 'bird') {
+    for (let k = 0; k < 4; k++) pending.push({ t: k * 0.12, fn: () => ring(wx, wy, 30 + k * 18, k % 2 ? '#ffffff' : '#7fd8ff', 0.5, 3) });
+    hitArea(me.px, me.py, 5, 3, '#e0f8ff', (m) => { m.frozen = 3; }, 'ult');
+  }
   if (id === 'gear') {
     addFx('clock', 0.9, { x: wx, y: wy });
     hitArea(me.px, me.py, 3.2, 4, '#ffb35c', (m) => {
@@ -729,7 +858,7 @@ function autoThink(dt) {
   autoHit = false; autoTarget = null;
   if (!auto || dialog || fishing || me.moving) return;
   const st = stats(P);
-  const ok = (m) => m.dead <= 0 && !m.shield && (m.d.boss ? P.quest >= 2 && st.cp >= 1500 : m.d.lv <= P.lv + 2);
+  const ok = (m) => m.dead <= 0 && !m.shield && !m.hidden && !m.d.decoy && (m.d.boss ? P.lv >= m.d.lv - 3 : m.d.lv <= P.lv + 2);
   const targets = mons.filter(ok);
   autoCastT -= dt;
   const near = targets.filter((m) => tdist(m, me.px, me.py) <= (C.range > 1 ? 4.5 : 2.2));
@@ -771,7 +900,7 @@ $('autoBtn').addEventListener('click', () => {
   if (!started) return;
   auto = !auto; syncAuto();
   if (auto && dialog) { dialog = null; showDialog(); }
-  if (auto && P.quest === 0) { P.quest = 1; P.kills = 0; feed('接到村長的任務：打倒 20 隻史萊姆', '#f6c945'); hud(); save(); }
+  if (auto && P.ch === 1 && P.step === 0) { P.step = 1; P.kills = 0; feed('接到村長的任務：打倒 20 隻史萊姆', '#f6c945'); hud(); save(); }
 });
 
 // ---------- 釣魚 ----------
@@ -873,11 +1002,13 @@ function step(o, dur, dt) {
 }
 function update(dt) {
   anim += dt;
-  if (me.moving && step(me, me.dur, dt)) { me.step ^= 1; me.dur = 0.14; }
+  if (me.moving && step(me, me.dur, dt)) { me.step ^= 1; me.dur = 0.14; if (grid[me.y]?.[me.x] === T.PORTAL && mapId !== 0) { loadMap(0, { x: 11, y: 17 }); feed('回到微光村', '#c084ff'); save(); return; } }
   if (held && auto) { auto = false; syncAuto(); }
+  invertT = Math.max(0, invertT - dt);
   if (!me.moving && started && held && !dialog && !fishing) {
-    const [dx, dy] = DIRS[held];
-    me.face = held;
+    const dir = invertT > 0 ? ({ left: 'right', right: 'left' }[held] || held) : held;
+    const [dx, dy] = DIRS[dir];
+    me.face = dir;
     const nx = me.x + dx, ny = me.y + dy;
     if (walkable(grid, nx, ny) && !occupied(nx, ny)) Object.assign(me, { fx: me.x, fy: me.y, x: nx, y: ny, moving: true, mt: 0, dur: 0.14 });
   }
@@ -893,20 +1024,20 @@ function update(dt) {
   comboT -= dt;
   if (comboT <= 0 && combo) { combo = 0; $('combo').hidden = true; }
   regenT += dt;
-  if (regenT > 1) { regenT = 0; const st = stats(P), max = st.hp; if (P.hp < max) { P.hp = Math.min(max, P.hp + (me.x <= TOWN_EDGE ? Math.ceil(max * 0.08) : 1 + Math.round(max * st.regen))); hud(); } }
+  if (regenT > 1) { regenT = 0; const st = stats(P), max = st.hp; if (P.hp < max) { P.hp = Math.min(max, P.hp + (inSafe() ? Math.ceil(max * 0.08) : 1 + Math.round(max * st.regen))); hud(); } }
   pending = pending.filter((p) => { p.t -= dt; if (p.t <= 0) { p.fn(); return false; } return true; });
   updateProjs(dt);
   for (const m of mons) {
     m.anim += dt;
-    if (m.dead > 0) { if (m.minion) continue; m.dead -= dt; if (m.dead <= 0) placeMon(m); continue; }
+    if (m.dead > 0) { if (m.minion || m.d.decoy) continue; m.dead -= dt; if (m.dead <= 0) placeMon(m); continue; }
     if (m.letter > 0) m.letter -= dt;
     if (m.d.boss && started && !dialog) bossThink(m, dt);
     m.flash = Math.max(0, m.flash - dt); m.cool -= dt; m.spawnT = Math.max(0, m.spawnT - dt); m.frozen = Math.max(0, m.frozen - dt);
     m.kx *= 0.8; m.ky *= 0.8;
     if (m.moving) { step(m, m.d.boss ? 0.5 : 0.35, dt); continue; }
-    if (!started || dialog || m.frozen > 0) continue;
+    if (!started || dialog || m.frozen > 0 || m.d.still || m.hidden) continue;
     const dx = me.x - m.x, dy = me.y - m.y, dist = Math.abs(dx) + Math.abs(dy);
-    if ((dist === 1 || (m.d.boss && Math.max(Math.abs(dx), Math.abs(dy)) <= 1)) && m.cool <= 0) { hitPlayer(m); m.cool = m.d.boss ? 1.2 : 1.5; continue; }
+    if (m.d.atk > 0 && (dist === 1 || (m.d.boss && Math.max(Math.abs(dx), Math.abs(dy)) <= 1)) && m.cool <= 0) { hitPlayer(m); m.cool = m.d.boss ? 1.2 : 1.5; continue; }
     m.think -= dt;
     if (m.think > 0) continue;
     const chase = dist <= m.d.sight && dist > 1;
@@ -943,9 +1074,9 @@ function update(dt) {
   saveT += dt;
   if (saveT > 5) { saveT = 0; save(); }
   const boss = mons.find((m) => m.d.boss);
-  const showBoss = boss && boss.dead <= 0 && Math.abs(boss.x - me.x) + Math.abs(boss.y - me.y) <= 7;
+  const showBoss = boss && boss.dead <= 0 && (boss.hidden || Math.abs(boss.x - me.x) + Math.abs(boss.y - me.y) <= 7) && boss.engaged;
   $('bossBar').hidden = !showBoss;
-  if (showBoss) $('bossFill').style.width = `${Math.max(0, boss.hp / boss.d.hp) * 100}%`;
+  if (showBoss) { $('bossFill').style.width = `${Math.max(0, boss.hp / boss.d.hp) * 100}%`; $('bossName').textContent = boss.d.name + (boss.d.mech === 'steal' && boss.stolen.size ? `（已偷走：${[...boss.stolen].map((k) => SOULS[k].name).join('、')}）` : '') + (invertT > 0 ? '　⇄ 左右顛倒中' : ''); }
 }
 function updateSkillUi() {
   const sb = $('soulBtn');
@@ -1032,6 +1163,11 @@ function render() {
     ctx.fillStyle = color; ctx.fillText(text, (wx - camX) * S, (wy - camY) * S);
   };
   if (started) label(P.name, cx(me), me.py * TS - 20, C.color, 12);
+  for (const m of alive()) {
+    if (m.d.mech === 'echo' && lastSkill) label(`回音記得：${skills.find((k) => k.id === lastSkill)?.name || ''}`, cx(m), m.py * TS - 24, '#d4b8ff', 11);
+    if (m.d.mech === 'rewind' && m.engaged && m.rwT <= 3) label(`倒轉 ${Math.ceil(m.rwT)}`, cx(m), m.py * TS - 24, '#f6d77a', 14);
+    if (m.d.decoy) label('？', cx(m), m.py * TS - 22, '#fff8e7', 12);
+  }
   for (const n of npcs) if (Math.abs(n.x - me.px) < VW / TS && Math.abs(n.y - me.py) < VH / TS) label(n.name.split('・')[1], n.x * TS + 8, n.y * TS - 20, '#fff8e7', 11);
   for (const f of floats) {
     const pop = 1 + Math.max(0, 0.12 - f.t) * 5;
@@ -1056,12 +1192,13 @@ function drawMe() {
 }
 function drawMon(m) {
   const x = Math.round(m.px * TS + m.kx), y = Math.round(m.py * TS + m.ky);
-  const spr = slimeS[m.type][m.frozen > 0 ? 0 : Math.floor(m.anim * 2.4) % 2];
+  if (m.d.decoy) { if (!m.real) shadow(x, y); ctx.drawImage(avatar(m.look, 'down', 0), x - 4, y - 17); return; }
+  const spr = monsterSprite(m.d.tpl, m.d.pal)[m.frozen > 0 ? 0 : Math.floor(m.anim * 2.4) % 2];
   const big = m.d.boss;
   shadow(x, y, big ? 22 : 12);
   const sc = m.spawnT > 0 ? 1 - m.spawnT * 2 : 1;
   const draw = () => {
-    if (big) { ctx.drawImage(spr, x - 8, y - 16, 32, 32); ctx.drawImage(crownS, x, y - 14 + (Math.floor(m.anim * 2.4) % 2) * 2); }
+    if (big) { ctx.drawImage(spr, x - 8, y - 16, 32, 32); if (m.type === 'king' || m.type === 'valde') ctx.drawImage(crownS, x, y - 14 + (Math.floor(m.anim * 2.4) % 2) * 2); }
     else if (sc < 1) { const s = Math.max(0.1, sc) * 16; ctx.drawImage(spr, x + 8 - s / 2, y + 16 - s, s, s); }
     else ctx.drawImage(spr, x, y);
   };
@@ -1075,7 +1212,7 @@ function drawMon(m) {
   }
   if (m.shield) { ctx.strokeStyle = 'rgba(189,241,255,.9)'; ctx.lineWidth = 1.5; ctx.fillStyle = 'rgba(189,241,255,.18)'; ctx.beginPath(); ctx.arc(x + 8, y + 2, 22 + Math.sin(anim * 6), 0, 7); ctx.fill(); ctx.stroke(); }
   if (m.letter > 0) { const ly = y - (big ? 22 : 8) - Math.sin(anim * 8) * 1.5; ctx.fillStyle = '#241a2b'; ctx.fillRect(x + 3, ly - 1, 11, 9); ctx.fillStyle = '#fff8e7'; ctx.fillRect(x + 4, ly, 9, 7); ctx.fillStyle = '#e0533d'; ctx.fillRect(x + 7, ly + 2, 3, 3); }
-  if (m.minion) { ctx.drawImage(crownS, x, y - 2, 16, 6); }
+  if (m.minion && m.d === MINION) { ctx.drawImage(crownS, x, y - 2, 16, 6); }
   if (m.hp < m.d.hp && !big) {
     const w = 12, bx = x + 2, by = y + 2;
     ctx.fillStyle = '#2a1d2e'; ctx.fillRect(bx - 1, by - 1, w + 2, 4);
@@ -1250,7 +1387,7 @@ function start() {
   $('ui').hidden = false;
   setupClass(); hud();
   checkOffline();
-  if (P.quest === 0 && P.lv === 1) say('村長・歐文', [`歡迎來到微光村，${C.name}${P.name}！`, '按住紅色「攻擊」鍵連續攻擊，旁邊三顆是職業專屬技能。', '懶得操作就按左上的「自動」，角色會自己去打怪！', '先來廣場北邊找我說話吧。']);
+  if (P.ch === 1 && P.step === 0 && P.lv === 1) say('村長・歐文', [`歡迎來到微光村，${C.name}${P.name}！`, '按住紅色「攻擊」鍵連續攻擊，旁邊三顆是職業專屬技能。', '懶得操作就按左上的「自動」，角色會自己去打怪！', '先來廣場北邊找我說話吧。']);
 }
 function buildClassGrid() {
   $('classGrid').replaceChildren(...CLASS_IDS.map((id) => {
@@ -1272,7 +1409,7 @@ $('newBtn').addEventListener('click', () => { buildClassGrid(); $('overwriteNote
 $('classBack').addEventListener('click', () => { $('classPanel').hidden = true; $('title').hidden = false; });
 $('classGo').addEventListener('click', () => {
   P = newPlayer(pickCls, $('nameInput').value.trim() || '冒險者');
-  soulPower = 0;
+  soulPower = 0; loadMap(0);
   Object.assign(me, { x: P.x, y: P.y, px: P.x, py: P.y, fx: P.x, fy: P.y, moving: false, face: 'down' });
   drops = []; projs = []; pending = []; fx = [];
   save(); start();
@@ -1286,6 +1423,7 @@ function titleScreen() {
   const looks = CLASS_IDS.map((id, i) => lookOf({ cls: id, gear: i % 2 ? { armor: { rarity: 'epic' }, weapon: { rarity: 'epic' }, helm: { rarity: 'epic' } } : { armor: { rarity: 'rare' }, weapon: { rarity: 'rare' } } }, CLASSES, rarityIdx));
   $('titleArt').replaceChildren(...looks.map((L) => previewCanvas(L, 2)));
 }
+loadMap(P.map && P.map <= Math.min(6, P.ch) ? P.map : 0, { x: P.x, y: P.y });
 setupClass();
 resize();
 titleScreen();
@@ -1295,4 +1433,4 @@ document.fonts?.ready.then(render);
 requestAnimationFrame(frame);
 
 // 自動化測試用（網址加 ?debug 才開）
-if (location.search.includes('debug')) globalThis.__game = { get P() { return P; }, me, grid, get mons() { return mons; }, get fishing() { return fishing; }, get dialog() { return dialog; }, get drops() { return drops; }, get skills() { return skills; }, castIdx };
+if (location.search.includes('debug')) globalThis.__game = { get P() { return P; }, me, get grid() { return grid; }, loadMap, get mapId() { return mapId; }, get mons() { return mons; }, get fishing() { return fishing; }, get dialog() { return dialog; }, get drops() { return drops; }, get skills() { return skills; }, castIdx };

@@ -73,6 +73,43 @@ export const HEART = pad(['.kk.kk.', 'krrkrrk', 'krwrrrk', 'krrrrrk', '.krrrk.',
 export const COIN = pad(['.kkkk.', 'kyyyYk', 'kywyYk', 'kyyyYk', '.kkkk.']);
 export const ORB = pad(['..kkk..', '.kxxxk.', 'kxwxxxk', 'kxxxxxk', 'kxxxxxk', '.kxxxk.', '..kkk..']);
 
+
+// ---- 怪物模板（g 主色、G 暗色、l 亮色、m 點綴色）----
+const BAT_TOP = ['........', '........', '........', '.k......'];
+const BAT_A = mirror([...BAT_TOP, '.kk...kk', '.kGk.kgg', 'kgGgkkgg', 'kggGkggl', 'kgggkgeg', '.kggkggg', '..kkkggm', '....kggg', '.....kkk', '........', '........', '........']);
+const BAT_B = mirror(['........', '........', '........', '........', '......kk', '.....kgg', '....kkgg', '.kkkkggl', 'kGggkgeg', 'kgGgkggg', '.kgGkggm', '..kkkggg', '.....kkk', '........', '........', '........']);
+const GOLEM_A = mirror(['........', '........', '........', '...kkkkk', '..kGgggg', '..kGglgg', '..kGgmgg', '..kGgggg', 'kkkGGggg', 'kGgkGggg', 'kGgkGGgg', 'kkkkGGgg', '...kGGkk', '...kGGk.', '...kkkk.', '........']);
+const GOLEM_B = ['................', ...GOLEM_A.slice(0, 15)];
+const GHOST_A = mirror(['........', '........', '.....kkk', '....kggg', '...kglgg', '...kgggg', '..kggegg', '..kggegg', '..kggggm', '..kggggg', '.kgggggg', '.kgGgggg', '.kGGgGgg', '..kGkGkG', '...k..k.', '........']);
+const GHOST_B = mirror(['........', '.....kkk', '....kggg', '...kglgg', '...kgggg', '..kggegg', '..kggegg', '..kggggm', '..kggggg', '.kgggggg', '.kgGgggg', '.kGGgGgg', '..kkGkkG', '....k..k', '........', '........']);
+const CRAB_A = mirror(['........', '........', '........', '........', '.kk.....', 'kmmk....', 'kmmk..ek', '.kmk.kkk', '..kkkggg', '..kggggl', '.kgggggg', 'kGgggggg', 'kGGggggg', '.kGGGGGG', '..k.k.kk', '........']);
+const CRAB_B = mirror(['........', '........', '........', 'kk......', 'mmk.....', 'mmk...ek', 'kmk..kkk', '.kkkkggg', '..kggggl', '.kgggggg', 'kGgggggg', 'kGGggggg', '.kGGGGGG', '.k.k.k.k', '........', '........']);
+const IMP_A = mirror(['........', '..k.....', '..kk....', '..kGkkkk', '...kgggg', '...kglgg', '..kggegg', '...kgggm', '....kkkk', '...kGGGG', '..kGGGGG', '..kGGGGm', '..kGGGGG', '...kGGkk', '...kkk..', '........']);
+const IMP_B = ['................', ...IMP_A.slice(0, 15)];
+const MIRROR_A = mirror(['...kkkkk', '..kYyyyy', '.kYkkkkk', '.kYkcccc', '.kYkcwcc', '.kYkccwc', '.kYkcccc', '.kYkcccc', '.kYkcccc', '.kYkcccw', '.kYkcccc', '.kYkkkkk', '..kYyyyy', '...kkkkk', '....kYYY', '...kkkkk']);
+export const MONSTER_TPL = { slime: SLIME, bat: [BAT_A, BAT_B], golem: [GOLEM_A, GOLEM_B], ghost: [GHOST_A, GHOST_B], crab: [CRAB_A, CRAB_B], imp: [IMP_A, IMP_B], mirror: [MIRROR_A, MIRROR_A] };
+const monCache = new Map();
+export function monsterSprite(tpl, pal) {
+  const key = tpl + JSON.stringify(pal);
+  if (!monCache.has(key)) monCache.set(key, (MONSTER_TPL[tpl] || SLIME).map((f) => makeSprite(f, { ...PAL, e: '#1b1420', ...pal })));
+  return monCache.get(key);
+}
+
+// ---- 各章地形 ----
+const SPIRE = pad(['................', '......kkkk......', '.....kGggGk.....', '.....kgllgk.....', '....kGglggk.....', '....kgggggGk....', '....kGggggGk....', '...kGgglgggGk...', '...kggggggggk...', '...kGgggggGGk...', '..kGgggglgggGk..', '..kgggggggggGk..', '..kGGgggggGGGk..', '.kGGGGGGGGGGGGk.', '..kkkkkkkkkkkk..', '................']);
+const CRATE = pad(['................', '................', '..kkkkkkkkkkkk..', '..kGgggggggggk..', '..kgkGgggggkgk..', '..kggkGgggkggk..', '..kgggkGgkgggk..', '..kggggkkggggk..', '..kggggkkggggk..', '..kgggkgGkgggk..', '..kggkgggGkggk..', '..kgkgggggGkgk..', '..kGggggggggGk..', '..kkkkkkkkkkkk..', '................', '................']);
+const PILLAR = pad(['................', '....kkkkkkkk....', '....kllllllk....', '....kkkkkkkk....', '.....kglgGk.....', '.....kglgGk.....', '.....kglgGk.....', '.....kglgGk.....', '.....kglgGk.....', '.....kglgGk.....', '.....kglgGk.....', '.....kglgGk.....', '....kkkkkkkk....', '...kGggggggGk...', '...kkkkkkkkkk...', '................']);
+const PILLAR_DARK = pad(['.......kk.......', '......kmmk......', '....kkkmmkkk....', '....kllllllk....', '....kkkkkkkk....', '.....kglgGk.....', '.....kglgGk.....', '.....kglgGk.....', '.....kglgGk.....', '.....kglgGk.....', '.....kglgGk.....', '.....kglgGk.....', '....kkkkkkkk....', '...kGggggggGk...', '...kkkkkkkkkk...', '................']);
+const BARREL = pad(['................', '................', '................', '.....kkkkkk.....', '....kGgggggk....', '...kGgmmmmggk...', '...kGgggggggk...', '...kGgglgggGk...', '...kGgmmmmmgk...', '...kGggggggGk...', '...kGgglgggGk...', '...kGgmmmmggk...', '....kGggggGk....', '.....kkkkkk.....', '................', '................']);
+export const THEMES = {
+  meadow: { g: '#6cc04a', gd: '#4f9a3a', gl: '#8fd66a', path: '#e6c48f', pathD: '#cfa572', pathL: '#f3dcb2', edge: '#b88a58', water: '#3f97d6', obst: [TREE, {}], rock: [ROCK, {}], style: 'grass' },
+  canyon: { g: '#d9a066', gd: '#b9804a', gl: '#efc28a', path: '#c48a52', pathD: '#a8703f', pathL: '#dba06a', edge: '#8a5a32', water: '#3f97d6', obst: [SPIRE, { g: '#c9733a', G: '#8a4a24', l: '#f0a868' }], rock: [ROCK, { n: '#b98a5a', N: '#7a5636', w: '#e8c49a' }], style: 'sand' },
+  factory: { g: '#7d8494', gd: '#5f6575', gl: '#9aa1b0', path: '#5a5f6c', pathD: '#474b56', pathL: '#6d7280', edge: '#3a3e48', water: '#3f97d6', obst: [CRATE, { g: '#b07a45', G: '#7a5030' }], rock: [BARREL, { g: '#7a8399', G: '#4f5361', l: '#c4c8d4', m: '#e0533d' }], style: 'plate' },
+  castle: { g: '#5f8f62', gd: '#477a4a', gl: '#7fae7f', path: '#a3a8bd', pathD: '#8a8fa3', pathL: '#c8ccdb', edge: '#6b6f85', water: '#2f5f9f', obst: [PILLAR, { g: '#c8ccdb', G: '#8a8fa3', l: '#eef0f6' }], rock: [ROCK, {}], style: 'grass' },
+  harbor: { g: '#a87a52', gd: '#8a5f3a', gl: '#c4966a', path: '#8f9aa8', pathD: '#6f7a88', pathL: '#b0bac6', edge: '#4f5866', water: '#245a8a', obst: [BARREL, { g: '#9a6337', G: '#6b4024', l: '#c4966a', m: '#3a3e48' }], rock: [CRATE, { g: '#8a5f3a', G: '#5e3a20' }], style: 'plank' },
+  temple: { g: '#3d3352', gd: '#2a2338', gl: '#55486f', path: '#5a4f70', pathD: '#463d59', pathL: '#6d6185', edge: '#1f1a2e', water: '#3f97d6', obst: [PILLAR_DARK, { g: '#6b5f8a', G: '#3d3352', l: '#9a8fc4', m: '#ff4d6d' }], rock: [ROCK, { n: '#55486f', N: '#2a2338', w: '#8a7fb0' }], style: 'stone' },
+};
+
 export function makeSprite(rows, pal = PAL, scale = 1) {
   const c = document.createElement('canvas');
   c.width = 16 * scale; c.height = rows.length * scale;
@@ -111,21 +148,31 @@ export const SLIME_COLORS = {
 };
 
 // ---- 地圖貼圖（直接畫到大地圖畫布上，1 單位 = 1 像素）----
-export function drawMap(ctx, g, T, houses, seed = 3) {
+export function drawMap(ctx, g, T, houses, seed = 3, themeId = 'meadow') {
+  const TH = THEMES[themeId] || THEMES.meadow;
   let s = seed; const r = () => { s = (s * 16807) % 2147483647; return s / 2147483647; };
   const px = (x, y, c, w = 1, h = 1) => { ctx.fillStyle = c; ctx.fillRect(x, y, w, h); };
   const at = (x, y) => (g[y] && g[y][x] !== undefined ? g[y][x] : T.TREE);
-  const isGround = (t) => t === T.PATH || t === T.BRIDGE || t === T.FOUNTAIN || t === T.SIGN;
-  const tree = makeSprite(TREE), rock = makeSprite(ROCK), sign = makeSprite(SIGNPOST);
+  const isGround = (t) => t === T.PATH || t === T.BRIDGE || t === T.FOUNTAIN || t === T.SIGN || t === T.PORTAL;
+  const tree = makeSprite(TH.obst[0], { ...PAL, ...TH.obst[1] }), rock = makeSprite(TH.rock[0], { ...PAL, ...TH.rock[1] }), sign = makeSprite(SIGNPOST);
   const grass = (X, Y) => {
-    px(X, Y, '#6cc04a', 16, 16);
-    for (let i = 0; i < 5; i++) { const a = X + 1 + Math.floor(r() * 13), b = Y + 2 + Math.floor(r() * 13); px(a, b, '#4f9a3a'); px(a + 1, b - 1, '#4f9a3a'); px(a + 2, b, '#4f9a3a'); }
-    for (let i = 0; i < 4; i++) px(X + Math.floor(r() * 16), Y + Math.floor(r() * 16), '#8fd66a');
+    px(X, Y, TH.g, 16, 16);
+    if (TH.style === 'grass') {
+      for (let i = 0; i < 5; i++) { const a = X + 1 + Math.floor(r() * 13), b = Y + 2 + Math.floor(r() * 13); px(a, b, TH.gd); px(a + 1, b - 1, TH.gd); px(a + 2, b, TH.gd); }
+    } else if (TH.style === 'plate') {
+      px(X, Y, TH.gd, 16, 1); px(X, Y, TH.gd, 1, 16); px(X + 2, Y + 2, TH.gl); px(X + 13, Y + 2, TH.gl); px(X + 2, Y + 13, TH.gl); px(X + 13, Y + 13, TH.gl);
+    } else if (TH.style === 'plank') {
+      for (let k = 0; k < 16; k += 4) px(X, Y + k, TH.gd, 16, 1);
+      px(X + ((Y / 4) % 16), Y, TH.gd, 1, 16);
+    } else if (TH.style === 'stone') {
+      px(X, Y, TH.gd, 16, 1); px(X, Y + 8, TH.gd, 16, 1); px(X + (Y % 32 ? 4 : 11), Y, TH.gd, 1, 8); px(X + (Y % 32 ? 11 : 4), Y + 8, TH.gd, 1, 8);
+    } else for (let i = 0; i < 6; i++) px(X + Math.floor(r() * 15), Y + Math.floor(r() * 15), TH.gd, 2, 1);
+    for (let i = 0; i < 4; i++) px(X + Math.floor(r() * 16), Y + Math.floor(r() * 16), TH.gl);
   };
   for (let y = 0; y < g.length; y++) for (let x = 0; x < g[0].length; x++) {
     const t = g[y][x], X = x * 16, Y = y * 16;
     if (t === T.WATER) {
-      px(X, Y, '#3f97d6', 16, 16);
+      px(X, Y, TH.water, 16, 16);
       for (let i = 0; i < 3; i++) px(X + Math.floor(r() * 12), Y + Math.floor(r() * 16), '#5bb2ea', 4, 1);
       if (at(x - 1, y) !== T.WATER && at(x - 1, y) !== T.BRIDGE) { px(X, Y, '#2a6fb0', 2, 16); px(X + 2, Y, '#a8e4f5', 1, 16); }
       if (at(x + 1, y) !== T.WATER && at(x + 1, y) !== T.BRIDGE) { px(X + 14, Y, '#2a6fb0', 2, 16); px(X + 13, Y, '#a8e4f5', 1, 16); }
@@ -138,7 +185,7 @@ export function drawMap(ctx, g, T, houses, seed = 3) {
       if (at(x, y + 1) !== T.BRIDGE) { px(X, Y + 13, '#6b4024', 16, 3); px(X, Y + 12, '#2a1d2e', 16, 1); }
       continue;
     }
-    if (isGround(t) && x >= 5 && x <= 15 && y >= 9 && y <= 18 && t !== T.SIGN) {
+    if (themeId === 'meadow' && isGround(t) && x >= 5 && x <= 15 && y >= 9 && y <= 18 && t !== T.SIGN) {
       // 廣場石板
       px(X, Y, '#b9a88f', 16, 16);
       for (let j = 0; j < 2; j++) for (let i = 0; i < 2; i++) {
@@ -148,11 +195,17 @@ export function drawMap(ctx, g, T, houses, seed = 3) {
       }
       continue;
     }
-    if (isGround(t)) {
-      px(X, Y, '#e6c48f', 16, 16);
-      for (let i = 0; i < 4; i++) px(X + Math.floor(r() * 15), Y + Math.floor(r() * 15), '#cfa572', 2, 1);
-      for (let i = 0; i < 3; i++) px(X + Math.floor(r() * 16), Y + Math.floor(r() * 16), '#f3dcb2');
-      const edge = '#b88a58';
+    if (isGround(t) || t === T.PORTAL) {
+      px(X, Y, TH.path, 16, 16);
+      for (let i = 0; i < 4; i++) px(X + Math.floor(r() * 15), Y + Math.floor(r() * 15), TH.pathD, 2, 1);
+      for (let i = 0; i < 3; i++) px(X + Math.floor(r() * 16), Y + Math.floor(r() * 16), TH.pathL);
+      const edge = TH.edge;
+      if (t === T.PORTAL) {
+        ctx.fillStyle = '#3a2a6b'; ctx.beginPath(); ctx.ellipse(X + 8, Y + 9, 8, 5, 0, 0, 7); ctx.fill();
+        ctx.strokeStyle = '#c084ff'; ctx.lineWidth = 1; ctx.beginPath(); ctx.ellipse(X + 8, Y + 9, 7, 4, 0, 0, 7); ctx.stroke();
+        ctx.strokeStyle = '#7fd8ff'; ctx.beginPath(); ctx.ellipse(X + 8, Y + 9, 4, 2, 0, 0, 7); ctx.stroke();
+        continue;
+      }
       if (!isGround(at(x, y - 1))) px(X, Y, edge, 16, 1);
       if (!isGround(at(x, y + 1))) px(X, Y + 15, edge, 16, 1);
       if (!isGround(at(x - 1, y))) px(X, Y, edge, 1, 16);
@@ -161,7 +214,8 @@ export function drawMap(ctx, g, T, houses, seed = 3) {
       continue;
     }
     grass(X, Y);
-    if (t === T.FLOWER) {
+    if (t === T.FLOWER && TH.style !== 'grass') { for (let i = 0; i < 3; i++) { const a = X + 2 + Math.floor(r() * 11), b = Y + 3 + Math.floor(r() * 10); px(a, b, TH.gd, 3, 2); px(a, b, TH.gl, 1, 1); } }
+    else if (t === T.FLOWER) {
       const cols = [['#fff8e7', '#f6c945'], ['#ff8fb1', '#fff8e7'], ['#9bb8ff', '#fff8e7'], ['#f6c945', '#d64550']];
       for (let i = 0; i < 2; i++) {
         const [p, c] = cols[Math.floor(r() * cols.length)];

@@ -1,6 +1,6 @@
 // 微光大陸：地圖生成與數值公式（純函式，可測試）
 export const W = 40, H = 28;
-export const T = { GRASS: 0, FLOWER: 1, PATH: 2, WATER: 3, TREE: 4, BRIDGE: 5, HOUSE: 6, FOUNTAIN: 7, SIGN: 8, ROCK: 9 };
+export const T = { GRASS: 0, FLOWER: 1, PATH: 2, WATER: 3, TREE: 4, BRIDGE: 5, HOUSE: 6, FOUNTAIN: 7, SIGN: 8, ROCK: 9, PORTAL: 10 };
 export const SOLID = new Set([T.WATER, T.TREE, T.HOUSE, T.FOUNTAIN, T.SIGN, T.ROCK]);
 export const TOWN_EDGE = 18;           // x <= 18 是安全的村莊
 export const FIELD_MIN_X = 21;         // 怪物只在河的東邊活動
@@ -23,6 +23,7 @@ export const NPCS = [
   { id: 'elder', x: 13, y: 7, name: '村長・歐文', look: { hair: '#e8e4f0', hairD: '#b5b0c4', band: '#6b4fa0', bandD: '#46327a', tunic: '#8a5cc7', tunicD: '#5b3a8f' } },
   { id: 'inn', x: 4, y: 19, name: '旅店・瑪莎', look: { hair: '#c8553d', hairD: '#8f3626', band: '#f3e2c3', bandD: '#c9ad85', tunic: '#4f9a52', tunicD: '#2f6b3a' } },
   { id: 'smith', x: 13, y: 19, name: '鐵匠・葛倫', look: { hair: '#3b2a24', hairD: '#1f1512', band: '#6b6f85', bandD: '#454a5e', tunic: '#9a6337', tunicD: '#6b4024' } },
+  { id: 'porter', x: 11, y: 16, name: '傳送師・小葵', look: { hair: '#7fd8ff', hairD: '#4aa3df', band: '#c084ff', bandD: '#8a5cc7', tunic: '#fff1c4', tunicD: '#c9ad85' } },
   { id: 'fisher', x: 18, y: 8, name: '釣客・阿杰', look: { hair: '#6b3e26', hairD: '#45261a', band: '#f6c945', bandD: '#c98b2b', tunic: '#4aa3df', tunicD: '#2d78b3' } },
 ];
 export const SIGN = { x: 17, y: 12, text: ['→ 東邊：史萊姆草原', '小心！東北方的空地住著史萊姆王。'] };
@@ -84,14 +85,107 @@ export function reachable(g, from) {
 }
 
 // ---- 數值（快節奏：幾刀一隻、幾十秒升一級）----
+// 怪物：tpl = 造型模板，pal = 配色。第 2 章以後的數值用公式依等級產生。
+const PAL = {
+  dew: { g: '#62c7e8', G: '#2f7fb3', l: '#c4f2ff' }, berry: { g: '#e8628f', G: '#a3305d', l: '#ffc4d8', m: '#fff1a8', M: '#d9a63b' },
+  ember: { g: '#ff8a3d', G: '#b34a1f', l: '#ffd29e', m: '#fff1a8', M: '#e8502e' }, king: { g: '#7ad35a', G: '#3a8a3a', l: '#d0ff9e' },
+};
+const mk = (name, tpl, pal, lv, zone, extra = {}) => ({
+  name, tpl, pal, lv, zone, sight: 4,
+  hp: Math.round(6 * lv + 0.35 * lv * lv), atk: Math.round(1.5 + 0.9 * lv + 0.012 * lv * lv),
+  exp: Math.round(3 + 1.6 * lv + 0.05 * lv * lv), coin: [lv, lv * 2], ...extra,
+});
+const boss = (name, tpl, pal, lv, hp, atk, mech) => ({ name, tpl, pal, lv, hp, atk, mech, boss: true, sight: 6, exp: lv * 70, coin: [lv * 20, lv * 30] });
+const ZA = [5, 16], ZB = [15, 27], ZC = [26, 37];
 export const MONSTERS = {
-  slime: { name: '露珠史萊姆', hp: 8, atk: 2, exp: 4, coin: [2, 5], lv: 1, sight: 3, zone: [21, 28] },
-  berry: { name: '莓果史萊姆', hp: 24, atk: 5, exp: 12, coin: [5, 10], lv: 4, sight: 4, zone: [27, 33] },
-  ember: { name: '餘燼史萊姆', hp: 55, atk: 9, exp: 28, coin: [10, 18], lv: 7, sight: 4, zone: [32, 38] },
-  king: { name: '史萊姆王', hp: 6000, atk: 18, exp: 600, coin: [150, 250], lv: 9, sight: 5, boss: true },
+  slime: { name: '露珠史萊姆', tpl: 'slime', pal: PAL.dew, hp: 8, atk: 2, exp: 4, coin: [2, 5], lv: 1, sight: 3, zone: [21, 28] },
+  berry: { name: '莓果史萊姆', tpl: 'slime', pal: PAL.berry, hp: 24, atk: 5, exp: 12, coin: [5, 10], lv: 4, sight: 4, zone: [27, 33] },
+  ember: { name: '餘燼史萊姆', tpl: 'slime', pal: PAL.ember, hp: 55, atk: 9, exp: 28, coin: [10, 18], lv: 7, sight: 4, zone: [32, 38] },
+  king: { name: '史萊姆王', tpl: 'slime', pal: PAL.king, hp: 6000, atk: 18, exp: 600, coin: [150, 250], lv: 9, sight: 5, boss: true, mech: 'split' },
+  bat: mk('回音蝙蝠', 'bat', { g: '#9b6be0', G: '#5b3a8f', l: '#d4b8ff', m: '#ffd1dc' }, 12, ZA),
+  pebble: mk('碎石怪', 'golem', { g: '#c9a77a', G: '#8a6a44', l: '#efd8b0', m: '#ffe066' }, 15, ZB),
+  howl: mk('嚎叫蝙蝠', 'bat', { g: '#e0533d', G: '#8f2c1f', l: '#ffb39c', m: '#fff1a8' }, 18, ZC),
+  echo: boss('回音師', 'bat', { g: '#4b3a8f', G: '#2a1d5c', l: '#b48cff', m: '#7fd8ff' }, 22, 15000, 30, 'echo'),
+  cog: mk('齒輪兵', 'golem', { g: '#9aa3b5', G: '#5d6475', l: '#d6dce8', m: '#ff6b6b' }, 22, ZA),
+  spark: mk('電光精', 'ghost', { g: '#ffe066', G: '#c9a227', l: '#fff8c4', m: '#4aa3df' }, 25, ZB),
+  smelter: mk('熔爐巨像', 'golem', { g: '#e8822f', G: '#9c4a1c', l: '#ffc48a', m: '#fff1a8' }, 28, ZC),
+  clock: boss('時鐘匠', 'golem', { g: '#b08a3a', G: '#6b5020', l: '#f6d77a', m: '#7fd8ff' }, 32, 30000, 48, 'rewind'),
+  wisp: mk('湖畔幽光', 'ghost', { g: '#7fd8ff', G: '#3b8fc4', l: '#e0f8ff', m: '#1b1420' }, 32, ZA),
+  armor: mk('空洞鎧甲', 'golem', { g: '#c8d0e0', G: '#7a8399', l: '#ffffff', m: '#7fd8ff' }, 35, ZB),
+  gargoyle: mk('石像鬼', 'bat', { g: '#8a8f9e', G: '#4f5361', l: '#c4c8d4', m: '#ff6b6b' }, 38, ZC),
+  mirror: boss('鏡之夫人', 'ghost', { g: '#e8e4f0', G: '#9a8fc4', l: '#ffffff', m: '#c084ff' }, 42, 55000, 68, 'mirror'),
+  crab: mk('紅鉗蟹', 'crab', { g: '#e0533d', G: '#8f2c1f', l: '#ffb39c', m: '#ff8a3d' }, 42, ZA),
+  lantern: mk('燈籠鬼', 'ghost', { g: '#ff9f40', G: '#c45a1c', l: '#ffe0a8', m: '#d64550' }, 45, ZB),
+  pirate: mk('霧港海盜', 'imp', { g: '#3fb3a8', G: '#1f6b64', l: '#a8ece4', m: '#d64550' }, 48, ZC),
+  faceless: boss('千面商人', 'imp', { g: '#c9a227', G: '#6b5020', l: '#fff1a8', m: '#d64550' }, 52, 85000, 90, 'faceless'),
+  cultist: mk('蝕夜信徒', 'imp', { g: '#6b4fb0', G: '#3a2a6b', l: '#c4b0f0', m: '#ff4d6d' }, 52, ZA),
+  shade: mk('暗影', 'ghost', { g: '#3b3350', G: '#1f1a2e', l: '#6b5f8a', m: '#ff4d6d' }, 55, ZB),
+  eclipse: mk('蝕月史萊姆', 'slime', { g: '#5b3a8f', G: '#2a1d5c', l: '#b48cff', m: '#ffe066', M: '#c9a227' }, 58, ZC),
+  valde: boss('蝕夜教主・瓦爾德', 'imp', { g: '#2a1d3a', G: '#120c1c', l: '#6b4fb0', m: '#ff4d6d' }, 60, 140000, 115, 'steal'),
 };
 export const ROSTER = [...Array(10).fill('slime'), ...Array(8).fill('berry'), ...Array(6).fill('ember'), 'king'];
-export const expNeed = (lv) => 10 + lv * lv * 6;
+
+// ---- 章節 ----
+export const CHAPTERS = [
+  { n: 1, name: '史萊姆草原', theme: 'meadow', cap: 15, boss: 'king', kills: 20, mons: ['slime', 'berry', 'ember'] },
+  { n: 2, name: '迴聲峽谷', theme: 'canyon', cap: 25, boss: 'echo', kills: 30, mons: ['bat', 'pebble', 'howl'], soul: 'post',
+    guide: { name: '峽谷嚮導・露娜', look: { hair: '#f6c945', hairD: '#c98b2b', band: '#e0533d', bandD: '#8f2c1f', tunic: '#a0693a', tunicD: '#5e3a20' } },
+    intro: ['你就是艾斯特家的人？峽谷裡的蝙蝠最近吵得要命。', '六十年前也有個帶齒輪的人來過，他說要去找「回音師」。', '先幫我清掉 30 隻怪物，我再告訴你回音師在哪。'],
+    bossHint: ['回音師在峽谷東北角。', '牠會記住你的上一招，你連續用同一招，就會被原封不動打回來。', '記得每一招輪流用！'],
+    report: ['回音師倒下的地方，留著這個……一枚生鏽的懷錶。'],
+    memory: ['（懷錶的指針倒轉，畫面褪成褐色……）', '雷歐：「回音師，你只是被瓦爾德控制了。」', '雷歐：「千手郵差，把這封信送到工坊城，給我妻子艾莉絲。」', '（信件化成無數隻手，飛向遠方。）'] },
+  { n: 3, name: '鏽齒工坊城', theme: 'factory', cap: 35, boss: 'clock', kills: 35, mons: ['cog', 'spark', 'smelter'], soul: 'thread',
+    guide: { name: '工坊領班・鐵叔', look: { hair: '#3b2a24', hairD: '#1f1512', band: '#f6c945', bandD: '#c98b2b', tunic: '#5d6475', tunicD: '#3a3f4d' } },
+    intro: ['工坊城的機器全部失控了，連時鐘塔都在倒著走。', '時鐘塔頂住著時鐘匠，他每隔幾秒就把時間倒轉回去。', '先幫我處理 35 隻暴走的機器。'],
+    bossHint: ['時鐘匠每 10 秒會倒轉 3 秒，那 3 秒內你打的傷害會被抹掉，你的位置也會被拉回去。', '看到時鐘倒數，就停手等它轉完，再把大招一口氣丟出去！'],
+    report: ['時鐘塔停下來了……你的曾祖母艾莉絲以前也在這裡工作過。'],
+    memory: ['（工坊的齒輪聲慢慢停下，畫面褪成褐色……）', '艾莉絲：「白線裁縫，把城裡斷掉的線都縫起來。」', '艾莉絲：「雷歐沒有回來……但我們的孩子會繼續走下去。」'] },
+  { n: 4, name: '鏡湖古堡', theme: 'castle', cap: 45, boss: 'mirror', kills: 40, mons: ['wisp', 'armor', 'gargoyle'], soul: 'bird',
+    guide: { name: '古堡管家・賽巴', look: { hair: '#e8e4f0', hairD: '#b5b0c4', band: '#1b1420', bandD: '#000000', tunic: '#2a2338', tunicD: '#140f1c' } },
+    intro: ['歡迎來到鏡湖古堡。主人……已經被鏡子吞掉了。', '堡裡到處是她召喚的幽魂，請先清掉 40 隻。'],
+    bossHint: ['鏡之夫人會召喚三面魔鏡。', '魔鏡還在的時候，你的左右操作會顛倒，她也不會受傷。', '先打破所有魔鏡！'],
+    report: ['夫人恢復成原本的樣子了……她留下一句話：「瓦爾德在霧港有眼線。」'],
+    memory: ['（湖面泛起漣漪，畫面褪成褐色……）', '祖父卡爾：「玻璃夜鶯，唱吧，把鏡子裡的人都叫醒。」', '卡爾：「瓦爾德偷走的魂像，一共有一百隻。」'] },
+  { n: 5, name: '霧港夜市', theme: 'harbor', cap: 55, boss: 'faceless', kills: 45, mons: ['crab', 'lantern', 'pirate'],
+    guide: { name: '夜市老闆娘・阿月', look: { hair: '#d64550', hairD: '#8f2c3f', band: '#f6c945', bandD: '#c98b2b', tunic: '#3fb3a8', tunicD: '#1f6b64' } },
+    intro: ['霧港夜市一到晚上就怪事不斷，海盜和燈籠鬼到處亂跑。', '聽說有個「千面商人」混在攤販裡，替瓦爾德收集情報。', '先清掉 45 隻，我幫你打聽他在哪。'],
+    bossHint: ['千面商人會變成好幾個一模一樣的路人。', '真正的他「沒有影子」，仔細看腳下！', '打錯人會被反炸，小心。'],
+    report: ['商人招了：瓦爾德就在東邊的蝕夜神殿，他在等最後一個艾斯特。'],
+    memory: ['（燈籠一盞盞熄滅，畫面褪成褐色……）', '父親：「孩子，如果你看到這段記憶，代表我也失敗了。」', '父親：「瓦爾德會偷走你用過的魂像能力。不要依賴同一隻魂像。」'] },
+  { n: 6, name: '蝕夜神殿', theme: 'temple', cap: 60, boss: 'valde', kills: 50, mons: ['cultist', 'shade', 'eclipse'],
+    guide: { name: '神殿守衛・凱', look: { hair: '#c8d0e0', hairD: '#7a8399', band: '#6b4fb0', bandD: '#3a2a6b', tunic: '#8a8f9e', tunicD: '#4f5361' } },
+    intro: ['我曾經是瓦爾德的守衛，現在只想看他倒下。', '神殿裡的信徒會拼命阻止你，先清掉 50 隻。'],
+    bossHint: ['瓦爾德會偷走你用過的魂像大招，被偷走的大招對他無效。', '帶著不同的魂像輪流上，讓他偷不完！'],
+    report: ['三百年的黑夜，結束了。'],
+    memory: ['（星痕的光芒從神殿四面八方湧出……）', '雷歐、艾莉絲、卡爾和父親的身影一一浮現。', '雷歐：「做得好，最後的艾斯特。」', '被偷走的一百隻魂像化成流星，回到了大陸各地。', '— 微光大陸　完 —'] },
+];
+export const capFor = (p) => (p.ch > 6 ? 60 : CHAPTERS[Math.max(1, p.ch) - 1].cap);
+
+// ---- 各章野外地圖 ----
+export const FIELD = { portal: { x: 2, y: 13 }, guide: { x: 4, y: 11 }, spawn: { x: 3, y: 13 }, boss: { x0: 30, y0: 2, x1: 37, y1: 7 } };
+export function buildField(ch, seed = 7) {
+  const theme = CHAPTERS[ch - 1].theme;
+  const g = Array.from({ length: H }, () => Array(W).fill(T.GRASS));
+  const rect = (x0, y0, x1, y1, t) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (x >= 0 && y >= 0 && x < W && y < H) g[y][x] = t; };
+  const r = rng(seed * 31 + ch);
+  if (theme === 'castle') { for (let y = 16; y <= 24; y++) for (let x = 12; x <= 28; x++) if (((x - 20) / 8.5) ** 2 + ((y - 20) / 4.5) ** 2 < 1) g[y][x] = T.WATER; }
+  if (theme === 'harbor') rect(0, 22, W - 1, H - 1, T.WATER);
+  for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
+    if (g[y][x] !== T.GRASS) continue;
+    const p = r();
+    if (p < 0.08) g[y][x] = T.TREE; else if (p < 0.11) g[y][x] = T.ROCK; else if (p < 0.18) g[y][x] = T.FLOWER;
+  }
+  rect(1, 12, 36, 14, T.PATH);
+  rect(33, 8, 34, 14, T.PATH);
+  rect(1, 9, 6, 17, T.PATH);
+  if (theme === 'castle') rect(19, 15, 21, 25, T.BRIDGE);
+  rect(FIELD.boss.x0, FIELD.boss.y0, FIELD.boss.x1, FIELD.boss.y1, T.GRASS);
+  for (let x = 0; x < W; x++) { if (g[0][x] !== T.WATER) g[0][x] = T.TREE; if (g[H - 1][x] !== T.WATER) g[H - 1][x] = T.TREE; }
+  for (let y = 0; y < H; y++) { g[y][0] = T.TREE; g[y][W - 1] = T.TREE; }
+  g[FIELD.portal.y][FIELD.portal.x] = T.PORTAL;
+  return g;
+}
+export const expNeed = (lv) => Math.round(10 + lv * lv * 6 + 0.15 * lv * lv * lv);
 export const baseHp = (lv) => 20 + lv * 8;
 export const baseAtk = (lv) => 3 + lv * 2;
 export const swordCost = (sword) => 30 + sword * 40 + sword * sword * 20;
@@ -168,6 +262,8 @@ export const SOULS = {
   gear: { name: '鏽紅齒輪', type: '規則型', color: '#e0533d', color2: '#ffb35c', passive: '技能冷卻 -12%', ult: '時間倒轉：3 格內的敵人被拉回原位並凍結 2.5 秒，受到 4 倍傷害', sfx: '喀嚓喀嚓', story: true },
   post: { name: '千手郵差', type: '遠隔型', color: '#4fa3ff', color2: '#fff1a8', passive: '暴擊率 +8%', ult: '郵件轟炸：畫面內所有敵人被貼上信件，1.5 秒後同時爆炸，5 倍傷害', sfx: '咻咻咻' },
   magnet: { name: '磁極兄弟', type: '力量型', color: '#b48cff', color2: '#ff6b8a', passive: '攻擊 +8%，撿東西範圍變大', ult: '先把 4 格內的敵人吸到身邊，再一口氣彈飛，4.5 倍傷害', sfx: '嗡嗡嗡' },
+  thread: { name: '白線裁縫', type: '規則型', color: '#e8e4f0', color2: '#ff6b8a', passive: '生命 +10%', ult: '縫合：把 5 格內的敵人縫在一起，先造成 3.5 倍傷害，0.8 秒後再共享 2 倍傷害', sfx: '咻啪咻啪', story: true },
+  bird: { name: '玻璃夜鶯', type: '遠隔型', color: '#7fd8ff', color2: '#ffffff', passive: '魂力累積 +20%', ult: '玻璃之歌：5 格內敵人暈眩 3 秒，並受到 3 倍傷害', sfx: '鈴鈴鈴', story: true },
   cat: { name: '午夜黑貓', type: '力量型', color: '#3b3350', color2: '#ffe066', passive: '受到致命傷時復活一次（冷卻 3 分鐘）', ult: '九命爪擊：在身邊連斬 9 次，每次 1 倍傷害', sfx: '喵喵喵' },
 };
 export const SOUL_IDS = Object.keys(SOULS);
@@ -204,7 +300,7 @@ export function stats(p) {
   }
   const soul = p.soul && p.souls?.[p.soul] ? p.soul : null;
   atk *= 1 + 0.05 * tv('might') + (soul === 'magnet' ? 0.08 : 0);
-  hp *= 1 + 0.06 * tv('vigor') + aff.hpPct / 100;
+  hp *= 1 + 0.06 * tv('vigor') + aff.hpPct / 100 + (soul === 'thread' ? 0.1 : 0) + (p.cardBonus?.hpPct || 0) / 100;
   const crit = Math.min(0.75, 0.1 + 0.03 * tv('precision') + aff.crit / 100 + (soul === 'post' ? 0.08 : 0));
   const critDmg = 2 + 0.15 * tv('ferocity');
   const aspd = 1 + 0.05 * tv('haste') + aff.aspd / 100;
@@ -213,7 +309,7 @@ export function stats(p) {
   const dps = (atk * aspd / c.cool) * (1 + crit * (critDmg - 1));
   return {
     atk, hp, crit, critDmg, aspd, cdr,
-    skill: 1 + aff.skill / 100, leech: aff.leech / 100, soulGain: 1 + 0.15 * tv('resonance') + aff.soul / 100,
+    skill: 1 + aff.skill / 100, leech: aff.leech / 100, soulGain: 1 + 0.15 * tv('resonance') + aff.soul / 100 + (soul === 'bird' ? 0.2 : 0),
     dr: 0.05 * tv('iron'), regen: 0.003 * tv('recover'), potion: 0.5 + 0.1 * tv('recover'),
     cp: Math.round(dps * 3 + hp * 3 + p.lv * 20 + (soul ? 150 * (p.souls[soul] || 1) : 0)),
   };
@@ -292,12 +388,13 @@ export function rollFish(rand) {
   return FISH[0];
 }
 
-export const LV_CAP = 15; // 第 1 章等級上限，之後每章提高
+export const LV_CAP = 60;
 export function gainExp(p, amount) {
   p.exp += amount;
   let ups = 0;
-  while (p.lv < LV_CAP && p.exp >= expNeed(p.lv)) { p.exp -= expNeed(p.lv); p.lv++; ups++; }
-  if (p.lv >= LV_CAP) p.exp = 0;
+  const cap = capFor(p);
+  while (p.lv < cap && p.exp >= expNeed(p.lv)) { p.exp -= expNeed(p.lv); p.lv++; ups++; }
+  if (p.lv >= cap) p.exp = 0;
   if (ups) p.hp = stats(p).hp;
   return ups;
 }
@@ -307,7 +404,8 @@ export const OFFLINE_MAX_MIN = 720;
 export function offlineReward(p, minutes, rand) {
   const mins = Math.min(OFFLINE_MAX_MIN, Math.floor(minutes));
   if (mins < 1) return null;
-  const zone = Object.values(MONSTERS).filter((m) => !m.boss && m.lv <= p.lv).sort((a, b) => b.lv - a.lv)[0] || MONSTERS.slime;
+  const open = CHAPTERS.filter((c) => c.n <= Math.min(6, p.ch || 1)).flatMap((c) => c.mons);
+  const zone = open.map((k) => MONSTERS[k]).filter((m) => m.lv <= p.lv).sort((a, b) => b.lv - a.lv)[0] || MONSTERS.slime;
   const kills = Math.floor(mins * 4);
   const exp = kills * zone.exp;
   const coins = Math.round(kills * (zone.coin[0] + zone.coin[1]) / 2);
@@ -317,7 +415,7 @@ export function offlineReward(p, minutes, rand) {
 }
 
 export function newPlayer(cls = 'sword', name = '冒險者') {
-  const p = { v: 4, cls: CLASSES[cls] ? cls : 'sword', name: String(name).slice(0, 8) || '冒險者', lv: 1, exp: 0, hp: 0, coins: 0, potions: 3, sword: 0, gear: {}, fish: {}, kills: 0, quest: 0, talents: {}, souls: {}, soul: '', stones: 0, pity: 0, seen: 0, x: SPAWN.x, y: SPAWN.y };
+  const p = { v: 4, cls: CLASSES[cls] ? cls : 'sword', name: String(name).slice(0, 8) || '冒險者', lv: 1, exp: 0, hp: 0, coins: 0, potions: 3, sword: 0, gear: {}, fish: {}, kills: 0, quest: 0, ch: 1, step: 0, talents: {}, souls: {}, soul: '', stones: 0, pity: 0, seen: 0, x: SPAWN.x, y: SPAWN.y };
   p.hp = stats(p).hp;
   return p;
 }
@@ -330,11 +428,13 @@ export function loadPlayer(raw) {
     if (!p || ![1, 2, 3, 4].includes(p.v) || !Number.isInteger(p.lv) || p.lv < 1) throw 0;
     const d = newPlayer(p.cls, p.name);
     for (const k of Object.keys(d)) if (typeof p[k] !== typeof d[k] || p[k] === null) p[k] = d[k];
+    if (p.v < 4 || !raw.includes('"ch"')) { p.ch = p.quest >= 4 ? 2 : 1; p.step = p.quest >= 4 ? 0 : Math.min(3, p.quest); }
+    p.ch = Math.max(1, Math.min(7, p.ch)); p.step = Math.max(0, Math.min(3, p.step));
     p.v = 4;
     for (const it of Object.values(p.gear)) if (it && typeof it === 'object' && !Array.isArray(it.affixes)) it.affixes = [];
     for (const k of Object.keys(p.souls)) if (!SOULS[k]) delete p.souls[k];
     if (p.soul && !p.souls[p.soul]) p.soul = '';
-    if (p.quest >= 2 && !p.souls.gear) { p.souls.gear = 1; if (!p.soul) p.soul = 'gear'; } // 舊存檔補發覺醒魂像
+    if ((p.ch > 1 || p.step >= 2) && !p.souls.gear) { p.souls.gear = 1; if (!p.soul) p.soul = 'gear'; } // 已過覺醒劇情就補發魂像
     if (!CLASSES[p.cls]) p.cls = 'sword';
     for (const k of Object.keys(p.gear)) if (!SLOTS.includes(k) || !validItem(p.gear[k])) delete p.gear[k];
     p.hp = Math.min(Math.max(1, p.hp), stats(p).hp);

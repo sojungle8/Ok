@@ -185,16 +185,48 @@ test('離線收益：不到 1 分鐘沒有、上限 12 小時、等級越高打�
   assert.equal(b.zone, Wd.MONSTERS.ember.name);
 });
 
-test('等級上限：第 1 章最高 Lv 15，超過的經驗不累積', () => {
+test('等級上限：依章節提高，超過的經驗不累積', () => {
   const p = Wd.newPlayer();
-  Wd.gainExp(p, 1e9);
-  assert.equal(p.lv, Wd.LV_CAP);
+  Wd.gainExp(p, 1e12);
+  assert.equal(p.lv, 15);
   assert.equal(p.exp, 0);
-  assert.equal(Wd.talentPoints(p), Wd.LV_CAP - 1);
+  p.ch = 3; Wd.gainExp(p, 1e12); assert.equal(p.lv, 35);
+  p.ch = 7; Wd.gainExp(p, 1e12); assert.equal(p.lv, Wd.LV_CAP);
 });
 
-test('舊存檔已過覺醒劇情：讀檔補發鏽紅齒輪', () => {
+test('舊存檔已過覺醒劇情：讀檔補發鏽紅齒輪、換算章節進度', () => {
   const p = Wd.loadPlayer(JSON.stringify({ v: 3, cls: 'mage', lv: 9, hp: 10, quest: 2 }));
+  assert.equal(p.ch, 1); assert.equal(p.step, 2);
+  const q = Wd.loadPlayer(JSON.stringify({ v: 4, cls: 'mage', lv: 15, hp: 10, quest: 4 }));
+  assert.equal(q.ch, 2); assert.equal(q.step, 0);
   assert.equal(p.souls.gear, 1);
   assert.equal(p.soul, 'gear');
+});
+
+test('第 2～6 章：怪物資料齊全、地圖走得到傳送點、嚮導、魔王區、三個怪物區', () => {
+  for (const c of Wd.CHAPTERS) {
+    for (const k of [...c.mons, c.boss]) { const m = Wd.MONSTERS[k]; assert.ok(m && m.hp > 0 && m.atk > 0 && m.tpl && m.pal, k); }
+    assert.ok(Wd.MONSTERS[c.boss].boss);
+    if (c.n === 1) continue;
+    const g = Wd.buildField(c.n);
+    const R = Wd.reachable(g, Wd.FIELD.spawn);
+    const ok = (x, y) => R.has(`${x},${y}`);
+    assert.ok(ok(Wd.FIELD.portal.x, Wd.FIELD.portal.y), `ch${c.n} portal`);
+    assert.ok([[1,0],[-1,0],[0,1],[0,-1]].some(([dx, dy]) => ok(Wd.FIELD.guide.x + dx, Wd.FIELD.guide.y + dy)), `ch${c.n} guide`);
+    assert.ok(ok(34, 4), `ch${c.n} boss`);
+    for (const k of c.mons) { const [a, b] = Wd.MONSTERS[k].zone; let n = 0; for (const key of R) { const x = +key.split(',')[0]; if (x >= a && x <= b) n++; } assert.ok(n > 40, `ch${c.n} ${k} zone`); }
+    assert.ok(c.intro.length && c.bossHint.length && c.memory.length);
+  }
+});
+
+test('數值曲線：怪物越後面越強，每章入口等級的玩家 4 刀內打倒小怪', () => {
+  const lvls = Wd.CHAPTERS.flatMap((c) => c.mons.map((k) => Wd.MONSTERS[k]));
+  for (let i = 1; i < lvls.length; i++) assert.ok(lvls[i].hp >= lvls[i - 1].hp * 0.9, lvls[i].name);
+  for (const c of Wd.CHAPTERS.slice(1)) {
+    const p = Wd.newPlayer('sword'); p.lv = Wd.CHAPTERS[c.n - 2].cap;
+    const weak = Wd.MONSTERS[c.mons[0]];
+    const gearAtk = 2 * (1 + p.lv * 0.7) * 1.4 + 1.2 * (1 + p.lv * 0.7) * 1.4 + (1 + p.lv * 0.7) * 1.4;
+    const atk = Wd.stats(p).atk + gearAtk;
+    assert.ok(weak.hp / atk <= 4, `ch${c.n}: ${weak.hp} / ${atk}`);
+  }
 });
