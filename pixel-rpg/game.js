@@ -1960,10 +1960,21 @@ function drawHD(img, o, h, flip, extra, ref) {
 }
 // 攻擊姿勢：有 {key}_attack 圖就在攻擊瞬間換上
 const atkPose = (key, o) => (o.atkT > 0 && asset(key + '_attack')) || null;
+// 走路姿勢圖：{key}_walk.png 左右並排兩格（左＝跨左腳、右＝跨右腳），四拍循環：左腳 → 站姿 → 右腳 → 站姿
+const halfCache = new WeakMap();
+function halfOf(img, i) {
+  let m = halfCache.get(img); if (!m) halfCache.set(img, (m = []));
+  if (m[i]) return m[i];
+  const w = Math.floor((img.naturalWidth || img.width) / 2), h = img.naturalHeight || img.height;
+  const c = document.createElement('canvas'); c.width = w; c.height = h; c.getContext('2d').drawImage(img, i * w, 0, w, h, 0, 0, w, h);
+  return (m[i] = c);
+}
 function walkPose(key, o) {
   if (!o.moving || o.atkT > 0) return null;
   const q = Math.floor((((o.step || 0) + (o.mt || 0)) % 2) * 2);
-  return q === 0 ? asset(key + '_walk1') : q === 2 ? asset(key + '_walk2') : null;
+  if (q === 1 || q === 3) return null;
+  const strip = asset(key + '_walk');
+  return strip ? halfOf(strip, q === 0 ? 0 : 1) : asset(key + (q === 0 ? '_walk1' : '_walk2'));
 }
 const heroKey = (L, dir) => { const view = dir === 'up' ? 'back' : dir === 'left' || dir === 'right' ? 'side' : 'front'; const k = `hero/${L.cls}_${TIER[Math.max(0, L.armorTier ?? 0)]}_${view}`; return asset(k) ? k : `hero/${L.cls}_common_${view}`; };
 function drawMe() {

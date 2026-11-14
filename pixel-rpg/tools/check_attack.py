@@ -3,7 +3,7 @@
 # 每張都要和同名站姿圖（去掉 _attack／_walk1／_walk2）畫在同一張畫布、同一比例、腳底同一高度。
 # 會輸出對照表 assets/_attack_sheet.png：左邊站姿、右邊攻擊姿勢，紅線是站姿的腳底
 import sys, os, re
-POSE = re.compile(r'_(attack|walk1|walk2)\.png$')
+POSE = re.compile(r'_(attack|walk1|walk2|walk)\.png$')
 from PIL import Image, ImageDraw
 
 def bbox(im):
@@ -14,7 +14,16 @@ def check(path, errs, warns):
     name = os.path.basename(path)
     if not os.path.exists(base): errs.append(f'{name}：找不到對應的站姿圖 {os.path.basename(base)}'); return None
     a, s = Image.open(path).convert('RGBA'), Image.open(base).convert('RGBA')
+    if path.endswith('_walk.png'):  # 走路圖：左右並排兩格，每格和站姿一樣大
+        if a.size != (s.width * 2, s.height): errs.append(f'{name}：尺寸 {a.size}，應為站姿寬度 ×2（{s.width * 2}×{s.height}），左右各一格'); return None
+        r1 = check_pair(name + '［左格］', a.crop((0, 0, s.width, s.height)), s, errs, warns)
+        r2 = check_pair(name + '［右格］', a.crop((s.width, 0, s.width * 2, s.height)), s, errs, warns)
+        if r1 and r2 and a.crop((0, 0, s.width, s.height)).tobytes() == a.crop((s.width, 0, s.width * 2, s.height)).tobytes(): errs.append(f'{name}：左右兩格一模一樣，要畫成相反的腳')
+        return r1 and (r1[0], a.crop((0, 0, s.width, s.height)), r1[2])
     if a.size != s.size: errs.append(f'{name}：尺寸 {a.size} 和站姿圖 {s.size} 不同'); return None
+    return check_pair(name, a, s, errs, warns)
+
+def check_pair(name, a, s, errs, warns):
     W, H = a.size
     if any(a.getpixel(c)[3] > 10 for c in [(0, 0), (W - 1, 0), (0, H - 1), (W - 1, H - 1)]): errs.append(f'{name}：背景不是透明的')
     ba, bs = bbox(a), bbox(s)

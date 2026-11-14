@@ -6,7 +6,7 @@ SRC = os.path.join(os.path.dirname(__file__), '..', 'assets')
 OUT = sys.argv[1]
 MAXS = {'hero/': 320, 'portrait/': 320, 'soul_art/': 640, 'vfx/': 256, 'ui/title_bg': 1280, 'ui/logo': 640, 'icon/': 96}
 # 網頁版不放的舊素材：零件拼裝的角色（所有職業都已有完整立繪）
-SKIP = ('char/', 'gear/')
+SKIP = ('char/', 'gear/', 'px/')  # px/：像素風切換用，網頁版改用即時轉換，省檔案數
 files = [f for f in json.load(open(f'{SRC}/manifest.json'))['files'] if not f.startswith(SKIP)]
 before = after = 0
 for f in files:
