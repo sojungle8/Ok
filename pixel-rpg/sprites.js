@@ -148,14 +148,20 @@ export const SLIME_COLORS = {
 };
 
 // ---- 地圖貼圖（直接畫到大地圖畫布上，1 單位 = 1 像素）----
-export function drawMap(ctx, g, T, houses, seed = 3, themeId = 'meadow') {
+export function drawMap(ctx, g, T, houses, seed = 3, themeId = 'meadow', hd = null) {
   const TH = THEMES[themeId] || THEMES.meadow;
+  // hd(key) 回傳高畫質素材圖（沒有就是 null），有的話優先使用
+  const img = (k) => (hd ? hd(k) : null);
+  const put = (im, x, y, w, h) => { ctx.save(); ctx.imageSmoothingEnabled = true; ctx.drawImage(im, x, y, w, h); ctx.restore(); return true; };
+  const obstacles = [];
   let s = seed; const r = () => { s = (s * 16807) % 2147483647; return s / 2147483647; };
   const px = (x, y, c, w = 1, h = 1) => { ctx.fillStyle = c; ctx.fillRect(x, y, w, h); };
   const at = (x, y) => (g[y] && g[y][x] !== undefined ? g[y][x] : T.TREE);
   const isGround = (t) => t === T.PATH || t === T.BRIDGE || t === T.FOUNTAIN || t === T.SIGN || t === T.PORTAL;
   const tree = makeSprite(TH.obst[0], { ...PAL, ...TH.obst[1] }), rock = makeSprite(TH.rock[0], { ...PAL, ...TH.rock[1] }), sign = makeSprite(SIGNPOST);
   const grass = (X, Y) => {
+    const gi = img(`tile/${themeId}_ground_${1 + ((X * 7 + Y * 13) / 16) % 3}`) || img(`tile/${themeId}_ground_1`);
+    if (gi) { put(gi, X, Y, 16.5, 16.5); return; }
     px(X, Y, TH.g, 16, 16);
     if (TH.style === 'grass') {
       for (let i = 0; i < 5; i++) { const a = X + 1 + Math.floor(r() * 13), b = Y + 2 + Math.floor(r() * 13); px(a, b, TH.gd); px(a + 1, b - 1, TH.gd); px(a + 2, b, TH.gd); }
@@ -172,6 +178,8 @@ export function drawMap(ctx, g, T, houses, seed = 3, themeId = 'meadow') {
   for (let y = 0; y < g.length; y++) for (let x = 0; x < g[0].length; x++) {
     const t = g[y][x], X = x * 16, Y = y * 16;
     if (t === T.WATER) {
+      const wi = img(`tile/${themeId}_water`);
+      if (wi) { put(wi, X, Y, 16.5, 16.5); continue; }
       px(X, Y, TH.water, 16, 16);
       for (let i = 0; i < 3; i++) px(X + Math.floor(r() * 12), Y + Math.floor(r() * 16), '#5bb2ea', 4, 1);
       if (at(x - 1, y) !== T.WATER && at(x - 1, y) !== T.BRIDGE) { px(X, Y, '#2a6fb0', 2, 16); px(X + 2, Y, '#a8e4f5', 1, 16); }
@@ -185,7 +193,7 @@ export function drawMap(ctx, g, T, houses, seed = 3, themeId = 'meadow') {
       if (at(x, y + 1) !== T.BRIDGE) { px(X, Y + 13, '#6b4024', 16, 3); px(X, Y + 12, '#2a1d2e', 16, 1); }
       continue;
     }
-    if (themeId === 'meadow' && isGround(t) && x >= 5 && x <= 15 && y >= 9 && y <= 18 && t !== T.SIGN) {
+    if (themeId === 'meadow' && !img('tile/meadow_path') && isGround(t) && x >= 5 && x <= 15 && y >= 9 && y <= 18 && t !== T.SIGN) {
       // 廣場石板
       px(X, Y, '#b9a88f', 16, 16);
       for (let j = 0; j < 2; j++) for (let i = 0; i < 2; i++) {
@@ -196,6 +204,8 @@ export function drawMap(ctx, g, T, houses, seed = 3, themeId = 'meadow') {
       continue;
     }
     if (isGround(t) || t === T.PORTAL) {
+      const pi = t !== T.PORTAL && img(`tile/${themeId}_path`);
+      if (pi) { put(pi, X, Y, 16.5, 16.5); if (t === T.SIGN) obstacles.push(['prop/signpost', X, Y, sign]); continue; }
       px(X, Y, TH.path, 16, 16);
       for (let i = 0; i < 4; i++) px(X + Math.floor(r() * 15), Y + Math.floor(r() * 15), TH.pathD, 2, 1);
       for (let i = 0; i < 3; i++) px(X + Math.floor(r() * 16), Y + Math.floor(r() * 16), TH.pathL);
@@ -223,9 +233,11 @@ export function drawMap(ctx, g, T, houses, seed = 3, themeId = 'meadow') {
         px(a, b + 2, '#3f8a3a', 1, 2); px(a - 1, b, p); px(a + 1, b, p); px(a, b - 1, p); px(a, b + 1, p); px(a, b, c);
       }
     }
-    if (t === T.TREE) ctx.drawImage(tree, X, Y);
-    if (t === T.ROCK) ctx.drawImage(rock, X, Y);
+    if (t === T.FLOWER) { const di = img(`prop/${themeId}_deco_${1 + (x * 3 + y) % 3}`); if (di) { put(di, X + 2, Y + 2, 12, 12); continue; } }
+    if (t === T.TREE) { const oi = img(`prop/${themeId}_obstacle_${1 + (x + y) % 2}`); if (oi) obstacles.push([null, X, Y, oi]); else ctx.drawImage(tree, X, Y); }
+    if (t === T.ROCK) { const oi = img(`prop/${themeId}_obstacle_2`) || img(`prop/${themeId}_obstacle_1`); if (oi) obstacles.push([null, X + 2, Y + 3, oi, 0.75]); else ctx.drawImage(rock, X, Y); }
   }
+  for (const [, X, Y, im, k = 1] of obstacles) if (im && im.naturalWidth) put(im, X + 8 - 13 * k, Y + 16 - 26 * k, 26 * k, 26 * k);
   // 噴水池 2×2
   for (let y = 0; y < g.length; y++) for (let x = 0; x < g[0].length; x++) {
     if (g[y][x] === T.FOUNTAIN && at(x - 1, y) !== T.FOUNTAIN && at(x, y - 1) !== T.FOUNTAIN) {

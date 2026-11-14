@@ -39,9 +39,19 @@ let npcs = townNpcs;
 const mapCache = {};
 function renderMapCanvas(id) {
   if (mapCache[id]) return mapCache[id];
-  const c = document.createElement('canvas'); c.width = W * TS; c.height = H * TS;
-  drawMap(c.getContext('2d'), grid, T, id === 0 ? HOUSES : [], 3, id === 0 ? 'meadow' : CHAPTERS[id - 1].theme);
+  const theme = id === 0 ? 'meadow' : CHAPTERS[id - 1].theme;
+  const hdTiles = !!asset(`tile/${theme}_ground_1`);
+  const RES = hdTiles ? 4 : 1; // 有高畫質地圖素材時，用 4 倍解析度繪製
+  const c = document.createElement('canvas'); c.width = W * TS * RES; c.height = H * TS * RES;
+  const x = c.getContext('2d'); x.scale(RES, RES);
+  drawMap(x, grid, T, id === 0 ? HOUSES : [], 3, theme, asset);
+  if (id === 0) drawHouses(x);
   return (mapCache[id] = c);
+}
+function drawHouses(x) {
+  const color = ['red', 'blue', 'green', 'purple'];
+  HOUSES.forEach((h, i) => { const im = asset(`prop/house_${color[i]}`); if (im) { x.save(); x.imageSmoothingEnabled = true; x.drawImage(im, h.x * TS - 6, h.y * TS - 14, 60, 62); x.restore(); } });
+  const f = asset('prop/fountain'); if (f) { x.save(); x.imageSmoothingEnabled = true; x.drawImage(f, 9 * TS - 4, 11 * TS - 6, 40, 40); x.restore(); }
 }
 mapC = renderMapCanvas(0);
 const crownS = makeSprite(CROWN), bobberS = makeSprite(BOBBER), bangS = makeSprite(BANG), heartS = makeSprite(HEART), coinS = makeSprite(COIN);
@@ -262,7 +272,8 @@ function questText() {
 }
 function previewCanvas(L, size = 4, dir = 'down') {
   const c = document.createElement('canvas'); c.width = AW * size; c.height = AH * size;
-  const x = c.getContext('2d'); x.imageSmoothingEnabled = false; x.drawImage(avatar(L, dir, 0), 0, 0, AW * size, AH * size); return c;
+  const x = c.getContext('2d'); const h = heroImg(L, dir); const src = h || avatar(L, dir, 0);
+  x.imageSmoothingEnabled = !!h || src.width > AW; x.drawImage(src, 0, 0, AW * size, AH * size); return c;
 }
 function statLine() {
   const st = stats(P);
@@ -1435,7 +1446,7 @@ function render() {
   let camX = W * TS <= VW ? Math.round((W * TS - VW) / 2) : clamp(Math.round(cx(me) - VW / 2), 0, W * TS - VW);
   let camY = H * TS <= VH ? Math.round((H * TS - VH) / 2) : clamp(Math.round(cy(me) - 4 - VH / 2), 0, H * TS - VH);
   if (shake > 0) { const s = Math.min(4, shake * 14); camX += Math.round((R() - 0.5) * s); camY += Math.round((R() - 0.5) * s); }
-  ctx.drawImage(mapC, -camX, -camY);
+  ctx.imageSmoothingEnabled = mapC.width > W * TS; ctx.drawImage(mapC, -camX, -camY, W * TS, H * TS); ctx.imageSmoothingEnabled = false;
   ctx.fillStyle = 'rgba(255,255,255,.45)';
   const tx0 = Math.floor(camX / TS), ty0 = Math.floor(camY / TS);
   for (let ty = ty0; ty <= ty0 + Math.ceil(VH / TS) + 1; ty++) for (let tx = tx0; tx <= tx0 + Math.ceil(VW / TS) + 1; tx++) {
@@ -1531,11 +1542,35 @@ function drawNpc(n, x, y) {
   ctx.drawImage(hd, Math.round(x) - 6, Math.round(y) - 20 - br * 37 + 1, 28, 37 * (1 + br));
   ctx.imageSmoothingEnabled = false;
 }
-function drawPerson(img, x, y) { shadow(x, y); ctx.imageSmoothingEnabled = img.width > AW; ctx.drawImage(img, Math.round(x) - 4, Math.round(y) - 17, AW, AH); ctx.imageSmoothingEnabled = false; }
+function drawPerson(img, x, y) { shadow(x, y); const hdImg = img.width > AW; ctx.imageSmoothingEnabled = hdImg; if (hdImg) ctx.drawImage(img, Math.round(x) - 6, Math.round(y) - 21, AW * 1.17, AH * 1.17); else ctx.drawImage(img, Math.round(x) - 4, Math.round(y) - 17, AW, AH); ctx.imageSmoothingEnabled = false; }
 const animFrame = (o, dur = 0.18) => o.atkT > 0 ? 'a' + Math.min(3, Math.floor((1 - o.atkT / dur) * 4)) : o.moving ? 'w' + ((o.step * 2 + (o.mt > 0.5 ? 1 : 0)) % 4) : 'i' + (Math.floor(anim * 1.5 + (o.i || 0)) % 2);
+// 主角整張立繪：hero/{職業}_{裝備等級}_{front|back|side}，裝備等級取身體防具；可選 _attack 攻擊姿勢
+function heroImg(L, dir, attack) {
+  if (!L?.cls) return null;
+  const view = dir === 'up' ? 'back' : dir === 'left' || dir === 'right' ? 'side' : 'front';
+  const tier = TIER[Math.max(0, L.armorTier ?? 0)];
+  const base = `hero/${L.cls}_${tier}_${view}`;
+  return (attack && asset(base + '_attack')) || asset(base) || asset(`hero/${L.cls}_common_${view}`);
+}
+function drawIllus(img, o, frameStr) {
+  const x = Math.round(o.px * TS), y = Math.round(o.py * TS);
+  shadow(x, y);
+  const flip = o.face === 'left' ? -1 : 1;
+  const walk = o.moving ? Math.abs(Math.sin((o.mt + o.step) * Math.PI)) : 0;
+  const atk = o.atkT > 0 ? Math.sin((1 - o.atkT / (o.atkDur || 0.18)) * Math.PI) : 0;
+  const [dx, dy] = DIRS[o.face] || [0, 1];
+  ctx.save();
+  ctx.translate(x + 8 + dx * atk * 5, y + 16 + dy * atk * 3 - walk * 2.5);
+  ctx.rotate((o.moving ? Math.sin((o.mt + o.step) * Math.PI) * 0.06 : 0) + atk * 0.2 * (dx || 1) * flip);
+  ctx.scale(flip * (1 + atk * 0.07), 1 + (o.moving ? 0 : Math.sin(anim * 3 + (o.i || 0)) * 0.015) - atk * 0.05);
+  ctx.imageSmoothingEnabled = true; ctx.drawImage(img, -15, -38, 30, 39); ctx.imageSmoothingEnabled = false;
+  ctx.restore();
+}
 function drawMe() {
   const x = Math.round(me.px * TS), y = Math.round(me.py * TS);
   const frame = animFrame(me, me.atkDur || 0.18);
+  const hero = heroImg(myLook, me.face, me.atkT > 0);
+  if (hero && !(me.hurtT > 0 && Math.floor(me.hurtT * 20) % 2)) { if (me.inv > 0) ctx.globalAlpha = 0.6; drawIllus(hero, me); ctx.globalAlpha = 1; return; }
   if (me.hurtT > 0 && Math.floor(me.hurtT * 20) % 2) { shadow(x, y); return; }
   if (me.inv > 0) ctx.globalAlpha = 0.6;
   if (myLook?.aura) { ctx.globalAlpha = 0.25 + Math.sin(anim * 4) * 0.08; ctx.fillStyle = '#ffd75e'; ctx.beginPath(); ctx.ellipse(x + 8, y + 15, 12, 4, 0, 0, 7); ctx.fill(); ctx.globalAlpha = 1; }
@@ -1550,8 +1585,8 @@ function drawAlly(a) {
   if (a.hurtT > 0 && Math.floor(a.hurtT * 20) % 2) { shadow(x, y); return; }
   const frame = animFrame(a, a.atkDur || 0.18);
   const hd = asset('npc/ally_' + a.id);
-  if (hd) {
-    shadow(x, y);
+  if (hd) { drawIllus(hd, a); }
+  else if (false) {
     const flip = a.face === 'left' ? -1 : 1;
     const walk = a.moving ? Math.abs(Math.sin((a.mt + a.step) * Math.PI)) : 0;
     const atk = a.atkT > 0 ? Math.sin((1 - a.atkT / (a.atkDur || 0.18)) * Math.PI) : 0;
@@ -1874,7 +1909,7 @@ function titleScreen() {
   const looks = CLASS_IDS.map((id, i) => lookOf({ cls: id, gear: i % 2 ? { armor: { rarity: 'epic' }, weapon: { rarity: 'epic' }, helm: { rarity: 'epic' } } : { armor: { rarity: 'rare' }, weapon: { rarity: 'rare' } } }, CLASSES, rarityIdx));
   $('titleArt').replaceChildren(...looks.map((L) => previewCanvas(L, 2)));
 }
-loadAssets().then(() => { if (typeof render === 'function') render(); });
+loadAssets().then(() => { for (const k of Object.keys(mapCache)) delete mapCache[k]; mapC = renderMapCanvas(mapId); titleScreen(); if (typeof render === 'function') render(); });
 loadMap(P.map && P.map <= Math.min(6, P.ch) ? P.map : 0, { x: P.x, y: P.y });
 setupClass();
 resize();
