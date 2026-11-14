@@ -25,6 +25,7 @@
         <span class="chip" id="coinBox"><i class="dot gold"></i><b id="coins">0</b></span>
         <div class="tools">
           <button id="advBtn" class="tbtn adv" type="button">冒險<em id="advDot" class="tdot" hidden></em></button>
+          <button id="shopBtn" class="tbtn shop" type="button">商城<em id="shopDot" class="tdot" hidden></em></button>
           <button id="gearBtn" class="tbtn" type="button">背包</button>
           <button id="partyBtn" class="tbtn" type="button">隊伍</button>
           <button id="soulMenuBtn" class="tbtn" type="button">魂像</button>
@@ -94,8 +95,15 @@
     <div id="bagDetail" class="bdetail"></div>
     <div class="crow wrap"><button id="sellJunkBtn" class="ghostbtn" type="button">賣掉全部雜物</button><button id="autoSellBtn" class="ghostbtn" type="button">自動販賣設定</button><button id="bagClose" class="startbtn" type="button">關閉</button></div>
   </div>
+  <div id="shopPanel" class="panel" hidden>
+    <h3>商城</h3>
+    <p class="small muted">小額、划算、每一筆都看得到回報。所有東西也都能靠遊玩取得。<br><b>示範版：沒有串接真實付款，按購買會直接發放。</b></p>
+    <div id="shopList" class="advbody"></div>
+    <button id="shopClose" class="startbtn" type="button">關閉</button>
+  </div>
   <div id="advPanel" class="panel" hidden>
     <h3>冒險手冊</h3>
+    <div class="advtop"><button id="claimAllBtn" class="startbtn" type="button">一鍵全領</button><button id="quickIdleBtn" class="startbtn ghostish" type="button">⚡ 快速掛機</button></div>
     <div id="advTabs" class="btabs advtabs"><button type="button" data-t="daily">每日</button><button type="button" data-t="weekly">每週</button><button type="button" data-t="login">簽到</button><button type="button" data-t="tower">試煉塔</button><button type="button" data-t="codex">圖鑑</button><button type="button" data-t="ach">成就</button></div>
     <div id="advBody" class="advbody"></div>
     <button id="advClose" class="startbtn" type="button">關閉</button>

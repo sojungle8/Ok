@@ -411,8 +411,8 @@ export function gainExp(p, amount) {
 
 // ---- 離線掛機：最多 12 小時，效率約為在線的 60% ----
 export const OFFLINE_MAX_MIN = 720;
-export function offlineReward(p, minutes, rand) {
-  const mins = Math.min(OFFLINE_MAX_MIN, Math.floor(minutes));
+export function offlineReward(p, minutes, rand, cap = OFFLINE_MAX_MIN) {
+  const mins = Math.min(cap, Math.floor(minutes));
   if (mins < 1) return null;
   const open = CHAPTERS.filter((c) => c.n <= Math.min(6, p.ch || 1)).flatMap((c) => c.mons);
   const zone = open.map((k) => MONSTERS[k]).filter((m) => m.lv <= p.lv).sort((a, b) => b.lv - a.lv)[0] || MONSTERS.slime;

@@ -123,7 +123,7 @@ export function claimChest(p, i) {
 }
 export function claimable(p) {
   const m = ensureMeta(p);
-  return [...m.daily, ...m.weekly].some((q) => !q.claimed && q.prog >= q.need) || CHESTS.some((v, i) => m.act >= v && !m.chests.includes(i)) || m.login.last !== m.day || achReady(p).length > 0;
+  return [...m.daily, ...m.weekly].some((q) => !q.claimed && q.prog >= q.need) || CHESTS.some((v, i) => m.act >= v && !m.chests.includes(i)) || m.login.last !== m.day || achReady(p).length > 0 || monthClaimable(p);
 }
 
 // ---- 簽到（累計天數，不會因為漏簽歸零）----
@@ -274,3 +274,78 @@ export function openChest(p, key, rand, day = dayKey()) {
   return { reward: r, big, gear: big || rand() < 0.25 };
 }
 export const chestOpened = (p, key, day = dayKey()) => { const m = ensureMeta(p); return m.chestDay === day && (m.opened || []).includes(key); };
+
+// ---- 舒壓：快速掛機（立刻領 2 小時掛機收益）----
+export const QUICK_IDLE_MIN = 120, QUICK_FREE = 2, QUICK_EXTRA = 3, QUICK_COST = 50;
+export function quickIdleState(p, t = Date.now()) {
+  const m = ensureMeta(p), d = dayKey(t);
+  if (m.qi?.day !== d) m.qi = { day: d, used: 0 };
+  const free = QUICK_FREE + (monthActive(p, t) ? 2 : 0);
+  return { used: m.qi.used, free, freeLeft: Math.max(0, free - m.qi.used), paidLeft: Math.max(0, free + QUICK_EXTRA - m.qi.used) };
+}
+// 回傳 { cost }，失敗回傳 null（次數用完或魂石不夠）
+export function useQuickIdle(p, t = Date.now()) {
+  const s = quickIdleState(p, t);
+  if (s.paidLeft <= 0) return null;
+  const cost = s.freeLeft > 0 ? 0 : QUICK_COST;
+  if (p.stones < cost) return null;
+  p.stones -= cost; p.meta.qi.used++;
+  return { cost };
+}
+
+// ---- 商城：小額、划算、每一筆都看得到回報 ----
+// 示範版：沒有串接真實金流，購買會直接發放。正式上架時換成 App Store／Google Play／網頁金流
+export const SHOP = [
+  { id: 'daily', name: '每日超值包', price: 30, limit: 'day', give: { stones: 80, items: { ore: 3, elixir: 1, white: 2 } }, tag: '每天限購 1 次・最划算' },
+  { id: 'month', name: '月卡', price: 90, month: true, give: { stones: 300 }, tag: '立刻 300 魂石＋30 天每天 100 魂石', perks: ['每天可領 100 魂石（共 3000）', '快速掛機每天多 2 次', '離線收益上限 12 → 24 小時'] },
+  { id: 'grow', name: '新手成長禮包', price: 60, limit: 'once', give: { stones: 200, items: { ore: 10, ore2: 2, white: 5, elixir: 2 } }, tag: '限購 1 次' },
+  { id: 's60', name: '一小袋魂石', price: 30, give: { stones: 60 }, first: true, tag: '首次購買雙倍' },
+  { id: 's330', name: '一盒魂石', price: 150, give: { stones: 330 }, first: true, tag: '首次購買雙倍' },
+  { id: 's700', name: '一箱魂石', price: 300, give: { stones: 700 }, first: true, tag: '首次購買雙倍' },
+];
+export const MONTH_DAYS = 30, MONTH_DAILY = 100;
+const DAY = 86400000;
+function shopState(p) { p.shop ??= {}; p.shop.bought ??= {}; p.shop.day ??= {}; return p.shop; }
+export const monthActive = (p, t = Date.now()) => (p.shop?.monthUntil || 0) > t;
+export const monthDaysLeft = (p, t = Date.now()) => Math.max(0, Math.ceil(((p.shop?.monthUntil || 0) - t) / DAY));
+export function canBuy(p, sku, t = Date.now()) {
+  const s = shopState(p), it = SHOP.find((x) => x.id === sku);
+  if (!it) return false;
+  if (it.limit === 'once' && s.bought[sku]) return false;
+  if (it.limit === 'day' && s.day[sku] === dayKey(t)) return false;
+  return true;
+}
+// 回傳發放的獎勵（首購雙倍已算進去）
+export function buySku(p, sku, t = Date.now()) {
+  if (!canBuy(p, sku, t)) return null;
+  const s = shopState(p), it = SHOP.find((x) => x.id === sku);
+  const firstTime = it.first && !s.bought[sku];
+  s.bought[sku] = (s.bought[sku] || 0) + 1;
+  if (it.limit === 'day') s.day[sku] = dayKey(t);
+  if (it.month) { s.monthUntil = Math.max(t, s.monthUntil || 0) + MONTH_DAYS * DAY; s.monthClaim = ''; }
+  const r = { ...it.give, items: { ...(it.give.items || {}) } };
+  if (firstTime) r.stones = (r.stones || 0) * 2;
+  return r;
+}
+export function claimMonthDaily(p, t = Date.now()) {
+  const s = shopState(p), d = dayKey(t);
+  if (!monthActive(p, t) || s.monthClaim === d) return null;
+  s.monthClaim = d; return { stones: MONTH_DAILY };
+}
+export const monthClaimable = (p, t = Date.now()) => monthActive(p, t) && shopState(p).monthClaim !== dayKey(t);
+
+// ---- 一鍵全領 ----
+export function claimAll(p, t = Date.now()) {
+  const m = ensureMeta(p), out = [];
+  for (const q of [...m.daily, ...m.weekly]) { const r = claimQuest(p, q); if (r) out.push(r); }
+  CHESTS.forEach((_, i) => { const r = claimChest(p, i); if (r) out.push(r); });
+  const lg = claimLogin(p, t); if (lg) out.push(lg.reward);
+  for (const a of achReady(p)) { const r = claimAch(p, a.id); if (r) out.push(r); }
+  const mo = claimMonthDaily(p, t); if (mo) out.push(mo);
+  return mergeRewards(out);
+}
+export function mergeRewards(list) {
+  const r = { coins: 0, exp: 0, stones: 0, items: {} };
+  for (const x of list) { r.coins += x.coins || 0; r.exp += x.exp || 0; r.stones += x.stones || 0; for (const [k, n] of Object.entries(x.items || {})) r.items[k] = (r.items[k] || 0) + n; }
+  return list.length ? r : null;
+}

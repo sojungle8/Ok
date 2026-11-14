@@ -96,3 +96,37 @@ test('寶箱：每天固定位置、一天只能開一次', () => {
   assert.ok(M.chestOpened(p, '2-0', '2026-11-14'));
   assert.ok(M.openChest(p, '2-0', r, '2026-11-15'), '隔天重置');
 });
+
+test('快速掛機：每天免費 2 次，之後花魂石，有上限；月卡多 2 次', () => {
+  const p = newPlayer(); p.stones = 1000; const t = day('2026-11-14');
+  assert.deepEqual(M.useQuickIdle(p, t), { cost: 0 }); assert.deepEqual(M.useQuickIdle(p, t), { cost: 0 });
+  assert.equal(M.useQuickIdle(p, t).cost, M.QUICK_COST);
+  M.useQuickIdle(p, t); M.useQuickIdle(p, t);
+  assert.equal(M.useQuickIdle(p, t), null, '超過上限');
+  assert.equal(M.quickIdleState(p, day('2026-11-15')).freeLeft, 2, '隔天重置');
+  M.buySku(p, 'month', t);
+  assert.equal(M.quickIdleState(p, day('2026-11-15')).freeLeft, 4);
+});
+
+test('商城：首購雙倍、每日限購、限購一次、月卡每天領', () => {
+  const p = newPlayer(); const t = day('2026-11-14');
+  assert.equal(M.buySku(p, 's60', t).stones, 120, '首購雙倍');
+  assert.equal(M.buySku(p, 's60', t).stones, 60);
+  assert.ok(M.buySku(p, 'daily', t)); assert.equal(M.buySku(p, 'daily', t), null); assert.ok(M.buySku(p, 'daily', day('2026-11-15')));
+  assert.ok(M.buySku(p, 'grow', t)); assert.equal(M.buySku(p, 'grow', day('2026-12-01')), null);
+  assert.equal(M.buySku(p, 'month', t).stones, 300);
+  assert.equal(M.claimMonthDaily(p, t).stones, 100); assert.equal(M.claimMonthDaily(p, t), null);
+  assert.ok(M.claimMonthDaily(p, day('2026-12-13')), '第 30 天還能領');
+  assert.equal(M.claimMonthDaily(p, day('2026-12-15')), null, '過期');
+  assert.equal(M.monthDaysLeft(p, t), 30);
+});
+
+test('一鍵全領：任務、寶箱、簽到、成就一次領完', () => {
+  const p = newPlayer('sword', 'Z'); const t = day('2026-11-14'); M.refresh(p, t);
+  for (const q of p.meta.daily) M.track(p, q.ev, q.need, { type: q.mon });
+  M.track(p, 'kill', 100);
+  const r = M.claimAll(p, t);
+  assert.ok(r.coins > 0 && r.stones > 0);
+  assert.ok(p.meta.daily.every((q) => q.claimed)); assert.equal(p.meta.chests.length, 5); assert.equal(p.meta.login.n, 1); assert.ok(p.meta.ach.k100);
+  assert.equal(M.claimAll(p, t), null, '沒東西可領');
+});

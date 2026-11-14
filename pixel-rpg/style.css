@@ -305,3 +305,18 @@ button{font-family:inherit;color:inherit}
 .side{min-width:0;flex:1 1 auto}
 .tools{flex-wrap:wrap;justify-content:flex-end;max-width:100%}
 @media (max-width:480px){.tbtn{padding:3px 6px}}
+
+/* 商城、快速掛機 */
+.tbtn.shop{background:linear-gradient(#ff9fc0,#e8628f);color:#fff;font-weight:700}
+.advtop{display:flex;gap:8px;margin:4px 0 8px}
+.advtop button{flex:1;padding:9px 6px;font-size:.85em}
+.advtop .ghostish{background:linear-gradient(#8fd3ff,#4aa3df)}
+.advtop button:disabled{opacity:.45;filter:grayscale(.6)}
+.monthbar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;margin:4px 0 8px;border-radius:10px;background:#ffd16622;font-size:.85em}
+.shopcard{display:flex;align-items:center;gap:10px;padding:10px;margin:8px 0;border-radius:12px;background:#ffffff10;border:1px solid #ffffff1a}
+.shopcard.hot{background:linear-gradient(135deg,#ffd16626,#ff8fb126);border-color:#ffd16688}
+.shopcard .sc-l{flex:1;display:flex;flex-direction:column;gap:3px;font-size:.85em}
+.shopcard .sc-tag{color:#ffd166;font-size:.85em}
+.shopcard .sc-give{color:#e8e4f0;font-size:.85em}
+.shopcard ul{margin:2px 0 0 1.1em;padding:0;font-size:.8em;color:#bdb6d0}
+.shopcard .qbtn{min-width:72px;padding:9px 8px;font-size:.9em}

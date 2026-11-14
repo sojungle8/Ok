@@ -9,7 +9,7 @@ import { soulSprite, soulBig } from './soul.js';
 import { ITEMS, GRADES, STAT_NAME, BAG_SIZE, ensureInv, count, addStack, takeStack, pickupGear, pickupItem, equipFromBag, unequip, sellFromBag, sellStack, sellAllJunk, findGear, insertCard, REFINE_RATE, refineCost, refine, rollDrops, shopList, buy, pickPotion, gearSell, itemSell } from './items.js';
 import { iconCanvas, gearIcon } from './icons.js';
 import { loadAssets, asset, tinted, loadState } from './assets.js';
-import { ensureMeta, refresh, track, claimQuest, claimChest, claimable, claimLogin, loginReward, questLabel, rewardText, CHESTS, codexBonus, codexStars, CODEX_TIERS, ACHIEVEMENTS, achProgress, achReady, claimAch, ELITE_AFFIX, ELITE_RATE, makeElite, DIFFS, diffOf, applyDiff, chestSpots, openChest, chestOpened, dayKey, towerFloor, towerClear, LOGIN_CYCLE } from './meta.js';
+import { ensureMeta, refresh, track, claimQuest, claimChest, claimable, claimLogin, loginReward, questLabel, rewardText, CHESTS, codexBonus, codexStars, CODEX_TIERS, ACHIEVEMENTS, achProgress, achReady, claimAch, ELITE_AFFIX, ELITE_RATE, makeElite, DIFFS, diffOf, applyDiff, chestSpots, openChest, chestOpened, dayKey, quickIdleState, useQuickIdle, QUICK_IDLE_MIN, QUICK_COST, SHOP, buySku, canBuy, monthActive, monthDaysLeft, claimMonthDaily, monthClaimable, claimAll, MONTH_DAILY, towerFloor, towerClear, LOGIN_CYCLE } from './meta.js';
 import { pixelize } from './pixelize.js';
 import { audioOpt, saveAudioOpt, initAudio, sfx, playSong, audioLevel, currentSong } from './audio.js';
 // 美術風格：像素風。高畫質的角色、怪物、NPC 在遊戲畫面中即時轉成像素圖；特效、頭像、大招立繪維持高畫質
@@ -320,7 +320,7 @@ function bump(id) { const el = $(id); el.classList.remove('bump'); void el.offse
 let lastCp = 0;
 function hud() {
   const st = stats(P);
-  if (started) $('advDot').hidden = !claimable(P);
+  if (started) { $('advDot').hidden = !claimable(P); $('shopDot').hidden = !(monthClaimable(P) || canBuy(P, 'daily')); }
   myLook = lookOf(P, CLASSES, rarityIdx);
   $('lv').textContent = P.lv;
   $('clsName').textContent = C.name;
@@ -562,10 +562,23 @@ $('summonBtn').addEventListener('click', () => {
 // ---------- 離線收益 ----------
 function checkOffline() {
   if (!P.seen) return;
-  const r = offlineReward(P, (Date.now() - P.seen) / 60000, R);
+  const cap = monthActive(P) ? 1440 : 720;
+  const r = offlineReward(P, (Date.now() - P.seen) / 60000, R, cap);
   if (!r) return;
   const h = Math.floor(r.mins / 60), mm = r.mins % 60;
-  $('offlineBody').innerHTML = `<p>你離開了 <b>${h ? `${h} 小時 ` : ''}${mm} 分鐘</b>，角色在「${r.zone}」持續狩獵：</p><div class="loot"><span class="chip">擊倒 ${fmt(r.kills)} 隻</span><span class="chip">經驗 +${fmt(r.exp)}</span><span class="chip"><i class="dot gold"></i>${fmt(r.coins)}</span><span class="chip">裝備 ×${r.items.length}</span></div><p class="muted small">離線最多累積 12 小時，效率約為在線的 60%。</p>`;
+  showIdle(r, '離線收益', `你離開了 <b>${h ? `${h} 小時 ` : ''}${mm} 分鐘</b>，角色在「${r.zone}」持續狩獵：`, `離線最多累積 ${cap / 60} 小時${monthActive(P) ? '（月卡加成）' : '，月卡可延長到 24 小時'}。`);
+}
+function quickIdle() {
+  const u = useQuickIdle(P);
+  if (!u) { const q = quickIdleState(P); feed(q.paidLeft <= 0 ? '今天的快速掛機用完了，明天再來' : `魂石不夠（需要 ${QUICK_COST}）`, '#ff8fa0'); return; }
+  const r = offlineReward(P, QUICK_IDLE_MIN, R, QUICK_IDLE_MIN);
+  sfx('reward'); $('advPanel').hidden = true;
+  showIdle(r, '快速掛機', `夥伴們幫你在「${r.zone}」打了 <b>2 小時</b>：`, u.cost ? `花費魂石 ${u.cost}` : `今天還有 ${quickIdleState(P).freeLeft} 次免費`);
+  save();
+}
+function showIdle(r, title, head, foot) {
+  $('offlinePanel').querySelector('h3').textContent = title;
+  $('offlineBody').innerHTML = `<p>${head}</p><div class="loot"><span class="chip">擊倒 ${fmt(r.kills)} 隻</span><span class="chip">經驗 +${fmt(r.exp)}</span><span class="chip"><i class="dot gold"></i>${fmt(r.coins)}</span><span class="chip">裝備 ×${r.items.length}</span></div><p class="muted small">${foot}</p>`;
   $('offlinePanel').hidden = false;
   $('offlineOk').onclick = () => {
     $('offlinePanel').hidden = true;
@@ -723,11 +736,18 @@ function hurt(raw, m) {
     banner('九命發動！'); burst(cx(me), cy(me), '#ffe066', 24, 120); hud(); return;
   }
   if (P.hp <= 0) {
-    P.hp = stats(P).hp; auto = false; syncAuto();
+    P.hp = stats(P).hp;
+    for (const al of allies) { al.down = 0; al.hp = al.max; }
+    if (mapId !== 0 && !trial) {
+      // 舒壓：不送回村子、不扣東西，直接在入口滿血復活，自動模式繼續
+      Object.assign(me, { x: FIELD.spawn.x, y: FIELD.spawn.y, px: FIELD.spawn.x, py: FIELD.spawn.y, fx: FIELD.spawn.x, fy: FIELD.spawn.y, moving: false, face: 'right', inv: 2 });
+      warns = []; banner('滿血復活！'); feed('倒下了也沒關係，夥伴把你扶起來了。打不過可以先去練等或換低一點的難度', '#a6ec7a');
+      addFx('heal', 0.8, { x: cx(me), y: cy(me) }); sfx('potion'); hud(); return;
+    }
+    auto = false; syncAuto();
     if (mapId !== 0) loadMap(0, INN_SPOT);
     Object.assign(me, { x: INN_SPOT.x, y: INN_SPOT.y, px: INN_SPOT.x, py: INN_SPOT.y, fx: INN_SPOT.x, fy: INN_SPOT.y, moving: false, face: 'down' });
-    for (const al of allies) { al.down = 0; al.hp = al.max; }
-    say('旅店・瑪莎', ['你昏倒在草原上，被路過的冒險者送回來了。', '提升戰鬥力再去吧！HP 已經恢復了。']);
+    say('旅店・瑪莎', ['試煉沒過也沒關係，休息一下就好。', 'HP 已經恢復了，準備好再去挑戰吧！']);
   } else if (auto && P.hp < stats(P).hp * 0.35) usePotion(true);
   hud();
 }
@@ -1140,8 +1160,14 @@ function qRow(text, prog, need, btn) {
   return row;
 }
 function mkBtn(label, on, fn) { const b = document.createElement('button'); b.type = 'button'; b.className = on ? 'qbtn on' : 'qbtn'; b.textContent = label; b.disabled = !on; if (fn) b.addEventListener('click', fn); return b; }
+function renderAdvTop() {
+  const q = quickIdleState(P);
+  $('quickIdleBtn').textContent = q.freeLeft ? `⚡ 快速掛機（免費 ${q.freeLeft} 次）` : q.paidLeft ? `⚡ 快速掛機（${QUICK_COST} 魂石）` : '⚡ 今天已用完';
+  $('quickIdleBtn').disabled = !q.paidLeft;
+  $('claimAllBtn').disabled = !claimable(P);
+}
 function renderAdv() {
-  refresh(P);
+  refresh(P); renderAdvTop();
   const m = ensureMeta(P), box = $('advBody');
   document.querySelectorAll('#advTabs button').forEach((b) => b.classList.toggle('on', b.dataset.t === advTab));
   const out = [];
@@ -1201,6 +1227,31 @@ function renderAdv() {
 }
 $('advBtn').addEventListener('click', () => { if (!started) return; renderAdv(); $('advPanel').hidden = false; });
 $('advClose').addEventListener('click', () => { $('advPanel').hidden = true; });
+$('claimAllBtn').addEventListener('click', () => { const r = claimAll(P); if (r) { grant(r); burst(cx(me), cy(me), '#ffd166', 30, 140); banner('全部領取！'); } renderAdv(); });
+$('quickIdleBtn').addEventListener('click', quickIdle);
+// ---------- 商城（示範版：不會真的扣款）----------
+function renderShop() {
+  const out = [];
+  const mo = document.createElement('div'); mo.className = 'monthbar';
+  mo.innerHTML = monthActive(P) ? `月卡生效中，剩 <b>${monthDaysLeft(P)}</b> 天` : '還沒有月卡';
+  if (monthActive(P)) mo.append(mkBtn(monthClaimable(P) ? `領今天的 ${MONTH_DAILY} 魂石` : '今天已領', monthClaimable(P), () => { grant(claimMonthDaily(P)); renderShop(); }));
+  out.push(mo);
+  for (const it of SHOP) {
+    const card = document.createElement('div'); card.className = 'shopcard' + (it.id === 'month' || it.id === 'daily' ? ' hot' : '');
+    const first = it.first && !P.shop?.bought?.[it.id];
+    const gives = rewardText({ ...it.give, stones: (it.give.stones || 0) * (first ? 2 : 1) });
+    card.innerHTML = `<div class="sc-l"><b>${it.name}</b><span class="sc-tag">${first ? '首購雙倍！' : it.tag}</span><span class="sc-give">${gives}</span>${it.perks ? `<ul>${it.perks.map((x) => `<li>${x}</li>`).join('')}</ul>` : ''}</div>`;
+    const ok = canBuy(P, it.id);
+    card.append(mkBtn(ok ? `NT$${it.price}` : it.limit === 'day' ? '明天再來' : '已購買', ok, () => {
+      $('shopPanel').hidden = true;
+      say('商城', [`購買「${it.name}」NT$${it.price}？`, '（這是示範版，按「購買」會直接發放，不會真的扣款）'], [['購買', () => { const r = buySku(P, it.id); if (r) { grant(r); banner(`獲得：${it.name}`); burst(cx(me), cy(me), '#ffd166', 40, 160); } renderShop(); $('shopPanel').hidden = false; }], ['再想想', () => { $('shopPanel').hidden = false; }]]);
+    }));
+    out.push(card);
+  }
+  $('shopList').replaceChildren(...out);
+}
+$('shopBtn').addEventListener('click', () => { if (!started) return; renderShop(); $('shopPanel').hidden = false; });
+$('shopClose').addEventListener('click', () => { $('shopPanel').hidden = true; });
 document.querySelectorAll('#advTabs button').forEach((b) => b.addEventListener('click', () => { advTab = b.dataset.t; renderAdv(); }));
 
 // 魔王登場特寫：第一次走進魔王區時，放精緻原圖＋名字
@@ -2392,4 +2443,4 @@ document.fonts?.ready.then(render);
 requestAnimationFrame(frame);
 
 // 自動化測試用（網址加 ?debug 才開）
-if (location.search.includes('debug')) globalThis.__game = { showCutin, get allies() { return allies; }, buildAllies, get P() { return P; }, newDrop, get drops() { return drops; }, set dropsAdd(d) { drops.push(d); }, me, get grid() { return grid; }, loadMap, get mapId() { return mapId; }, get mons() { return mons; }, get fishing() { return fishing; }, get dialog() { return dialog; }, get drops() { return drops; }, get skills() { return skills; }, castIdx, startTower, get trial() { return trial; }, renderAdv, hud, audioLevel, currentSong, sfx, get chests() { return chests; }, say, renderPartyPanel };
+if (location.search.includes('debug')) globalThis.__game = { showCutin, get allies() { return allies; }, buildAllies, get P() { return P; }, newDrop, get drops() { return drops; }, set dropsAdd(d) { drops.push(d); }, me, get grid() { return grid; }, loadMap, get mapId() { return mapId; }, get mons() { return mons; }, get fishing() { return fishing; }, get dialog() { return dialog; }, get drops() { return drops; }, get skills() { return skills; }, castIdx, startTower, get trial() { return trial; }, renderAdv, hud, audioLevel, currentSong, sfx, get chests() { return chests; }, say, renderPartyPanel, renderShop };
