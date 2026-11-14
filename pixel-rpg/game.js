@@ -11,6 +11,7 @@ import { iconCanvas, gearIcon } from './icons.js';
 import { loadAssets, asset, tinted, loadState } from './assets.js';
 import { ensureMeta, refresh, track, claimQuest, claimChest, claimable, claimLogin, loginReward, questLabel, rewardText, CHESTS, codexBonus, codexStars, CODEX_TIERS, ACHIEVEMENTS, achProgress, achReady, claimAch, ELITE_AFFIX, ELITE_RATE, makeElite, DIFFS, diffOf, applyDiff, chestSpots, openChest, chestOpened, dayKey, quickIdleState, useQuickIdle, QUICK_IDLE_MIN, QUICK_COST, SHOP, buySku, canBuy, monthActive, monthDaysLeft, claimMonthDaily, monthClaimable, claimAll, MONTH_DAILY, towerFloor, towerClear, LOGIN_CYCLE } from './meta.js';
 import { pixelize } from './pixelize.js';
+import { ensureJob, gainJobExp, jobExpNeed, JOB_CAP, JOB_EXP_RATE, SKILL_MAX, skillPointsFree, skillLevel, learnSkill, autoLearn, resetSkills, skillDmgMult, skillCdMult, JOB2, ADVANCE_LV, ADVANCE_JOB, canAdvance, advanceJob, branchOf, jobTitle, REBORN_LV, canReborn, doReborn, rebornBonus } from './progress.js';
 import { ATTRS, ATTR_NAME, ATTR_DESC, ATTR_MAX, attrFree, attrPointsTotal, addAttr, autoAllocate, resetAttrs, ensureAttrs, addBuff, activeBuffs, BUFFS, hitChance, dodgeChance, damageMult, profileOf, ELEM_COLOR, SKILL_ELEM, ALLY_ELEM, monDef, MAIN_ATTR } from './ro.js';
 import { audioOpt, saveAudioOpt, initAudio, sfx, playSong, audioLevel, currentSong } from './audio.js';
 // 美術風格：像素風。高畫質的角色、怪物、NPC 在遊戲畫面中即時轉成像素圖；特效、頭像、大招立繪維持高畫質
@@ -78,7 +79,7 @@ let hasSave = false, P;
 try { const raw = localStorage.getItem(KEY); hasSave = !!raw; P = loadPlayer(raw); } catch { P = newPlayer(); }
 ensureInv(P); ensureParty(P);
 
-ensureMeta(P); P.cb = codexBonus(P); ensureAttrs(P); if (P.autoAttr) autoAllocate(P);
+ensureMeta(P); P.cb = codexBonus(P); ensureAttrs(P); ensureJob(P); if (P.autoAttr) autoAllocate(P);
 const me = { x: P.x, y: P.y, px: P.x, py: P.y, fx: P.x, fy: P.y, face: 'down', moving: false, mt: 0, dur: 0.14, step: 0, atkT: 0, hurtT: 0, cool: 0, inv: 0, dodgeT: 0 };
 function save() { P.x = me.x; P.y = me.y; P.map = mapId; P.seen = Date.now(); hasSave = true; try { localStorage.setItem(KEY, JSON.stringify(P)); } catch { /* 無痕模式不存 */ } }
 
@@ -90,7 +91,7 @@ let dialog = null, fishing = null, started = false, held = null, aHeld = false, 
 let anim = 0, regenT = 0, saveT = 0, shake = 0, freeze = 0, flash = 0, combo = 0, comboT = 0, auraT = 0;
 let allies = [], atkOverride = 0, partyT = 0;
 let trial = null, metaT = 0;
-let skillElem = '無', skillElemT = 0, hitElem = null, allyElem = '無';
+let skillElem = '無', skillElemT = 0, hitElem = null, allyElem = '無', curSkill = null;
 // 人物畫風：hd＝精緻 Q 版立繪（預設）、px＝原生像素動畫
 const charStyle = 'hd';
 let soulPower = 0, cutinT = 0, pendingUlt = null, catT = 0, warns = [], tintC = '#fff', tintT = 0;
@@ -333,7 +334,7 @@ function hud() {
   if (started) { $('talentDot').hidden = !(talentPoints(P) > talentSpent(P) || (!P.autoAttr && attrFree(P) > 0)); $('advDot').hidden = !claimable(P); $('shopDot').hidden = !(monthClaimable(P) || canBuy(P, 'daily')); }
   myLook = lookOf(P, CLASSES, rarityIdx);
   $('lv').textContent = P.lv;
-  $('clsName').textContent = C.name;
+  ensureJob(P); $('clsName').textContent = `${jobTitle(P, C.name)}${P.reborn ? `★${P.reborn}` : ''}`;
   $('clsName').style.color = C.color;
   $('hpBar').style.width = `${Math.max(0, P.hp / st.hp) * 100}%`;
   $('hpText').textContent = `${fmt(Math.max(0, P.hp))} / ${fmt(st.hp)}`;
@@ -542,8 +543,31 @@ function renderAttrs() {
   $('autoAttrChk').addEventListener('change', (e) => { P.autoAttr = e.target.checked; if (P.autoAttr) autoAllocate(P); hud(); save(); renderTalents(); });
   $('attrReset').addEventListener('click', () => { resetAttrs(P); if (P.autoAttr) autoAllocate(P); hud(); save(); renderTalents(); });
 }
+function renderJob() {
+  ensureJob(P);
+  if (P.autoAttr) autoLearn(P, skills.map((x) => x.id));
+  const j = P.job, cap = JOB_CAP[j.tier], need = jobExpNeed(j.lv, j.tier), free = skillPointsFree(P), br = branchOf(P);
+  const pct = j.lv >= cap ? 100 : Math.round((j.exp / need) * 100);
+  const sk = skills.map((x) => { const lv = skillLevel(P, x.id); return `<div class="skrow"><b>${x.name}</b><span>Lv ${lv}/${SKILL_MAX[j.tier]}</span><small>傷害 +${Math.round((skillDmgMult(lv) - 1) * 100)}%・冷卻 -${Math.round((1 - skillCdMult(lv)) * 100)}%</small><button type="button" data-s="${x.id}" ${free && lv < SKILL_MAX[j.tier] && !P.autoAttr ? '' : 'disabled'}>＋</button></div>`; }).join('');
+  let adv = '';
+  if (j.tier === 1) adv = canAdvance(P) ? `<div class="advbox"><b>可以轉職了！</b>選一條路線（之後不能更改）：${(JOB2[P.cls] || []).map((b) => `<button type="button" class="startbtn" data-b="${b.id}">${b.name}<small>${b.desc}</small></button>`).join('')}</div>` : `<p class="small muted">轉職條件：Lv ${ADVANCE_LV}、職業 Lv ${ADVANCE_JOB}（二轉後技能上限 ${SKILL_MAX[2]}，並獲得路線加成）</p>`;
+  else adv = canReborn(P) ? `<div class="advbox"><b>可以轉生了！</b>回到 Lv1 重新冒險，永久攻擊、生命 +6%、能力點 +10、經驗 +10%（可以一直轉）<button type="button" class="startbtn" id="rebornBtn">轉生</button></div>` : `<p class="small muted">${br ? `${br.name}：${br.desc}` : ''}<br>轉生條件：Lv ${REBORN_LV}、二轉職業 Lv ${JOB_CAP[2]}</p>`;
+  $('jobBox').innerHTML = `<div class="ahead"><span><b>${jobTitle(P, C.name)}</b>${P.reborn ? `（轉生 ${P.reborn} 次）` : ''}　職業 Lv <b>${j.lv}</b> / ${cap}</span><span>技能點 <b>${free}</b></span></div>
+    <div class="qbar"><i style="width:${pct}%"></i><span>${j.lv >= cap ? '職業等級已滿' : `${fmt(j.exp)} / ${fmt(need)}`}</span></div>
+    <div class="sklist">${sk}</div>${adv}`;
+  $('jobBox').querySelectorAll('button[data-s]').forEach((b) => b.addEventListener('click', () => { if (learnSkill(P, b.dataset.s)) { save(); renderTalents(); } }));
+  $('jobBox').querySelectorAll('button[data-b]').forEach((b) => b.addEventListener('click', () => {
+    const name = (JOB2[P.cls] || []).find((x) => x.id === b.dataset.b)?.name;
+    $('talentPanel').hidden = true;
+    say('轉職', [`確定轉職成「${name}」？轉職後不能更改路線。`], [['轉職！', () => { if (advanceJob(P, b.dataset.b)) { banner(`轉職成功：${name}`); flash = 0.3; burst(cx(me), cy(me), '#ffd166', 50, 180); addFx('pillar', 1, { x: cx(me), y: cy(me), color: '#ffd166' }); sfx('levelup'); if (P.autoAttr) autoLearn(P, skills.map((x) => x.id)); hud(); save(); } }], ['再想想', null]]);
+  }));
+  $('rebornBtn')?.addEventListener('click', () => {
+    $('talentPanel').hidden = true;
+    say('轉生', ['回到 Lv1、職業回到一轉，但裝備、魂像、圖鑑、金幣全部保留。', '每次轉生永久：攻擊、生命 +6%，能力點 +10，經驗 +10%。確定嗎？'], [['轉生！', () => { if (doReborn(P)) { resetAttrs(P); if (P.autoAttr) autoAllocate(P); P.hp = stats(P).hp; banner(`轉生成功！第 ${P.reborn} 次`); flash = 0.4; burst(cx(me), cy(me), '#c084ff', 60, 200); sfx('levelup'); hud(); save(); } }], ['再想想', null]]);
+  });
+}
 function renderTalents() {
-  renderAttrs();
+  renderAttrs(); renderJob();
   const left = talentPoints(P) - talentSpent(P);
   $('talentPts').innerHTML = `可用點數 <b>${left}</b>・每升 1 級得到 1 點・重置免費`;
   $('talentGrid').innerHTML = TALENTS.map((br, bi) => `<div class="tcol"><h4>${br.name}</h4>${br.nodes.map((n, ni) => {
@@ -618,6 +642,7 @@ function showIdle(r, title, head, foot) {
     let eq = 0;
     for (const it of r.items) if (pickupGear(P, it).action === 'equip') eq++;
     if (gainExp(P, r.exp)) levelUp(before);
+    jobExp(r.exp * JOB_EXP_RATE);
     if (eq) feed(`離線撿到的裝備有 ${eq} 件比較好，已自動換上`, '#7ad35a');
     hud(); save();
   };
@@ -681,7 +706,7 @@ function talk(n) {
       say(nm, ['你真的打倒了史萊姆王！收下這 500 金幣和 200 魂石。', '……那隻魂像，我以前見過。', '六十年前，你的曾祖父雷歐也帶著一模一樣的齒輪。', '他最後去了東邊的迴聲峽谷，就再也沒有回來。', '來，握住這塊懷錶，你會看到他的記憶。'], null, memoryCorridor);
     }
     else say(nm, [P.ch <= 6 ? `${P.name}，${CHAPTERS[P.ch - 1].name}那邊就拜託你了。` : '你結束了三百年的黑夜。整個微光大陸都在說你的故事。', '想挑戰更強的怪物、拿更好的寶物，可以調整冒險難度。', `目前難度：${diffOf(P).name}`],
-      [...DIFFS.map((d, i) => [`${i === (P.diff | 0) ? '✓ ' : ''}${d.name}：${d.desc}`, () => setDiff(i)]), ['離開', null]]);
+      [...DIFFS.map((d, i) => [`${i === (P.diff | 0) ? '✓ ' : ''}${d.name}：${d.desc}`, () => (P.lv >= (d.minLv || 0) ? setDiff(i) : feed(`${d.name}需要 Lv${d.minLv}`, '#ff8fa0'))]).filter((_, i) => P.lv >= (DIFFS[i].minLv || 0) - 10), ['離開', null]]);
   } else if (n.id === 'porter') {
     {
       const opts = CHAPTERS.filter((c) => c.n <= Math.min(6, P.ch)).map((c) => [`第 ${c.n} 章・${c.name}（Lv ${MONSTERS[c.mons[0]].lv}～）`, () => { loadMap(c.n); feed(`來到了「${c.name}」`, '#c084ff'); hud(); save(); }]);
@@ -811,7 +836,7 @@ function dealDamage(m, mult, fromX = me.px, fromY = me.py, color, kind = 'skill'
   if (kind !== 'ult' && kind !== 'ally' && R() > hitChance(st.hit, m.d.lv)) { float('Miss', cx(m), m.py * TS - 6, '#bdb6d0', 0.9); return; }
   const dm = damageMult(P, st.mods, elem, m.type, m.d.lv, m.d.boss);
   const crit = R() < st.crit;
-  const k = (kind === 'skill' ? st.skill : kind === 'ult' ? ultMult() : 1) * dm.mult * DEF_COMP;
+  const k = (kind === 'skill' ? st.skill * (curSkill && skillElemT > 0 ? skillDmgMult(skillLevel(P, curSkill)) : 1) : kind === 'ult' ? ultMult() : 1) * dm.mult * DEF_COMP;
   const base = kind === 'ally' ? atkOverride : st.atk;
   const dmg = Math.max(1, Math.round(base * mult * k * (0.85 + R() * 0.3) * (crit ? st.critDmg : 1)));
   if (st.leech && P.hp < st.hp && kind !== 'ally') P.hp = Math.min(st.hp, P.hp + Math.max(1, Math.round(dmg * st.leech)));
@@ -870,10 +895,20 @@ function killMon(m) {
     const st1 = codexStars(m.type, P.meta.codex[m.type]);
     if (st1 > st0) { P.cb = codexBonus(P); feed(`圖鑑「${MONSTERS[m.type].name}」升到 ★${st1}，永久能力提升！`, '#ffd166'); }
   }
-  floatT(`+${m.d.exp} EXP`, m.x, m.y - 0.9, '#a6ec7a', 0.8);
+  const ex = Math.round(m.d.exp * (1 + rebornBonus(P).exp / 100));
+  floatT(`+${ex} EXP`, m.x, m.y - 0.9, '#a6ec7a', 0.8);
   const before = P.lv;
-  if (gainExp(P, m.d.exp)) levelUp(before);
+  if (gainExp(P, ex)) levelUp(before);
+  jobExp(ex * JOB_EXP_RATE);
   if (trial) trialCheck();
+  hud();
+}
+function jobExp(n) {
+  const ups = gainJobExp(P, Math.round(n));
+  if (!ups) return;
+  sfx('levelup'); floatT(`職業 Lv ${P.job.lv}`, me.x, me.y - 1.4, '#7fd8ff', 1.1);
+  if (P.autoAttr) autoLearn(P, skills.map((x) => x.id)); else feed(`職業等級提升！獲得技能點，到「能力」選單升級技能（剩 ${skillPointsFree(P)} 點）`, '#7fd8ff');
+  if (canAdvance(P)) feed(`可以轉職了！到「能力」選單選擇二轉路線`, '#ffd166');
   hud();
 }
 function levelUp(before) {
@@ -998,7 +1033,7 @@ function castIdx(i) {
   if (!started || dialog || fishing) return;
   const s = skills[i];
   if (!s || s.t > 0 || cutinT > 0) return;
-  s.t = s.cd * (1 - stats(P).cdr);
+  s.t = s.cd * (1 - stats(P).cdr) * skillCdMult(skillLevel(P, s.id)); curSkill = s.id;
   questDone(track(P, 'skill'));
   skillElem = SKILL_ELEM[s.id] || '無'; skillElemT = 1.2;
   sfx({ sword: 'slash', archer: 'arrow', mage: 'magic', monk: 'punch', priest: s.id === 'lance' ? 'magic' : 'potion' }[P.cls] || 'slash');

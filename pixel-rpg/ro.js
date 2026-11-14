@@ -11,7 +11,7 @@ export const ATTR_MAX = 99;
 // 每升一級 4 點，起始 10 點自由分配（每項能力起始 1）
 export const attrPointsTotal = (lv) => 10 + Math.max(0, lv - 1) * 4;
 export const attrSpent = (a) => ATTRS.reduce((s, k) => s + Math.max(0, (a?.[k] || 1) - 1), 0);
-export const attrFree = (p) => Math.max(0, attrPointsTotal(p.lv) - attrSpent(p.attrs));
+export const attrFree = (p) => Math.max(0, attrPointsTotal(p.lv) + 10 * (p.reborn | 0) - attrSpent(p.attrs));
 export const newAttrs = () => Object.fromEntries(ATTRS.map((k) => [k, 1]));
 // 主要攻擊能力：近戰看力量、弓手看靈巧、法系看智力
 export const MAIN_ATTR = { sword: 'str', monk: 'str', archer: 'dex', mage: 'int', priest: 'int' };

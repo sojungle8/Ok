@@ -240,6 +240,8 @@ export const DIFFS = [
   { name: '普通', color: '#a6ec7a', hp: 1, atk: 1, exp: 1, coin: 1, drop: 1, rare: 0, desc: '標準難度' },
   { name: '困難', color: '#ffb03b', hp: 1.8, atk: 1.5, exp: 1.6, coin: 1.7, drop: 1.5, rare: 0.15, desc: '怪物血量 ×1.8、攻擊 ×1.5；經驗 ×1.6、金幣 ×1.7、掉寶 ×1.5，高稀有度裝備機率提升' },
   { name: '惡夢', color: '#ff5a6e', hp: 3.2, atk: 2.2, exp: 2.4, coin: 2.6, drop: 2.2, rare: 0.35, desc: '怪物血量 ×3.2、攻擊 ×2.2；經驗 ×2.4、金幣 ×2.6、掉寶 ×2.2，常掉高稀有度裝備' },
+  { name: '地獄', color: '#c084ff', hp: 7, atk: 3.6, exp: 4.2, coin: 4, drop: 3, rare: 0.55, minLv: 65, desc: 'Lv65 開放。怪物血量 ×7、攻擊 ×3.6；經驗 ×4.2、金幣 ×4、掉寶 ×3' },
+  { name: '深淵', color: '#ff4d6d', hp: 14, atk: 5.5, exp: 7, coin: 6, drop: 4, rare: 0.8, minLv: 85, desc: 'Lv85 開放。怪物血量 ×14、攻擊 ×5.5；經驗 ×7、金幣 ×6、掉寶 ×4，幾乎都是高稀有度' },
 ];
 export const diffOf = (p) => DIFFS[Math.max(0, Math.min(DIFFS.length - 1, p.diff | 0))];
 export function applyDiff(d, p) {
@@ -276,7 +278,7 @@ export function openChest(p, key, rand, day = dayKey()) {
 export const chestOpened = (p, key, day = dayKey()) => { const m = ensureMeta(p); return m.chestDay === day && (m.opened || []).includes(key); };
 
 // ---- 舒壓：快速掛機（立刻領 2 小時掛機收益）----
-export const QUICK_IDLE_MIN = 120, QUICK_FREE = 2, QUICK_EXTRA = 3, QUICK_COST = 50;
+export const QUICK_IDLE_MIN = 60, QUICK_FREE = 2, QUICK_EXTRA = 3, QUICK_COST = 50;
 export function quickIdleState(p, t = Date.now()) {
   const m = ensureMeta(p), d = dayKey(t);
   if (m.qi?.day !== d) m.qi = { day: d, used: 0 };

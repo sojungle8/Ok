@@ -1,5 +1,6 @@
 // 微光大陸：地圖生成與數值公式（純函式，可測試）
 import { attrBonus, cardMods, ensureAttrs, newAttrs } from './ro.js';
+import { jobBonus, ensureJob } from './progress.js';
 export const W = 40, H = 28;
 export const T = { GRASS: 0, FLOWER: 1, PATH: 2, WATER: 3, TREE: 4, BRIDGE: 5, HOUSE: 6, FOUNTAIN: 7, SIGN: 8, ROCK: 9, PORTAL: 10 };
 export const SOLID = new Set([T.WATER, T.TREE, T.HOUSE, T.FOUNTAIN, T.SIGN, T.ROCK]);
@@ -153,14 +154,14 @@ export const CHAPTERS = [
     bossHint: ['千面商人會變成好幾個一模一樣的路人。', '真正的他「沒有影子」，仔細看腳下！', '打錯人會被反炸，小心。'],
     report: ['商人招了：瓦爾德就在東邊的蝕夜神殿，他在等最後一個艾斯特。'],
     memory: ['（燈籠一盞盞熄滅，畫面褪成褐色……）', '父親：「孩子，如果你看到這段記憶，代表我也失敗了。」', '父親：「瓦爾德會偷走你用過的魂像能力。不要依賴同一隻魂像。」'] },
-  { n: 6, name: '蝕夜神殿', theme: 'temple', cap: 60, boss: 'valde', kills: 50, mons: ['cultist', 'shade', 'eclipse'],
+  { n: 6, name: '蝕夜神殿', theme: 'temple', cap: 65, boss: 'valde', kills: 50, mons: ['cultist', 'shade', 'eclipse'],
     guide: { name: '神殿守衛・凱', look: { hair: '#c8d0e0', hairD: '#7a8399', band: '#6b4fb0', bandD: '#3a2a6b', tunic: '#8a8f9e', tunicD: '#4f5361' } },
     intro: ['我曾經是瓦爾德的守衛，現在只想看他倒下。', '神殿裡的信徒會拼命阻止你，先清掉 50 隻。'],
     bossHint: ['瓦爾德會偷走你用過的魂像大招，被偷走的大招對他無效。', '帶著不同的魂像輪流上，讓他偷不完！'],
     report: ['三百年的黑夜，結束了。'],
     memory: ['（星痕的光芒從神殿四面八方湧出……）', '雷歐、艾莉絲、卡爾和父親的身影一一浮現。', '雷歐：「做得好，最後的艾斯特。」', '被偷走的一百隻魂像化成流星，回到了大陸各地。', '— 微光大陸　完 —'] },
 ];
-export const capFor = (p) => (p.ch > 6 ? 60 : CHAPTERS[Math.max(1, p.ch) - 1].cap);
+export const capFor = (p) => (p.ch > 6 ? LV_CAP : CHAPTERS[Math.max(1, p.ch) - 1].cap);
 
 // ---- 各章野外地圖 ----
 export const FIELD = { portal: { x: 2, y: 17 }, guide: { x: 4, y: 10 }, spawn: { x: 2, y: 13 }, boss: { x0: 30, y0: 2, x1: 37, y1: 7 } };
@@ -187,7 +188,7 @@ export function buildField(ch, seed = 7) {
   g[FIELD.portal.y][FIELD.portal.x] = T.PORTAL;
   return g;
 }
-export const expNeed = (lv) => Math.round(10 + lv * lv * 6 + 0.15 * lv * lv * lv);
+export const expNeed = (lv) => Math.round((10 + lv * lv * 6 + 0.15 * lv * lv * lv) * (lv > 50 ? 1.08 ** (lv - 50) : 1));
 export const baseHp = (lv) => 20 + lv * 8;
 export const baseAtk = (lv) => 3 + lv * 2;
 export const swordCost = (sword) => 30 + sword * 40 + sword * sword * 20;
@@ -236,19 +237,19 @@ export const CLASS_IDS = Object.keys(CLASSES);
 // ---- 天賦樹：三條分支，每格最多 3 點；第 2、3 格要先在該分支投 2、4 點 ----
 export const TALENTS = [
   { id: 'atk', name: '攻擊', nodes: [
-    { id: 'might', name: '力量', desc: '攻擊力 +5%' },
-    { id: 'precision', name: '精準', desc: '暴擊率 +3%' },
-    { id: 'ferocity', name: '兇猛', desc: '暴擊傷害 +15%' }] },
+    { id: 'might', name: '力量', desc: '每點攻擊力 +2%' },
+    { id: 'precision', name: '精準', desc: '每點暴擊率 +1.2%' },
+    { id: 'ferocity', name: '兇猛', desc: '每點暴擊傷害 +6%' }] },
   { id: 'guard', name: '生存', nodes: [
-    { id: 'vigor', name: '體魄', desc: '生命 +6%' },
-    { id: 'recover', name: '恢復', desc: '藥水回復 +10%，每秒回血 +0.3%' },
-    { id: 'iron', name: '鐵壁', desc: '受到傷害 -5%' }] },
+    { id: 'vigor', name: '體魄', desc: '每點生命 +2.5%' },
+    { id: 'recover', name: '恢復', desc: '每點藥水回復 +4%、每秒回血 +0.12%' },
+    { id: 'iron', name: '鐵壁', desc: '每點受到傷害 -2%' }] },
   { id: 'arts', name: '技藝', nodes: [
-    { id: 'haste', name: '迅捷', desc: '攻擊速度 +5%' },
-    { id: 'focus', name: '專注', desc: '技能冷卻 -5%' },
-    { id: 'resonance', name: '共鳴', desc: '魂力累積 +15%' }] },
+    { id: 'haste', name: '迅捷', desc: '每點攻擊速度 +2%' },
+    { id: 'focus', name: '專注', desc: '每點技能冷卻 -2%' },
+    { id: 'resonance', name: '共鳴', desc: '每點魂力累積 +6%' }] },
 ];
-export const TALENT_MAX = 3, TALENT_REQ = [0, 2, 4];
+export const TALENT_MAX = 10, TALENT_REQ = [0, 2, 4];
 export const talentPoints = (p) => Math.max(0, p.lv - 1);
 export const talentSpent = (p) => Object.values(p.talents || {}).reduce((a, b) => a + b, 0);
 export function canLearn(p, branchIdx, nodeIdx) {
@@ -310,21 +311,22 @@ export function stats(p) {
   }
   const soul = p.soul && p.souls?.[p.soul] ? p.soul : null;
   // RO 風格：能力值與卡片效果
-  const ab = attrBonus(p), cm = cardMods(p), cp = (k) => (cm.pct[k] || 0);
+  const ab = attrBonus(p), cm = cardMods(p), cp = (k) => (cm.pct[k] || 0), jb = jobBonus(p);
+  for (const k of ['atkPct', 'hpPct', 'crit', 'aspd', 'skill', 'dr', 'soul']) aff[k] += jb[k];
   aff.atkPct += ab.atkPct + cp('atkPct'); aff.hpPct += ab.hpPct + cp('hpPct'); aff.crit += ab.crit + cp('crit'); aff.aspd += ab.aspd + cp('aspd');
   aff.skill += ab.skill + cp('skill'); aff.soul += ab.soul; aff.dr += ab.dr + ab.buffDr + cp('dr');
-  atk *= 1 + 0.05 * tv('might') + (soul === 'magnet' ? 0.08 : 0) + aff.atkPct / 100 + (p.cb?.atkPct || 0) / 100;
-  hp *= 1 + 0.06 * tv('vigor') + aff.hpPct / 100 + (soul === 'thread' ? 0.1 : 0) + (p.cardBonus?.hpPct || 0) / 100 + (p.cb?.hpPct || 0) / 100;
-  const crit = Math.min(0.75, 0.1 + 0.03 * tv('precision') + aff.crit / 100 + (soul === 'post' ? 0.08 : 0));
-  const critDmg = 2 + 0.15 * tv('ferocity') + ab.critDmg / 100;
-  const aspd = 1 + 0.05 * tv('haste') + aff.aspd / 100;
-  const cdr = Math.min(0.5, 0.05 * tv('focus') + (soul === 'gear' ? 0.12 : 0) + cp('cdr') / 100);
+  atk *= 1 + 0.02 * tv('might') + (soul === 'magnet' ? 0.08 : 0) + aff.atkPct / 100 + (p.cb?.atkPct || 0) / 100;
+  hp *= 1 + 0.025 * tv('vigor') + aff.hpPct / 100 + (soul === 'thread' ? 0.1 : 0) + (p.cardBonus?.hpPct || 0) / 100 + (p.cb?.hpPct || 0) / 100;
+  const crit = Math.min(0.75, 0.1 + 0.012 * tv('precision') + aff.crit / 100 + (soul === 'post' ? 0.08 : 0));
+  const critDmg = 2 + 0.06 * tv('ferocity') + ab.critDmg / 100 + jb.critDmg / 100;
+  const aspd = 1 + 0.02 * tv('haste') + aff.aspd / 100;
+  const cdr = Math.min(0.5, 0.02 * tv('focus') + (soul === 'gear' ? 0.12 : 0) + cp('cdr') / 100 + jb.cdr / 100);
   atk = Math.round(atk); hp = Math.round(hp);
   const dps = (atk * aspd / c.cool) * (1 + crit * (critDmg - 1));
   return {
     atk, hp, crit, critDmg, aspd, cdr, hit: ab.hit, flee: ab.flee, perfect: ab.perfect, attrs: ab.attrs, mods: cm, weaponElem: cm.enchant || '無',
-    skill: 1 + aff.skill / 100, leech: aff.leech / 100, soulGain: 1 + 0.15 * tv('resonance') + aff.soul / 100 + (soul === 'bird' ? 0.2 : 0),
-    dr: Math.min(0.6, 0.05 * tv('iron') + aff.dr / 100), regen: 0.003 * tv('recover'), potion: 0.5 + 0.1 * tv('recover'),
+    skill: 1 + aff.skill / 100, leech: aff.leech / 100, soulGain: 1 + 0.06 * tv('resonance') + aff.soul / 100 + (soul === 'bird' ? 0.2 : 0),
+    dr: Math.min(0.6, 0.02 * tv('iron') + aff.dr / 100), regen: 0.0012 * tv('recover'), potion: 0.5 + 0.04 * tv('recover'),
     cp: Math.round(dps * 3 + hp * 3 + p.lv * 20 + (soul ? 150 * (p.souls[soul] || 1) : 0)),
   };
 }
@@ -403,7 +405,7 @@ export function rollFish(rand) {
   return FISH[0];
 }
 
-export const LV_CAP = 60;
+export const LV_CAP = 99;
 export function gainExp(p, amount) {
   p.exp += amount;
   let ups = 0;
@@ -430,7 +432,7 @@ export function offlineReward(p, minutes, rand, cap = OFFLINE_MAX_MIN) {
 }
 
 export function newPlayer(cls = 'sword', name = '冒險者') {
-  const p = { v: 4, attrs: newAttrs(), autoAttr: true, cls: CLASSES[cls] ? cls : 'sword', name: String(name).slice(0, 8) || '冒險者', lv: 1, exp: 0, hp: 0, coins: 0, potions: 3, sword: 0, gear: {}, fish: {}, kills: 0, quest: 0, ch: 1, step: 0, talents: {}, souls: {}, soul: '', stones: 0, pity: 0, seen: 0, x: SPAWN.x, y: SPAWN.y };
+  const p = { v: 4, attrs: newAttrs(), autoAttr: true, job: { tier: 1, lv: 1, exp: 0, branch: '' }, skillLv: {}, reborn: 0, cls: CLASSES[cls] ? cls : 'sword', name: String(name).slice(0, 8) || '冒險者', lv: 1, exp: 0, hp: 0, coins: 0, potions: 3, sword: 0, gear: {}, fish: {}, kills: 0, quest: 0, ch: 1, step: 0, talents: {}, souls: {}, soul: '', stones: 0, pity: 0, seen: 0, x: SPAWN.x, y: SPAWN.y };
   p.hp = stats(p).hp;
   return p;
 }
@@ -451,7 +453,7 @@ export function loadPlayer(raw) {
     if (p.soul && !p.souls[p.soul]) p.soul = '';
     if ((p.ch > 1 || p.step >= 2) && !p.souls.gear) { p.souls.gear = 1; if (!p.soul) p.soul = 'gear'; } // 已過覺醒劇情就補發魂像
     if (!CLASSES[p.cls]) p.cls = 'sword';
-    ensureAttrs(p);
+    ensureAttrs(p); ensureJob(p);
     for (const k of Object.keys(p.gear)) if (!SLOTS.includes(k) || !validItem(p.gear[k])) delete p.gear[k];
     p.hp = Math.min(Math.max(1, p.hp), stats(p).hp);
     return p;

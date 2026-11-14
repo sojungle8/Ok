@@ -17,9 +17,9 @@ def names(path):
     return found
 def block(path):
     n = names(path); return "const { " + ", ".join(n) + " } = (() => {\n" + strip(open(path).read()) + "\nreturn { " + ", ".join(n) + " };\n})();"
-parts = [strip(open('world.js').read()), strip(open('sprites.js').read())] + [block(f) for f in ['ro.js', 'assets.js', 'pixelize.js', 'cutout.js', 'avatar.js', 'soul.js', 'items.js', 'icons.js', 'party.js', 'meta.js', 'audio.js']] + [strip(open('game.js').read())]
+parts = [strip(open('world.js').read()), strip(open('sprites.js').read())] + [block(f) for f in ['ro.js', 'progress.js', 'assets.js', 'pixelize.js', 'cutout.js', 'avatar.js', 'soul.js', 'items.js', 'icons.js', 'party.js', 'meta.js', 'audio.js']] + [strip(open('game.js').read())]
 # 打包成單一檔案後所有模組共用同一個範圍：檢查名稱有沒有互相衝突
-BLOCKS = ['ro.js', 'assets.js', 'pixelize.js', 'cutout.js', 'avatar.js', 'soul.js', 'items.js', 'icons.js', 'party.js', 'meta.js', 'audio.js']
+BLOCKS = ['ro.js', 'progress.js', 'assets.js', 'pixelize.js', 'cutout.js', 'avatar.js', 'soul.js', 'items.js', 'icons.js', 'party.js', 'meta.js', 'audio.js']
 decl = lambda src: set(re.findall(r'^(?:export )?(?:const|let|function|var|class) (\w+)', src, flags=re.M))
 owner = {}
 for f in ['world.js', 'sprites.js', 'game.js'] + BLOCKS:

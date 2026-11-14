@@ -145,12 +145,13 @@ test('天賦：點數上限、分支門檻、重置', () => {
   assert.equal(Wd.canLearn(p, 0, 1), false, '第 2 格要先投 2 點');
   Wd.learn(p, 0, 0); Wd.learn(p, 0, 0);
   assert.ok(Wd.learn(p, 0, 1));
-  assert.equal(Wd.learn(p, 0, 0), true); assert.equal(Wd.learn(p, 0, 0), false, '每格最多 3 點');
+  p.lv = 40; for (let i = 0; i < 20; i++) Wd.learn(p, 0, 0);
+  assert.equal(p.talents.might, Wd.TALENT_MAX, `每格最多 ${Wd.TALENT_MAX} 點`);
   const before = Wd.stats(p).atk;
   Wd.resetTalents(p);
   assert.ok(Wd.stats(p).atk < before);
   for (let i = 0; i < 50; i++) Wd.learn(p, i % 3, 0);
-  assert.equal(Wd.talentSpent(p), 9 > Wd.talentPoints(p) ? Wd.talentPoints(p) : 9);
+  assert.equal(Wd.talentSpent(p), Math.min(Wd.talentPoints(p), 3 * Wd.TALENT_MAX));
   assert.ok(Wd.talentSpent(p) <= Wd.talentPoints(p));
 });
 

@@ -82,7 +82,7 @@ test('難度：越難越強、獎勵越多', () => {
   assert.equal(M.applyDiff(d, p), d);
   p.diff = 2; const h = M.applyDiff(d, p);
   assert.ok(h.hp > d.hp && h.atk > d.atk && h.exp > d.exp && h.coin[1] > d.coin[1]);
-  assert.equal(M.diffOf({ diff: 9 }).name, '惡夢');
+  assert.equal(M.diffOf({ diff: 9 }).name, M.DIFFS.at(-1).name);
 });
 
 test('寶箱：每天固定位置、一天只能開一次', () => {

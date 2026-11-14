@@ -340,3 +340,12 @@ button{font-family:inherit;color:inherit}
 .tsub{margin:8px 0 2px;text-align:left}
 .cmon .mprof{font-size:.85em;color:#bdb6d0}.cmon .mprof i{font-style:normal;font-weight:700}
 .cmon .mstat{font-size:.78em;color:#9a94ab}
+
+/* 職業與技能 */
+.sklist{display:grid;gap:5px;margin:8px 0}
+.skrow{display:grid;grid-template-columns:auto auto 1fr auto;align-items:center;gap:8px;padding:6px 8px;border-radius:10px;background:#ffffff0f;font-size:.8em}
+.skrow span{color:#7fd8ff;font-weight:700}.skrow small{color:#9a94ab;font-size:.85em}
+.skrow button{width:28px;height:28px;border-radius:8px;border:0;background:linear-gradient(#8fd3ff,#4aa3df);font-weight:700;color:#fff}
+.skrow button:disabled{opacity:.3}
+.advbox{display:grid;gap:6px;padding:10px;border-radius:12px;background:linear-gradient(135deg,#ffd16626,#c084ff26);border:1px solid #ffd16688;font-size:.85em}
+.advbox button{display:flex;flex-direction:column;gap:2px;padding:8px}.advbox button small{font-size:.8em;font-weight:400}
