@@ -773,7 +773,7 @@ function frontTiles() {
 const onTiles = (m, tiles) => tiles.some(([x, y]) => (m.d.boss ? Math.abs(m.x - x) <= 1 && Math.abs(m.y - y) <= 1 : m.x === x && m.y === y));
 function basicAttack(target) {
   const aspd = stats(P).aspd;
-  me.cool = C.cool / aspd; me.atkT = Math.min(0.18, me.cool * 0.8);
+  me.cool = C.cool / aspd; me.atkT = me.atkDur = Math.max(0.16, Math.min(0.28, me.cool * 0.8));
   const [dx, dy] = DIRS[me.face];
   if (P.cls === 'sword') {
     addFx('slash', 0.18, { x: cx(me) + dx * 13, y: cy(me) + dy * 13 - 3, ang: faceAng(), color: '#dff6ff', size: 19 });
@@ -1098,7 +1098,7 @@ function updateAllies(dt) {
           continue;
         }
         if (a.cool <= 0) {
-          a.cool = c.cool; a.atkT = 0.18;
+          a.cool = c.cool; a.atkT = a.atkDur = 0.22;
           if (c.range > 1) shoot(c.role === 'heal' || a.id === 'nova' ? 'bolt' : 'arrow', Math.atan2(cy(tgt) - cy(a) + 4, cx(tgt) - cx(a)), { speed: c.role === 'heal' || a.id === 'nova' ? 200 : 320, range: c.range + 1, mult: 1, r: 5, home: c.role === 'heal' || a.id === 'nova' ? tgt : null, color: c.color, from: a, by: a, dk: 'ally' });
           else { addFx('slash', 0.16, { x: (cx(a) + cx(tgt)) / 2, y: (cy(a) + cy(tgt)) / 2 - 3, ang: Math.atan2(cy(tgt) - cy(a), cx(tgt) - cx(a)), color: c.color, size: 15 }); allyAttack(a, tgt, 1); }
         }
@@ -1527,13 +1527,15 @@ function drawNpc(n, x, y) {
   const hd = asset('npc/' + (n.id === 'guide' ? 'guide' + n.ch : n.id));
   if (!hd) { drawPerson(avatar(n.L, n.face, 0), x, y); return; }
   shadow(x, y); ctx.imageSmoothingEnabled = true;
-  ctx.drawImage(hd, Math.round(x) - 6, Math.round(y) - 20, 28, 37);
+  const br = Math.sin(anim * 2.4 + n.seed) * 0.02;
+  ctx.drawImage(hd, Math.round(x) - 6, Math.round(y) - 20 - br * 37 + 1, 28, 37 * (1 + br));
   ctx.imageSmoothingEnabled = false;
 }
 function drawPerson(img, x, y) { shadow(x, y); ctx.imageSmoothingEnabled = img.width > AW; ctx.drawImage(img, Math.round(x) - 4, Math.round(y) - 17, AW, AH); ctx.imageSmoothingEnabled = false; }
+const animFrame = (o, dur = 0.18) => o.atkT > 0 ? 'a' + Math.min(3, Math.floor((1 - o.atkT / dur) * 4)) : o.moving ? 'w' + ((o.step * 2 + (o.mt > 0.5 ? 1 : 0)) % 4) : 'i' + (Math.floor(anim * 1.5 + (o.i || 0)) % 2);
 function drawMe() {
   const x = Math.round(me.px * TS), y = Math.round(me.py * TS);
-  const frame = me.atkT > 0 ? 2 : me.moving ? ((me.mt > 0.5 ? 1 : 0) ^ me.step) : 0;
+  const frame = animFrame(me, me.atkDur || 0.18);
   if (me.hurtT > 0 && Math.floor(me.hurtT * 20) % 2) { shadow(x, y); return; }
   if (me.inv > 0) ctx.globalAlpha = 0.6;
   if (myLook?.aura) { ctx.globalAlpha = 0.25 + Math.sin(anim * 4) * 0.08; ctx.fillStyle = '#ffd75e'; ctx.beginPath(); ctx.ellipse(x + 8, y + 15, 12, 4, 0, 0, 7); ctx.fill(); ctx.globalAlpha = 1; }
@@ -1546,9 +1548,21 @@ function drawAlly(a) {
   const x = Math.round(a.px * TS), y = Math.round(a.py * TS);
   if (a.down > 0) { ctx.globalAlpha = 0.45; ctx.save(); ctx.translate(x + 8, y + 12); ctx.rotate(Math.PI / 2); ctx.drawImage(avatar(a.c.look, 'down', 0), -12, -16, AW, AH); ctx.restore(); ctx.globalAlpha = 1; return; }
   if (a.hurtT > 0 && Math.floor(a.hurtT * 20) % 2) { shadow(x, y); return; }
-  const frame = a.atkT > 0 ? 2 : a.moving ? ((a.mt > 0.5 ? 1 : 0) ^ a.step) : 0;
+  const frame = animFrame(a, a.atkDur || 0.18);
   const hd = asset('npc/ally_' + a.id);
-  if (hd) { shadow(x, y); ctx.imageSmoothingEnabled = true; ctx.drawImage(hd, x - 6, y - 20, 28, 37); ctx.imageSmoothingEnabled = false; }
+  if (hd) {
+    shadow(x, y);
+    const flip = a.face === 'left' ? -1 : 1;
+    const walk = a.moving ? Math.abs(Math.sin((a.mt + a.step) * Math.PI)) : 0;
+    const atk = a.atkT > 0 ? Math.sin((1 - a.atkT / (a.atkDur || 0.18)) * Math.PI) : 0;
+    const [dx, dy] = DIRS[a.face] || [0, 1];
+    ctx.save();
+    ctx.translate(x + 8 + dx * atk * 4, y + 16 + dy * atk * 3 - walk * 2.5);
+    ctx.rotate((a.moving ? Math.sin((a.mt + a.step) * Math.PI) * 0.06 : 0) + atk * 0.18 * (dx || 1) * flip);
+    ctx.scale(flip * (1 + atk * 0.06), 1 + (a.moving ? 0 : Math.sin(anim * 3 + a.i) * 0.015) - atk * 0.04);
+    ctx.imageSmoothingEnabled = true; ctx.drawImage(hd, -14, -36, 28, 37); ctx.imageSmoothingEnabled = false;
+    ctx.restore();
+  }
   else drawPerson(avatar(a.c.look, a.face, frame), x, y);
   ctx.fillStyle = '#1b1420'; ctx.fillRect(x + 1, y + 17, 14, 3); ctx.fillStyle = a.c.role === 'heal' ? '#7ad35a' : '#e8506a'; ctx.fillRect(x + 2, y + 18, Math.max(1, Math.round((a.hp / a.max) * 12)), 1);
 }

@@ -124,6 +124,7 @@ const cache = new Map();
 export function avatar(L, dir, frame) {
   const hd = cutoutAvatar(L, dir, frame);
   if (hd) return hd;
+  if (typeof frame === 'string') frame = frame[0] === 'a' ? 2 : frame[0] === 'w' && +frame[1] % 2 ? 1 : 0;
   const key = `${JSON.stringify(L)}|${dir}|${frame}`;
   if (cache.has(key)) return cache.get(key);
   const c = document.createElement('canvas');
