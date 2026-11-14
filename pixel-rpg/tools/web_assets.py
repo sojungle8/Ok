@@ -14,8 +14,9 @@ for f in files:
     os.makedirs(os.path.dirname(dst), exist_ok=True)
     lim = next((v for k, v in MAXS.items() if f.startswith(k)), None)
     im = Image.open(src)
-    if lim and max(im.size) > lim:
-        k = lim / max(im.size)
+    dim = im.height if f.endswith('_walk.png') else max(im.size)  # 走路圖是兩格並排，照高度縮，每格才會和站姿一樣大
+    if lim and dim > lim:
+        k = lim / dim
         im = im.convert('RGBA').resize((round(im.width * k), round(im.height * k)), Image.LANCZOS)
         if f == 'ui/title_bg.png': im = im.convert('RGB').quantize(256, method=Image.MEDIANCUT, dither=Image.FLOYDSTEINBERG)
         im.save(dst, optimize=True)
