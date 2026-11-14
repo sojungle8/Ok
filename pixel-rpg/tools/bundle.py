@@ -7,11 +7,17 @@ def names(path):
     for m in re.finditer(r'^export (?:const|let|function) (.+)$', src, flags=re.M):
         line = m.group(1)
         if line.startswith(('function', 'async')) or re.match(r'\w+\s*\(', line): found.append(re.match(r'(\w+)', line).group(1))
-        else: found += re.findall(r'(?:^|,\s*)(\w+)\s*=', line)
+        else:
+            flat = line
+            while True:  # 去掉括號內容，避免把函式預設參數當成匯出名稱
+                nxt = re.sub(r'\([^()]*\)|\[[^\[\]]*\]|\{[^{}]*\}', '', flat)
+                if nxt == flat: break
+                flat = nxt
+            found += re.findall(r'(?:^|,\s*)(\w+)\s*=', flat)
     return found
 def block(path):
     n = names(path); return "const { " + ", ".join(n) + " } = (() => {\n" + strip(open(path).read()) + "\nreturn { " + ", ".join(n) + " };\n})();"
-parts = [strip(open('world.js').read()), strip(open('sprites.js').read())] + [block(f) for f in ['assets.js', 'pixelize.js', 'cutout.js', 'avatar.js', 'soul.js', 'items.js', 'icons.js', 'party.js']] + [strip(open('game.js').read())]
+parts = [strip(open('world.js').read()), strip(open('sprites.js').read())] + [block(f) for f in ['assets.js', 'pixelize.js', 'cutout.js', 'avatar.js', 'soul.js', 'items.js', 'icons.js', 'party.js', 'meta.js']] + [strip(open('game.js').read())]
 css = open('style.css').read(); html = open('index.html').read()
 body = html.split('<body>')[1].split('<script type="module"')[0]
 open(out, 'w').write(f'''<meta charset="utf-8"><title>微光大陸</title>

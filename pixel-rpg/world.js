@@ -300,8 +300,8 @@ export function stats(p) {
     for (const a of [...(it.affixes || []), ...(it.cards || []).map((x) => ({ id: x.stat, val: x.val }))]) if (a.id in aff) aff[a.id] += a.val;
   }
   const soul = p.soul && p.souls?.[p.soul] ? p.soul : null;
-  atk *= 1 + 0.05 * tv('might') + (soul === 'magnet' ? 0.08 : 0) + aff.atkPct / 100;
-  hp *= 1 + 0.06 * tv('vigor') + aff.hpPct / 100 + (soul === 'thread' ? 0.1 : 0) + (p.cardBonus?.hpPct || 0) / 100;
+  atk *= 1 + 0.05 * tv('might') + (soul === 'magnet' ? 0.08 : 0) + aff.atkPct / 100 + (p.cb?.atkPct || 0) / 100;
+  hp *= 1 + 0.06 * tv('vigor') + aff.hpPct / 100 + (soul === 'thread' ? 0.1 : 0) + (p.cardBonus?.hpPct || 0) / 100 + (p.cb?.hpPct || 0) / 100;
   const crit = Math.min(0.75, 0.1 + 0.03 * tv('precision') + aff.crit / 100 + (soul === 'post' ? 0.08 : 0));
   const critDmg = 2 + 0.15 * tv('ferocity');
   const aspd = 1 + 0.05 * tv('haste') + aff.aspd / 100;

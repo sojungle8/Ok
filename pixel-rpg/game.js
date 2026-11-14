@@ -9,6 +9,7 @@ import { soulSprite, soulBig } from './soul.js';
 import { ITEMS, GRADES, STAT_NAME, BAG_SIZE, ensureInv, count, addStack, takeStack, pickupGear, pickupItem, equipFromBag, unequip, sellFromBag, sellStack, sellAllJunk, findGear, insertCard, REFINE_RATE, refineCost, refine, rollDrops, shopList, buy, pickPotion, gearSell, itemSell } from './items.js';
 import { iconCanvas, gearIcon } from './icons.js';
 import { loadAssets, asset, tinted, loadState } from './assets.js';
+import { ensureMeta, refresh, track, claimQuest, claimChest, claimable, claimLogin, loginReward, questLabel, rewardText, CHESTS, codexBonus, codexStars, CODEX_TIERS, ACHIEVEMENTS, achProgress, achReady, claimAch, ELITE_AFFIX, ELITE_RATE, makeElite, towerFloor, towerClear, LOGIN_CYCLE } from './meta.js';
 import { pixelize } from './pixelize.js';
 // 美術風格：像素風。高畫質的角色、怪物、NPC 在遊戲畫面中即時轉成像素圖；特效、頭像、大招立繪維持高畫質
 const PX_CHAR = 36, PX_MON = 26, PX_BOSS = 52;
@@ -65,6 +66,7 @@ let hasSave = false, P;
 try { const raw = localStorage.getItem(KEY); hasSave = !!raw; P = loadPlayer(raw); } catch { P = newPlayer(); }
 ensureInv(P); ensureParty(P);
 
+ensureMeta(P); P.cb = codexBonus(P);
 const me = { x: P.x, y: P.y, px: P.x, py: P.y, fx: P.x, fy: P.y, face: 'down', moving: false, mt: 0, dur: 0.14, step: 0, atkT: 0, hurtT: 0, cool: 0, inv: 0, dodgeT: 0 };
 function save() { P.x = me.x; P.y = me.y; P.map = mapId; P.seen = Date.now(); hasSave = true; try { localStorage.setItem(KEY, JSON.stringify(P)); } catch { /* 無痕模式不存 */ } }
 
@@ -75,6 +77,7 @@ let mons = [], floats = [], parts = [], drops = [], fx = [], projs = [], pending
 let dialog = null, fishing = null, started = false, held = null, aHeld = false, auto = false, autoHit = false, autoCastT = 0;
 let anim = 0, regenT = 0, saveT = 0, shake = 0, freeze = 0, flash = 0, combo = 0, comboT = 0, auraT = 0;
 let allies = [], atkOverride = 0, partyT = 0;
+let trial = null, metaT = 0;
 let soulPower = 0, cutinT = 0, pendingUlt = null, catT = 0, warns = [], tintC = '#fff', tintT = 0;
 const soulPos = { x: 0, y: 0 };
 const fmt = (n) => Math.round(n).toLocaleString('en-US');
@@ -127,17 +130,19 @@ function spawnTile(m) {
   return null;
 }
 function placeMon(m) {
+  if (m.base && !trial) m.d = !m.base.boss && P && P.lv >= 5 && R() < ELITE_RATE ? makeElite(m.base, R) : m.base;
   const t = spawnTile(m);
   if (!t) { m.dead = 1; return; }
   Object.assign(m, { x: t.x, y: t.y, px: t.x, py: t.y, fx: t.x, fy: t.y, moving: false, hp: m.d.hp, dead: 0, cool: 1, think: R() * 1.5, flash: 0, kx: 0, ky: 0, spawnT: 0.4, frozen: 0, letter: 0, shield: false, phases: [], slamT: 3, spitT: 5, hidden: false, engaged: false, stolen: new Set(), rwT: 10, hist: [], histT: 0 });
 }
-function spawnRoster(list) { mons = []; for (const type of list) { const m = { type, d: MONSTERS[type], anim: R() * 2 }; mons.push(m); placeMon(m); } }
+function spawnRoster(list) { mons = []; for (const type of list) { const m = { type, d: MONSTERS[type], base: MONSTERS[type], anim: R() * 2 }; mons.push(m); placeMon(m); } }
 function fieldNpc(id) {
   const c = CHAPTERS[id - 1];
+  if (!c.guide) return [];
   return [{ id: 'guide', ch: id, x: FIELD.guide.x, y: FIELD.guide.y, name: c.guide.name, look: c.guide.look, face: 'down', L: npcLook(c.guide), seed: 0 }];
 }
 function loadMap(id, at) {
-  mapId = id;
+  mapId = id; trial = null;
   grid = id === 0 ? buildWorld() : buildField(id);
   mapC = renderMapCanvas(id);
   BZ = id === 0 ? BOSS_ZONE : FIELD.boss; FMIN = id === 0 ? FIELD_MIN_X : 5;
@@ -263,6 +268,7 @@ function bump(id) { const el = $(id); el.classList.remove('bump'); void el.offse
 let lastCp = 0;
 function hud() {
   const st = stats(P);
+  if (started) $('advDot').hidden = !claimable(P);
   myLook = lookOf(P, CLASSES, rarityIdx);
   $('lv').textContent = P.lv;
   $('clsName').textContent = C.name;
@@ -281,6 +287,7 @@ function hud() {
   $('quest').textContent = questText();
 }
 function questText() {
+  if (trial) return `試煉之塔 第 ${trial.f} 層｜剩 ${mons.filter((m) => m.dead <= 0).length} 隻｜${trial.done ? '通過！' : `⏱ ${Math.max(0, Math.ceil(trial.t))} 秒`}`;
   const c = CHAPTERS[P.ch - 1];
   if (!c) return '全章節完成｜自由冒險：收集卡片、精煉、刷傳說裝備';
   const pre = `第 ${c.n} 章｜`;
@@ -439,6 +446,7 @@ $('refineGo').addEventListener('click', () => {
   if (!refineSel) return;
   const before = stats(P).cp;
   const r = refine(P, refineSel, R);
+  if (r.ok) questDone(track(P, 'refine'));
   if (!r.ok) feed(r.reason, '#ff8fa0');
   else if (r.success) { banner(`精煉成功！+${r.level}`); flash = 0.12; burst(cx(me), cy(me), '#fff1a8', 24, 110); const after = stats(P).cp; if (after > before) popCp(before, after); }
   else { feed('精煉失敗……材料消失了，裝備沒事', '#ff8fa0'); shake = 0.2; }
@@ -576,7 +584,7 @@ function talk(n) {
     if (P.ch === 1) say(nm, ['我能把你傳送到大陸各地。', '不過外面很危險，先完成村長的委託再來吧！']);
     else {
       const opts = CHAPTERS.slice(1).filter((c) => c.n <= Math.min(6, P.ch)).map((c) => [`第 ${c.n} 章・${c.name}（Lv ${MONSTERS[c.mons[0]].lv}～）`, () => { loadMap(c.n); feed(`來到了「${c.name}」`, '#c084ff'); hud(); save(); }]);
-      say(nm, ['要去哪裡呢？回來時踩上入口的傳送陣就好。'], [...opts, ['留在村子', null]]);
+      say(nm, ['要去哪裡呢？回來時踩上入口的傳送陣就好。'], [...opts, [`試煉之塔（最高第 ${ensureMeta(P).tower.best} 層）`, () => startTower(P.meta.tower.best + 1)], ['留在村子', null]]);
     }
   } else if (n.id === 'guide') {
     const c = CHAPTERS[n.ch - 1], here = P.ch === n.ch;
@@ -722,9 +730,23 @@ function killMon(m) {
       if (curCh.soul) { P.souls[curCh.soul] = Math.min(5, (P.souls[curCh.soul] || 0) + 1); setTimeout(() => { showCutin(curCh.soul, '覺醒'); cutinT = 1.6; pendingUlt = null; feed(`獲得魂像【${SOULS[curCh.soul].name}】，到「魂像」選單裝上`, SOULS[curCh.soul].color2); }, 900); }
     }
   }
+  if (m.d.elite) {
+    for (let i = 0; i < 2; i++) drops.push(newDrop('gear', wx, wy, rollGear(R, m.d.lv + 1, R() < 0.35, P.cls)));
+    if (m.d.elite === 'blast') warns.push({ x: m.px, y: m.py, r: 1.8, t: 0, life: 0.8, dmg: Math.round(m.d.atk * 2), kind: 'slam' });
+    feed(`擊敗精英怪「${m.d.name}」！`, ELITE_AFFIX[m.d.elite].color);
+  }
+  if (!m.minion && !m.d.decoy) {
+    const st0 = codexStars(m.type, ensureMeta(P).codex[m.type]);
+    questDone(track(P, 'kill', 1, { type: m.type }));
+    if (m.d.elite) questDone(track(P, 'elite'));
+    if (m.d.boss) questDone(track(P, 'boss'));
+    const st1 = codexStars(m.type, P.meta.codex[m.type]);
+    if (st1 > st0) { P.cb = codexBonus(P); feed(`圖鑑「${MONSTERS[m.type].name}」升到 ★${st1}，永久能力提升！`, '#ffd166'); }
+  }
   floatT(`+${m.d.exp} EXP`, m.x, m.y - 0.9, '#a6ec7a', 0.8);
   const before = P.lv;
   if (gainExp(P, m.d.exp)) levelUp(before);
+  if (trial) trialCheck();
   hud();
 }
 function levelUp(before) {
@@ -743,7 +765,7 @@ function newDrop(kind, wx, wy, val) {
   return { kind, val, x: wx, y: wy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.6, z: 0, vz: 60 + R() * 50, t: 0 };
 }
 function collect(d) {
-  if (d.kind === 'coin') { P.coins += d.val; bump('coinBox'); return; }
+  if (d.kind === 'coin') { P.coins += d.val; bump('coinBox'); questDone(track(P, 'coin', d.val)); return; }
   if (d.kind === 'loot') {
     const it = ITEMS[d.val.id], g = GRADES.find((x) => x.id === it.grade);
     const res = pickupItem(P, d.val.id, d.val.n);
@@ -846,6 +868,7 @@ function castIdx(i) {
   const s = skills[i];
   if (!s || s.t > 0 || cutinT > 0) return;
   s.t = s.cd * (1 - stats(P).cdr);
+  questDone(track(P, 'skill'));
   const echo = alive().find((m) => m.d.mech === 'echo' && tdist(m, me.px, me.py) <= 8);
   if (echo && lastSkill === s.id) {
     floatT('回音反彈！', me.x, me.y - 1.2, '#b48cff', 1.3); ring(cx(echo), cy(echo), 40, '#b48cff', 0.4, 4);
@@ -983,6 +1006,112 @@ function showCutin(id, label) {
   $('cutSfx').innerHTML = [...S.sfx].map((ch, i) => `<span style="animation-delay:${i * 0.07}s">${ch}</span>`).join('');
   el.hidden = false; el.classList.remove('go'); void el.offsetWidth; el.classList.add('go');
 }
+// ---------- 長期玩法：獎勵、試煉之塔、冒險手冊 ----------
+function grant(r) {
+  if (!r) return;
+  if (r.coins) P.coins += r.coins;
+  if (r.stones) P.stones += r.stones;
+  for (const [id, n] of Object.entries(r.items || {})) if (n > 0) addStack(P, id, n);
+  if (r.exp) { const before = P.lv; if (gainExp(P, r.exp)) levelUp(before); }
+  feed(`獲得：${rewardText(r)}`, '#ffd166'); bump('coinBox'); hud(); save();
+}
+function questDone(list) { for (const q of list) feed(`任務完成：${questLabel(q)}（到「冒險」領獎）`, '#f6c945'); if (list.length) hud(); }
+function startTower(f) {
+  const fl = towerFloor(P, f);
+  loadMap(fl.ch);
+  trial = { f, t: fl.time, done: false };
+  npcs = []; mons = [];
+  for (const x of fl.list) { const m = { type: x.type, d: x.d, anim: R() * 2 }; mons.push(m); placeMon(m); }
+  P.hp = stats(P).hp;
+  banner(`試煉之塔　第 ${f} 層`);
+  feed(`${fl.time} 秒內打倒全部 ${fl.list.length} 隻怪物（怪物 Lv ${fl.lv}${fl.boss ? '，魔王層' : ''}）`, '#c084ff');
+  $('advPanel').hidden = true; hud();
+}
+function trialCheck() {
+  if (!trial || trial.done || mons.some((m) => m.dead <= 0)) return;
+  trial.done = true;
+  const f = trial.f, r = towerClear(P, f);
+  questDone(track(P, 'tower'));
+  banner(`第 ${f} 層　通過！`); flash = 0.2;
+  if (r.gear) drops.push(newDrop('gear', cx(me), cy(me), rollGear(R, towerFloor(P, f).lv, true, P.cls)));
+  pending.push({ t: 1.4, fn: () => {
+    grant(r.reward);
+    say('試煉之塔', [`第 ${f} 層通過！${r.first ? '（首次通過，額外獎勵）' : ''}`, `目前最高紀錄：第 ${P.meta.tower.best} 層`], [[`挑戰第 ${f + 1} 層`, () => startTower(f + 1)], ['回到村子', () => { loadMap(0, { x: 11, y: 17 }); hud(); }]]);
+  } });
+  hud();
+}
+let advTab = 'daily';
+function qRow(text, prog, need, btn) {
+  const row = document.createElement('div'); row.className = 'qrow';
+  const pct = Math.round((Math.min(prog, need) / need) * 100);
+  row.innerHTML = `<div class="qt"><div>${text}</div><div class="qbar"><i style="width:${pct}%"></i><span>${Math.min(prog, need)} / ${need}</span></div></div>`;
+  if (btn) row.append(btn);
+  return row;
+}
+function mkBtn(label, on, fn) { const b = document.createElement('button'); b.type = 'button'; b.className = on ? 'qbtn on' : 'qbtn'; b.textContent = label; b.disabled = !on; if (fn) b.addEventListener('click', fn); return b; }
+function renderAdv() {
+  refresh(P);
+  const m = ensureMeta(P), box = $('advBody');
+  document.querySelectorAll('#advTabs button').forEach((b) => b.classList.toggle('on', b.dataset.t === advTab));
+  const out = [];
+  const note = (t) => { const p = document.createElement('p'); p.className = 'small muted'; p.innerHTML = t; out.push(p); };
+  if (advTab === 'daily' || advTab === 'weekly') {
+    const list = advTab === 'daily' ? m.daily : m.weekly;
+    if (advTab === 'daily') {
+      note(`每天 0 點更新。完成任務得到活躍度，活躍度滿 20／40／60／80／100 可以開寶箱。目前活躍度 <b>${m.act}</b>`);
+      const chests = document.createElement('div'); chests.className = 'chests';
+      CHESTS.forEach((v, i) => { const got = m.chests.includes(i), ok = m.act >= v && !got; chests.append(mkBtn(got ? `✓ ${v}` : `寶箱 ${v}`, ok, () => { grant(claimChest(P, i)); renderAdv(); })); });
+      out.push(chests);
+    } else note('每週一 0 點更新，獎勵比較豐富。');
+    for (const q of list) out.push(qRow(`${questLabel(q)}<small class="muted">　${rewardText(q.reward)}</small>`, q.prog, q.need, mkBtn(q.claimed ? '已領' : q.prog >= q.need ? '領取' : '進行中', !q.claimed && q.prog >= q.need, () => { grant(claimQuest(P, q)); renderAdv(); })));
+  } else if (advTab === 'login') {
+    const today = m.login.last === m.day;
+    note(`累計簽到 <b>${m.login.n}</b> 天（漏簽不會歸零，7 天一輪）`);
+    const grid = document.createElement('div'); grid.className = 'logins';
+    const base = Math.floor((today ? m.login.n - 1 : m.login.n) / LOGIN_CYCLE) * LOGIN_CYCLE;
+    for (let i = 1; i <= LOGIN_CYCLE; i++) {
+      const n = base + i, got = n <= m.login.n, d = document.createElement('div');
+      d.className = 'lday' + (got ? ' got' : '') + (n === m.login.n + 1 && !today ? ' next' : '');
+      d.innerHTML = `<b>第 ${i} 天</b><span>${rewardText(loginReward(P, n))}</span>${got ? '<em>✓</em>' : ''}`;
+      grid.append(d);
+    }
+    out.push(grid);
+    out.push(mkBtn(today ? '今天已簽到' : '簽到領獎', !today, () => { const r = claimLogin(P); if (r) grant(r.reward); renderAdv(); }));
+  } else if (advTab === 'tower') {
+    const best = m.tower.best;
+    note(`無限層數的挑戰。每層要在時限內打倒全部怪物，每 5 層是魔王層。<br>首次通過有魂石，魔王層首通再送精煉材料和高稀有度裝備。重複挑戰也能拿金幣和經驗。<br>最高紀錄：<b>第 ${best} 層</b>　下一層怪物等級：Lv ${towerFloor(P, best + 1).lv}`);
+    if (P.ch < 2) note('<b>打倒第 1 章的史萊姆王後開放。</b>');
+    else {
+      out.push(mkBtn(`挑戰第 ${best + 1} 層`, true, () => startTower(best + 1)));
+      const pick = document.createElement('div'); pick.className = 'chests';
+      for (const f of [...new Set([1, Math.max(1, best - 9), Math.max(1, best - 4), best].filter((x) => x >= 1 && x <= best))]) pick.append(mkBtn(`重打第 ${f} 層`, true, () => startTower(f)));
+      if (best) out.push(pick);
+    }
+  } else if (advTab === 'codex') {
+    const b = codexBonus(P);
+    note(`每種怪物打到一定數量會升星，提供<b>永久</b>加成。目前總加成：攻擊 +${b.atkPct}%、生命 +${b.hpPct}%<br>一般怪 ★ 門檻 ${CODEX_TIERS(false).join('／')} 隻，魔王 ${CODEX_TIERS(true).join('／')} 次`);
+    const grid = document.createElement('div'); grid.className = 'codex';
+    for (const c of CHAPTERS.slice(0, Math.min(6, P.ch))) for (const t of [...c.mons, c.boss]) {
+      const k = m.codex[t] || 0, s = codexStars(t, k), d = document.createElement('div');
+      d.className = 'cmon' + (k ? '' : ' unknown');
+      const im = asset('monster/' + t);
+      d.innerHTML = `${im ? `<img src="${im.src}" alt="">` : ''}<b>${k ? MONSTERS[t].name : '？？？'}</b><span class="stars">${'★'.repeat(s)}${'☆'.repeat(3 - s)}</span><small>${k} 隻</small>`;
+      grid.append(d);
+    }
+    out.push(grid);
+  } else if (advTab === 'ach') {
+    const owned = ACHIEVEMENTS.filter((a) => m.ach[a.id]);
+    note(`完成成就可以領魂石並獲得稱號，稱號會顯示在角色頭上。目前稱號：<b>${m.title || '無'}</b>`);
+    if (owned.length) { const t = document.createElement('div'); t.className = 'chests'; t.append(mkBtn('不顯示', !!m.title, () => { m.title = ''; save(); renderAdv(); })); for (const a of owned) t.append(mkBtn(a.title, m.title !== a.title, () => { m.title = a.title; save(); renderAdv(); })); out.push(t); }
+    for (const a of ACHIEVEMENTS) { const [v, need] = achProgress(P, a), got = m.ach[a.id]; out.push(qRow(`<b>【${a.title}】</b>${a.text}<small class="muted">　魂石 ${a.stones}</small>`, v, need, mkBtn(got ? '已領' : v >= need ? '領取' : '未達成', !got && v >= need, () => { grant(claimAch(P, a.id)); renderAdv(); }))); }
+  }
+  box.replaceChildren(...out);
+  hud();
+}
+$('advBtn').addEventListener('click', () => { if (!started) return; renderAdv(); $('advPanel').hidden = false; });
+$('advClose').addEventListener('click', () => { $('advPanel').hidden = true; });
+document.querySelectorAll('#advTabs button').forEach((b) => b.addEventListener('click', () => { advTab = b.dataset.t; renderAdv(); }));
+
 // 魔王登場特寫：第一次走進魔王區時，放精緻原圖＋名字
 let bossSeen = new Set();
 function bossIntro() {
@@ -1002,7 +1131,7 @@ function bossIntro() {
 }
 function castUlt() {
   if (!started || dialog || !P.soul || soulPower < 100 || cutinT > 0) return;
-  soulPower = 0; pendingUlt = P.soul; lastUltId = P.soul;
+  soulPower = 0; pendingUlt = P.soul; lastUltId = P.soul; questDone(track(P, 'ult'));
   showCutin(P.soul); cutinT = 1.1;
 }
 function doUlt(id) {
@@ -1227,7 +1356,7 @@ function autoThink(dt) {
   autoHit = false; autoTarget = null;
   if (!auto || dialog || fishing || me.moving) return;
   const st = stats(P);
-  const ok = (m) => m.dead <= 0 && !m.shield && !m.hidden && !m.d.decoy && (m.d.boss ? P.lv >= m.d.lv - 3 : m.d.lv <= P.lv + 2);
+  const ok = (m) => m.dead <= 0 && !m.shield && !m.hidden && !m.d.decoy && (m.d.trial || (m.d.boss ? P.lv >= m.d.lv - 3 : m.d.lv <= P.lv + 2));
   const targets = mons.filter(ok);
   autoCastT -= dt;
   const near = targets.filter((m) => tdist(m, me.px, me.py) <= (C.range > 1 ? 4.5 : 2.2));
@@ -1278,7 +1407,7 @@ $('autoBtn').addEventListener('click', () => {
 function reelIn() {
   if (fishing.state === 'bite') {
     const f = rollFish(R);
-    P.fish[f.id] = (P.fish[f.id] || 0) + 1;
+    P.fish[f.id] = (P.fish[f.id] || 0) + 1; questDone(track(P, 'fish'));
     feed(`釣到 <b>${f.name}</b>（可賣 ${f.price} 金幣）`, '#4fb3ff');
     burst(fishing.tx * TS + 8, fishing.ty * TS + 8, '#bdf1ff', 10);
     save();
@@ -1389,6 +1518,12 @@ function step(o, dur, dt) {
 }
 function update(dt) {
   anim += dt;
+  if (started) { metaT -= dt; if (metaT <= 0) { metaT = 30; if (refresh(P)) { feed('新的一天！每日任務已更新，到「冒險」查看', '#f6c945'); hud(); } } }
+  if (trial && !trial.done && !dialog) {
+    const before = Math.ceil(trial.t); trial.t -= dt;
+    if (Math.ceil(trial.t) !== before) $('quest').textContent = questText();
+    if (trial.t <= 0) { const f = trial.f; trial.done = true; auto = false; syncAuto(); say('試煉之塔', [`時間到！第 ${f} 層挑戰失敗。`, '提升戰力、換個打法，再來挑戰吧。'], [[`再挑戰第 ${f} 層`, () => startTower(f)], ['回到村子', () => { loadMap(0, { x: 11, y: 17 }); hud(); }]]); }
+  }
   if (me.moving && step(me, me.dur, dt)) { me.step ^= 1; me.dur = 0.14; if (grid[me.y]?.[me.x] === T.PORTAL && mapId !== 0) { loadMap(0, { x: 11, y: 17 }); feed('回到微光村', '#c084ff'); save(); return; } }
   if (held && auto) { auto = false; syncAuto(); }
   invertT = Math.max(0, invertT - dt);
@@ -1419,7 +1554,8 @@ function update(dt) {
   updateAllies(dt);
   for (const m of mons) {
     m.anim += dt;
-    if (m.dead > 0) { if (m.minion || m.d.decoy) continue; m.dead -= dt; if (m.dead <= 0) placeMon(m); continue; }
+    if (m.dead > 0) { if (m.minion || m.d.decoy || m.d.trial) continue; m.dead -= dt; if (m.dead <= 0) placeMon(m); continue; }
+    if (m.d.elite === 'regen' && m.hp < m.d.hp) m.hp = Math.min(m.d.hp, m.hp + m.d.hp * 0.025 * dt);
     if (m.letter > 0) m.letter -= dt;
     if (m.d.boss && started && !dialog) bossThink(m, dt);
     m.flash = Math.max(0, m.flash - dt); m.cool -= dt; m.spawnT = Math.max(0, m.spawnT - dt); m.frozen = Math.max(0, m.frozen - dt);
@@ -1561,7 +1697,8 @@ function render() {
     ctx.lineWidth = 3 * DPR; ctx.strokeStyle = '#1b1420'; ctx.strokeText(text, (wx - camX) * S, (wy - camY) * S);
     ctx.fillStyle = color; ctx.fillText(text, (wx - camX) * S, (wy - camY) * S);
   };
-  if (started) label(P.name, cx(me), me.py * TS - 20, C.color, 12);
+  if (started) { label(P.name, cx(me), me.py * TS - 20, C.color, 12); if (P.meta?.title) label(`【${P.meta.title}】`, cx(me), me.py * TS - 29, '#ffd166', 9); }
+  for (const m of mons) if (m.d.elite && m.dead <= 0 && !m.hidden) label(`精英・${m.d.name}`, cx(m), m.py * TS - 14, ELITE_AFFIX[m.d.elite].color, 9);
   for (const a of allies) label(a.down > 0 ? `${a.c.name}（倒地）` : a.c.name, cx(a), a.py * TS - 20, a.c.color, 10.5);
   for (const d of drops) {
     if (d.kind === 'coin' || d.t > DROP_LIFT) continue;
@@ -1694,6 +1831,7 @@ function drawMon(m) {
     const big = m.d.boss, size = big ? 52 : 26, bob = m.frozen > 0 ? 0 : Math.round(Math.sin(m.anim * 5) * (big ? 1.5 : 1));
     shadow(x, y, big ? 24 : 13);
     const p = pixelize(hd, big ? PX_BOSS : PX_MON);
+    if (m.d.elite) { ctx.globalAlpha = 0.35 + Math.sin(anim * 6) * 0.15; ctx.fillStyle = ELITE_AFFIX[m.d.elite].color; ctx.beginPath(); ctx.ellipse(x + 8, y + 15, 13, 5, 0, 0, 7); ctx.fill(); ctx.globalAlpha = 1; }
     const draw = () => ctx.drawImage(p, x + 8 - Math.round(p.width / 2), y + 17 - p.height + bob);
     draw();
     if (m.flash > 0) { ctx.globalCompositeOperation = 'lighter'; draw(); ctx.globalCompositeOperation = 'source-over'; }
@@ -1956,7 +2094,7 @@ function start() {
   started = true;
   $('title').hidden = true; $('classPanel').hidden = true;
   $('ui').hidden = false;
-  setupClass(); hud();
+  refresh(P); setupClass(); hud();
   checkOffline();
   if (P.ch === 1 && P.step === 0 && P.lv === 1) say('村長・歐文', [`歡迎來到微光村，${C.name}${P.name}！`, '按住紅色「攻擊」鍵連續攻擊，旁邊三顆是職業專屬技能。', '懶得操作就按左上的「自動」，角色會自己去打怪！', '先來廣場北邊找我說話吧。']);
 }
@@ -2020,4 +2158,4 @@ document.fonts?.ready.then(render);
 requestAnimationFrame(frame);
 
 // 自動化測試用（網址加 ?debug 才開）
-if (location.search.includes('debug')) globalThis.__game = { showCutin, get allies() { return allies; }, buildAllies, get P() { return P; }, newDrop, get drops() { return drops; }, set dropsAdd(d) { drops.push(d); }, me, get grid() { return grid; }, loadMap, get mapId() { return mapId; }, get mons() { return mons; }, get fishing() { return fishing; }, get dialog() { return dialog; }, get drops() { return drops; }, get skills() { return skills; }, castIdx };
+if (location.search.includes('debug')) globalThis.__game = { showCutin, get allies() { return allies; }, buildAllies, get P() { return P; }, newDrop, get drops() { return drops; }, set dropsAdd(d) { drops.push(d); }, me, get grid() { return grid; }, loadMap, get mapId() { return mapId; }, get mons() { return mons; }, get fishing() { return fishing; }, get dialog() { return dialog; }, get drops() { return drops; }, get skills() { return skills; }, castIdx, startTower, get trial() { return trial; }, renderAdv, hud };

@@ -1,0 +1,78 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { newPlayer, MONSTERS } from '../world.js';
+import * as M from '../meta.js';
+
+const day = (s) => new Date(s + 'T10:00:00').getTime();
+
+test('每日任務：同一天固定、換日重抽、5 個不重複', () => {
+  const p = newPlayer('sword', 'A');
+  assert.ok(M.refresh(p, day('2026-11-14')));
+  const a = p.meta.daily.map((q) => q.id);
+  assert.equal(a.length, 5); assert.equal(new Set(a).size, 5);
+  assert.ok(!M.refresh(p, day('2026-11-14')));
+  M.refresh(p, day('2026-11-15'));
+  assert.equal(p.meta.daily.length, 5);
+  for (const q of p.meta.daily) assert.ok(M.questLabel(q).length > 3);
+});
+
+test('任務進度、領獎、活躍度寶箱', () => {
+  const p = newPlayer('sword', 'B'); M.refresh(p, day('2026-11-14'));
+  for (const q of p.meta.daily) { M.track(p, q.ev, q.need, { type: q.mon }); }
+  assert.ok(p.meta.daily.every((q) => q.prog >= q.need));
+  assert.ok(M.claimable(p));
+  let total = 0;
+  for (const q of p.meta.daily) { const r = M.claimQuest(p, q); assert.ok(r.coins > 0); total++; }
+  assert.equal(M.claimQuest(p, p.meta.daily[0]), null, '不能重複領');
+  assert.equal(p.meta.act, 100);
+  for (let i = 0; i < 5; i++) assert.ok(M.claimChest(p, i));
+  assert.equal(M.claimChest(p, 0), null);
+  assert.equal(p.meta.st.dailyAll, 1);
+});
+
+test('指定怪物任務只算那種怪', () => {
+  const p = newPlayer('sword', 'C'); M.refresh(p);
+  p.meta.daily = [{ id: 'killT', ev: 'kill', need: 2, prog: 0, mon: 'berry', claimed: false, reward: {} }];
+  M.track(p, 'kill', 1, { type: 'slime' }); assert.equal(p.meta.daily[0].prog, 0);
+  M.track(p, 'kill', 1, { type: 'berry' }); assert.equal(p.meta.daily[0].prog, 1);
+  assert.equal(p.meta.codex.slime, 1);
+});
+
+test('簽到一天一次、累計天數', () => {
+  const p = newPlayer();
+  assert.equal(M.claimLogin(p, day('2026-11-14')).n, 1);
+  assert.equal(M.claimLogin(p, day('2026-11-14')), null);
+  assert.equal(M.claimLogin(p, day('2026-11-20')).n, 2, '漏簽不歸零');
+  for (let n = 1; n <= 14; n++) assert.ok(M.loginReward(p, n));
+});
+
+test('圖鑑加成與成就', () => {
+  const p = newPlayer(); M.ensureMeta(p);
+  p.meta.codex.slime = 600; p.meta.codex.king = 1;
+  const b = M.codexBonus(p);
+  assert.ok(b.atkPct > 0 || b.hpPct > 0);
+  M.track(p, 'kill', 100);
+  assert.ok(M.achReady(p).some((a) => a.id === 'k100'));
+  assert.equal(M.claimAch(p, 'k100').stones, 50);
+  assert.equal(p.meta.title, '見習獵人');
+  assert.equal(M.claimAch(p, 'k100'), null);
+});
+
+test('精英怪更強、獎勵更多', () => {
+  const r = () => 0.5;
+  const e = M.makeElite(MONSTERS.slime, r);
+  assert.ok(e.hp > MONSTERS.slime.hp && e.atk >= MONSTERS.slime.atk && e.exp > MONSTERS.slime.exp && e.elite);
+});
+
+test('試煉之塔：越高越難、5 層一魔王、首通獎勵只一次', () => {
+  const p = newPlayer(); p.ch = 3;
+  const f1 = M.towerFloor(p, 1), f10 = M.towerFloor(p, 10), f5 = M.towerFloor(p, 5);
+  assert.ok(f10.list[0].d.hp > f1.list[0].d.hp);
+  assert.ok(f5.boss && f5.list.some((x) => x.d.boss) && !f1.boss);
+  assert.ok(f5.list.every((x) => !x.d.mech));
+  assert.ok(f10.ch <= 3, '只用已解鎖章節的地圖');
+  const a = M.towerClear(p, 5); assert.ok(a.first && a.reward.stones && a.gear);
+  const b = M.towerClear(p, 5); assert.ok(!b.first && !b.reward.stones);
+  assert.equal(p.meta.tower.best, 5);
+  assert.ok(!M.rewardText(a.reward).includes('×0'));
+});
