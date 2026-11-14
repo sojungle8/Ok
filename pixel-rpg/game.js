@@ -310,7 +310,7 @@ function trimmed(img) {
   try {
     const d = x.getImageData(0, 0, w, h).data; let x0 = w, y0 = h, x1 = 0, y1 = 0;
     for (let y = 0; y < h; y += 2) for (let i = 0; i < w; i += 2) if (d[(y * w + i) * 4 + 3] > 30) { if (i < x0) x0 = i; if (i > x1) x1 = i; if (y < y0) y0 = y; if (y > y1) y1 = y; }
-    if (x1 > x0 && y1 > y0) { const t = document.createElement('canvas'); t.width = x1 - x0 + 4; t.height = y1 - y0 + 4; t.getContext('2d').drawImage(img, x0 - 2, y0 - 2, t.width, t.height, 0, 0, t.width, t.height); out = t; }
+    if (x1 > x0 && y1 > y0) { const t = document.createElement('canvas'); t.width = x1 - x0 + 4; t.height = y1 - y0 + 4; t.getContext('2d').drawImage(img, x0 - 2, y0 - 2, t.width, t.height, 0, 0, t.width, t.height); t.bx0 = x0 - 2; t.by0 = y0 - 2; out = t; }
   } catch { /* 跨來源圖片讀不到像素就用原圖 */ }
   trimCache.set(img, out); return out;
 }
@@ -1810,29 +1810,36 @@ function hdScaled(img, h) {
   m.set(key, c); return c;
 }
 const MON_H = { slime: 22, bat: 24, ghost: 26, crab: 22, golem: 30, imp: 30 };
-function drawHD(img, o, h, flip, extra) {
-  const t = trimmed(img), c = hdScaled(img, h), w = (h * t.width) / t.height;
+// ref：站姿圖。攻擊姿勢圖和站姿畫在同一張畫布、同一比例，所以用站姿的大小與腳底位置對齊
+function drawHD(img, o, h, flip, extra, ref) {
+  const r = trimmed(ref || img), t = trimmed(img), k = h / r.height;
+  const fx = (r.bx0 || 0) + r.width / 2, fy = (r.by0 || 0) + r.height;
+  const dw = t.width * k, dh = t.height * k, ox = ((t.bx0 || 0) - fx) * k, oy = ((t.by0 || 0) - fy) * k;
+  const c = hdScaled(img, dh), w = r.width * k;
   const x = o.px * TS + 8 + (o.kx || 0), y = o.py * TS + 17 + (o.ky || 0);
   const walk = o.moving ? Math.sin(((o.mt || 0) + (o.step || 0)) * Math.PI) : 0;
   const dur = o.atkDur || 0.18, ak = o.atkT > 0 ? 1 - o.atkT / dur : -1, atk = ak >= 0 ? Math.sin(ak * Math.PI) : 0;
+  const pose = ref && ref !== img, lean = pose ? 0.4 : 1;
   const still = !o.moving && !atk, breathe = still ? Math.sin(anim * 2.4 + (o.i || 0) * 1.7) : 0;
   const [dx, dy] = DIRS[o.face] || [0, 1];
   ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.beginPath(); ctx.ellipse(x, y - 1, Math.max(5, w * 0.36), 2.6, 0, 0, 7); ctx.fill();
   ctx.save();
   ctx.translate(x + dx * atk * 5, y + dy * atk * 3 - Math.abs(walk) * 1.6 + (extra?.bob || 0));
   if (flip) ctx.scale(-1, 1);
-  ctx.rotate(walk * 0.05 + atk * (dx ? 0.2 : 0.08));
-  ctx.scale(1 + breathe * 0.012 + atk * 0.05, 1 - breathe * 0.014 - atk * 0.03);
+  ctx.rotate(walk * 0.05 + atk * lean * (dx ? 0.2 : 0.08));
+  ctx.scale(1 + breathe * 0.012 + atk * lean * 0.05, 1 - breathe * 0.014 - atk * lean * 0.03);
   ctx.imageSmoothingEnabled = true;
-  ctx.drawImage(c, -w / 2, -h, w, h);
-  if (extra?.flash) { ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.6; ctx.drawImage(c, -w / 2, -h, w, h); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; }
+  ctx.drawImage(c, ox, oy, dw, dh);
+  if (extra?.flash) { ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.6; ctx.drawImage(c, ox, oy, dw, dh); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; }
   ctx.restore(); ctx.imageSmoothingEnabled = false;
   return { w, h };
 }
+// 攻擊姿勢：有 {key}_attack 圖就在攻擊瞬間換上
+const atkPose = (key, o) => (o.atkT > 0 && asset(key + '_attack')) || null;
 function drawMe() {
   const x = Math.round(me.px * TS), y = Math.round(me.py * TS);
   const frame = animFrame(me, me.atkDur || 0.18);
-  if (charStyle === 'hd') { const im = heroImg(myLook, me.face); if (im) { if (me.hurtT > 0 && Math.floor(me.hurtT * 20) % 2) { shadow(x, y); return; } if (me.inv > 0) ctx.globalAlpha = 0.6; drawHD(im, me, 40, me.face === 'left'); ctx.globalAlpha = 1; return; } }
+  if (charStyle === 'hd') { const im = heroImg(myLook, me.face), ai = me.atkT > 0 ? heroImg(myLook, me.face, true) : null, pose = ai && ai !== im ? ai : null; if (im) { if (me.hurtT > 0 && Math.floor(me.hurtT * 20) % 2) { shadow(x, y); return; } if (me.inv > 0) ctx.globalAlpha = 0.6; drawHD(pose || im, me, 40, me.face === 'left', null, pose ? im : null); ctx.globalAlpha = 1; return; } }
   const sheet = pxHero(myLook);
   if (sheet) { if (me.hurtT > 0 && Math.floor(me.hurtT * 20) % 2) { shadow(x, y); return; } if (me.inv > 0) ctx.globalAlpha = 0.6; drawPxHero(sheet, me); ctx.globalAlpha = 1; return; }
   const hero = heroImg(myLook, me.face, me.atkT > 0);
@@ -1851,7 +1858,7 @@ function drawAlly(a) {
   if (a.hurtT > 0 && Math.floor(a.hurtT * 20) % 2) { shadow(x, y); return; }
   const frame = animFrame(a, a.atkDur || 0.18);
   const hd = asset('npc/ally_' + a.id), pxa = asset('px/ally/' + a.id);
-  if (hd && charStyle === 'hd') drawHD(hd, a, 40, a.face === 'left');
+  if (hd && charStyle === 'hd') { const ap = atkPose('npc/ally_' + a.id, a); drawHD(ap || hd, a, 40, a.face === 'left', null, ap ? hd : null); }
   else if (pxa) drawPxHero(pxa, a);
   else if (hd) { drawIllus(hd, a); }
   else if (false) {
@@ -1879,7 +1886,8 @@ function drawMon(m) {
     if (m.d.elite) { ctx.globalAlpha = 0.35 + Math.sin(anim * 6) * 0.15; ctx.fillStyle = ELITE_AFFIX[m.d.elite].color; ctx.beginPath(); ctx.ellipse(x + 8, y + 15, hh * 0.55, 5, 0, 0, 7); ctx.fill(); ctx.globalAlpha = 1; }
     const swing = m.swingAt != null && anim - m.swingAt < 0.3, faceL = m.faceL ?? me.px < m.px;
     const o = { px: m.px, py: m.py, kx: m.kx, ky: m.ky, face: faceL ? 'left' : 'right', atkT: swing ? 0.3 - (anim - m.swingAt) : 0, atkDur: 0.3, i: m.anim };
-    const { w } = drawHD(hdm, o, hh, faceL, { bob: frozen ? 0 : Math.sin(m.anim * 5) * (big ? 1.2 : 0.8), flash: m.flash > 0 });
+    const mp = m.d.tpl !== 'mirror' && atkPose('monster/' + m.type, o);
+    const { w } = drawHD(mp || hdm, o, hh, faceL, { bob: frozen ? 0 : Math.sin(m.anim * 5) * (big ? 1.2 : 0.8), flash: m.flash > 0 }, mp ? hdm : null);
     if (frozen) { ctx.fillStyle = 'rgba(150,220,255,.4)'; ctx.fillRect(x + 8 - w / 2, y + 17 - hh, w, hh); }
     if (m.shield) { ctx.strokeStyle = 'rgba(189,241,255,.9)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(x + 8, y + 17 - hh / 2, hh * 0.65, 0, 7); ctx.stroke(); }
     if (m.hp < m.d.hp && !big) { ctx.fillStyle = '#2a1d2e'; ctx.fillRect(x + 1, y + 18, 14, 4); ctx.fillStyle = '#e8506a'; ctx.fillRect(x + 2, y + 19, Math.max(1, Math.round((m.hp / m.d.hp) * 12)), 2); }
