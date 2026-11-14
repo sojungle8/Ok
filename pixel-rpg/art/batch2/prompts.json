@@ -398,6 +398,69 @@
       "sourceCrop": null
     },
     {
+      "id": "char/body/arm_back",
+      "size": 256,
+      "pivot": [
+        128,
+        128
+      ],
+      "sourceAnchor": [
+        0.5,
+        0
+      ],
+      "bounds": [
+        120,
+        128,
+        17,
+        48
+      ],
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nGame animation cutout component: ONE cartoon arm from rounded shoulder to wrist, hanging vertically downward, relaxed straight elbow. A simple cream short sleeve covers the upper arm; exposed forearm is warm peach #f7c9a3. Wrist ends cleanly for a separately supplied hand sprite. No hand, torso, head, extra limb, gore, injury or anatomical diagram. Rear view, arm seen from behind the character, elbow subtly visible. Transparent square PNG. Rounded shoulder joint at exact center of canvas, arm extends downward from center; entire part within canvas. Clean opaque solid cel-shaded silhouette, no glow or backdrop.",
+      "reference": null,
+      "sourceCrop": null
+    },
+    {
+      "id": "char/body/arm_front",
+      "size": 256,
+      "pivot": [
+        128,
+        128
+      ],
+      "sourceAnchor": [
+        0.5,
+        0
+      ],
+      "bounds": [
+        119,
+        128,
+        18,
+        48
+      ],
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nGame animation cutout component: ONE cartoon arm from rounded shoulder to wrist, hanging vertically downward, relaxed straight elbow. A simple cream short sleeve covers the upper arm; exposed forearm is warm peach #f7c9a3. Wrist ends cleanly for a separately supplied hand sprite. No hand, torso, head, extra limb, gore, injury or anatomical diagram. Front view, arm seen from in front of the character. Transparent square PNG. Rounded shoulder joint at exact center of canvas, arm extends downward from center; entire part within canvas. Clean opaque solid cel-shaded silhouette, no glow or backdrop.",
+      "reference": null,
+      "sourceCrop": null
+    },
+    {
+      "id": "char/body/arm_side",
+      "size": 256,
+      "pivot": [
+        128,
+        128
+      ],
+      "sourceAnchor": [
+        0.5,
+        0
+      ],
+      "bounds": [
+        121,
+        128,
+        15,
+        48
+      ],
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nGame animation cutout component: ONE cartoon arm from rounded shoulder to wrist, hanging vertically downward, relaxed straight elbow. A simple cream short sleeve covers the upper arm; exposed forearm is warm peach #f7c9a3. Wrist ends cleanly for a separately supplied hand sprite. No hand, torso, head, extra limb, gore, injury or anatomical diagram. Right-facing profile view, the imaginary character faces right; arm hangs downward. Transparent square PNG. Rounded shoulder joint at exact center of canvas, arm extends downward from center; entire part within canvas. Clean opaque solid cel-shaded silhouette, no glow or backdrop.",
+      "reference": null,
+      "sourceCrop": null
+    },
+    {
       "id": "char/mage/hair_back",
       "size": 256,
       "pivot": [
@@ -3602,9 +3665,5 @@
       "sourceCrop": null
     }
   ],
-  "missing": [
-    "char/body/arm_front",
-    "char/body/arm_back",
-    "char/body/arm_side"
-  ]
+  "missing": []
 }

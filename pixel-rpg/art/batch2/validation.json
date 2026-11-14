@@ -1,5 +1,5 @@
 {
-  "count": 167,
+  "count": 170,
   "assets": [
     {
       "id": "char/body/head_back",
@@ -122,6 +122,27 @@
     },
     {
       "id": "char/archer/hair_back",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "char/body/arm_back",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "char/body/arm_front",
+      "width": 256,
+      "height": 256,
+      "alpha": true,
+      "srgb": true
+    },
+    {
+      "id": "char/body/arm_side",
       "width": 256,
       "height": 256,
       "alpha": true,
