@@ -1,5 +1,6 @@
 // 微光大陸：背包、道具、怪物卡片、精煉、自動販賣（RO 風格的玩法機制，名稱與內容皆為原創）
 import { MONSTERS, RARITY, rarityIdx, sellValue, itemPower, stats } from './world.js';
+import { cardDesc, CARD_EFFECT } from './ro.js';
 
 // ---- 道具 ----
 // grade：junk 雜物（怪物素材）、common 一般道具、rare 稀有道具、card 卡片
@@ -33,7 +34,7 @@ Object.keys(MONSTERS).forEach((k, i) => {
   const stat = CARD_STATS[i % CARD_STATS.length];
   const [b, per] = CARD_BASE[stat];
   ITEMS['card_' + k] = { name: `${m.name}卡片`, kind: 'card', grade: 'card', sellPrice: 50 + m.lv * 10, icon: 'card', color: m.pal.g, mon: k, stat, val: Math.round((b + per * m.lv) * (m.boss ? 2.5 : 1)), desc: '' };
-  ITEMS['card_' + k].desc = `插進裝備卡槽：${STAT_NAME[stat]} +${ITEMS['card_' + k].val}%`;
+  ITEMS['card_' + k].desc = `插進裝備卡槽：${CARD_EFFECT[k] ? cardDesc(k) : `${STAT_NAME[stat]} +${ITEMS['card_' + k].val}%`}`;
 });
 export const itemSell = (id) => ITEMS[id].sellPrice ?? Math.max(1, Math.round((ITEMS[id].price || 2) / 4));
 

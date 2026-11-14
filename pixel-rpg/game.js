@@ -11,6 +11,7 @@ import { iconCanvas, gearIcon } from './icons.js';
 import { loadAssets, asset, tinted, loadState } from './assets.js';
 import { ensureMeta, refresh, track, claimQuest, claimChest, claimable, claimLogin, loginReward, questLabel, rewardText, CHESTS, codexBonus, codexStars, CODEX_TIERS, ACHIEVEMENTS, achProgress, achReady, claimAch, ELITE_AFFIX, ELITE_RATE, makeElite, DIFFS, diffOf, applyDiff, chestSpots, openChest, chestOpened, dayKey, quickIdleState, useQuickIdle, QUICK_IDLE_MIN, QUICK_COST, SHOP, buySku, canBuy, monthActive, monthDaysLeft, claimMonthDaily, monthClaimable, claimAll, MONTH_DAILY, towerFloor, towerClear, LOGIN_CYCLE } from './meta.js';
 import { pixelize } from './pixelize.js';
+import { ATTRS, ATTR_NAME, ATTR_DESC, ATTR_MAX, attrFree, attrPointsTotal, addAttr, autoAllocate, resetAttrs, ensureAttrs, addBuff, activeBuffs, BUFFS, hitChance, dodgeChance, damageMult, profileOf, ELEM_COLOR, SKILL_ELEM, ALLY_ELEM, monDef, MAIN_ATTR } from './ro.js';
 import { audioOpt, saveAudioOpt, initAudio, sfx, playSong, audioLevel, currentSong } from './audio.js';
 // 美術風格：像素風。高畫質的角色、怪物、NPC 在遊戲畫面中即時轉成像素圖；特效、頭像、大招立繪維持高畫質
 const PX_CHAR = 36, PX_MON = 26, PX_BOSS = 52;
@@ -77,7 +78,7 @@ let hasSave = false, P;
 try { const raw = localStorage.getItem(KEY); hasSave = !!raw; P = loadPlayer(raw); } catch { P = newPlayer(); }
 ensureInv(P); ensureParty(P);
 
-ensureMeta(P); P.cb = codexBonus(P);
+ensureMeta(P); P.cb = codexBonus(P); ensureAttrs(P); if (P.autoAttr) autoAllocate(P);
 const me = { x: P.x, y: P.y, px: P.x, py: P.y, fx: P.x, fy: P.y, face: 'down', moving: false, mt: 0, dur: 0.14, step: 0, atkT: 0, hurtT: 0, cool: 0, inv: 0, dodgeT: 0 };
 function save() { P.x = me.x; P.y = me.y; P.map = mapId; P.seen = Date.now(); hasSave = true; try { localStorage.setItem(KEY, JSON.stringify(P)); } catch { /* 無痕模式不存 */ } }
 
@@ -89,6 +90,7 @@ let dialog = null, fishing = null, started = false, held = null, aHeld = false, 
 let anim = 0, regenT = 0, saveT = 0, shake = 0, freeze = 0, flash = 0, combo = 0, comboT = 0, auraT = 0;
 let allies = [], atkOverride = 0, partyT = 0;
 let trial = null, metaT = 0;
+let skillElem = '無', skillElemT = 0, hitElem = null, allyElem = '無';
 // 人物畫風：hd＝精緻 Q 版立繪（預設）、px＝原生像素動畫
 const charStyle = 'hd';
 let soulPower = 0, cutinT = 0, pendingUlt = null, catT = 0, warns = [], tintC = '#fff', tintT = 0;
@@ -328,7 +330,7 @@ function bump(id) { const el = $(id); el.classList.remove('bump'); void el.offse
 let lastCp = 0;
 function hud() {
   const st = stats(P);
-  if (started) { $('advDot').hidden = !claimable(P); $('shopDot').hidden = !(monthClaimable(P) || canBuy(P, 'daily')); }
+  if (started) { $('talentDot').hidden = !(talentPoints(P) > talentSpent(P) || (!P.autoAttr && attrFree(P) > 0)); $('advDot').hidden = !claimable(P); $('shopDot').hidden = !(monthClaimable(P) || canBuy(P, 'daily')); }
   myLook = lookOf(P, CLASSES, rarityIdx);
   $('lv').textContent = P.lv;
   $('clsName').textContent = C.name;
@@ -343,7 +345,7 @@ function hud() {
   lastCp = st.cp;
   $('potions').textContent = count(P, 'red') + count(P, 'orange') + count(P, 'white');
   $('stoneN') && ($('stoneN').textContent = fmt(P.stones));
-  $('talentDot').hidden = talentSpent(P) >= talentPoints(P);
+  $('talentDot').hidden = talentSpent(P) >= talentPoints(P) && (P.autoAttr || attrFree(P) <= 0);
   $('quest').textContent = questText();
 }
 function questText() {
@@ -519,7 +521,29 @@ $('refineGo').addEventListener('click', () => {
 $('refineClose').addEventListener('click', () => { $('refinePanel').hidden = true; });
 
 // ---------- 天賦 ----------
+function renderAttrs() {
+  ensureAttrs(P); if (P.autoAttr && attrFree(P)) autoAllocate(P);
+  const st = stats(P), free = attrFree(P), a = P.attrs, ea = st.attrs, main = MAIN_ATTR[P.cls];
+  const rows = ATTRS.map((k) => `<div class="arow${k === main ? ' main' : ''}"><b>${ATTR_NAME[k]}</b><span class="av">${a[k]}${ea[k] > a[k] ? `<em>+${ea[k] - a[k]}</em>` : ''}</span><small>${ATTR_DESC[k]}</small><button type="button" data-k="${k}" ${free && a[k] < ATTR_MAX && !P.autoAttr ? '' : 'disabled'}>＋</button></div>`).join('');
+  const m = st.mods, list = (o, suf = '') => Object.entries(o).map(([k, v]) => `${k}${suf} +${v}%`).join('、');
+  const cardLines = [
+    st.weaponElem !== '無' && `武器屬性：<b style="color:${ELEM_COLOR[st.weaponElem]}">${st.weaponElem}</b>`,
+    Object.keys(m.race).length && `對種族：${list(m.race)}`, Object.keys(m.elemDmg).length && `對屬性：${list(m.elemDmg)}`,
+    Object.keys(m.size).length && `對體型：${list(m.size)}`, Object.keys(m.resist).length && `抗性：${Object.entries(m.resist).map(([k, v]) => `${k} -${v}%`).join('、')}`,
+  ].filter(Boolean);
+  const buffs = activeBuffs(P).map((b) => `<span class="chip" style="color:${BUFFS[b].color}">${BUFFS[b].name}</span>`).join('');
+  $('attrBox').innerHTML = `<div class="ahead"><span>能力點 <b>${free}</b> / ${attrPointsTotal(P.lv)}（每升 1 級 +4）</span><label><input type="checkbox" id="autoAttrChk" ${P.autoAttr ? 'checked' : ''}> 自動分配</label></div>
+    <div class="agrid">${rows}</div>
+    <div class="aderived"><span>攻擊 <b>${fmt(st.atk)}</b></span><span>生命 <b>${fmt(st.hp)}</b></span><span>命中 <b>${st.hit}</b></span><span>迴避 <b>${st.flee}</b></span><span>暴擊 <b>${Math.round(st.crit * 100)}%</b></span><span>攻速 <b>${Math.round(st.aspd * 100)}%</b></span><span>減傷 <b>${Math.round(st.dr * 100)}%</b></span><span>技能 <b>${Math.round(st.skill * 100)}%</b></span></div>
+    ${cardLines.length ? `<p class="small">${cardLines.join('<br>')}</p>` : '<p class="small muted">裝備插上卡片，可以獲得種族、屬性、體型加成</p>'}
+    ${buffs ? `<p class="small">輔助效果：${buffs}</p>` : ''}
+    <div class="crow"><button id="attrReset" class="ghostbtn" type="button">重新分配（免費）</button></div>`;
+  $('attrBox').querySelectorAll('button[data-k]').forEach((b) => b.addEventListener('click', () => { if (addAttr(P, b.dataset.k)) { hud(); save(); renderTalents(); } }));
+  $('autoAttrChk').addEventListener('change', (e) => { P.autoAttr = e.target.checked; if (P.autoAttr) autoAllocate(P); hud(); save(); renderTalents(); });
+  $('attrReset').addEventListener('click', () => { resetAttrs(P); if (P.autoAttr) autoAllocate(P); hud(); save(); renderTalents(); });
+}
 function renderTalents() {
+  renderAttrs();
   const left = talentPoints(P) - talentSpent(P);
   $('talentPts').innerHTML = `可用點數 <b>${left}</b>・每升 1 級得到 1 點・重置免費`;
   $('talentGrid').innerHTML = TALENTS.map((br, bi) => `<div class="tcol"><h4>${br.name}</h4>${br.nodes.map((n, ni) => {
@@ -734,6 +758,11 @@ function smithMenu(nm, lines) {
 function hitPlayer(m) { hurt(m.d.atk, m); }
 function hurt(raw, m) {
   if (me.inv > 0) { floatT('閃避！', me.x, me.y - 0.4, '#bdf1ff', 0.9); return; }
+  if (m) {
+    const st0 = stats(P);
+    if (R() < dodgeChance(st0.flee, m.d.lv, st0.perfect)) { floatT('Miss', me.x, me.y - 0.4, '#bdf1ff', 0.9); return; }
+    raw *= 1 - Math.min(60, st0.mods.resist[profileOf(m.type).elem] || 0) / 100;
+  }
   if (fishing) { fishing = null; floatT('魚跑了', me.x, me.y - 0.5, '#bdf1ff'); }
   const dmg = Math.max(1, Math.round(raw * (1 - stats(P).dr)));
   P.hp -= dmg; me.hurtT = 0.4; shake = Math.max(shake, 0.12);
@@ -765,6 +794,7 @@ function stealCheck(m, kind) {
   return false;
 }
 function gainSoul(x) { if (P.soul && cutinT <= 0) soulPower = Math.min(100, soulPower + x * stats(P).soulGain); }
+const DEF_COMP = 1.1;
 function dealDamage(m, mult, fromX = me.px, fromY = me.py, color, kind = 'skill') {
   if (m.dead > 0 || m.hp <= 0) return;
   if (m.d.decoy) {
@@ -776,8 +806,12 @@ function dealDamage(m, mult, fromX = me.px, fromY = me.py, color, kind = 'skill'
   if (m.shield) { if (R() < 0.35) float('護盾', cx(m), m.py * TS - 10, '#bdf1ff', 0.8); burst(cx(m), cy(m), '#bdf1ff', 3); return; }
   if (stealCheck(m, kind)) return;
   const st = stats(P);
+  const elem = hitElem || (kind === 'basic' ? st.weaponElem : kind === 'ally' ? allyElem : kind === 'skill' && skillElemT > 0 ? skillElem : kind === 'skill' ? skillElem : '無');
+  hitElem = null;
+  if (kind !== 'ult' && kind !== 'ally' && R() > hitChance(st.hit, m.d.lv)) { float('Miss', cx(m), m.py * TS - 6, '#bdb6d0', 0.9); return; }
+  const dm = damageMult(P, st.mods, elem, m.type, m.d.lv, m.d.boss);
   const crit = R() < st.crit;
-  const k = kind === 'skill' ? st.skill : kind === 'ult' ? ultMult() : 1;
+  const k = (kind === 'skill' ? st.skill : kind === 'ult' ? ultMult() : 1) * dm.mult * DEF_COMP;
   const base = kind === 'ally' ? atkOverride : st.atk;
   const dmg = Math.max(1, Math.round(base * mult * k * (0.85 + R() * 0.3) * (crit ? st.critDmg : 1)));
   if (st.leech && P.hp < st.hp && kind !== 'ally') P.hp = Math.min(st.hp, P.hp + Math.max(1, Math.round(dmg * st.leech)));
@@ -786,7 +820,9 @@ function dealDamage(m, mult, fromX = me.px, fromY = me.py, color, kind = 'skill'
   if (kind !== 'ally') sfx(crit ? 'crit' : 'hit');
   const a = Math.atan2(m.py - fromY, m.px - fromX);
   m.kx = Math.cos(a) * 4; m.ky = Math.sin(a) * 4;
-  float(crit ? `${fmt(dmg)}!` : fmt(dmg), cx(m) + (R() - 0.5) * 12, m.py * TS - 2 - R() * 6, crit ? '#ff9f1c' : (color || '#fff8e7'), crit ? 1.45 : 1);
+  float(crit ? `${fmt(dmg)}!` : fmt(dmg), cx(m) + (R() - 0.5) * 12, m.py * TS - 2 - R() * 6, crit ? '#ff9f1c' : dm.elem > 1 ? '#ffd166' : dm.elem < 1 ? '#9a94ab' : (color || '#fff8e7'), crit ? 1.45 : dm.elem > 1 ? 1.2 : 1);
+  if (dm.elem > 1 && R() < 0.35) float('剋！', cx(m) + 10, m.py * TS - 14, ELEM_COLOR[elem] || '#ffd166', 0.8);
+  else if (dm.elem < 1 && R() < 0.25) float('抵抗', cx(m) + 10, m.py * TS - 14, '#9a94ab', 0.7);
   burst(cx(m), cy(m) + 2, m.d.pal.g || '#c8ccdb', crit ? 9 : 4);
   addFx('hit', crit ? 0.28 : 0.18, { x: cx(m) + (R() - 0.5) * 8, y: cy(m) - 2 + (R() - 0.5) * 8, color: crit ? '#ffd166' : (color || '#e6f2ff'), big: crit });
   combo++; comboT = 2.2; showCombo();
@@ -841,6 +877,7 @@ function killMon(m) {
   hud();
 }
 function levelUp(before) {
+  ensureAttrs(P); if (P.autoAttr) autoAllocate(P); else if (attrFree(P)) feed(`獲得能力點，到「能力」選單分配（剩 ${attrFree(P)} 點）`, '#7fd8ff');
   sfx('levelup');
   P.stones += 20 * (P.lv - before);
   if (talentPoints(P) > talentSpent(P)) feed('獲得天賦點，到「天賦」選單分配', '#7ad35a');
@@ -890,7 +927,7 @@ function showCombo() {
 function shoot(kind, ang, opt) {
   const sp = opt.speed;
   const org = opt.from || me;
-  projs.push({ kind, x: cx(org), y: cy(org) - 4, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, trav: 0, range: opt.range * TS, pierce: opt.pierce ?? 0, mult: opt.mult, r: opt.r ?? 6, hit: new Set(), home: opt.home || null, onEnd: opt.onEnd, color: opt.color, dk: opt.dk || 'skill', by: opt.by || null });
+  projs.push({ elem: opt.elem || (opt.dk === 'basic' ? stats(P).weaponElem : opt.dk === 'ally' ? allyElem : skillElemT > 0 ? skillElem : '無'), kind, x: cx(org), y: cy(org) - 4, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, trav: 0, range: opt.range * TS, pierce: opt.pierce ?? 0, mult: opt.mult, r: opt.r ?? 6, hit: new Set(), home: opt.home || null, onEnd: opt.onEnd, color: opt.color, dk: opt.dk || 'skill', by: opt.by || null });
 }
 const faceAng = () => ({ right: 0, down: Math.PI / 2, left: Math.PI, up: -Math.PI / 2 })[me.face];
 const angTo = (m) => Math.atan2(cy(m) - (cy(me) - 4), cx(m) - cx(me));
@@ -914,7 +951,7 @@ function updateProjs(dt) {
       if (p.hit.has(m)) continue;
       if (Math.hypot(cx(m) - p.x, cy(m) - p.y) < p.r + (m.d.boss ? 12 : 6)) {
         p.hit.add(m);
-        if (p.kind !== 'fire') { if (p.by) atkOverride = p.by.atk; dealDamage(m, p.mult, (p.x - p.vx * 0.05) / TS - 0.5, (p.y - p.vy * 0.05) / TS - 0.5, p.color, p.dk); }
+        if (p.kind !== 'fire') { if (p.by) atkOverride = p.by.atk; hitElem = p.elem; dealDamage(m, p.mult, (p.x - p.vx * 0.05) / TS - 0.5, (p.y - p.vy * 0.05) / TS - 0.5, p.color, p.dk); }
         if (p.pierce-- <= 0) { p.onEnd?.(p); return false; }
       }
     }
@@ -963,6 +1000,7 @@ function castIdx(i) {
   if (!s || s.t > 0 || cutinT > 0) return;
   s.t = s.cd * (1 - stats(P).cdr);
   questDone(track(P, 'skill'));
+  skillElem = SKILL_ELEM[s.id] || '無'; skillElemT = 1.2;
   sfx({ sword: 'slash', archer: 'arrow', mage: 'magic', monk: 'punch', priest: s.id === 'lance' ? 'magic' : 'potion' }[P.cls] || 'slash');
   const echo = alive().find((m) => m.d.mech === 'echo' && tdist(m, me.px, me.py) <= 8);
   if (echo && lastSkill === s.id) {
@@ -989,6 +1027,8 @@ function castIdx(i) {
         ally.hp = Math.min(ally.max, ally.hp + Math.round(ally.max * fraction));
         addFx('heal', 0.7, { x: cx(ally), y: cy(ally) });
       }
+      addBuff(P, major ? 'agi' : 'bless', major ? 30 : 60); if (major) addBuff(P, 'guard', 15);
+      banner(major ? '加速・守護！' : '祝福！');
       if (major) hitArea(me.px, me.py, 2.5, 2.4, C.color);
       hud();
       break;
@@ -1223,7 +1263,8 @@ function renderAdv() {
       const k = m.codex[t] || 0, s = codexStars(t, k), d = document.createElement('div');
       d.className = 'cmon' + (k ? '' : ' unknown');
       const im = asset('monster/' + t);
-      d.innerHTML = `${im ? `<img src="${im.src}" alt="">` : ''}<b>${k ? MONSTERS[t].name : '？？？'}</b><span class="stars">${'★'.repeat(s)}${'☆'.repeat(3 - s)}</span><small>${k} 隻</small>`;
+      const pf = profileOf(t), md = MONSTERS[t];
+      d.innerHTML = `${im ? `<img src="${im.src}" alt="">` : ''}<b>${k ? md.name : '？？？'}</b>${k ? `<span class="mprof"><i style="color:${ELEM_COLOR[pf.elem]}">${pf.elem}</i>・${pf.race}・${pf.size}</span><span class="mstat">Lv${md.lv} 血${fmt(md.hp)} 攻${md.atk} 防${monDef(md.lv, md.boss)}</span>` : ''}<span class="stars">${'★'.repeat(s)}${'☆'.repeat(3 - s)}</span><small>${k} 隻</small>`;
       grid.append(d);
     }
     out.push(grid);
@@ -1399,7 +1440,7 @@ function allyStepTo(a, gx, gy) {
   Object.assign(a, { fx: a.x, fy: a.y, x: best[0], y: best[1], moving: true, mt: 0 });
 }
 function allyFace(a, m) { const dx = m.px - a.px, dy = m.py - a.py; a.face = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'); }
-function allyAttack(a, m, mult) { atkOverride = a.atk; dealDamage(m, mult, a.px, a.py, a.c.color, 'ally'); }
+function allyAttack(a, m, mult) { atkOverride = a.atk; allyElem = ALLY_ELEM[a.id] || '無'; hitElem = allyElem; dealDamage(m, mult, a.px, a.py, a.c.color, 'ally'); }
 function updateAllies(dt) {
   partyT -= dt;
   if (partyT <= 0) { partyT = 2; const st = stats(P); for (const a of allies) { const { max, atk } = allyStats(a.c, st); a.hp = Math.round(a.hp * (max / (a.max || max))); a.max = max; a.atk = atk; } }
@@ -1422,7 +1463,9 @@ function updateAllies(dt) {
         const amt = Math.round(low.max * 0.28);
         if (low.me) { P.hp = Math.min(low.max, P.hp + amt); addFx('heal', 0.7, { x: cx(me), y: cy(me) }); floatT(`+${fmt(amt)}`, me.x, me.y, '#a6ec7a'); hud(); }
         else { low.a.hp = Math.min(low.a.max, low.a.hp + amt); addFx('heal', 0.7, { x: cx(low.a), y: cy(low.a) }); }
-        addFx('circle', 0.5, { x: cx(a), y: cy(a), color: '#a6ec7a' }); a.skT = c.skillCd; a.atkT = 0.3; continue;
+        addFx('circle', 0.5, { x: cx(a), y: cy(a), color: '#a6ec7a' }); a.skT = c.skillCd; a.atkT = 0.3;
+        if (!activeBuffs(P).includes('bless')) { addBuff(P, 'bless', 45); floatT('祝福', me.x, me.y - 1, BUFFS.bless.color, 0.9); }
+        continue;
       }
     }
     // 找目標：主動出擊＝主角附近 6 格；跟隨＝只打靠近隊伍的怪
@@ -1685,7 +1728,7 @@ function dust(wx, wy) {
   for (let i = 0; i < 3; i++) parts.push({ x: wx + (R() - 0.5) * 8, y: wy, vx: (R() - 0.5) * 18, vy: -8 - R() * 10, c: R() < 0.5 ? '#e8dcc0' : '#cbb994', t: 0, g: 20, size: 1, life: 0.35 });
 }
 function update(dt) {
-  anim += dt; gateMsgT -= dt;
+  anim += dt; gateMsgT -= dt; skillElemT -= dt;
   playSong(pickSong());
   if (started) { metaT -= dt; if (metaT <= 0) { metaT = 30; if (refresh(P)) { feed('新的一天！每日任務已更新，到「冒險」查看', '#f6c945'); hud(); } } }
   if (trial && !trial.done && !dialog) {
@@ -1774,7 +1817,7 @@ function update(dt) {
   const boss = mons.find((m) => m.d.boss);
   const showBoss = boss && boss.dead <= 0 && (boss.hidden || Math.abs(boss.x - me.x) + Math.abs(boss.y - me.y) <= 7) && boss.engaged;
   $('bossBar').hidden = !showBoss;
-  if (showBoss) { $('bossFill').style.width = `${Math.max(0, boss.hp / boss.d.hp) * 100}%`; $('bossName').textContent = boss.d.name + (boss.d.mech === 'steal' && boss.stolen.size ? `（已偷走：${[...boss.stolen].map((k) => SOULS[k].name).join('、')}）` : '') + (invertT > 0 ? '　⇄ 左右顛倒中' : ''); }
+  if (showBoss) { $('bossFill').style.width = `${Math.max(0, boss.hp / boss.d.hp) * 100}%`; $('bossName').textContent = `${boss.d.name}【${profileOf(boss.type).elem}・${profileOf(boss.type).race}】` + (boss.d.mech === 'steal' && boss.stolen.size ? `（已偷走：${[...boss.stolen].map((k) => SOULS[k].name).join('、')}）` : '') + (invertT > 0 ? '　⇄ 左右顛倒中' : ''); }
 }
 function updateSkillUi() {
   const sb = $('soulBtn');
@@ -2409,7 +2452,7 @@ function buildClassGrid() {
 $('newBtn').addEventListener('click', () => { buildClassGrid(); $('overwriteNote').hidden = !hasSave; $('title').hidden = true; $('classPanel').hidden = false; });
 $('classBack').addEventListener('click', () => { $('classPanel').hidden = true; $('title').hidden = false; });
 $('classGo').addEventListener('click', () => {
-  P = ensureParty(ensureInv(newPlayer(pickCls, $('nameInput').value.trim() || '冒險者')));
+  P = ensureParty(ensureInv(newPlayer(pickCls, $('nameInput').value.trim() || '冒險者'))); autoAllocate(P);
   soulPower = 0; loadMap(0);
   Object.assign(me, { x: P.x, y: P.y, px: P.x, py: P.y, fx: P.x, fy: P.y, moving: false, face: 'down' });
   drops = []; projs = []; pending = []; fx = [];

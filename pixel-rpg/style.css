@@ -324,3 +324,19 @@ button{font-family:inherit;color:inherit}
 /* 魂像精緻立繪縮圖 */
 .soulcard .sart{width:48px;height:60px;object-fit:contain}
 .soulbtn i .sbart{width:100%;height:100%;object-fit:contain}
+
+/* 能力值（RO 風格） */
+.attrbox{text-align:left;margin-bottom:6px}
+.ahead{display:flex;justify-content:space-between;align-items:center;font-size:.82em;margin-bottom:6px}
+.agrid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.arow{display:grid;grid-template-columns:auto auto 1fr auto;align-items:center;gap:6px;padding:6px 8px;border-radius:10px;background:#ffffff0f;font-size:.8em}
+.arow.main{outline:1px solid #ffd16688}
+.arow .av{font-weight:700;color:#ffd166}.arow .av em{font-style:normal;color:#7ad35a;font-size:.85em;margin-left:2px}
+.arow small{color:#9a94ab;font-size:.78em;line-height:1.2}
+.arow button{width:28px;height:28px;border-radius:8px;border:0;background:linear-gradient(#ffd166,#e8a33d);font-weight:700;color:#2a1d2e}
+.arow button:disabled{opacity:.3}
+.aderived{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin:8px 0;font-size:.75em;color:#bdb6d0}
+.aderived b{color:#fff}
+.tsub{margin:8px 0 2px;text-align:left}
+.cmon .mprof{font-size:.85em;color:#bdb6d0}.cmon .mprof i{font-style:normal;font-weight:700}
+.cmon .mstat{font-size:.78em;color:#9a94ab}

@@ -1,4 +1,5 @@
 // 微光大陸：地圖生成與數值公式（純函式，可測試）
+import { attrBonus, cardMods, ensureAttrs, newAttrs } from './ro.js';
 export const W = 40, H = 28;
 export const T = { GRASS: 0, FLOWER: 1, PATH: 2, WATER: 3, TREE: 4, BRIDGE: 5, HOUSE: 6, FOUNTAIN: 7, SIGN: 8, ROCK: 9, PORTAL: 10 };
 export const SOLID = new Set([T.WATER, T.TREE, T.HOUSE, T.FOUNTAIN, T.SIGN, T.ROCK]);
@@ -305,19 +306,23 @@ export function stats(p) {
     if (!it) continue;
     const v = it.val * (1 + 0.08 * (it.refine || 0));
     if (it.stat === 'atk') atk += v * c.atkMul; else hp += v;
-    for (const a of [...(it.affixes || []), ...(it.cards || []).map((x) => ({ id: x.stat, val: x.val }))]) if (a.id in aff) aff[a.id] += a.val;
+    for (const a of it.affixes || []) if (a.id in aff) aff[a.id] += a.val;
   }
   const soul = p.soul && p.souls?.[p.soul] ? p.soul : null;
+  // RO 風格：能力值與卡片效果
+  const ab = attrBonus(p), cm = cardMods(p), cp = (k) => (cm.pct[k] || 0);
+  aff.atkPct += ab.atkPct + cp('atkPct'); aff.hpPct += ab.hpPct + cp('hpPct'); aff.crit += ab.crit + cp('crit'); aff.aspd += ab.aspd + cp('aspd');
+  aff.skill += ab.skill + cp('skill'); aff.soul += ab.soul; aff.dr += ab.dr + ab.buffDr + cp('dr');
   atk *= 1 + 0.05 * tv('might') + (soul === 'magnet' ? 0.08 : 0) + aff.atkPct / 100 + (p.cb?.atkPct || 0) / 100;
   hp *= 1 + 0.06 * tv('vigor') + aff.hpPct / 100 + (soul === 'thread' ? 0.1 : 0) + (p.cardBonus?.hpPct || 0) / 100 + (p.cb?.hpPct || 0) / 100;
   const crit = Math.min(0.75, 0.1 + 0.03 * tv('precision') + aff.crit / 100 + (soul === 'post' ? 0.08 : 0));
-  const critDmg = 2 + 0.15 * tv('ferocity');
+  const critDmg = 2 + 0.15 * tv('ferocity') + ab.critDmg / 100;
   const aspd = 1 + 0.05 * tv('haste') + aff.aspd / 100;
-  const cdr = Math.min(0.5, 0.05 * tv('focus') + (soul === 'gear' ? 0.12 : 0));
+  const cdr = Math.min(0.5, 0.05 * tv('focus') + (soul === 'gear' ? 0.12 : 0) + cp('cdr') / 100);
   atk = Math.round(atk); hp = Math.round(hp);
   const dps = (atk * aspd / c.cool) * (1 + crit * (critDmg - 1));
   return {
-    atk, hp, crit, critDmg, aspd, cdr,
+    atk, hp, crit, critDmg, aspd, cdr, hit: ab.hit, flee: ab.flee, perfect: ab.perfect, attrs: ab.attrs, mods: cm, weaponElem: cm.enchant || '無',
     skill: 1 + aff.skill / 100, leech: aff.leech / 100, soulGain: 1 + 0.15 * tv('resonance') + aff.soul / 100 + (soul === 'bird' ? 0.2 : 0),
     dr: Math.min(0.6, 0.05 * tv('iron') + aff.dr / 100), regen: 0.003 * tv('recover'), potion: 0.5 + 0.1 * tv('recover'),
     cp: Math.round(dps * 3 + hp * 3 + p.lv * 20 + (soul ? 150 * (p.souls[soul] || 1) : 0)),
@@ -425,7 +430,7 @@ export function offlineReward(p, minutes, rand, cap = OFFLINE_MAX_MIN) {
 }
 
 export function newPlayer(cls = 'sword', name = '冒險者') {
-  const p = { v: 4, cls: CLASSES[cls] ? cls : 'sword', name: String(name).slice(0, 8) || '冒險者', lv: 1, exp: 0, hp: 0, coins: 0, potions: 3, sword: 0, gear: {}, fish: {}, kills: 0, quest: 0, ch: 1, step: 0, talents: {}, souls: {}, soul: '', stones: 0, pity: 0, seen: 0, x: SPAWN.x, y: SPAWN.y };
+  const p = { v: 4, attrs: newAttrs(), autoAttr: true, cls: CLASSES[cls] ? cls : 'sword', name: String(name).slice(0, 8) || '冒險者', lv: 1, exp: 0, hp: 0, coins: 0, potions: 3, sword: 0, gear: {}, fish: {}, kills: 0, quest: 0, ch: 1, step: 0, talents: {}, souls: {}, soul: '', stones: 0, pity: 0, seen: 0, x: SPAWN.x, y: SPAWN.y };
   p.hp = stats(p).hp;
   return p;
 }
@@ -446,6 +451,7 @@ export function loadPlayer(raw) {
     if (p.soul && !p.souls[p.soul]) p.soul = '';
     if ((p.ch > 1 || p.step >= 2) && !p.souls.gear) { p.souls.gear = 1; if (!p.soul) p.soul = 'gear'; } // 已過覺醒劇情就補發魂像
     if (!CLASSES[p.cls]) p.cls = 'sword';
+    ensureAttrs(p);
     for (const k of Object.keys(p.gear)) if (!SLOTS.includes(k) || !validItem(p.gear[k])) delete p.gear[k];
     p.hp = Math.min(Math.max(1, p.hp), stats(p).hp);
     return p;
