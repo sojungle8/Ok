@@ -276,3 +276,4 @@ button{font-family:inherit;color:inherit}
 .potbtn.hasicon{background-size:22px 22px;background-position:6px center;padding-left:32px;background-color:#1d6aa8}
 .title{background-size:cover;background-position:center}
 .logo img{width:min(78vw,440px);height:auto;filter:drop-shadow(0 6px 0 #0006)}
+.startbtn:disabled,.ghostbtn:disabled{opacity:.45;filter:grayscale(.6)}

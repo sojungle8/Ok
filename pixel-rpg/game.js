@@ -8,7 +8,7 @@ import {
 import { soulSprite, soulBig } from './soul.js';
 import { ITEMS, GRADES, STAT_NAME, BAG_SIZE, ensureInv, count, addStack, takeStack, pickupGear, pickupItem, equipFromBag, unequip, sellFromBag, sellStack, sellAllJunk, findGear, insertCard, REFINE_RATE, refineCost, refine, rollDrops, shopList, buy, pickPotion, gearSell, itemSell } from './items.js';
 import { iconCanvas, gearIcon } from './icons.js';
-import { loadAssets, asset, tinted } from './assets.js';
+import { loadAssets, asset, tinted, loadState } from './assets.js';
 import { pixelize } from './pixelize.js';
 // 美術風格：像素風。高畫質的角色、怪物、NPC 在遊戲畫面中即時轉成像素圖；特效、頭像、大招立繪維持高畫質
 const PX_CHAR = 36, PX_MON = 26, PX_BOSS = 52;
@@ -1465,7 +1465,7 @@ function update(dt) {
   parts = parts.filter((p) => { p.t += dt; if (p.t < 0) return true; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += (p.g ?? 240) * dt; return p.t < (p.life ?? 0.6); });
   fx = fx.filter((f) => (f.t += dt) < f.life);
   saveT += dt;
-  if (saveT > 5) { saveT = 0; save(); }
+  if (saveT > 5 && started) { saveT = 0; save(); }
   const boss = mons.find((m) => m.d.boss);
   const showBoss = boss && boss.dead <= 0 && (boss.hidden || Math.abs(boss.x - me.x) + Math.abs(boss.y - me.y) <= 7) && boss.engaged;
   $('bossBar').hidden = !showBoss;
@@ -1992,9 +1992,24 @@ function titleScreen() {
   $('newBtn').textContent = hasSave ? '建立新角色' : '建立角色・開始冒險';
   $('newBtn').className = hasSave ? 'ghostbtn' : 'startbtn';
   const looks = CLASS_IDS.map((id, i) => lookOf({ cls: id, gear: i % 2 ? { armor: { rarity: 'epic' }, weapon: { rarity: 'epic' }, helm: { rarity: 'epic' } } : { armor: { rarity: 'rare' }, weapon: { rarity: 'rare' } } }, CLASSES, rarityIdx));
-  $('titleArt').replaceChildren(...looks.map((L) => previewCanvas(L, 2)));
+  $('titleArt').replaceChildren(...(loadState.core ? looks.map((L) => previewCanvas(L, 2)) : []));
 }
-loadAssets().then(() => { for (const k of Object.keys(mapCache)) delete mapCache[k]; mapC = renderMapCanvas(mapId); applyUiArt(); titleScreen(); if (typeof render === 'function') render(); });
+// 素材載入：重要的圖到齊前，標題按鈕先鎖住並顯示進度，避免看到舊的備用角色圖
+function refreshArt() {
+  for (const k of Object.keys(mapCache)) delete mapCache[k];
+  mapC = renderMapCanvas(mapId); applyUiArt(); titleScreen();
+  if (!$('classPanel').hidden) { const keep = pickCls; buildClassGrid(); document.querySelectorAll('.classcard').forEach((x) => x.classList.toggle('on', x.dataset.cls === keep)); }
+  if (!$('bagPanel').hidden) renderBag();
+  if (typeof render === 'function') render();
+}
+const loadTimer = setInterval(() => {
+  const el = $('loadTip'); if (!el) return;
+  el.hidden = loadState.core;
+  el.textContent = `素材載入中… ${loadState.total ? Math.round((loadState.done / loadState.total) * 100) : 0}%`;
+  $('newBtn').disabled = $('startBtn').disabled = !loadState.core;
+  if (loadState.core) clearInterval(loadTimer);
+}, 200);
+loadAssets('assets/', refreshArt).then(refreshArt);
 loadMap(P.map && P.map <= Math.min(6, P.ch) ? P.map : 0, { x: P.x, y: P.y });
 setupClass();
 resize();

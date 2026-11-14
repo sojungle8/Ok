@@ -4,7 +4,7 @@ import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('../assets/', import.meta.url));
 const files = [];
-(function walk(d) { for (const f of readdirSync(d)) { const p = join(d, f); if (statSync(p).isDirectory()) walk(p); else if (f.endsWith('.png')) files.push(relative(root, p).replace(/\\/g, '/')); } })(root);
+(function walk(d) { for (const f of readdirSync(d)) { const p = join(d, f); if (statSync(p).isDirectory()) walk(p); else if (f.endsWith('.png') && !f.startsWith('_') && !f.endsWith('_preview.png')) files.push(relative(root, p).replace(/\\/g, '/')); } })(root);
 files.sort();
 writeFileSync(join(root, 'manifest.json'), JSON.stringify({ version: 1, files }, null, 2));
 console.log(`manifest.json：${files.length} 個素材`);

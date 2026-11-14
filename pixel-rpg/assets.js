@@ -1,16 +1,29 @@
 // 微光大陸：外部美術素材載入器。assets/manifest.json 列出的圖才會載入；沒有的就用程式繪製的版本。
 const imgs = new Map();
 let ready = Promise.resolve();
-export function loadAssets(base = 'assets/') {
+// 先載入畫面立即需要的圖（角色、介面、地圖），大張的大招立繪、頭像、舊零件放到後面
+const LATE = ['soul_art/', 'portrait/', 'char/', 'gear/', 'icon/', 'vfx/'];
+export const loadState = { done: 0, total: 0, core: false };
+export function loadAssets(base = 'assets/', onCore) {
+  const one = (f) => new Promise((res) => {
+    const im = new Image();
+    im.onload = () => { imgs.set(f.replace(/\.png$/, ''), im); loadState.done++; res(); };
+    im.onerror = () => { loadState.done++; res(); };
+    im.src = base + f;
+  });
   ready = fetch(base + 'manifest.json', { cache: 'no-cache' })
     .then((r) => (r.ok ? r.json() : { files: [] }))
-    .then((m) => Promise.all((m.files || []).map((f) => new Promise((res) => {
-      const im = new Image();
-      im.onload = () => { imgs.set(f.replace(/\.png$/, ''), im); res(); };
-      im.onerror = () => res();
-      im.src = base + f;
-    }))))
-    .catch(() => {});
+    .then(async (m) => {
+      const files = (m.files || []).filter((f) => !/(^|\/)_|_preview\.png$/.test(f));
+      const late = files.filter((f) => LATE.some((p) => f.startsWith(p)));
+      const core = files.filter((f) => !late.includes(f));
+      loadState.total = files.length;
+      await Promise.all(core.map(one));
+      loadState.core = true; onCore?.();
+      await Promise.all(late.map(one));
+    })
+    .catch(() => {})
+    .finally(() => { if (!loadState.core) { loadState.core = true; onCore?.(); } });
   return ready;
 }
 export const asset = (key) => imgs.get(key) || null;

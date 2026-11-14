@@ -14,7 +14,7 @@ def block(path):
 parts = [strip(open('world.js').read()), strip(open('sprites.js').read())] + [block(f) for f in ['assets.js', 'pixelize.js', 'cutout.js', 'avatar.js', 'soul.js', 'items.js', 'icons.js', 'party.js']] + [strip(open('game.js').read())]
 css = open('style.css').read(); html = open('index.html').read()
 body = html.split('<body>')[1].split('<script type="module"')[0]
-open(out, 'w').write(f'''<title>微光大陸</title>
+open(out, 'w').write(f'''<meta charset="utf-8"><title>微光大陸</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Huninn&family=Silkscreen&display=swap">
