@@ -26,19 +26,22 @@ export function cutoutAvatar(L, dir, frame) {
   const bob = step ? -2 : 0;
   const cape = L.cape ? `gear/cape/${L.armorTier === 4 ? 'red' : 'purple'}_${view}` : null;
   const neck = [96, 130 + bob];
-  const limb = (sign, front) => {
-    const shoulderX = side ? (front ? 100 : 87) : 96 + sign * 33;
+  const limb = (sign, front, heldOnly = false) => {
+    // Attach inside the tapered shoulder silhouette, not at the torso's widest hem.
+    const shoulderX = side ? (front ? 100 : 87) : 96 + sign * 23;
     const angle = attack && front ? -1.05 : step ? sign * .17 : sign * -.08;
     x.save(); x.translate(shoulderX, 140 + bob); x.rotate(angle);
-    if (asset(body('arm'))) draw(body('arm'), 0, 0);
-    else {
-      // Keep the procedural sleeve while the optional arm texture is unavailable.
-      x.fillStyle = '#2a1d2e'; x.fillRect(-12, 0, 24, 46);
-      x.fillStyle = L.outfit.main; x.fillRect(-9, 2, 18, 42);
+    if (!heldOnly) {
+      if (asset(body('arm'))) draw(body('arm'), 0, 0);
+      else {
+        // Keep the procedural sleeve while the optional arm texture is unavailable.
+        x.fillStyle = '#2a1d2e'; x.fillRect(-12, 0, 24, 46);
+        x.fillStyle = L.outfit.main; x.fillRect(-9, 2, 18, 42);
+      }
+      draw(body('hand'), 0, 43);
+      if (L.glovesTier >= 0) draw(`gear/gloves/${tiers[L.glovesTier]}`, 0, 43);
     }
-    draw(body('hand'), 0, 43);
-    if (L.glovesTier >= 0) draw(`gear/gloves/${tiers[L.glovesTier]}`, 0, 43);
-    if (front && L.weapon) {
+    if (heldOnly && front && L.weapon) {
       const weaponAngle = L.weapon.type === 'fist' ? -Math.PI / 2 : attack ? 0 : -Math.PI / 2;
       draw(`gear/weapon/${L.weapon.type}_${tiers[L.weapon.tier]}`, 0, 52, weaponAngle);
     }
@@ -55,10 +58,11 @@ export function cutoutAvatar(L, dir, frame) {
   draw(body('torso'), ...neck);
   if (L.armorTier >= 0) draw(`gear/armor/${tiers[L.armorTier]}_${view}`, ...neck);
   if (cape && back) draw(cape, ...neck);
+  limb(1, true);
   draw(body('head'), ...neck);
   draw(hair, ...neck);
   if (L.helm) draw(`gear/helm/${L.helm.style}_${tiers[L.helm.tier]}_${view}`, ...neck);
-  limb(1, true);
+  limb(1, true, true);
   cache.set(key, c);
   return c;
 }
