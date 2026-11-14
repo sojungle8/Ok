@@ -26,28 +26,33 @@ export function cutoutAvatar(L, dir, frame) {
   const bob = step ? -2 : 0;
   const cape = L.cape ? `gear/cape/${L.armorTier === 4 ? 'red' : 'purple'}_${view}` : null;
   const neck = [96, 130 + bob];
+  const headJoint = [96, 133 + bob];
   const limb = (sign, front, heldOnly = false) => {
     // Attach inside the tapered shoulder silhouette, not at the torso's widest hem.
     const shoulderX = side ? (front ? 100 : 87) : 96 + sign * 23;
+    const sleeveOffset = side ? -7 : 0;
     const angle = attack && front ? -1.05 : step ? sign * .17 : sign * -.08;
-    x.save(); x.translate(shoulderX, 140 + bob); x.rotate(angle);
+    x.save(); x.translate(shoulderX, 145 + bob); x.rotate(angle);
     if (!heldOnly) {
-      if (asset(body('arm'))) draw(body('arm'), 0, 0);
+      if (asset(body('arm'))) draw(body('arm'), 0, sleeveOffset);
       else {
         // Keep the procedural sleeve while the optional arm texture is unavailable.
         x.fillStyle = '#2a1d2e'; x.fillRect(-12, 0, 24, 46);
         x.fillStyle = L.outfit.main; x.fillRect(-9, 2, 18, 42);
       }
-      draw(body('hand'), 0, 43);
-      if (L.glovesTier >= 0) draw(`gear/gloves/${tiers[L.glovesTier]}`, 0, 43);
+      draw(body('hand'), 0, 43 + sleeveOffset);
+      if (L.glovesTier >= 0) draw(`gear/gloves/${tiers[L.glovesTier]}`, 0, 43 + sleeveOffset);
     }
     if (heldOnly && front && L.weapon) {
       const weaponAngle = L.weapon.type === 'fist' ? -Math.PI / 2 : attack ? 0 : -Math.PI / 2;
-      draw(`gear/weapon/${L.weapon.type}_${tiers[L.weapon.tier]}`, 0, 52, weaponAngle);
+      draw(`gear/weapon/${L.weapon.type}_${tiers[L.weapon.tier]}`, 0, 52 + sleeveOffset, weaponAngle);
     }
     x.restore();
   };
   if (cape && !back) draw(cape, ...neck);
+  // Long hair sits behind the shoulders and chest. Only its crown/fringe
+  // is painted over the face; rear views retain the full hair silhouette.
+  if (!back) draw(hair, ...headJoint);
   limb(-1, false);
   for (const sign of [-1, 1]) {
     x.save(); x.translate(96 + sign * (side ? 9 : 16), 187 + bob); x.rotate(step ? sign * .16 : 0);
@@ -55,13 +60,18 @@ export function cutoutAvatar(L, dir, frame) {
     if (L.bootsTier >= 0) draw(`gear/boots/${tiers[L.bootsTier]}`, 0, 34);
     x.restore();
   }
+  if (!side) limb(1, true);
   draw(body('torso'), ...neck);
   if (L.armorTier >= 0) draw(`gear/armor/${tiers[L.armorTier]}_${view}`, ...neck);
+  if (side) limb(1, true);
   if (cape && back) draw(cape, ...neck);
-  limb(1, true);
-  draw(body('head'), ...neck);
-  draw(hair, ...neck);
-  if (L.helm) draw(`gear/helm/${L.helm.style}_${tiers[L.helm.tier]}_${view}`, ...neck);
+  draw(body('head'), ...headJoint);
+  if (back) draw(hair, ...headJoint);
+  else {
+    x.save(); x.beginPath(); x.rect(0, 0, c.width, headJoint[1] - 8); x.clip();
+    draw(hair, ...headJoint); x.restore();
+  }
+  if (L.helm) draw(`gear/helm/${L.helm.style}_${tiers[L.helm.tier]}_${view}`, ...headJoint);
   limb(1, true, true);
   cache.set(key, c);
   return c;
