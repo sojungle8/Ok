@@ -16,7 +16,16 @@ import { audioOpt, saveAudioOpt, initAudio, sfx, playSong, audioLevel, currentSo
 const PX_CHAR = 36, PX_MON = 26, PX_BOSS = 52;
 import { COMPANIONS, COMPANION_IDS, ROLE_NAME, PARTY_MAX, ensureParty, unlocked, hire, toggleActive, allyStats } from './party.js';
 const TIER = ['common', 'good', 'rare', 'epic', 'legend'];
-const itemIcon = (id) => asset('icon/' + id) || iconCanvas(ITEMS[id].icon, ITEMS[id].color);
+const cardIcons = {};
+function cardIcon(id) {
+  if (cardIcons[id]) return cardIcons[id];
+  const fr = asset('icon/card_frame'), mon = asset('monster/' + ITEMS[id].mon);
+  if (!fr || !mon) return null;
+  const c = document.createElement('canvas'); c.width = c.height = 96; const x = c.getContext('2d');
+  x.imageSmoothingQuality = 'high'; x.drawImage(fr, 0, 0, 96, 96); x.drawImage(mon, 18, 16, 60, 60);
+  return (cardIcons[id] = c);
+}
+const itemIcon = (id) => asset('icon/' + id) || (ITEMS[id].kind === 'card' && cardIcon(id)) || iconCanvas(ITEMS[id].icon, ITEMS[id].color);
 const gearIconHD = (it) => asset('icon/' + (it.slot === 'weapon' ? `weapon_${C.weapon}_${it.rarity}` : `${it.slot}_${it.rarity}`)) || gearIcon(it, C.weapon, rarityIdx);
 import { PAL, CROWN, BOBBER, BANG, HEART, COIN, ORB, makeSprite, drawMap, monsterSprite } from './sprites.js';
 import { avatar, lookOf, npcLook, AW, AH } from './avatar.js';
@@ -81,8 +90,7 @@ let anim = 0, regenT = 0, saveT = 0, shake = 0, freeze = 0, flash = 0, combo = 0
 let allies = [], atkOverride = 0, partyT = 0;
 let trial = null, metaT = 0;
 // 人物畫風：hd＝精緻 Q 版立繪（預設）、px＝原生像素動畫
-let charStyle = 'hd';
-try { charStyle = localStorage.getItem('glimmer-style') || 'hd'; } catch { /* 忽略 */ }
+const charStyle = 'hd';
 let soulPower = 0, cutinT = 0, pendingUlt = null, catT = 0, warns = [], tintC = '#fff', tintT = 0;
 const soulPos = { x: 0, y: 0 };
 const fmt = (n) => Math.round(n).toLocaleString('en-US');
@@ -534,8 +542,7 @@ function renderSouls() {
     const card = document.createElement('div');
     card.className = `soulcard${star ? '' : ' locked'}${P.soul === id ? ' on' : ''}`;
     card.style.setProperty('--sc', S.color);
-    const art = soulBig(id, 2);
-    card.append(art);
+    card.append(soulIcon(id, 'sart'));
     card.insertAdjacentHTML('beforeend', `<div class="sinfo"><b>${star ? S.name : '？？？'}</b> <span class="stype">${S.type}</span> <span class="stars">${'★'.repeat(star)}${'☆'.repeat(5 - star)}</span><p>被動：${S.passive}</p><p>大招：${S.ult}</p>${star ? '' : `<p class="muted">${S.story ? '主線第 1 章取得' : '星痕召喚取得'}</p>`}</div>`);
     if (star) {
       const b = document.createElement('button'); b.type = 'button'; b.className = P.soul === id ? 'ghostbtn' : 'startbtn'; b.textContent = P.soul === id ? '使用中' : '裝上';
@@ -1104,6 +1111,10 @@ function castIdx(i) {
 }
 
 // ---------- 魂像大招 ----------
+function soulIcon(id, cls) {
+  const art = asset('soul_art/' + id);
+  return art ? Object.assign(art.cloneNode(), { className: cls }) : soulBig(id, 2);
+}
 function showCutin(id, label) {
   sfx('cutin');
   const S = SOULS[id];
@@ -1771,7 +1782,7 @@ function updateSkillUi() {
   if (P.soul) {
     sb.style.setProperty('--fill', `${soulPower}%`); sb.style.setProperty('--sc', SOULS[P.soul].color);
     sb.classList.toggle('ready', soulPower >= 100);
-    if (sb.dataset.id !== P.soul) { sb.dataset.id = P.soul; sb.querySelector('i').replaceChildren(soulBig(P.soul, 2)); }
+    if (sb.dataset.id !== P.soul) { sb.dataset.id = P.soul; sb.querySelector('i').replaceChildren(soulIcon(P.soul, 'sbart')); }
   }
   const db = $('dodgeBtn');
   db.style.setProperty('--p', `${(me.dodgeT / 3) * 360}deg`); db.classList.toggle('ready', me.dodgeT <= 0);
@@ -1819,15 +1830,20 @@ function render() {
     } else if (d.kind === 'loot') {
       const it = ITEMS[d.val.id];
       if (it.kind === 'card') { ctx.globalAlpha = 0.4 + Math.sin(anim * 12) * 0.15; ctx.fillStyle = '#ffb03b'; ctx.fillRect(x - 3, y - 48, 6, 48); ctx.globalAlpha = 1; }
-      ctx.imageSmoothingEnabled = !!asset('icon/' + d.val.id); ctx.drawImage(itemIcon(d.val.id), x - 5, y - 7, 10, 10); ctx.imageSmoothingEnabled = false;
-    } else ctx.drawImage(coinS, x - 3, y - 3);
+      ctx.imageSmoothingEnabled = true; ctx.drawImage(itemIcon(d.val.id), x - 5, y - 7, 10, 10); ctx.imageSmoothingEnabled = false;
+    } else {
+      const sq = Math.abs(Math.cos(anim * 6 + d.x)) * 0.7 + 0.3;
+      ctx.fillStyle = '#b8781c'; ctx.beginPath(); ctx.ellipse(x, y + 0.5, 3.4 * sq, 3.4, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = '#ffd166'; ctx.beginPath(); ctx.ellipse(x, y, 3 * sq, 3, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = '#fff6d0'; ctx.beginPath(); ctx.ellipse(x - sq, y - 1, 1 * sq, 1, 0, 0, 7); ctx.fill();
+    }
   }
   const ents = [
     ...npcs.map((n) => ({ y: n.y, f: () => drawNpc(n, n.x * TS, n.y * TS - (Math.floor(anim * 1.6 + n.seed) % 2)) })),
     ...alive().map((m) => ({ y: m.py, f: () => drawMon(m) })),
     { y: me.py + 0.01, f: drawMe },
     ...allies.map((a) => ({ y: a.py + 0.005, f: () => drawAlly(a) })),
-    ...(P.soul && started ? [{ y: (soulPos.y + 14 - 8) / TS + 0.02, f: () => { ctx.globalAlpha = 0.9; const sh = asset('soul/' + P.soul); if (sh) { ctx.imageSmoothingEnabled = true; ctx.drawImage(sh, soulPos.x - 14, soulPos.y - 26 + Math.sin(anim * 3), 28, 28); ctx.imageSmoothingEnabled = false; } else ctx.drawImage(soulSprite(P.soul, Math.floor(anim * 2) % 2), Math.round(soulPos.x - 12), Math.round(soulPos.y - 22)); ctx.globalAlpha = 1; } }] : []),
+    ...(P.soul && started ? [{ y: (soulPos.y + 14 - 8) / TS + 0.02, f: () => { ctx.globalAlpha = 0.9; const sh = asset('soul_art/' + P.soul); if (sh) { ctx.imageSmoothingEnabled = true; ctx.drawImage(sh, soulPos.x - 14, soulPos.y - 26 + Math.sin(anim * 3), 28, 28); ctx.imageSmoothingEnabled = false; } else ctx.drawImage(soulSprite(P.soul, Math.floor(anim * 2) % 2), Math.round(soulPos.x - 12), Math.round(soulPos.y - 22)); ctx.globalAlpha = 1; } }] : []),
   ].sort((a, b) => a.y - b.y);
   ents.forEach((e) => e.f());
   for (const p of projs) drawProj(p);
@@ -1836,12 +1852,13 @@ function render() {
     const bx = fishing.tx * TS + 6, by = fishing.ty * TS + 6 + (fishing.state === 'bite' ? Math.round(Math.sin(anim * 30)) : Math.round(Math.sin(anim * 3)));
     ctx.strokeStyle = 'rgba(255,248,231,.7)'; ctx.lineWidth = 0.5;
     ctx.beginPath(); ctx.moveTo(Math.round(cx(me)) + 4, Math.round(me.py * TS) - 4); ctx.lineTo(bx + 2, by); ctx.stroke();
-    ctx.drawImage(bobberS, bx, by);
-    if (fishing.state === 'bite') ctx.drawImage(bangS, Math.round(me.px * TS) + 6, Math.round(me.py * TS) - 26);
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(bx + 2, by + 2, 2.4, 0, 7); ctx.fill();
+    ctx.fillStyle = '#e8506a'; ctx.beginPath(); ctx.arc(bx + 2, by + 2, 2.4, Math.PI, 0); ctx.fill();
+    if (fishing.state === 'bite') { const ex = me.px * TS + 9, ey = me.py * TS - 22; ctx.fillStyle = '#ffd166'; ctx.beginPath(); ctx.arc(ex, ey, 5, 0, 7); ctx.fill(); ctx.fillStyle = '#2a1d2e'; ctx.fillRect(ex - 0.8, ey - 3.2, 1.6, 4); ctx.fillRect(ex - 0.8, ey + 1.6, 1.6, 1.4); }
   }
   for (const p of parts) {
     if (p.t < 0) continue;
-    if (p.heart) ctx.drawImage(heartS, Math.round(p.x), Math.round(p.y));
+    if (p.heart) { ctx.fillStyle = '#ff6b8a'; ctx.beginPath(); ctx.arc(p.x + 1.5, p.y + 1.5, 1.6, 0, 7); ctx.arc(p.x + 4.5, p.y + 1.5, 1.6, 0, 7); ctx.fill(); ctx.beginPath(); ctx.moveTo(p.x, p.y + 2); ctx.lineTo(p.x + 3, p.y + 5.5); ctx.lineTo(p.x + 6, p.y + 2); ctx.fill(); }
     else { ctx.globalAlpha = Math.min(1, 1.4 - p.t / (p.life ?? 0.6)); ctx.fillStyle = p.c; const s = p.size ?? 2; ctx.fillRect(Math.round(p.x), Math.round(p.y), s, s); }
   }
   ctx.globalAlpha = 1;
@@ -2048,7 +2065,7 @@ function drawMe() {
 }
 function drawAlly(a) {
   const x = Math.round(a.px * TS), y = Math.round(a.py * TS);
-  if (a.down > 0) { ctx.globalAlpha = 0.45; ctx.save(); ctx.translate(x + 8, y + 12); ctx.rotate(Math.PI / 2); ctx.drawImage(avatar(a.c.look, 'down', 0), -12, -16, AW, AH); ctx.restore(); ctx.globalAlpha = 1; return; }
+  if (a.down > 0) { const im = asset('npc/ally_' + a.id); ctx.globalAlpha = 0.5; ctx.save(); ctx.translate(x + 8, y + 14); ctx.rotate(Math.PI / 2); if (im) { const t = trimmed(im), h = 34, w = (h * t.width) / t.height; ctx.imageSmoothingEnabled = true; ctx.drawImage(hdScaled(im, h), -h, -w / 2, h, w); ctx.imageSmoothingEnabled = false; } else ctx.drawImage(avatar(a.c.look, 'down', 0), -12, -16, AW, AH); ctx.restore(); ctx.globalAlpha = 1; return; }
   if (a.hurtT > 0 && Math.floor(a.hurtT * 20) % 2) { shadow(x, y); return; }
   const frame = animFrame(a, a.atkDur || 0.18);
   const hd = asset('npc/ally_' + a.id), pxa = asset('px/ally/' + a.id);
@@ -2316,7 +2333,7 @@ function drawFxInner(f, k) {
       break;
     }
     case 'ghost': {
-      ctx.globalAlpha = 0.45 * (1 - k); { const sh = pxHero(myLook); if (sh) { drawPxHero(sh, { px: f.x, py: f.y, face: f.face }); break; } const g0 = heroImg(myLook, f.face) || avatar(myLook, f.face, 1); const p = g0.width > AW ? pixelize(g0, PX_CHAR) : g0; ctx.drawImage(p, Math.round(f.x * TS) + 8 - Math.round(p.width / 2), Math.round(f.y * TS) + 17 - p.height); }
+      ctx.globalAlpha = 0.45 * (1 - k); { const hi = heroImg(myLook, f.face); if (hi) { drawHD(hi, { px: f.x, py: f.y, face: f.face }, 40, f.face === 'left'); break; } const g0 = heroImg(myLook, f.face) || avatar(myLook, f.face, 1); const p = g0.width > AW ? pixelize(g0, PX_CHAR) : g0; ctx.drawImage(p, Math.round(f.x * TS) + 8 - Math.round(p.width / 2), Math.round(f.y * TS) + 17 - p.height); }
       break;
     }
     case 'heal': {
@@ -2406,9 +2423,7 @@ const SOUND_MODES = [['開', 0.55, 0.8], ['只有音效', 0, 0.8], ['靜音', 0,
 function syncSoundBtn() { const i = SOUND_MODES.findIndex(([, b, f]) => (audioOpt.bgm > 0) === (b > 0) && (audioOpt.sfx > 0) === (f > 0)); $('soundBtn').textContent = `♪ ${SOUND_MODES[Math.max(0, i)][0]}`; return Math.max(0, i); }
 $('soundBtn').addEventListener('click', () => { const [, b, f] = SOUND_MODES[(syncSoundBtn() + 1) % SOUND_MODES.length]; audioOpt.bgm = b; audioOpt.sfx = f; saveAudioOpt(); syncSoundBtn(); });
 syncSoundBtn();
-function syncStyleBtn() { $('styleBtn').textContent = `人物畫風：${charStyle === 'hd' ? '精緻 Q 版' : '像素'}（點一下切換）`; }
-$('styleBtn').addEventListener('click', () => { charStyle = charStyle === 'hd' ? 'px' : 'hd'; try { localStorage.setItem('glimmer-style', charStyle); } catch { /* 忽略 */ } syncStyleBtn(); render(); });
-syncStyleBtn();
+
 function titleScreen() {
   $('startBtn').hidden = !hasSave;
   if (hasSave) $('startBtn').textContent = `繼續冒險（${CLASSES[P.cls].name} Lv ${P.lv}）`;
