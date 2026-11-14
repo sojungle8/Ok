@@ -276,9 +276,9 @@ function questText() {
 function previewCanvas(L, size = 4, dir = 'down') {
   const c = document.createElement('canvas'); c.width = AW * size; c.height = AH * size;
   const x = c.getContext('2d'); const h = heroImg(L, dir); const src = h || avatar(L, dir, 0);
-  x.imageSmoothingEnabled = false;
-  if (h || src.width > AW) { const p = pixelize(src, PX_CHAR); const k = Math.min((AW * size) / p.width, (AH * size) / p.height); x.drawImage(p, (AW * size - p.width * k) / 2, AH * size - p.height * k, p.width * k, p.height * k); }
-  else x.drawImage(src, 0, 0, AW * size, AH * size);
+  // 介面特寫（裝備、隊伍、標題）放精緻原圖；大地圖上才用像素小人
+  if (h || src.width > AW) { x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high'; const k = Math.min((AW * size) / src.width, (AH * size) / src.height); x.drawImage(src, (AW * size - src.width * k) / 2, AH * size - src.height * k, src.width * k, src.height * k); c.classList.add('hdprev'); }
+  else { x.imageSmoothingEnabled = false; x.drawImage(src, 0, 0, AW * size, AH * size); }
   return c;
 }
 function statLine() {
@@ -307,7 +307,7 @@ function cell(canvas, label, color, sel, extra = '') {
 }
 function renderBag() {
   myLook = lookOf(P, CLASSES, rarityIdx);
-  $('gearDoll').replaceChildren(previewCanvas(myLook, 3, 'down'), previewCanvas(myLook, 3, 'right'));
+  $('gearDoll').replaceChildren(previewCanvas(myLook, 6, 'down'), previewCanvas(myLook, 6, 'right'));
   $('bagCount').textContent = `裝備 ${P.bag.gear.length}/${BAG_SIZE}`;
   $('statLine').textContent = statLine();
   $('eqSlots').replaceChildren(...SLOTS.map((sl) => {
@@ -953,6 +953,23 @@ function showCutin(id, label) {
   $('cutName').innerHTML = `<small>${label || S.type}</small>${S.name}`;
   $('cutSfx').innerHTML = [...S.sfx].map((ch, i) => `<span style="animation-delay:${i * 0.07}s">${ch}</span>`).join('');
   el.hidden = false; el.classList.remove('go'); void el.offsetWidth; el.classList.add('go');
+}
+// 魔王登場特寫：第一次走進魔王區時，放精緻原圖＋名字
+let bossSeen = new Set();
+function bossIntro() {
+  if (cutinT > 0 || dialog || !inBoss(me.x, me.y)) return;
+  const b = mons.find((m) => m.d.boss && m.dead <= 0);
+  if (!b || bossSeen.has(b.type)) return;
+  bossSeen.add(b.type);
+  const art = asset('monster/' + b.type);
+  if (!art) return;
+  const el = $('cutin');
+  el.style.setProperty('--sc', '#7a1f2b'); el.style.setProperty('--sc2', '#ff5a5a');
+  $('cutinArt').replaceChildren(Object.assign(art.cloneNode(), { className: 'hdart' }));
+  $('cutName').innerHTML = `<small>Lv ${b.d.lv}　魔王</small>${b.d.name}`;
+  $('cutSfx').innerHTML = [...'登場'].map((ch, i) => `<span style="animation-delay:${i * 0.07}s">${ch}</span>`).join('');
+  el.hidden = false; el.classList.remove('go'); void el.offsetWidth; el.classList.add('go');
+  cutinT = 1.6; pendingUlt = null;
 }
 function castUlt() {
   if (!started || dialog || !P.soul || soulPower < 100 || cutinT > 0) return;
@@ -1869,6 +1886,7 @@ function frame(t) {
   }
   if (freeze > 0) { freeze -= dt; dt *= 0.15; }
   update(dt);
+  if (started) bossIntro();
   updateSkillUi();
   render();
 }

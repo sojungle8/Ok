@@ -261,3 +261,6 @@ button{font-family:inherit;color:inherit}
 .pcard .startbtn,.pcard .ghostbtn{font-size:.7em;padding:6px 10px}
 
 .cart canvas,.doll canvas,.title-art canvas,.pcard canvas{image-rendering:pixelated}
+.hdprev{image-rendering:auto!important}
+.eqrow .doll canvas.hdprev{width:96px;height:128px}
+.pcard canvas.hdprev{width:60px;height:80px}
