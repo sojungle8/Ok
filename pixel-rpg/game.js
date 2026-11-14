@@ -80,6 +80,9 @@ let dialog = null, fishing = null, started = false, held = null, aHeld = false, 
 let anim = 0, regenT = 0, saveT = 0, shake = 0, freeze = 0, flash = 0, combo = 0, comboT = 0, auraT = 0;
 let allies = [], atkOverride = 0, partyT = 0;
 let trial = null, metaT = 0;
+// 人物畫風：hd＝精緻 Q 版立繪（預設）、px＝原生像素動畫
+let charStyle = 'hd';
+try { charStyle = localStorage.getItem('glimmer-style') || 'hd'; } catch { /* 忽略 */ }
 let soulPower = 0, cutinT = 0, pendingUlt = null, catT = 0, warns = [], tintC = '#fff', tintT = 0;
 const soulPos = { x: 0, y: 0 };
 const fmt = (n) => Math.round(n).toLocaleString('en-US');
@@ -1727,8 +1730,9 @@ function render() {
 function shadow(x, y, w = 12) { ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.fillRect(x + 8 - w / 2, y + 14, w, 2); ctx.fillRect(x + 9 - w / 2, y + 16, w - 2, 1); }
 function drawNpc(n, x, y) {
   const nid = n.id === 'guide' ? 'guide' + n.ch : n.id, pxn = asset('px/npc/' + nid);
-  if (pxn) { drawPxHero(pxn, { px: x / TS, py: y / TS, face: n.face }, true); return; }
   const hd = asset('npc/' + nid);
+  if (hd && charStyle === 'hd') { drawHD(hd, { px: x / TS, py: y / TS, face: n.face, i: n.seed || 0 }, 40, n.face === 'left'); return; }
+  if (pxn) { drawPxHero(pxn, { px: x / TS, py: y / TS, face: n.face }, true); return; }
   if (!hd) { drawPerson(avatar(n.L, n.face, 0), x, y); return; }
   shadow(x, y);
   const p = pixelize(hd, PX_CHAR);
@@ -1793,9 +1797,42 @@ function drawPxHero(sheet, o, still) {
   ctx.drawImage(sheet, col * cs, row * cs, cs, cs, -24, -feetOf(sheet) * k, 48, 48);
   ctx.restore();
 }
+// 精緻 Q 版立繪：依螢幕解析度預先縮好（高品質），畫面上用程式做呼吸、走路擺動、攻擊前傾
+const hdCache = new WeakMap();
+function hdScaled(img, h) {
+  const t = trimmed(img), key = Math.round(h * S);
+  let m = hdCache.get(t); if (!m) hdCache.set(t, (m = new Map()));
+  if (m.has(key)) return m.get(key);
+  let src = t, sw = t.width, sh = t.height;
+  const dh = Math.max(8, key), dw = Math.max(4, Math.round((dh * t.width) / t.height));
+  while (sh / 2 > dh) { const c = document.createElement('canvas'); c.width = Math.round(sw / 2); c.height = Math.round(sh / 2); const x = c.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(src, 0, 0, c.width, c.height); src = c; sw = c.width; sh = c.height; }
+  const c = document.createElement('canvas'); c.width = dw; c.height = dh; const x = c.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(src, 0, 0, dw, dh);
+  m.set(key, c); return c;
+}
+const MON_H = { slime: 22, bat: 24, ghost: 26, crab: 22, golem: 30, imp: 30 };
+function drawHD(img, o, h, flip, extra) {
+  const t = trimmed(img), c = hdScaled(img, h), w = (h * t.width) / t.height;
+  const x = o.px * TS + 8 + (o.kx || 0), y = o.py * TS + 17 + (o.ky || 0);
+  const walk = o.moving ? Math.sin(((o.mt || 0) + (o.step || 0)) * Math.PI) : 0;
+  const dur = o.atkDur || 0.18, ak = o.atkT > 0 ? 1 - o.atkT / dur : -1, atk = ak >= 0 ? Math.sin(ak * Math.PI) : 0;
+  const still = !o.moving && !atk, breathe = still ? Math.sin(anim * 2.4 + (o.i || 0) * 1.7) : 0;
+  const [dx, dy] = DIRS[o.face] || [0, 1];
+  ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.beginPath(); ctx.ellipse(x, y - 1, Math.max(5, w * 0.36), 2.6, 0, 0, 7); ctx.fill();
+  ctx.save();
+  ctx.translate(x + dx * atk * 5, y + dy * atk * 3 - Math.abs(walk) * 1.6 + (extra?.bob || 0));
+  if (flip) ctx.scale(-1, 1);
+  ctx.rotate(walk * 0.05 + atk * (dx ? 0.2 : 0.08));
+  ctx.scale(1 + breathe * 0.012 + atk * 0.05, 1 - breathe * 0.014 - atk * 0.03);
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(c, -w / 2, -h, w, h);
+  if (extra?.flash) { ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.6; ctx.drawImage(c, -w / 2, -h, w, h); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; }
+  ctx.restore(); ctx.imageSmoothingEnabled = false;
+  return { w, h };
+}
 function drawMe() {
   const x = Math.round(me.px * TS), y = Math.round(me.py * TS);
   const frame = animFrame(me, me.atkDur || 0.18);
+  if (charStyle === 'hd') { const im = heroImg(myLook, me.face); if (im) { if (me.hurtT > 0 && Math.floor(me.hurtT * 20) % 2) { shadow(x, y); return; } if (me.inv > 0) ctx.globalAlpha = 0.6; drawHD(im, me, 40, me.face === 'left'); ctx.globalAlpha = 1; return; } }
   const sheet = pxHero(myLook);
   if (sheet) { if (me.hurtT > 0 && Math.floor(me.hurtT * 20) % 2) { shadow(x, y); return; } if (me.inv > 0) ctx.globalAlpha = 0.6; drawPxHero(sheet, me); ctx.globalAlpha = 1; return; }
   const hero = heroImg(myLook, me.face, me.atkT > 0);
@@ -1814,7 +1851,8 @@ function drawAlly(a) {
   if (a.hurtT > 0 && Math.floor(a.hurtT * 20) % 2) { shadow(x, y); return; }
   const frame = animFrame(a, a.atkDur || 0.18);
   const hd = asset('npc/ally_' + a.id), pxa = asset('px/ally/' + a.id);
-  if (pxa) drawPxHero(pxa, a);
+  if (hd && charStyle === 'hd') drawHD(hd, a, 40, a.face === 'left');
+  else if (pxa) drawPxHero(pxa, a);
   else if (hd) { drawIllus(hd, a); }
   else if (false) {
     const flip = a.face === 'left' ? -1 : 1;
@@ -1833,7 +1871,20 @@ function drawAlly(a) {
 }
 function drawMon(m) {
   const x = Math.round(m.px * TS + m.kx), y = Math.round(m.py * TS + m.ky);
-  if (m.d.decoy) { if (!m.real) shadow(x, y); const pxn = asset('px/npc/' + m.npcId); if (pxn) { drawPxHero(pxn, { px: m.px + m.kx / TS, py: m.py + m.ky / TS, face: 'down' }, true); return; } const im = asset('npc/' + m.npcId); if (im) { const p = pixelize(im, PX_CHAR); ctx.drawImage(p, x + 8 - Math.round(p.width / 2), y + 17 - p.height); } else ctx.drawImage(avatar(m.look, 'down', 0), x - 4, y - 17, AW, AH); return; }
+  if (m.d.decoy) { const hdn = asset('npc/' + m.npcId); if (hdn && charStyle === 'hd') { drawHD(hdn, { px: m.px, py: m.py, kx: m.kx, ky: m.ky, face: 'down', i: 3 }, 40, false); return; } if (!m.real) shadow(x, y); const pxn = asset('px/npc/' + m.npcId); if (pxn) { drawPxHero(pxn, { px: m.px + m.kx / TS, py: m.py + m.ky / TS, face: 'down' }, true); return; } const im = asset('npc/' + m.npcId); if (im) { const p = pixelize(im, PX_CHAR); ctx.drawImage(p, x + 8 - Math.round(p.width / 2), y + 17 - p.height); } else ctx.drawImage(avatar(m.look, 'down', 0), x - 4, y - 17, AW, AH); return; }
+  const hdm = charStyle === 'hd' && asset('monster/' + (m.d.tpl === 'mirror' ? 'mirror_obj' : m.type));
+  if (hdm) {
+    const big = m.d.boss, frozen = m.frozen > 0;
+    const hh = (big ? 58 : MON_H[m.d.tpl] || 26) * (m.d.elite === 'giant' ? 1.3 : 1) * (m.spawnT > 0 ? Math.max(0.2, 1 - m.spawnT * 2) : 1);
+    if (m.d.elite) { ctx.globalAlpha = 0.35 + Math.sin(anim * 6) * 0.15; ctx.fillStyle = ELITE_AFFIX[m.d.elite].color; ctx.beginPath(); ctx.ellipse(x + 8, y + 15, hh * 0.55, 5, 0, 0, 7); ctx.fill(); ctx.globalAlpha = 1; }
+    const swing = m.swingAt != null && anim - m.swingAt < 0.3, faceL = m.faceL ?? me.px < m.px;
+    const o = { px: m.px, py: m.py, kx: m.kx, ky: m.ky, face: faceL ? 'left' : 'right', atkT: swing ? 0.3 - (anim - m.swingAt) : 0, atkDur: 0.3, i: m.anim };
+    const { w } = drawHD(hdm, o, hh, faceL, { bob: frozen ? 0 : Math.sin(m.anim * 5) * (big ? 1.2 : 0.8), flash: m.flash > 0 });
+    if (frozen) { ctx.fillStyle = 'rgba(150,220,255,.4)'; ctx.fillRect(x + 8 - w / 2, y + 17 - hh, w, hh); }
+    if (m.shield) { ctx.strokeStyle = 'rgba(189,241,255,.9)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(x + 8, y + 17 - hh / 2, hh * 0.65, 0, 7); ctx.stroke(); }
+    if (m.hp < m.d.hp && !big) { ctx.fillStyle = '#2a1d2e'; ctx.fillRect(x + 1, y + 18, 14, 4); ctx.fillStyle = '#e8506a'; ctx.fillRect(x + 2, y + 19, Math.max(1, Math.round((m.hp / m.d.hp) * 12)), 2); }
+    return;
+  }
   const pxm = m.d.tpl !== 'mirror' && asset('px/monster/' + m.type);
   if (pxm) {
     const big = m.d.boss, cs = pxm.height, dw = big ? 64 : 32, frozen = m.frozen > 0;
@@ -2146,6 +2197,9 @@ $('classGo').addEventListener('click', () => {
   save(); start();
 });
 $('startBtn').addEventListener('click', start);
+function syncStyleBtn() { $('styleBtn').textContent = `人物畫風：${charStyle === 'hd' ? '精緻 Q 版' : '像素'}（點一下切換）`; }
+$('styleBtn').addEventListener('click', () => { charStyle = charStyle === 'hd' ? 'px' : 'hd'; try { localStorage.setItem('glimmer-style', charStyle); } catch { /* 忽略 */ } syncStyleBtn(); render(); });
+syncStyleBtn();
 function titleScreen() {
   $('startBtn').hidden = !hasSave;
   if (hasSave) $('startBtn').textContent = `繼續冒險（${CLASSES[P.cls].name} Lv ${P.lv}）`;
