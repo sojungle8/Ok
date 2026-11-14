@@ -1,0 +1,1283 @@
+{
+  "mode": "built-in image_gen",
+  "assets": [
+    {
+      "id": "icon/armor_common",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: chest armor, simple cloth or plain wood and iron, brown beige. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-f8d414f6-bb91-4455-ad4e-e4fce16bc186.png",
+      "sha256": "bb3320fb3778983835939d450475ca82b08d134f5f93b4213b18378bf8bb2c2e"
+    },
+    {
+      "id": "icon/armor_epic",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: chest armor, purple enchanted metal with wing ornaments and amethyst. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-68f1fa3f-0d1e-4f04-af84-324ce879a613.png",
+      "sha256": "a554ab38ffab84d1d5a3a331fe3db72b1215585436c03ed8899f62cef57f5973"
+    },
+    {
+      "id": "icon/armor_good",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: chest armor, green leather details, polished iron. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-b8e2c776-bf66-4999-8778-37bbaa1d1e08.png",
+      "sha256": "f474ac8f28b2e3740b58140feb55240572242f0a80011459982a77b107cef1dd"
+    },
+    {
+      "id": "icon/armor_legend",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: chest armor, gold with red gemstones and subtle magical glow. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-52754f7c-4478-4c47-a356-0dbe2a81f34c.png",
+      "sha256": "a84f8b544e9b14af0e5c898857b5b18977474a6daa4e4fcfed17582876d2eca5"
+    },
+    {
+      "id": "icon/armor_rare",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: chest armor, blue steel with silver edges. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-674fe8ee-d3f2-425c-a497-bbbfb1cf6b39.png",
+      "sha256": "54814f9e086f7b22f7159ddebcae23a93ee6c0e864bdf8169cf642aa7fdb1049"
+    },
+    {
+      "id": "icon/boots_common",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: pair of boots, simple cloth or plain wood and iron, brown beige. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-f9f00d3d-3a12-4e37-b0f6-bfb1f71ceaac.png",
+      "sha256": "94e9d43d4f5b3ac98eaa5fafabf19dc1c1306a4756f0325a821a180737459ed0"
+    },
+    {
+      "id": "icon/boots_epic",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: pair of boots, purple enchanted metal with wing ornaments and amethyst. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-c0bcb8ca-62f8-4854-a62b-47f0458c8e80.png",
+      "sha256": "07ac4e991099c8982b904a0e9fd11297ea566161ec5ec02c2360349f337f5f9a"
+    },
+    {
+      "id": "icon/boots_good",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: pair of boots, green leather details, polished iron. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-df169bc7-e2e1-4fb9-a3d2-1558956915ba.png",
+      "sha256": "e8b5d4b3ae9d26a8b161186e51fda270102704b85129e59762f00cc5511b34ee"
+    },
+    {
+      "id": "icon/boots_legend",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: pair of boots, gold with red gemstones and subtle magical glow. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-d918b830-8fce-4e08-8dc8-b18225bb286d.png",
+      "sha256": "5bc6ba5e1df9a3d7b18840d1f0181ab7b906600b4380da3ef2776777cd0c6979"
+    },
+    {
+      "id": "icon/boots_rare",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: pair of boots, blue steel with silver edges. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-7154cc08-5ea4-47fc-9a8d-451f25d444a0.png",
+      "sha256": "289e0dc1f80cee76f6649f180acad282c517e4e9f9a355b6b4aca978d77a4ecb"
+    },
+    {
+      "id": "icon/card_frame",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nBlank ornate golden fantasy collectible card FRAME ONLY, upright rounded rectangle. Interior must be an empty transparent opening, no image, no opaque fill, no letters. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-4e334ac0-9fa5-46bb-ad8c-6cb28fe088ee.png",
+      "sha256": "6c50f2a705e5e7ae9f4832737c49908d8504379ab72cc12c6d9aacb900b8f56c"
+    },
+    {
+      "id": "icon/elixir",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: violet soul elixir bottle with ornate stopper Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-83e0e477-b9be-458b-87b9-a0afebf594c6.png",
+      "sha256": "03f992cd33cd1bba558fc8d9d7170d34eb5fad38483a84fb48dde9fdec152917"
+    },
+    {
+      "id": "icon/feather",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: pale blue teleportation feather Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-8c41c299-34f5-4ecd-9700-17913a563fa7.png",
+      "sha256": "0dad533baff1db46d5918981073d8e3e37cc9a3301d6558acd17e8e316359212"
+    },
+    {
+      "id": "icon/gloves_common",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: pair of gauntlets, simple cloth or plain wood and iron, brown beige. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-565557e6-302d-43f8-aa42-eafdecfd309b.png",
+      "sha256": "70ccdfd83f1ec5cab01506a8a8b2c2c463782045a306db4ee56f950405364cc0"
+    },
+    {
+      "id": "icon/gloves_epic",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: pair of gauntlets, purple enchanted metal with wing ornaments and amethyst. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-b5323e0e-ab8c-49d6-a9dd-90827246a4bb.png",
+      "sha256": "cc57b686c047d1d436dc8ae4dabcd85c49f5935d0c6f58c6f9fa148c096eab36"
+    },
+    {
+      "id": "icon/gloves_good",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: pair of gauntlets, green leather details, polished iron. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-96ac13ae-5107-43c0-bf05-1a0f7a3304fd.png",
+      "sha256": "c0df869a2ac0db0306fc9a9619ff0a5c7f5bfbcc42e4b80a6ffff16dfa1c8a6a"
+    },
+    {
+      "id": "icon/gloves_legend",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: pair of gauntlets, gold with red gemstones and subtle magical glow. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-b858f592-f7f6-4be3-99cd-f551f0ce3dab.png",
+      "sha256": "330f3d87e43df48a64606ed007bfefde6b9dcdf565ee97bc48c7140a96c4a5ad"
+    },
+    {
+      "id": "icon/gloves_rare",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: pair of gauntlets, blue steel with silver edges. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-a372e507-cfea-4e1b-9ba4-3620dc75e3b7.png",
+      "sha256": "7ee723bbe41fc9bc579b06bc5e15994209cc55a0be85ee5ee3beabef93db9182"
+    },
+    {
+      "id": "icon/helm_common",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: helmet, simple cloth or plain wood and iron, brown beige. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-f020cbb3-1c18-46e3-bd0c-c1d667a2d647.png",
+      "sha256": "55cc6564ab1db1628f43dbdb92792c3bb22fd1f9e8fda9a4ec9a3b959b2a8421"
+    },
+    {
+      "id": "icon/helm_epic",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: helmet, purple enchanted metal with wing ornaments and amethyst. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-c56cb7e4-c89f-4dd8-9b10-e5de36dd4f79.png",
+      "sha256": "0f3b13af1e79235090e721183eab6ce0de9e4e99a5c9be36a8c4a1eeeb6f4611"
+    },
+    {
+      "id": "icon/helm_good",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: helmet, green leather details, polished iron. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-3a0fbd34-2e65-47ff-9a0a-6b9c0167a816.png",
+      "sha256": "4038f87094ca2e46186b48c2cf389504a5705d693bcce99ae4951dc2cc6bc1c8"
+    },
+    {
+      "id": "icon/helm_legend",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: helmet, gold with red gemstones and subtle magical glow. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-c96f98e3-61b4-4050-9114-411cb5766bc0.png",
+      "sha256": "1696549f563a89f48c96b538693d84d3afb8eed889909c666ca8a9141756aa52"
+    },
+    {
+      "id": "icon/helm_rare",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: helmet, blue steel with silver edges. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-7bb5b5ea-dbb9-4d79-b0bf-f046a089cfce.png",
+      "sha256": "1d4599e638b33fef94d51627adb3aaae9b14ae57be9c6263222b757c9689fbdf"
+    },
+    {
+      "id": "icon/mat_armor",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory crafting material icon: rusty iron plate Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-c953d8f8-3b4e-4e5b-802c-514e90b777b0.png",
+      "sha256": "e418e6b072a9c51fbb8941b160616d080997b40bd8ceebda35b0e07adbb77753"
+    },
+    {
+      "id": "icon/mat_bat",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory crafting material icon: purple bat wing Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-2240a428-0eca-420a-80a2-4565439a7b32.png",
+      "sha256": "b6bfc395655b69c12f8b2a0ac06c7387bfe58d9a2155e28ba27a52321d96be07"
+    },
+    {
+      "id": "icon/mat_berry",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory crafting material icon: pink berry jelly cube Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-ae0fbdec-b6be-48fa-a217-7d6db397478a.png",
+      "sha256": "8a9111da59d171be0093c9ed39836402c9c352f89221d194f5c8d981fe792863"
+    },
+    {
+      "id": "icon/mat_clock",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory crafting material icon: coiled brass clock spring Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-e2a6259f-fd11-4072-b4e0-1e5947595301.png",
+      "sha256": "00d567de31634fc4b2a9a75c0c1431eb3c193f49bf214f7bcdbd6faac2ef0a11"
+    },
+    {
+      "id": "icon/mat_cog",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory crafting material icon: steel gear part Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-71c0b9a9-8cfb-4825-b982-dc03294ce56a.png",
+      "sha256": "3e90a4012ee56ba7cb60351d087689b61b5ba6f9467b2417c5cc9703d9ae6257"
+    },
+    {
+      "id": "icon/mat_crab",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory crafting material icon: red crab shell Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-b2f25bf6-480a-42a5-b125-288b3e7f7e64.png",
+      "sha256": "dcd41b97623e5c2c5284eab77a3f6024b9c4dfa3307bc21321c0a1dfcec6aa15"
+    },
+    {
+      "id": "icon/mat_cultist",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory crafting material icon: closed black scripture book with abstract symbol, no letters Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-2949ca7b-ff7c-40b7-8d1f-514382fea96d.png",
+      "sha256": "e5687021dadc43eb68db73554f3bae36d27f70ee8450b7aae06061c1292135ba"
+    },
+    {
+      "id": "icon/mat_echo",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory crafting material icon: purple resonant crystal Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-0ecb91c5-969c-41da-b78a-952d60649acb.png",
+      "sha256": "f805d021700261ba638247020cd1bb28d1abd56de2062f76713cea5675a8efab"
+    },
+    {
+      "id": "icon/mat_eclipse",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory crafting material icon: purple eclipsed moon core Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-0046b120-505c-4a7f-bc27-989469a107d1.png",
+      "sha256": "1cdd4a7bae7e289c653f163e5b3333673f5d662ecbe8e6ab14a91cf6fd5f11da"
+    },
+    {
+      "id": "icon/mat_ember",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory crafting material icon: small glowing orange ember Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-b6f2f4e3-3292-484c-a4e5-fd6cdb424b85.png",
+      "sha256": "93dd2dda58514211b1d26116dd6643f62ba944c78f3d60981a4371dae8e813ec"
+    },
+    {
+      "id": "icon/mat_faceless",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory crafting material icon: gold theatrical mask Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-bc442014-3877-4dc6-a431-a103b4bb3e01.png",
+      "sha256": "0a74084ef00a326e2dcd36e6946edd29a277e0b12f9e2b7f83727b20a0b4d3ac"
+    },
+    {
+      "id": "icon/mat_gargoyle",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory crafting material icon: gray stone gargoyle fragment Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-647fa91b-e69c-43e4-838a-b78f0862c8ec.png",
+      "sha256": "74800fb041d734bf0beaff28e18248719859b85518b41c147232a99b9fa9543e"
+    },
+    {
+      "id": "icon/mat_howl",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory crafting material icon: single ivory fang Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-c1287161-be34-4b33-869f-d75ecb5f6402.png",
+      "sha256": "a302804b362b2304ea379f6b9773da9d3054bb50db05a82641a01171b8e02c59"
+    },
+    {
+      "id": "icon/mat_king",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory crafting material icon: broken golden crown fragment Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-c6736163-c7e6-44e1-9ec3-2c56f2597621.png",
+      "sha256": "5deac1e38de8ba82e85b98e11dd0ad3ad5f993d7261c81c1f8d778df25d2fdd1"
+    },
+    {
+      "id": "icon/mat_lantern",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory crafting material icon: coiled lantern wick Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-5d7a6f6d-d2a6-4951-9e04-25989d519aab.png",
+      "sha256": "05d905e57e6cc895b02420d0b35803bfd18fc58fe8f81b661397158ead048b5b"
+    },
+    {
+      "id": "icon/mat_mirror",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory crafting material icon: silver mirror shard Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-6a34d5ac-d93e-4a42-abaf-8acdb1dd853e.png",
+      "sha256": "6949eba5faaf6814294bab26a162b6583977b3abd6c67ee691d075ad8c91262c"
+    },
+    {
+      "id": "icon/mat_pebble",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory crafting material icon: sandstone rubble Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-dcf4cd7e-0334-4d34-a807-66f65a4f9aa6.png",
+      "sha256": "ac35d44cbf8836a1bcae3d3673c97f31a8e8af5759afcccfc593d17f4fc25e56"
+    },
+    {
+      "id": "icon/mat_pirate",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory crafting material icon: tattered teal headscarf Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-5aed8a98-5ca9-46fc-a58c-72212c2b2380.png",
+      "sha256": "26a47d7c5bc3d90b76ef3f6fa59a3ffa9e21764a5fd3dfbc996392c8a6790e3f"
+    },
+    {
+      "id": "icon/mat_shade",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory crafting material icon: dark violet shadow crystal Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-211609c3-4944-406b-99a0-6d47fbc84a5d.png",
+      "sha256": "fe916a61aa2d89d3c33fcae4e9cd8b30c994fc9974fe837179b1e5c11678ed02"
+    },
+    {
+      "id": "icon/mat_slime",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory crafting material icon: blue jelly droplet Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-3209fd3f-777b-42f3-89fe-c7d4ec7d7dbb.png",
+      "sha256": "6d7f9bb4acc0955e32cf0160abafc025e2d5990610b56a928cab86cad6795174"
+    },
+    {
+      "id": "icon/mat_smelter",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory crafting material icon: orange-black furnace slag Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-7d25dd6c-962b-4a1a-b0f4-e16d35d4ef3f.png",
+      "sha256": "67712242038c7840d22574dfbeeddb025850299fb5258b0ca1e514430c0f6d22"
+    },
+    {
+      "id": "icon/mat_spark",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory crafting material icon: yellow electric crystal shard Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-4df6acd8-22db-498e-b3be-53bbe3853166.png",
+      "sha256": "6d9bd0b8698d26dd2beed14edb0efdcb1be78aff7378b66361f6eba64c1a2f13"
+    },
+    {
+      "id": "icon/mat_valde",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory crafting material icon: red-black magical heart gemstone Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-95177766-fe81-49ab-aec6-485b7ddb4313.png",
+      "sha256": "68115b8dd22b959f7a6d34d72f8534ab61dbec4edb470a908b21de14f5a19348"
+    },
+    {
+      "id": "icon/mat_wisp",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory crafting material icon: blue ghostly powder in tiny pouch Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-eba7d51a-b7a4-42d9-86e1-287e80569b8f.png",
+      "sha256": "611ba9b54c08656e617263647378d222d26ab770fb68c5679b649f711f6d7363"
+    },
+    {
+      "id": "icon/orange",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: round orange healing potion bottle Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-c5e51996-91ce-48ff-899b-010fe874c97f.png",
+      "sha256": "89acb7a7905a94db38a5da7017c546dd9acebc3bbfab793e15da14945d5522f4"
+    },
+    {
+      "id": "icon/ore",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: cyan crystalline refining ore Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-a120dc7c-5687-4f3b-b36f-18d5da2f5695.png",
+      "sha256": "4fd52804f656c84f9a08031ce637998584b2d46b4b27cb227d0943295cead04e"
+    },
+    {
+      "id": "icon/ore2",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: golden orange crystalline enhancement ore Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-61551c71-5c6e-44e0-826d-8738b345bd6f.png",
+      "sha256": "820586f7a3e46cd34c09bb4e9f05e36b12ed997d3a91961fafebe2f05b4d7d90"
+    },
+    {
+      "id": "icon/red",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: round red healing potion bottle Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-b30e42d6-a0cd-4892-b96b-dbc7be0e0908.png",
+      "sha256": "b08b7a13bfb4877b2ee804962246b180265290ef36e41f21e695ba4002c70911"
+    },
+    {
+      "id": "icon/ring_common",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: finger ring, simple cloth or plain wood and iron, brown beige. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-aeaaefc7-f6cb-4a5e-9f39-160be03ea5ac.png",
+      "sha256": "6d24089aca0ef44f43a8074dc15f49b6a0ea7de41c2db7f7efbc04b72e8eeb38"
+    },
+    {
+      "id": "icon/ring_epic",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: finger ring, purple enchanted metal with wing ornaments and amethyst. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-eaf83399-32fe-42aa-8ecf-806e7e6c015e.png",
+      "sha256": "5b97d4208d32f098fe07223f9eba129d21112e364b6797c66072260e6f540873"
+    },
+    {
+      "id": "icon/ring_good",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: finger ring, green leather details, polished iron. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-bafbc3b6-432e-40f7-990d-da99c165abcc.png",
+      "sha256": "021d67b8b19d1d9ed151161e52d6d3d2dbe9e4e26f41c1078dda24e637415148"
+    },
+    {
+      "id": "icon/ring_legend",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: finger ring, gold with red gemstones and subtle magical glow. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-fafdafa2-ff1c-4b42-9966-4c8325b59e30.png",
+      "sha256": "bee34fdf7a6227209c8209761ce47569cc9ccb540e8d4bcbf5825e5ee70c52a7"
+    },
+    {
+      "id": "icon/ring_rare",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: finger ring, blue steel with silver edges. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-7c5af280-389c-4fbc-a773-50739217460e.png",
+      "sha256": "d04b5f427da5fd9b05db414d1caec2ac0b5b262b780d988d2534fb03aa462986"
+    },
+    {
+      "id": "icon/scroll",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: rolled parchment return-home scroll with blue seal Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-401729ca-83ac-4f10-b678-e4c27c880ce4.png",
+      "sha256": "1c2c7c32df7f2f9773ec4b1f499eda2045c51507c2a5b0e68109eb62b4e9782a"
+    },
+    {
+      "id": "icon/weapon_bow_common",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: bow, simple cloth or plain wood and iron, brown beige; diagonal presentation, clearly readable at small size. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-95748e66-773f-4bd7-ba8e-087a1fef3036.png",
+      "sha256": "40ac8b469c844984882133583cf32ddffa14f72cab187e880c90aa0f1aab73f8"
+    },
+    {
+      "id": "icon/weapon_bow_epic",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: bow, purple enchanted metal with wing ornaments and amethyst; diagonal presentation, clearly readable at small size. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-ddf01009-b9cb-4b4f-9151-0949d42b072b.png",
+      "sha256": "4e52935c21564514ad399706c3da0af1b63c7a0b880fb5d6ae12ad20ee67ec46"
+    },
+    {
+      "id": "icon/weapon_bow_good",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: bow, green leather details, polished iron; diagonal presentation, clearly readable at small size. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-a7ceb914-988f-4e73-a8cc-53b3535b1b7e.png",
+      "sha256": "82908ad93c82fde9a787c548b028ee9bb3222d0e7da50813fa3c02d4c97013b3"
+    },
+    {
+      "id": "icon/weapon_bow_legend",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: bow, gold with red gemstones and subtle magical glow; diagonal presentation, clearly readable at small size. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-7d5851b5-8ae6-4ef0-8557-255c9db775c3.png",
+      "sha256": "1d317a29639e474673911ca25ef1b63ea868c51da4fcfb123f13cad0007d682b"
+    },
+    {
+      "id": "icon/weapon_bow_rare",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: bow, blue steel with silver edges; diagonal presentation, clearly readable at small size. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-9a7d2fa8-763d-43f2-9250-668254a0587a.png",
+      "sha256": "c697f76cc181ab3b99a9f1c8ae7bf18a7789784211af47564e28cefda3234134"
+    },
+    {
+      "id": "icon/weapon_fist_common",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: single combat knuckle gauntlet, simple cloth or plain wood and iron, brown beige; diagonal presentation, clearly readable at small size. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-70b1be32-77e2-4ef0-b136-d1c992b2e711.png",
+      "sha256": "a0775f52cd214d8abf640b3f99b027a6e44f229446e589a9cbdcaee92c0f61ae"
+    },
+    {
+      "id": "icon/weapon_fist_epic",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: single combat knuckle gauntlet, purple enchanted metal with wing ornaments and amethyst; diagonal presentation, clearly readable at small size. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-52c198f8-0717-46c7-a95c-01313cc439ac.png",
+      "sha256": "0053fe2402baee197a060037e5b89c5cdaf3cef21855940627ae479db8421960"
+    },
+    {
+      "id": "icon/weapon_fist_good",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: single combat knuckle gauntlet, green leather details, polished iron; diagonal presentation, clearly readable at small size. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-775acefb-ca1c-472e-8ade-7e980cdcc1b7.png",
+      "sha256": "5c1b905f00c034f65101e531ce45fb807d010df8ab48ec1e5002ddebade0ccb4"
+    },
+    {
+      "id": "icon/weapon_fist_legend",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: single combat knuckle gauntlet, gold with red gemstones and subtle magical glow; diagonal presentation, clearly readable at small size. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-dd884696-a820-464a-aea6-440eec1e1826.png",
+      "sha256": "6422fd1f7266f34fe1ff1ad9965d2e266b96cea1ccfd17f7e8bc49db266ae1b7"
+    },
+    {
+      "id": "icon/weapon_fist_rare",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: single combat knuckle gauntlet, blue steel with silver edges; diagonal presentation, clearly readable at small size. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-a3b0c759-bf70-4c25-89b6-929fafbdaa04.png",
+      "sha256": "c49ff46035cc942be78401958b0df9abe8b8baff0447bdc352501626de26470a"
+    },
+    {
+      "id": "icon/weapon_staff_common",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: staff, simple cloth or plain wood and iron, brown beige; diagonal presentation, clearly readable at small size. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-a1a9fe9f-037e-4d00-8d1c-ddb46ba066f1.png",
+      "sha256": "1447784678b26d577fc86146b048371b619650738c19d6ce496e855dbd6e8c65"
+    },
+    {
+      "id": "icon/weapon_staff_epic",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: staff, purple enchanted metal with wing ornaments and amethyst; diagonal presentation, clearly readable at small size. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-0a25cd63-eae5-4177-9a8a-f6f8d218e92e.png",
+      "sha256": "765e6fd32f30f7075610ca7b6d902368e562afe2c87c3c486204b6e5f0d68246"
+    },
+    {
+      "id": "icon/weapon_staff_good",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: staff, green leather details, polished iron; diagonal presentation, clearly readable at small size. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-ce0c6768-110b-449b-91b9-7385cc5a580c.png",
+      "sha256": "33033b51cbb0b91a30332d2988b32599f83021237803f5c3f4789e55b28477f2"
+    },
+    {
+      "id": "icon/weapon_staff_legend",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: staff, gold with red gemstones and subtle magical glow; diagonal presentation, clearly readable at small size. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-8e5cf046-8c4c-4ccd-ac71-fc563654e264.png",
+      "sha256": "db72e4118f80cdc73f3e92704fa52cb607e955c537a9935c62326f39931488aa"
+    },
+    {
+      "id": "icon/weapon_staff_rare",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: staff, blue steel with silver edges; diagonal presentation, clearly readable at small size. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-3495eaed-e0ae-4e7f-9067-b3ca9da5a76e.png",
+      "sha256": "72e6e0ee766e57918d39cab895b19f05fe3eb1fb774eb86e390f7311f445b092"
+    },
+    {
+      "id": "icon/weapon_sword_common",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: sword, simple cloth or plain wood and iron, brown beige; diagonal presentation, clearly readable at small size. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-e4d20a6c-8d53-4dd9-bde1-dcc47f7c8541.png",
+      "sha256": "f09014b7095aa607b34da3624e5c720927e512a76d7231cac0d384f9ac3bc626"
+    },
+    {
+      "id": "icon/weapon_sword_epic",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: sword, purple enchanted metal with wing ornaments and amethyst; diagonal presentation, clearly readable at small size. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-278dd58f-e988-431d-bcc6-7c33f2ed7676.png",
+      "sha256": "99df2a7f04e1bc41680c96867fe35a91595102f96afb78efedc6a9bbebdf331f"
+    },
+    {
+      "id": "icon/weapon_sword_good",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: sword, green leather details, polished iron; diagonal presentation, clearly readable at small size. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-27c94012-8fb6-4111-ad9d-4fc687dda525.png",
+      "sha256": "f74f2b5ea70a798f47938d1c6af215af0632218bc72f3deb8906c7d91ed4d2d8"
+    },
+    {
+      "id": "icon/weapon_sword_legend",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: sword, gold with red gemstones and subtle magical glow; diagonal presentation, clearly readable at small size. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.\nEDIT: Remove ALL background including white haze and rectangular backdrop. Keep only this exact gold and ruby sword with crisp edges. Completely transparent empty space everywhere outside sword, no aura, no background gradient, no cast shadow.",
+      "sourceFile": "exec-d1ff5463-c98f-4918-8079-16bbf2ba2180.png",
+      "sha256": "defdfbbf984ef23550fc0cb83e3dac624c043bc689cb6be8456085eeb0a222ec"
+    },
+    {
+      "id": "icon/weapon_sword_rare",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: sword, blue steel with silver edges; diagonal presentation, clearly readable at small size. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-9e1add85-8699-4f62-9cac-1c60424fffcf.png",
+      "sha256": "032265805815fe4abf6c762a72e3e8b052e5fa0be55b0b65f5fa702e0888bf23"
+    },
+    {
+      "id": "icon/white",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nInventory icon: round pearl-white healing potion bottle Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-439d9e8f-7454-41fb-9f75-ae617c8348be.png",
+      "sha256": "36ef6f255291c6620d06fea11052e2a9db49aa89d99d01fc333a1d14bf3a515b"
+    },
+    {
+      "id": "prop/canyon_deco_1",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nsmall sandstone pebbles; small decorative environmental object, bottom-center contact. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-984de41a-565c-482b-a2ab-b9cb704f78be.png",
+      "sha256": "10443651dc5acf3e42f29b1c0e439435b4681dccf7669f97282132c6c3646dfb"
+    },
+    {
+      "id": "prop/canyon_deco_2",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\ndry grass tuft; small decorative environmental object, bottom-center contact. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-8fde38bd-b356-4f5a-ba1a-2fa30d3d6102.png",
+      "sha256": "d2c5a430e06c92f29baeda0b5e8aa34f89e1e69daf8f3ab983cf647a02a61305"
+    },
+    {
+      "id": "prop/canyon_deco_3",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nsmall cactus; small decorative environmental object, bottom-center contact. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-a779719f-7b7f-48c9-bd04-6895ea4ff6ff.png",
+      "sha256": "9ebf70a5f99a14859c6df9cd78f199e088a6feac2e7c0e1ec267adf3652d7dd7"
+    },
+    {
+      "id": "prop/canyon_obstacle_1",
+      "size": 256,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\ntall red sandstone pillar; substantial map obstacle, bottom-center ground contact. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene.",
+      "sourceFile": "exec-40363e0c-b0b2-4b14-b2d9-b56b1b9ffcfa.png",
+      "sha256": "c583f4e6905ca86e4ca4bce8ea49266500e17ea4a5397ceab8e97c1776d4d1bc"
+    },
+    {
+      "id": "prop/canyon_obstacle_2",
+      "size": 256,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nangular ochre boulder; substantial map obstacle, bottom-center ground contact. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene.",
+      "sourceFile": "exec-955e6563-f9e7-4676-83e7-d5dd08774b0b.png",
+      "sha256": "a320982e8658708449a84c0db333258e2c1e6464406f476d61bb4de7ceee2307"
+    },
+    {
+      "id": "prop/castle_deco_1",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\ntiny violet flowers; small decorative environmental object, bottom-center contact. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-256dc62b-a8e9-4fba-9733-dc2abf298026.png",
+      "sha256": "7ba581b1b6a18dd070e6f32f83e354465e699a94e8dcb090c7f37c51060183e9"
+    },
+    {
+      "id": "prop/castle_deco_2",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nstone rubble; small decorative environmental object, bottom-center contact. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-92577b3d-c281-4551-b157-b0369bbbb6f2.png",
+      "sha256": "71736ba1fcb916f8e93ca7c1e217bfb156c77371f7542dbf9f04e05953092103"
+    },
+    {
+      "id": "prop/castle_deco_3",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nsmall ivy tuft; small decorative environmental object, bottom-center contact. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-a203a26d-a6ce-48dd-ab55-98db217461ed.png",
+      "sha256": "ff827d7c03e707a6e1d349880afd79038beb28b79ac710df8c461013dcf2e26d"
+    },
+    {
+      "id": "prop/castle_obstacle_1",
+      "size": 256,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nbroken gothic stone column; substantial environmental obstacle, bottom-center ground contact. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-3dbf45ad-e8b1-44af-9582-2ba54a26b57a.png",
+      "sha256": "f2fd32ab6cb5a8c8752c1f757a0f3387d723568aeeb73a2fa1e0508fd00b931a"
+    },
+    {
+      "id": "prop/castle_obstacle_2",
+      "size": 256,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nweathered gargoyle pedestal; substantial environmental obstacle, bottom-center ground contact. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-74678310-605e-4692-9aa2-535967e2d5e2.png",
+      "sha256": "e6cb89a9269cf8462dc7e96b727f6264a657ab4d1b11776f241a403def0bdfe9"
+    },
+    {
+      "id": "prop/factory_deco_1",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nloose brass screws; small decorative environmental object, bottom-center contact. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-01a942a5-de84-464a-8102-9dcd4817074e.png",
+      "sha256": "40fc48ce96fdb374e6ea93b6dba8cc7bbb6fd462ab3010cb84ab6d25a20f5a63"
+    },
+    {
+      "id": "prop/factory_deco_2",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nsmall cogwheel; small decorative environmental object, bottom-center contact. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-174ca8e5-9571-4599-b7c9-a582bc50e302.png",
+      "sha256": "ea0ee97a793ed8b81e96e2c3c4c8b254dca4b05bcf06edde76c0b35d9c55ed1d"
+    },
+    {
+      "id": "prop/factory_deco_3",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nshort copper pipe; small decorative environmental object, bottom-center contact. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-6f3874e5-379b-4f05-84e3-fd29ebf95be9.png",
+      "sha256": "f72552208709c08cda661edded0545a2aadcdb6e24e0a3f036b92ae3d85fbe1f"
+    },
+    {
+      "id": "prop/factory_obstacle_1",
+      "size": 256,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nstacked wooden shipping crates; substantial map obstacle, bottom-center ground contact. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-3bf56962-716f-4fde-a28a-32ab616bd520.png",
+      "sha256": "1f2ae78b95e1bc646336d90918073ff89f35e771654703e94524c3356fc62af8"
+    },
+    {
+      "id": "prop/factory_obstacle_2",
+      "size": 256,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nbrass boiler with pipes; substantial map obstacle, bottom-center ground contact. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-c05e64a7-7dde-4e05-9a01-41e3f21acc22.png",
+      "sha256": "61a6f6550da555894980b44b91e0485450dfc75f9c9901003fbcc61deb4ad35f"
+    },
+    {
+      "id": "prop/fountain",
+      "size": 256,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nSmall round stone village fountain with sparkling turquoise water, whole basin visible Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-8f4221ee-e6aa-4716-976d-31244a39aa11.png",
+      "sha256": "472f92412c103db8b73031d1ae586aaee36de893b815a347b207c3dc058c2c32"
+    },
+    {
+      "id": "prop/harbor_deco_1",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\ncoiled rope; small decorative environmental object, bottom-center contact. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-cc2bc49a-2cd7-4934-b1ce-ef2ff68a73de.png",
+      "sha256": "db465f707e77c48bcbf1d5a2634a9d79900c74cf88c9b0de89bd23dea55553ff"
+    },
+    {
+      "id": "prop/harbor_deco_2",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nsmall seashells; small decorative environmental object, bottom-center contact. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-6082c1cd-7146-41bc-8994-345fe98329b1.png",
+      "sha256": "69866c5774e9954f27287d09a5d2e957e1962b7ab586e770703a30c05c95f1d8"
+    },
+    {
+      "id": "prop/harbor_deco_3",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nsmall orange paper lantern; small decorative environmental object, bottom-center contact. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-871fdc01-86ba-40aa-841a-5a9ff0cfdf60.png",
+      "sha256": "40ad45f7df2550aff1550c023e3171475bdbcd5c975bca6f6c67af037bde855c"
+    },
+    {
+      "id": "prop/harbor_obstacle_1",
+      "size": 256,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nrope-wrapped wooden barrel; substantial environmental obstacle, bottom-center ground contact. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-bd57891c-50f3-4a22-9c14-72565b3fa6ee.png",
+      "sha256": "027a52c73798b90cb6c626f31d5fb385607dcb5811f67f28e82358e741617446"
+    },
+    {
+      "id": "prop/harbor_obstacle_2",
+      "size": 256,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nstacked cargo crates; substantial environmental obstacle, bottom-center ground contact. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-85a6f15a-4912-4fe3-863c-59c067a3b02d.png",
+      "sha256": "4a8f8eb521505169bf3445f734e22db2fedb243abe29a37b81a9a53a5b866855"
+    },
+    {
+      "id": "prop/house_blue",
+      "size": 384,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nCozy original fantasy village cottage with blue tiled roof, cream plaster and timber walls, front door and two windows, three-quarter overhead view, whole building including roof and foundation visible, bottom-center ground contact. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-3113e39e-bbcf-4922-941c-201475444d63.png",
+      "sha256": "909a5b501594b74f3adf7f8a5554602113bfd4d8858dda612a646f057bc18e67"
+    },
+    {
+      "id": "prop/house_green",
+      "size": 384,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nCozy original fantasy village cottage with green tiled roof, cream plaster and timber walls, front door and two windows, three-quarter overhead view, whole building including roof and foundation visible, bottom-center ground contact. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-8ac97388-36ff-4571-a228-9cd1f1b750a5.png",
+      "sha256": "09e28807e7c2aaff981e6617879bc0ad7bfe5cd219c819ce827f5fccdd5b7f5f"
+    },
+    {
+      "id": "prop/house_purple",
+      "size": 384,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nCozy original fantasy village cottage with purple tiled roof, cream plaster and timber walls, front door and two windows, three-quarter overhead view, whole building including roof and foundation visible, bottom-center ground contact. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-b589f63f-b4fb-4f28-b364-37a7faa461ac.png",
+      "sha256": "034970cb6deaaa84fa595dddd61572a345a2f51c89d575232675808b3b57f1e6"
+    },
+    {
+      "id": "prop/house_red",
+      "size": 384,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nCozy original fantasy village cottage with red tiled roof, cream plaster and timber walls, front door and two windows, three-quarter overhead view, whole building including roof and foundation visible, bottom-center ground contact. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-b6b8816e-5f1d-47f5-84ab-e95f1030326d.png",
+      "sha256": "405e00d0ec6a16147540ac55fc793858488c2a44923291f025428e8ff7646ef6"
+    },
+    {
+      "id": "prop/meadow_deco_1",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nwhite daisies; small decorative environmental object, bottom-center contact. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-9a5dc58b-0dd6-44fd-b901-c2b076919ded.png",
+      "sha256": "8d90b2272db4436294b95b3c0bba5a3cdff5646f90d346c281c57dbfef5e11dc"
+    },
+    {
+      "id": "prop/meadow_deco_2",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\npink wildflowers; small decorative environmental object, bottom-center contact. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-ae693b48-60c5-4313-a973-052c378a0063.png",
+      "sha256": "ae35601c35fc1f2ef39de6942af0f9e7d83a7fc1aa1d7dcb8c82beaf60d4c308"
+    },
+    {
+      "id": "prop/meadow_deco_3",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nsmall grass tuft; small decorative environmental object, bottom-center contact. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-ec0d59e6-aace-47b1-b3f9-d12b81791911.png",
+      "sha256": "c5e04df409912bb5d585caece03834aa0ed78586e014de07df3a2e8762e6095a"
+    },
+    {
+      "id": "prop/meadow_obstacle_1",
+      "size": 256,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nround leafy green tree; substantial map obstacle, bottom-center ground contact. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene.",
+      "sourceFile": "exec-044bc46c-cf95-4891-afd5-96d46ed17ab8.png",
+      "sha256": "9b6acf4ffe8b3361128f0141b21ecc37af3a42a746afe2bec3db7c7916106b68"
+    },
+    {
+      "id": "prop/meadow_obstacle_2",
+      "size": 256,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nmossy boulder; substantial map obstacle, bottom-center ground contact. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene.",
+      "sourceFile": "exec-a9ec2261-a65e-4bfd-87d0-dbade8f56082.png",
+      "sha256": "a97e19d34b2610f0fea6a3f2be97617a23797a6e01b31f0ba337cb022903f9b6"
+    },
+    {
+      "id": "prop/portal",
+      "size": 256,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nFlat circular magical portal platform with cyan glowing geometric symbols, no readable letters Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-7dc871d8-d3b0-491f-abb1-8b7fc3e2cf26.png",
+      "sha256": "e614c4ebc3bfdaf06fa689f428e63dae078d0d52ba04881378e8f77032435287"
+    },
+    {
+      "id": "prop/signpost",
+      "size": 256,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nWooden village signboard on two posts, blank unmarked board Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-dde02b72-685f-43c6-a854-b80634ea6e7c.png",
+      "sha256": "ac0538d99c987f790b5fe5c79a13d0b3d8e8abf40bfed6465aea977176b1f4dd"
+    },
+    {
+      "id": "prop/temple_deco_1",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\npurple crystal cluster; small decorative environmental object, bottom-center contact. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-7a6f2175-a911-407c-8ad0-2bd2c876c901.png",
+      "sha256": "6b6ab66027dc07589721db8c3fe2a2a08728599c805efb7f6d238599f022fd48"
+    },
+    {
+      "id": "prop/temple_deco_2",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nsmall fallen stone chips; small decorative environmental object, bottom-center contact. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-1cc64e37-e61a-44af-b56d-b58e048b8231.png",
+      "sha256": "fbf88d8791bc37825d67f963d35d910d2d2ebb7947d34349a76fd35857e756da"
+    },
+    {
+      "id": "prop/temple_deco_3",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nviolet luminous flower; small decorative environmental object, bottom-center contact. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-fe99cf1c-823b-43da-ae93-68b66bf7bbce.png",
+      "sha256": "6cebc22ab0c2b644a78f07b23995beb451158927cdc5b51aae3a7b377b21fc7f"
+    },
+    {
+      "id": "prop/temple_obstacle_1",
+      "size": 256,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\ncracked purple rune obelisk; substantial environmental obstacle, bottom-center ground contact. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-e859cd8e-e6c3-426e-8f57-25ea1de9c9f1.png",
+      "sha256": "0e120a20854c9e8aa48e39c0b3f83c1e70162e16d91ed95f0fe3d076a1bd7eb2"
+    },
+    {
+      "id": "prop/temple_obstacle_2",
+      "size": 256,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\ndark stone altar; substantial environmental obstacle, bottom-center ground contact. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-f0786d78-dc8e-48be-a071-b6bee8cad1c3.png",
+      "sha256": "8d3467b36daa9c624b91ac547a2c1791d2127dbdf52e9492e8417e3814bcea09"
+    },
+    {
+      "id": "tile/canyon_ground_1",
+      "size": 128,
+      "kind": "tile",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nwarm ochre sandy earth, variation 1, sparse natural details. Tile exception: completely opaque full-bleed square surface, orthographic overhead, uniform ambient light, seamless periodic repeat in both axes; no border, vignette, perspective horizon, objects, shadows at edges or transparent margin. Opposite edges must match. Quiet small-scale texture readable at 128px.",
+      "sourceFile": "exec-82e85716-645d-4797-8042-ebb40d2af373.png",
+      "sha256": "315550e97f12c548eaf8998b48871e5e98e624568a80026c394bd8550f7e07c7"
+    },
+    {
+      "id": "tile/canyon_ground_2",
+      "size": 128,
+      "kind": "tile",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nwarm ochre sandy earth, variation 2, sparse natural details. Tile exception: completely opaque full-bleed square surface, orthographic overhead, uniform ambient light, seamless periodic repeat in both axes; no border, vignette, perspective horizon, objects, shadows at edges or transparent margin. Opposite edges must match. Quiet small-scale texture readable at 128px.",
+      "sourceFile": "exec-9700463e-f079-4cfb-abef-eb79d87e5f0b.png",
+      "sha256": "a3ab4c086ea4b442509b639ee377f40a16444de29a844d5b1d14fe2399f66277"
+    },
+    {
+      "id": "tile/canyon_ground_3",
+      "size": 128,
+      "kind": "tile",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nwarm ochre sandy earth, variation 3, sparse natural details. Tile exception: completely opaque full-bleed square surface, orthographic overhead, uniform ambient light, seamless periodic repeat in both axes; no border, vignette, perspective horizon, objects, shadows at edges or transparent margin. Opposite edges must match. Quiet small-scale texture readable at 128px.",
+      "sourceFile": "exec-f3b1876c-c629-481e-b7e8-7a6dc139d666.png",
+      "sha256": "0c52841455acd1aa183906152ccf1d2142951800c5a10b909272a28fb0333f1a"
+    },
+    {
+      "id": "tile/canyon_path",
+      "size": 128,
+      "kind": "tile",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nsmooth terracotta sandstone paving, entire surface is walkable paving, no grass edge or directional road border. Tile exception: completely opaque full-bleed square surface, orthographic overhead, uniform ambient light, seamless periodic repeat in both axes; no border, vignette, perspective horizon, objects, shadows at edges or transparent margin. Opposite edges must match. Quiet small-scale texture readable at 128px.",
+      "sourceFile": "exec-5b85b92f-1510-4e3c-a042-aee63b429852.png",
+      "sha256": "8ceb23fb4a483dc2ea6d6ee348ccac1df9ef09975e8380e1dc0b0e6d1ac8609d"
+    },
+    {
+      "id": "tile/castle_ground_1",
+      "size": 128,
+      "kind": "tile",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nmuted blue gray ancient stone floor, variation 1, sparse natural details. Tile exception: completely opaque full-bleed square surface, orthographic overhead, uniform ambient light, seamless periodic repeat in both axes; no border, vignette, perspective horizon, objects, shadows at edges or transparent margin. Opposite edges must match. Quiet small-scale texture readable at 128px.",
+      "sourceFile": "exec-1544f780-d248-4623-800c-ff244ea405e1.png",
+      "sha256": "88235059bd68fb1cc9db033e579b5c9b4b79898ff02ddd31e953f1df967e4a7d"
+    },
+    {
+      "id": "tile/castle_ground_2",
+      "size": 128,
+      "kind": "tile",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nmuted blue gray ancient stone floor, variation 2, sparse natural details. Tile exception: completely opaque full-bleed square surface, orthographic overhead, uniform ambient light, seamless periodic repeat in both axes; no border, vignette, perspective horizon, objects, shadows at edges or transparent margin. Opposite edges must match. Quiet small-scale texture readable at 128px.",
+      "sourceFile": "exec-89a6c197-3f51-484f-9a9b-8a8027f07fb7.png",
+      "sha256": "5c79f27d7318691adc3c2404ca7270110cabc384bdbda42f3d849e19678ff4a2"
+    },
+    {
+      "id": "tile/castle_ground_3",
+      "size": 128,
+      "kind": "tile",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nmuted blue gray ancient stone floor, variation 3, sparse natural details. Tile exception: completely opaque full-bleed square surface, orthographic overhead, uniform ambient light, seamless periodic repeat in both axes; no border, vignette, perspective horizon, objects, shadows at edges or transparent margin. Opposite edges must match. Quiet small-scale texture readable at 128px.",
+      "sourceFile": "exec-e42494a2-19f5-4e7a-9bf1-9545d7c65762.png",
+      "sha256": "9a493495a961b5af3432a143ea3a4ff9aa899fd60c4bf23b32cda80127f782a6"
+    },
+    {
+      "id": "tile/castle_path",
+      "size": 128,
+      "kind": "tile",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\npale gray cobblestone paving, entire surface is walkable paving, no grass edge or directional road border. Tile exception: completely opaque full-bleed square surface, orthographic overhead, uniform ambient light, seamless periodic repeat in both axes; no border, vignette, perspective horizon, objects, shadows at edges or transparent margin. Opposite edges must match. Quiet small-scale texture readable at 128px.",
+      "sourceFile": "exec-da9ecb3b-613a-4bcc-9851-3e57d1dfe89a.png",
+      "sha256": "3237aa1f975289395608029018ec9ad2248ca9286aae18e857b3bde8a3e8831d"
+    },
+    {
+      "id": "tile/castle_water",
+      "size": 128,
+      "kind": "tile",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\ndeep blue moonlit lake ripples, subtle small-scale wavelets. Tile exception: completely opaque full-bleed square surface, orthographic overhead, uniform ambient light, seamless periodic repeat in both axes; no border, vignette, perspective horizon, objects, shadows at edges or transparent margin. Opposite edges must match. Quiet small-scale texture readable at 128px.",
+      "sourceFile": "exec-71eb5055-9ce2-4bb4-a181-3e8352babad5.png",
+      "sha256": "bf83f5d8a1ed99fc775cdb47ac00cecf2c07f9ce6402530b6e1c52b33fc0a8c8"
+    },
+    {
+      "id": "tile/factory_ground_1",
+      "size": 128,
+      "kind": "tile",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\ncool charcoal workshop flagstone, variation 1, sparse natural details. Tile exception: completely opaque full-bleed square surface, orthographic overhead, uniform ambient light, seamless periodic repeat in both axes; no border, vignette, perspective horizon, objects, shadows at edges or transparent margin. Opposite edges must match. Quiet small-scale texture readable at 128px.",
+      "sourceFile": "exec-39bee008-496f-412b-b98c-c1122ccc2a65.png",
+      "sha256": "e2b43228f84d0df2f79e1696c4383ed952452da587ed19388913945e68d2e0d1"
+    },
+    {
+      "id": "tile/factory_ground_2",
+      "size": 128,
+      "kind": "tile",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\ncool charcoal workshop flagstone, variation 2, sparse natural details. Tile exception: completely opaque full-bleed square surface, orthographic overhead, uniform ambient light, seamless periodic repeat in both axes; no border, vignette, perspective horizon, objects, shadows at edges or transparent margin. Opposite edges must match. Quiet small-scale texture readable at 128px.",
+      "sourceFile": "exec-a32c6f5c-e5c6-461f-a32a-042b99e56559.png",
+      "sha256": "a82993a01d41116af3b28c9d55ca6cc1a6abafba7a14d88771ddda045fe34e4d"
+    },
+    {
+      "id": "tile/factory_ground_3",
+      "size": 128,
+      "kind": "tile",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\ncool charcoal workshop flagstone, variation 3, sparse natural details. Tile exception: completely opaque full-bleed square surface, orthographic overhead, uniform ambient light, seamless periodic repeat in both axes; no border, vignette, perspective horizon, objects, shadows at edges or transparent margin. Opposite edges must match. Quiet small-scale texture readable at 128px.",
+      "sourceFile": "exec-b52e9d7e-c480-4e95-8900-aacc53611b47.png",
+      "sha256": "9c5c8a2442a988bdbde9f09ccdb984fe1c7661bce61b359aff5de83ef4f08bd5"
+    },
+    {
+      "id": "tile/factory_path",
+      "size": 128,
+      "kind": "tile",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nworn brown brick paving, entire surface is walkable paving, no grass edge or directional road border. Tile exception: completely opaque full-bleed square surface, orthographic overhead, uniform ambient light, seamless periodic repeat in both axes; no border, vignette, perspective horizon, objects, shadows at edges or transparent margin. Opposite edges must match. Quiet small-scale texture readable at 128px.",
+      "sourceFile": "exec-27029fb5-2f7e-4913-9da7-e328355df009.png",
+      "sha256": "a1bcad9d4bc0289bd19026495ebeb6dc92c7bc43b2acec58293c7f371f880c6b"
+    },
+    {
+      "id": "tile/harbor_ground_1",
+      "size": 128,
+      "kind": "tile",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nweathered warm wooden dock planks, variation 1, sparse natural details. Tile exception: completely opaque full-bleed square surface, orthographic overhead, uniform ambient light, seamless periodic repeat in both axes; no border, vignette, perspective horizon, objects, shadows at edges or transparent margin. Opposite edges must match. Quiet small-scale texture readable at 128px.",
+      "sourceFile": "exec-c15156e0-f4ce-4358-9efc-e0a56136a6b4.png",
+      "sha256": "5ea173b0876bddcff570e4dd13a954345290d3f96edcd93381283234b3ed5fde"
+    },
+    {
+      "id": "tile/harbor_ground_2",
+      "size": 128,
+      "kind": "tile",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nweathered warm wooden dock planks, variation 2, sparse natural details. Tile exception: completely opaque full-bleed square surface, orthographic overhead, uniform ambient light, seamless periodic repeat in both axes; no border, vignette, perspective horizon, objects, shadows at edges or transparent margin. Opposite edges must match. Quiet small-scale texture readable at 128px.",
+      "sourceFile": "exec-66d2827a-dd78-465c-b2ae-28b86e1b86f0.png",
+      "sha256": "e658a3d172efd78223a39980e383d9d7bb3cdb61a008bb3958642ae80e1b5e22"
+    },
+    {
+      "id": "tile/harbor_ground_3",
+      "size": 128,
+      "kind": "tile",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nweathered warm wooden dock planks, variation 3, sparse natural details. Tile exception: completely opaque full-bleed square surface, orthographic overhead, uniform ambient light, seamless periodic repeat in both axes; no border, vignette, perspective horizon, objects, shadows at edges or transparent margin. Opposite edges must match. Quiet small-scale texture readable at 128px.",
+      "sourceFile": "exec-2882511d-b28f-410b-b1aa-e5d4150f19f1.png",
+      "sha256": "f551e34398cb877757d5808bf32c2bd5c0d20ab6c7feb1bccaf2d1dddeb869df"
+    },
+    {
+      "id": "tile/harbor_path",
+      "size": 128,
+      "kind": "tile",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\ndark slate night market paving, entire surface is walkable paving, no grass edge or directional road border. Tile exception: completely opaque full-bleed square surface, orthographic overhead, uniform ambient light, seamless periodic repeat in both axes; no border, vignette, perspective horizon, objects, shadows at edges or transparent margin. Opposite edges must match. Quiet small-scale texture readable at 128px.",
+      "sourceFile": "exec-586fb62d-f4e0-4478-bfd4-c3ed48db32b6.png",
+      "sha256": "fb02eddafcd21eff819c8d9392072e7c30357708684808f05fadc030c668ce67"
+    },
+    {
+      "id": "tile/harbor_water",
+      "size": 128,
+      "kind": "tile",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\ndeep teal harbor water ripples, subtle small-scale wavelets. Tile exception: completely opaque full-bleed square surface, orthographic overhead, uniform ambient light, seamless periodic repeat in both axes; no border, vignette, perspective horizon, objects, shadows at edges or transparent margin. Opposite edges must match. Quiet small-scale texture readable at 128px.",
+      "sourceFile": "exec-76554073-6775-49bd-90fe-3b878c953fce.png",
+      "sha256": "e9cefb9774366eee5639d858b9dbc8e4ad24e9210eb8535a042176422ca62604"
+    },
+    {
+      "id": "tile/meadow_ground_1",
+      "size": 128,
+      "kind": "tile",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nfresh soft green grass, variation 1, sparse natural details. Tile exception: completely opaque full-bleed square surface, orthographic overhead, uniform ambient light, seamless periodic repeat in both axes; no border, vignette, perspective horizon, objects, shadows at edges or transparent margin. Opposite edges must match. Quiet small-scale texture readable at 128px.",
+      "sourceFile": "exec-33abf4ec-164f-4de8-82fb-c2e3e41e4838.png",
+      "sha256": "47b182029e601d48fcc27d49230295ce7f23b71cc6736ee3343313d9e3bad9e5"
+    },
+    {
+      "id": "tile/meadow_ground_2",
+      "size": 128,
+      "kind": "tile",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nfresh soft green grass, variation 2, sparse natural details. Tile exception: completely opaque full-bleed square surface, orthographic overhead, uniform ambient light, seamless periodic repeat in both axes; no border, vignette, perspective horizon, objects, shadows at edges or transparent margin. Opposite edges must match. Quiet small-scale texture readable at 128px.",
+      "sourceFile": "exec-497fccf6-07d2-44a1-a64b-a806fbaaef38.png",
+      "sha256": "cffc869c64ee6e9392fd9c3cbe4f229b728dbe673dff87accc61a41a1d9ec8b0"
+    },
+    {
+      "id": "tile/meadow_ground_3",
+      "size": 128,
+      "kind": "tile",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nfresh soft green grass, variation 3, sparse natural details. Tile exception: completely opaque full-bleed square surface, orthographic overhead, uniform ambient light, seamless periodic repeat in both axes; no border, vignette, perspective horizon, objects, shadows at edges or transparent margin. Opposite edges must match. Quiet small-scale texture readable at 128px.",
+      "sourceFile": "exec-f473ebff-78ac-46cb-a3f1-a2d7b1510bbf.png",
+      "sha256": "6709c8ea14e6fddeb96a941dfa1df20fd83579f7be67b87c9b7ccd9ec66e8a1d"
+    },
+    {
+      "id": "tile/meadow_path",
+      "size": 128,
+      "kind": "tile",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nwarm beige packed dirt, entire surface is walkable paving, no grass edge or directional road border. Tile exception: completely opaque full-bleed square surface, orthographic overhead, uniform ambient light, seamless periodic repeat in both axes; no border, vignette, perspective horizon, objects, shadows at edges or transparent margin. Opposite edges must match. Quiet small-scale texture readable at 128px.",
+      "sourceFile": "exec-9080ec80-17f0-4abc-80d6-e8e090ead0d5.png",
+      "sha256": "0eac8f40cd9216bc88360ab317618c6ef28f041aadfd3fdba2843826be558806"
+    },
+    {
+      "id": "tile/meadow_water",
+      "size": 128,
+      "kind": "tile",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nclear turquoise pond ripples, subtle small-scale wavelets. Tile exception: completely opaque full-bleed square surface, orthographic overhead, uniform ambient light, seamless periodic repeat in both axes; no border, vignette, perspective horizon, objects, shadows at edges or transparent margin. Opposite edges must match. Quiet small-scale texture readable at 128px.",
+      "sourceFile": "exec-ab748d5e-6356-49d3-a5bc-7a09418de095.png",
+      "sha256": "e0013e43adb2a6b3e47f7c5676d4dab72659a7eb0e7ab663e7c59af44992f86e"
+    },
+    {
+      "id": "tile/temple_ground_1",
+      "size": 128,
+      "kind": "tile",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nmuted violet ancient stone floor, variation 1, sparse natural details. Tile exception: completely opaque full-bleed square surface, orthographic overhead, uniform ambient light, seamless periodic repeat in both axes; no border, vignette, perspective horizon, objects, shadows at edges or transparent margin. Opposite edges must match. Quiet small-scale texture readable at 128px.",
+      "sourceFile": "exec-75b8a350-70e5-42a7-b929-29965926bf8a.png",
+      "sha256": "0a090a7cc883f0cfe5d7b67968c1d9b8f75466beaa6017fd72dda39937f86f28"
+    },
+    {
+      "id": "tile/temple_ground_2",
+      "size": 128,
+      "kind": "tile",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nmuted violet ancient stone floor, variation 2, sparse natural details. Tile exception: completely opaque full-bleed square surface, orthographic overhead, uniform ambient light, seamless periodic repeat in both axes; no border, vignette, perspective horizon, objects, shadows at edges or transparent margin. Opposite edges must match. Quiet small-scale texture readable at 128px.",
+      "sourceFile": "exec-f921e438-c3e7-4b43-bd08-640d28e8a53d.png",
+      "sha256": "b01580d7f4388081eefd9aa95da0f91758133a0787dce9bb153a3bb758a89568"
+    },
+    {
+      "id": "tile/temple_ground_3",
+      "size": 128,
+      "kind": "tile",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nmuted violet ancient stone floor, variation 3, sparse natural details. Tile exception: completely opaque full-bleed square surface, orthographic overhead, uniform ambient light, seamless periodic repeat in both axes; no border, vignette, perspective horizon, objects, shadows at edges or transparent margin. Opposite edges must match. Quiet small-scale texture readable at 128px.",
+      "sourceFile": "exec-fe478506-99b5-4294-a8e8-d1bdfa52eb65.png",
+      "sha256": "d4baf5e426f1eec2d79f59dd9020e99629168e949e9b8064cf868c5f5a1dda67"
+    },
+    {
+      "id": "tile/temple_path",
+      "size": 128,
+      "kind": "tile",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\npale marble ceremonial paving, entire surface is walkable paving, no grass edge or directional road border. Tile exception: completely opaque full-bleed square surface, orthographic overhead, uniform ambient light, seamless periodic repeat in both axes; no border, vignette, perspective horizon, objects, shadows at edges or transparent margin. Opposite edges must match. Quiet small-scale texture readable at 128px.",
+      "sourceFile": "exec-3f3ede58-3180-4cf0-a6bb-da4e30af8be4.png",
+      "sha256": "56a6fbdbfd20eae9e9d3a5083776f46bc58b7f237889134074e9f57a774fb28f"
+    },
+    {
+      "id": "ui/btn_attack",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nCircular polished fantasy game control button, silver sword centered on dark navy circle with gold rim, transparent corners, no text. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-ab25dc46-ecba-4dfa-af6c-187bd5c2154f.png",
+      "sha256": "994c68529f786a35f3ebce4724082b4a6d71b5fe76565a6cc71e6b4933f9b29e"
+    },
+    {
+      "id": "ui/btn_dodge",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nCircular polished fantasy game control button, cyan winged boot with motion streaks centered on dark navy circle with gold rim, transparent corners, no text. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-6c24d3dd-cb54-4373-bd1c-dcb95062515a.png",
+      "sha256": "5175edabf5a80be98a9df5424fe80840ec1486b9eed14bef4e522b0109a4c9d6"
+    },
+    {
+      "id": "ui/btn_potion",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nCircular polished fantasy game control button, red healing potion centered on dark navy circle with gold rim, transparent corners, no text. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-428b5838-1a22-4dbc-a10b-05d5bff57749.png",
+      "sha256": "3e792807a13ac8d515163223f41764e2e6a563b056667d9d3f67bacfebbe155d"
+    },
+    {
+      "id": "ui/logo",
+      "size": [
+        1024,
+        512
+      ],
+      "kind": "logo",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nFantasy game title logo reading exactly 「微光大陸」, luminous gold Traditional Chinese calligraphy, small cyan star and subtle fantasy flourish, strong readable lettering, landscape 2:1 layout. Exact Traditional Chinese lettering, no other text. Transparent background, generous safe margin.",
+      "sourceFile": "exec-a83cf71a-d18e-40bd-974b-a0c13076eeaf.png",
+      "sha256": "44a12dcce2d0d3131dc07b9a5aad58861dcfa5117ebb4c95713c15d2ab17fe68"
+    },
+    {
+      "id": "ui/skill_barrage",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nSquare fantasy RPG skill icon, three rapid orange fist strikes, contained in a subtle dark indigo rounded square badge, powerful readable symbol, no text. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-916834ad-a812-43fe-afa5-34b8c68b0d52.png",
+      "sha256": "09fa63da1adf10fce5d9027e9ab9696df910411446c30b180be74369c69bbaef"
+    },
+    {
+      "id": "ui/skill_chain",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nSquare fantasy RPG skill icon, forked electric blue chain lightning, contained in a subtle dark indigo rounded square badge, powerful readable symbol, no text. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-6aa954dc-6875-4753-a381-4928ffd4a609.png",
+      "sha256": "d2fab9e64a40d162c62435a4d1349c54471f1acceed2675a65a305b4458aefd8"
+    },
+    {
+      "id": "ui/skill_dragon",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nSquare fantasy RPG skill icon, red golden dragon-shaped energy fist, contained in a subtle dark indigo rounded square badge, powerful readable symbol, no text. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-ea81768b-3d2b-40ae-aa2b-2142b56cd931.png",
+      "sha256": "035f2ed852b322deb03d398891454a3f18234f97e1fc0300e1390b2a11860302"
+    },
+    {
+      "id": "ui/skill_fireball",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nSquare fantasy RPG skill icon, orange flaming fireball, contained in a subtle dark indigo rounded square badge, powerful readable symbol, no text. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-b2f5a0e0-bf3c-4453-a738-8a0099bcc854.png",
+      "sha256": "bb716be4360f9512ce622d6c82eddfccb8c937b57b6f5845a1c5d0ef18d5513c"
+    },
+    {
+      "id": "ui/skill_nova",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nSquare fantasy RPG skill icon, violet radiant magical starburst, contained in a subtle dark indigo rounded square badge, powerful readable symbol, no text. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-3ac57459-3860-40d0-82a2-66f3d27d68dc.png",
+      "sha256": "ccc7a00359f2e28ef9f9607b9c67399d21968133d6a74bac6734e480dd0745d6"
+    },
+    {
+      "id": "ui/skill_pierce",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nSquare fantasy RPG skill icon, one bright arrow piercing a silver target, contained in a subtle dark indigo rounded square badge, powerful readable symbol, no text. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-9002190a-7b30-4468-9265-9d52a030a58c.png",
+      "sha256": "01082c72b03b519c75a9fd169ccd29d0efe09628e8dc70def3f9318c437d6f8e"
+    },
+    {
+      "id": "ui/skill_quake",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nSquare fantasy RPG skill icon, gold fist striking cracked earth, contained in a subtle dark indigo rounded square badge, powerful readable symbol, no text. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-13d3e830-5206-41ef-a13b-8612207e5789.png",
+      "sha256": "32a3c0180a477f2589b78d172bc41d47694b6e7da3dcd7bc1a6275c7edbb9f23"
+    },
+    {
+      "id": "ui/skill_rain",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nSquare fantasy RPG skill icon, shower of teal arrows descending, contained in a subtle dark indigo rounded square badge, powerful readable symbol, no text. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-6b197ed1-460f-437f-aafd-0c359a9ef803.png",
+      "sha256": "3ee4d15b29a2f9b804b8c0fc686c1b774c5729fc11a8f40c6e7c059fa4ec195c"
+    },
+    {
+      "id": "ui/skill_shock",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nSquare fantasy RPG skill icon, gold fist releasing circular shockwave, contained in a subtle dark indigo rounded square badge, powerful readable symbol, no text. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-b42cb2e5-eaa1-47d7-aa21-a73d59602c9d.png",
+      "sha256": "35a27f4f543a95bafa363e6dcf8475a0a2f4dd6e698c168a17c796f2540f0298"
+    },
+    {
+      "id": "ui/skill_spin",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nSquare fantasy RPG skill icon, silver sword tracing a circular cyan slash, contained in a subtle dark indigo rounded square badge, powerful readable symbol, no text. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-fb77b5ce-67ed-45bd-a93f-5fb919d409d2.png",
+      "sha256": "9b40358353aa4db1cade5feead9cfb4256feb048bae22affbd538bd1b35ec232"
+    },
+    {
+      "id": "ui/skill_triple",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nSquare fantasy RPG skill icon, three parallel green arrows in flight, contained in a subtle dark indigo rounded square badge, powerful readable symbol, no text. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-cb3b25c7-709b-4fab-a60c-bba4f0e5424f.png",
+      "sha256": "252396ef88813c3e76a76496d18660158be95d1a6ac91319ce5a6877910c256b"
+    },
+    {
+      "id": "ui/skill_wave",
+      "size": 128,
+      "kind": "object",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nSquare fantasy RPG skill icon, blue crescent sword energy wave, contained in a subtle dark indigo rounded square badge, powerful readable symbol, no text. Single isolated asset, transparent background, simple readable silhouette, generous clear margin, no labels, no surrounding scene. IMPORTANT: Draw ONLY the specified inanimate object or plant. NO character, person, face, human, adventurer, mascot, animal, scenery or glow backdrop. Object inventory/environment sprite, not character concept art.",
+      "sourceFile": "exec-47d42d8c-51f6-4f8c-9e75-377da542c986.png",
+      "sha256": "e04d8de99af7ffb0b412917bc3c407dda4ed5d9cc89f30b19c2b784899ac2cbf"
+    },
+    {
+      "id": "ui/title_bg",
+      "size": [
+        1920,
+        1080
+      ],
+      "kind": "background",
+      "prompt": "High-quality 2D game asset for a mobile fantasy RPG, chibi anime style (2.5 heads tall), clean cel shading with soft gradient highlights, crisp dark-brown outline (#2a1d2e), vibrant but harmonious palette, three-quarter top-down view, light from top-left, isolated on transparent background, centered, no text, no watermark, original design.\nWide 16:9 painted fantasy title-screen background, bird's-eye panorama of a cozy village with red blue green purple cottage roofs, fountain and winding paths, distant gentle mountains, warm dusk lanterns, twilight purple-blue sky with one luminous star-trail meteor, calm central negative space for title overlay, no people close-up. Full-bleed opaque landscape composition, no text.",
+      "sourceFile": "exec-424c92f4-4dfc-4067-80a5-a738d404063e.png",
+      "sha256": "9b75e9e58f7f266adc0750864a43e6a50617e712c210b2a53f1ed9994150b1da"
+    }
+  ]
+}

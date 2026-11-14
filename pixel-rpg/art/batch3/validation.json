@@ -1,0 +1,1174 @@
+{
+  "requested": 159,
+  "completed": 159,
+  "missing": [],
+  "assets": [
+    {
+      "id": "tile/meadow_ground_1",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true,
+      "oppositeEdgeMaxDifference": 0,
+      "repeatPreview": "qa/tile_meadow_ground_1_2x2.png"
+    },
+    {
+      "id": "tile/meadow_ground_2",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true,
+      "oppositeEdgeMaxDifference": 0,
+      "repeatPreview": "qa/tile_meadow_ground_2_2x2.png"
+    },
+    {
+      "id": "tile/meadow_ground_3",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true,
+      "oppositeEdgeMaxDifference": 0,
+      "repeatPreview": "qa/tile_meadow_ground_3_2x2.png"
+    },
+    {
+      "id": "tile/meadow_path",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true,
+      "oppositeEdgeMaxDifference": 0,
+      "repeatPreview": "qa/tile_meadow_path_2x2.png"
+    },
+    {
+      "id": "tile/meadow_water",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true,
+      "oppositeEdgeMaxDifference": 0,
+      "repeatPreview": "qa/tile_meadow_water_2x2.png"
+    },
+    {
+      "id": "prop/meadow_obstacle_1",
+      "width": 256,
+      "height": 256,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "prop/meadow_obstacle_2",
+      "width": 256,
+      "height": 256,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "prop/meadow_deco_1",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "prop/meadow_deco_2",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "prop/meadow_deco_3",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "tile/canyon_ground_1",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true,
+      "oppositeEdgeMaxDifference": 0,
+      "repeatPreview": "qa/tile_canyon_ground_1_2x2.png"
+    },
+    {
+      "id": "tile/canyon_ground_2",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true,
+      "oppositeEdgeMaxDifference": 0,
+      "repeatPreview": "qa/tile_canyon_ground_2_2x2.png"
+    },
+    {
+      "id": "tile/canyon_ground_3",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true,
+      "oppositeEdgeMaxDifference": 0,
+      "repeatPreview": "qa/tile_canyon_ground_3_2x2.png"
+    },
+    {
+      "id": "tile/canyon_path",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true,
+      "oppositeEdgeMaxDifference": 0,
+      "repeatPreview": "qa/tile_canyon_path_2x2.png"
+    },
+    {
+      "id": "prop/canyon_obstacle_1",
+      "width": 256,
+      "height": 256,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "prop/canyon_obstacle_2",
+      "width": 256,
+      "height": 256,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "prop/canyon_deco_1",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "prop/canyon_deco_2",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "prop/canyon_deco_3",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "tile/factory_ground_1",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true,
+      "oppositeEdgeMaxDifference": 0,
+      "repeatPreview": "qa/tile_factory_ground_1_2x2.png"
+    },
+    {
+      "id": "icon/weapon_sword_legend",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/weapon_bow_legend",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/weapon_staff_legend",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/weapon_fist_legend",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/helm_legend",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/armor_legend",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/gloves_legend",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/boots_legend",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/ring_legend",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/red",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/orange",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/white",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/scroll",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/feather",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/elixir",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/ore",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/ore2",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/mat_slime",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/mat_berry",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/mat_ember",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/mat_king",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/mat_bat",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/mat_pebble",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/mat_howl",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/mat_echo",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/mat_cog",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/mat_spark",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/mat_smelter",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/mat_clock",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/mat_wisp",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/mat_armor",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/mat_gargoyle",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/mat_mirror",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/mat_crab",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/mat_lantern",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/mat_pirate",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/mat_faceless",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/mat_cultist",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/mat_shade",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/mat_eclipse",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/mat_valde",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/card_frame",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "ui/skill_spin",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "ui/skill_wave",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "ui/skill_quake",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "ui/skill_triple",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "ui/skill_rain",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "ui/skill_pierce",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "ui/skill_nova",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "ui/skill_fireball",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "ui/skill_chain",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "ui/skill_barrage",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "ui/skill_shock",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "ui/skill_dragon",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "ui/btn_attack",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "ui/btn_dodge",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "ui/btn_potion",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "ui/logo",
+      "width": 1024,
+      "height": 512,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "ui/title_bg",
+      "width": 1920,
+      "height": 1080,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "tile/factory_ground_2",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true,
+      "oppositeEdgeMaxDifference": 0,
+      "repeatPreview": "qa/tile_factory_ground_2_2x2.png"
+    },
+    {
+      "id": "tile/factory_ground_3",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true,
+      "oppositeEdgeMaxDifference": 0,
+      "repeatPreview": "qa/tile_factory_ground_3_2x2.png"
+    },
+    {
+      "id": "tile/factory_path",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true,
+      "oppositeEdgeMaxDifference": 0,
+      "repeatPreview": "qa/tile_factory_path_2x2.png"
+    },
+    {
+      "id": "prop/factory_obstacle_1",
+      "width": 256,
+      "height": 256,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "prop/factory_obstacle_2",
+      "width": 256,
+      "height": 256,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "prop/factory_deco_1",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "prop/factory_deco_2",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "prop/factory_deco_3",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "tile/castle_ground_1",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true,
+      "oppositeEdgeMaxDifference": 0,
+      "repeatPreview": "qa/tile_castle_ground_1_2x2.png"
+    },
+    {
+      "id": "tile/castle_ground_2",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true,
+      "oppositeEdgeMaxDifference": 0,
+      "repeatPreview": "qa/tile_castle_ground_2_2x2.png"
+    },
+    {
+      "id": "tile/castle_ground_3",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true,
+      "oppositeEdgeMaxDifference": 0,
+      "repeatPreview": "qa/tile_castle_ground_3_2x2.png"
+    },
+    {
+      "id": "tile/castle_path",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true,
+      "oppositeEdgeMaxDifference": 0,
+      "repeatPreview": "qa/tile_castle_path_2x2.png"
+    },
+    {
+      "id": "tile/castle_water",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true,
+      "oppositeEdgeMaxDifference": 0,
+      "repeatPreview": "qa/tile_castle_water_2x2.png"
+    },
+    {
+      "id": "prop/castle_obstacle_1",
+      "width": 256,
+      "height": 256,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "prop/castle_obstacle_2",
+      "width": 256,
+      "height": 256,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "prop/castle_deco_1",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "prop/castle_deco_2",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "prop/castle_deco_3",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "tile/harbor_ground_1",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true,
+      "oppositeEdgeMaxDifference": 0,
+      "repeatPreview": "qa/tile_harbor_ground_1_2x2.png"
+    },
+    {
+      "id": "tile/harbor_ground_2",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true,
+      "oppositeEdgeMaxDifference": 0,
+      "repeatPreview": "qa/tile_harbor_ground_2_2x2.png"
+    },
+    {
+      "id": "tile/harbor_ground_3",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true,
+      "oppositeEdgeMaxDifference": 0,
+      "repeatPreview": "qa/tile_harbor_ground_3_2x2.png"
+    },
+    {
+      "id": "tile/harbor_path",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true,
+      "oppositeEdgeMaxDifference": 0,
+      "repeatPreview": "qa/tile_harbor_path_2x2.png"
+    },
+    {
+      "id": "tile/harbor_water",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true,
+      "oppositeEdgeMaxDifference": 0,
+      "repeatPreview": "qa/tile_harbor_water_2x2.png"
+    },
+    {
+      "id": "prop/harbor_obstacle_1",
+      "width": 256,
+      "height": 256,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "prop/harbor_obstacle_2",
+      "width": 256,
+      "height": 256,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "prop/harbor_deco_1",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "prop/harbor_deco_2",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "prop/harbor_deco_3",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "tile/temple_ground_1",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true,
+      "oppositeEdgeMaxDifference": 0,
+      "repeatPreview": "qa/tile_temple_ground_1_2x2.png"
+    },
+    {
+      "id": "tile/temple_ground_2",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true,
+      "oppositeEdgeMaxDifference": 0,
+      "repeatPreview": "qa/tile_temple_ground_2_2x2.png"
+    },
+    {
+      "id": "tile/temple_ground_3",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true,
+      "oppositeEdgeMaxDifference": 0,
+      "repeatPreview": "qa/tile_temple_ground_3_2x2.png"
+    },
+    {
+      "id": "tile/temple_path",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true,
+      "oppositeEdgeMaxDifference": 0,
+      "repeatPreview": "qa/tile_temple_path_2x2.png"
+    },
+    {
+      "id": "prop/temple_obstacle_1",
+      "width": 256,
+      "height": 256,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "prop/temple_obstacle_2",
+      "width": 256,
+      "height": 256,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "prop/temple_deco_1",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "prop/temple_deco_2",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "prop/temple_deco_3",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "prop/house_red",
+      "width": 384,
+      "height": 384,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "prop/house_blue",
+      "width": 384,
+      "height": 384,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "prop/house_green",
+      "width": 384,
+      "height": 384,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "prop/house_purple",
+      "width": 384,
+      "height": 384,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "prop/fountain",
+      "width": 256,
+      "height": 256,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "prop/signpost",
+      "width": 256,
+      "height": 256,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "prop/portal",
+      "width": 256,
+      "height": 256,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/weapon_sword_common",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/weapon_bow_common",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/weapon_staff_common",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/weapon_fist_common",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/helm_common",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/armor_common",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/gloves_common",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/boots_common",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/ring_common",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/weapon_sword_good",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/weapon_bow_good",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/weapon_staff_good",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/weapon_fist_good",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/helm_good",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/armor_good",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/gloves_good",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/boots_good",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/ring_good",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/weapon_sword_rare",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/weapon_bow_rare",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/weapon_staff_rare",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/weapon_fist_rare",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/helm_rare",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/armor_rare",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/gloves_rare",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/boots_rare",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/ring_rare",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/weapon_sword_epic",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/weapon_bow_epic",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/weapon_staff_epic",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/weapon_fist_epic",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/helm_epic",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/armor_epic",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/gloves_epic",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/boots_epic",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    },
+    {
+      "id": "icon/ring_epic",
+      "width": 128,
+      "height": 128,
+      "srgb": true,
+      "alpha": true
+    }
+  ]
+}
