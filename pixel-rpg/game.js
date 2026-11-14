@@ -1969,9 +1969,11 @@ function halfOf(img, i) {
   const c = document.createElement('canvas'); c.width = w; c.height = h; c.getContext('2d').drawImage(img, i * w, 0, w, h, 0, 0, w, h);
   return (m[i] = c);
 }
-function walkPose(key, o) {
+// twoBeat：隊友的站姿是四分之三角度、走路格是正側面，走路時只在兩格之間交替，不插入站姿，避免臉來回轉
+function walkPose(key, o, twoBeat) {
   if (!o.moving || o.atkT > 0) return null;
-  const q = Math.floor((((o.step || 0) + (o.mt || 0)) % 2) * 2);
+  let q = Math.floor((((o.step || 0) + (o.mt || 0)) % 2) * 2);
+  if (twoBeat) q = q < 2 ? 0 : 2;
   if (q === 1 || q === 3) return null;
   const strip = asset(key + '_walk');
   return strip ? halfOf(strip, q === 0 ? 0 : 1) : asset(key + (q === 0 ? '_walk1' : '_walk2'));
@@ -1999,7 +2001,7 @@ function drawAlly(a) {
   if (a.hurtT > 0 && Math.floor(a.hurtT * 20) % 2) { shadow(x, y); return; }
   const frame = animFrame(a, a.atkDur || 0.18);
   const hd = asset('npc/ally_' + a.id), pxa = asset('px/ally/' + a.id);
-  if (hd && charStyle === 'hd') { const ap = atkPose('npc/ally_' + a.id, a) || walkPose('npc/ally_' + a.id, a); drawHD(ap || hd, a, 40, a.face === 'left', null, ap ? hd : null); }
+  if (hd && charStyle === 'hd') { const ap = atkPose('npc/ally_' + a.id, a) || walkPose('npc/ally_' + a.id, a, true); drawHD(ap || hd, a, 40, a.face === 'left', null, ap ? hd : null); }
   else if (pxa) drawPxHero(pxa, a);
   else if (hd) { drawIllus(hd, a); }
   else if (false) {
