@@ -1,3 +1,4 @@
+import { BESTIARY } from './bestiary.js';
 // 長夜燈火：RO 風格數值系統——六大能力值、屬性相剋、種族、體型、卡片效果、輔助狀態（原創名稱與數值，純函式可測試）
 // 設計原則：機制照 RO 的架構，但配合「舒壓」：屬性最低 5 折、不會完全打不動；命中下限 85%
 
@@ -144,7 +145,23 @@ export const MON_PROFILE = {
   eclipse: { elem: '毒', race: '無形', size: '中型' },
   valde: { elem: '暗', race: '惡魔', size: '大型' },
 };
-export const profileOf = (type) => MON_PROFILE[type] || { elem: '無', race: '無形', size: '中型' };
+export const profileOf = (type) => {
+  const b = BESTIARY[type === 'valde' ? 'valde_f' : type === 'valde_n' ? 'valde_f_n' : type];
+  return b ? { elem: b.elem, el: b.el || 1, race: b.race, size: b.size } : MON_PROFILE[type] || { elem: '無', el: 1, race: '無形', size: '中型' };
+};
+// 屬性等級（設計文件「職業基礎數值與武器」）：怪物屬性等級越高，剋與被剋越極端；最低 0.5、最高 2
+const EL_COUNTER = [1.5, 1.75, 2, 2], EL_WEAK = [0.75, 0.6, 0.5, 0.5], EL_SAME = [0.75, 0.5, 0.5, 0.5];
+export function elemModLv(atk = '無', def = '無', lv = 1) {
+  const i = Math.max(1, Math.min(4, lv | 0)) - 1, base = elemMod(atk, def);
+  if (atk === def && atk !== '無') return EL_SAME[i];
+  if (base > 1) return EL_COUNTER[i];
+  if (base < 1) return Math.max(0.5, EL_WEAK[i]);
+  return 1;
+}
+// 武器打小／中／大型的倍率；魔法不受體型影響
+export const WEAPON_SIZE = { dagger: [1, 0.8, 0.6], sword: [0.8, 1, 0.8], greatsword: [0.8, 0.9, 1], bow: [1, 1, 0.8], mace: [0.8, 1, 1], staff: [1, 1, 1], fist: [1, 0.9, 0.7] };
+export const CLASS_WEAPON = { sword: 'sword', archer: 'bow', mage: 'staff', priest: 'mace', monk: 'fist', scout: 'dagger' };
+export const sizeMod = (cls, branch, size, magic) => (magic ? 1 : (WEAPON_SIZE[branch === 'heavy' ? 'greatsword' : CLASS_WEAPON[cls] || 'sword'] || [1, 1, 1])[{ 小型: 0, 中型: 1, 大型: 2 }[size] ?? 1]);
 
 // ---- 技能與夥伴的攻擊屬性 ----
 export const SKILL_ELEM = {
@@ -207,9 +224,9 @@ export function cardMods(p) {
   return m;
 }
 // 對某隻怪物的總傷害倍率（屬性 × 種族／屬性／體型加成 × 防禦）
-export function damageMult(p, mods, atkElem, type, lv, boss) {
+export function damageMult(p, mods, atkElem, type, lv, boss, magic = false) {
   const pr = profileOf(type);
-  const em = elemMod(atkElem, pr.elem);
+  const el = elemModLv(atkElem, pr.elem, pr.el), sz = sizeMod(p.cls, p.job?.branch, pr.size, magic), em = el * sz;
   const bonus = 1 + ((mods.race[pr.race] || 0) + (mods.elemDmg[pr.elem] || 0) + (mods.size[pr.size] || 0)) / 100;
-  return { mult: em * bonus * defMod(monDef(lv, boss)), elem: em };
+  return { mult: em * bonus * defMod(monDef(lv, boss)), elem: el, size: sz };
 }

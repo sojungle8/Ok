@@ -28,7 +28,7 @@
           <button id="advBtn" class="tbtn adv" type="button">冒險<em id="advDot" class="tdot" hidden></em></button>
           <button id="shopBtn" class="tbtn shop" type="button">商城<em id="shopDot" class="tdot" hidden></em></button>
           <button id="gearBtn" class="tbtn" type="button">背包</button>
-          <button id="partyBtn" class="tbtn" type="button">隊伍</button>
+          <button id="partyBtn" class="tbtn" type="button">夥伴</button>
           <button id="soulMenuBtn" class="tbtn" type="button">魂像</button>
           <button id="talentBtn" class="tbtn" type="button">能力<em id="talentDot" class="tdot" hidden></em></button>
           <button id="soundBtn" class="tbtn" type="button">♪ 開</button>
@@ -84,9 +84,7 @@
     <h3>魂像</h3>
     <div id="soulList" class="soullist"></div>
     <div class="summonbox">
-      <div>魂石 <b id="stoneN">0</b></div>
-      <p class="small muted">星痕召喚機率：魂像 25%（千手郵差、磁極兄弟、午夜黑貓各約 8.3%），金幣與藥水 75%。保底 <b id="pityN">0</b>/8：第 8 抽必得魂像。重複的魂像會升星，大招傷害每星 +20%。</p>
-      <button id="summonBtn" class="startbtn" type="button">星痕召喚（100 魂石）</button>
+      <p class="small muted">魂像不能抽、不能買，只能用碎片兌換。打倒各區的野外魔王一定掉 3～5 個碎片，精英怪 20% 掉 1 個；碎片夠了就能兌換或升星，大招傷害每星 +20%。</p>
       <div id="summonRes" class="small" aria-live="polite"></div>
     </div>
     <button id="soulClose" class="ghostbtn" type="button">關閉</button>
@@ -119,8 +117,8 @@
     <button id="advClose" class="startbtn" type="button">關閉</button>
   </div>
   <div id="partyPanel" class="panel" hidden>
-    <h3>隊伍 <small id="partyCount" class="muted"></small></h3>
-    <p class="small muted">最多 3 位夥伴一起出戰。夥伴的能力會跟著你一起成長；倒地 20 秒後會自己爬起來，牧師也能把人救起來。</p>
+    <h3>旅途夥伴</h3>
+    <p class="small muted">一路上幫過你的人。他們留在各自的地方守著燈，不會跟你一起打怪。<br><span id="partyCount"></span></p>
     <div id="partyTactic" class="btabs"><button type="button" data-t="assist">主動出擊</button><button type="button" data-t="follow">跟緊我</button></div>
     <div id="partyList" class="soullist"></div>
     <button id="partyClose" class="startbtn" type="button">關閉</button>

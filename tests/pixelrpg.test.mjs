@@ -155,16 +155,18 @@ test('天賦：點數上限、分支門檻、重置', () => {
   assert.ok(Wd.talentSpent(p) <= Wd.talentPoints(p));
 });
 
-test('召喚：魂石不足不扣、保底 8 抽內必出魂像、升星上限', () => {
+test('魂像：碎片兌換與升星，不能抽', () => {
   const p = Wd.newPlayer();
-  assert.equal(Wd.summon(p, () => 0.99).ok, false);
-  p.stones = 100000;
-  let got = 0;
-  for (let i = 0; i < 8; i++) if (Wd.summon(p, () => 0.99).kind === 'soul') got++;
-  assert.equal(got, 1, '運氣最差也會在第 8 抽拿到');
-  for (let i = 0; i < 200; i++) Wd.summon(p, Wd.rng(i + 1));
-  for (const v of Object.values(p.souls)) assert.ok(v <= Wd.SOUL_MAX_STAR);
-  assert.ok(!p.souls.gear, '劇情魂像不在召喚池');
+  assert.equal(Wd.summon, undefined);
+  assert.equal(Wd.exchangeSoul(p, 'bird').ok, false);
+  Wd.addShards(p, 'bird', 30);
+  assert.equal(Wd.exchangeSoul(p, 'bird').star, 1);
+  Wd.addShards(p, 'bird', 10 + 20 + 40 + 80);
+  for (let i = 0; i < 4; i++) assert.ok(Wd.exchangeSoul(p, 'bird').ok);
+  assert.equal(p.souls.bird, Wd.SOUL_MAX_STAR);
+  assert.equal(p.shards.bird, 0);
+  assert.equal(Wd.exchangeSoul(p, 'bird').reason, '已經滿星');
+  assert.equal(Wd.shardNeed(p, 'cat'), 60, '稀有魂像要 60 片');
 });
 
 test('魂像被動與詞綴會反映在屬性上', () => {

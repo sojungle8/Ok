@@ -45,7 +45,13 @@ test('卡片：效果匯總、武器附加屬性、傷害倍率', () => {
   assert.equal(st.attrs.vit, 3);
   const vsHowl = RO.damageMult(p, st.mods, '火', 'howl', 18, false), vsCog = RO.damageMult(p, st.mods, '火', 'cog', 18, false);
   assert.ok(vsHowl.mult > vsCog.mult, '對動物加成');
-  assert.ok(RO.damageMult(p, st.mods, '火', 'berry', 4, false).elem === 1.75, '火剋地');
+  const vb = RO.damageMult(p, st.mods, '火', 'berry', 4, false);
+  assert.equal(vb.elem, 1.5, '火剋地（地 1 級）');
+  assert.equal(vb.size, 0.8, '單手劍打小型 80%');
+  assert.equal(RO.elemModLv('聖', '暗', 4), 2, '屬性等級 4 剋制 2 倍');
+  assert.equal(RO.elemModLv('暗', '暗', 2), 0.5, '同屬性 2 級 50%');
+  assert.equal(RO.sizeMod('scout', '', '大型', false), 0.6, '短刀打大型 60%');
+  assert.equal(RO.sizeMod('scout', '', '大型', true), 1, '魔法不受體型影響');
 });
 
 test('輔助狀態：祝福與加速會提高能力、到期消失', () => {
@@ -60,4 +66,17 @@ test('輔助狀態：祝福與加速會提高能力、到期消失', () => {
 test('命中下限 85%、閃避上限 50%＋完全迴避', () => {
   assert.equal(RO.hitChance(1, 99), 0.85); assert.equal(RO.hitChance(200, 1), 1);
   assert.equal(RO.dodgeChance(1, 50), 0); assert.ok(RO.dodgeChance(500, 1, 5) <= 0.55);
+});
+
+test('深夜怪與封名匣', async () => {
+  const W = await import('../world.js');
+  assert.ok(W.NIGHT.slime.lv >= 100 && W.NIGHT.slime.night, '深夜露滴 Lv100 以上');
+  assert.equal(W.NIGHT.slime.tpl, W.MONSTERS.slime.tpl, '沿用白天的美術');
+  assert.ok(RO.profileOf('slime_n').el >= RO.profileOf('slime').el);
+  const p = newPlayer('sword'); p.lv = 135;
+  assert.equal(W.canNight(p), false, '沒通關不能進');
+  p.ch = 7; assert.ok(W.canNight(p));
+  const picks = W.openNameBox(p, W.rng(7));
+  assert.equal(picks.length, 3);
+  for (const g of picks) { assert.equal(g.lv, 130); assert.equal(g.affixes.length, 3); assert.ok(g.affixes.every((a) => a.tier >= 1 && a.tier <= 4)); assert.ok(g.locked); }
 });

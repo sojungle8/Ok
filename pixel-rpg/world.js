@@ -133,6 +133,31 @@ for (const [id, m] of Object.entries(MONSTERS)) {
   if (!b) continue;
   Object.assign(m, { name: id === 'valde' ? m.name : b.name, lv: b.lv, hp: b.hp, atk: b.atk, exp: b.exp, coin: [Math.max(1, Math.round(b.coin * 0.6)), Math.max(1, Math.round(b.coin * 1.4))], elem: b.elem, el: b.el, race: b.race, size: b.size, trait: b.trait });
 }
+// 深夜版：同一隻怪的美術，數值換成圖鑑的「蝕・」夜間版本（Lv100～200）
+export const NIGHT = {};
+for (const [id, m] of Object.entries(MONSTERS)) {
+  const b = BESTIARY[(id === 'valde' ? 'valde_f' : id) + '_n'];
+  if (b) NIGHT[id] = { ...m, name: b.name, lv: b.lv, hp: b.hp, atk: b.atk, exp: b.exp, coin: [Math.max(1, Math.round(b.coin * 0.6)), Math.max(1, Math.round(b.coin * 1.4))], elem: b.elem, el: b.el, race: b.race, size: b.size, trait: b.trait, night: true };
+}
+export const NIGHT_OPEN = 4, NIGHT_LV = 100; // 上線先開前四區；Lv100 且通關主線才能進
+export const canNight = (p) => p.lv >= NIGHT_LV && p.ch >= 7;
+export const NAME_SHARD_RATE = 1 / 400, NAME_BOX_RATE = 1 / 12000, NAME_SHARD_NEED = 30, NAME_BOX_LV = 100;
+const AFFIX_TIER = [{ t: 1, w: 50, k: 1 }, { t: 2, w: 30, k: 1.3 }, { t: 3, w: 15, k: 1.6 }, { t: 4, w: 5, k: 2 }];
+export const nameBand = (lv) => (lv >= 160 ? 160 : lv >= 130 ? 130 : 100);
+// 打開封名匣：看到三件，挑一件帶走；每件三條詞綴，詞綴分 T1～T4
+export function openNameBox(p, rand) {
+  return [0, 1, 2].map(() => {
+    const g = rollGear(rand, nameBand(p.lv), true, p.cls), left = [...AFFIXES];
+    g.affixes = [0, 1, 2].map(() => {
+      const a = left.splice(Math.floor(rand() * left.length), 1)[0];
+      let r = rand() * 100, tier = AFFIX_TIER[0];
+      for (const x of AFFIX_TIER) { r -= x.w; if (r < 0) { tier = x; break; } }
+      return { id: a.id, val: Math.round((a.lo + rand() * (a.hi - a.lo)) * tier.k), tier: tier.t };
+    });
+    g.name = '封名・' + g.name; g.named = true; g.locked = true;
+    return g;
+  });
+}
 export const ROSTER = [...Array(10).fill('slime'), ...Array(8).fill('berry'), ...Array(6).fill('ember'), 'king'];
 
 // ---- 章節 ----
@@ -286,24 +311,24 @@ export const SOULS = {
 };
 export const SOUL_IDS = Object.keys(SOULS);
 export const SUMMON_COST = 100, SUMMON_SOUL_RATE = 0.25, SUMMON_PITY = 8, SOUL_MAX_STAR = 5;
-// 召喚：25% 抽到魂像（三隻平均），第 8 抽保底；重複的魂像升星
-export function summon(p, rand) {
-  if (p.stones < SUMMON_COST) return { ok: false, reason: `魂石不足（需要 ${SUMMON_COST}）` };
-  p.stones -= SUMMON_COST;
-  p.pity = (p.pity || 0) + 1;
-  const pool = SOUL_IDS.filter((id) => !SOULS[id].story);
-  if (p.pity >= SUMMON_PITY || rand() < SUMMON_SOUL_RATE) {
-    p.pity = 0;
-    const id = pool[Math.floor(rand() * pool.length)];
-    const had = p.souls[id] || 0;
-    if (had >= SOUL_MAX_STAR) { p.coins += 500; return { ok: true, kind: 'soul', id, star: had, maxed: true, coins: 500 }; }
-    p.souls[id] = had + 1;
-    return { ok: true, kind: 'soul', id, star: had + 1, isNew: !had };
-  }
-  const coins = 150 + Math.floor(rand() * 250);
-  p.coins += coins; if (p.bag?.stack) p.bag.stack.red = (p.bag.stack.red || 0) + 1; else p.potions += 1;
-  return { ok: true, kind: 'loot', coins };
+// 魂像不能抽、不能買、不能交易，只能用碎片兌換。碎片從主線、圖鑑、魔王與精英怪來，哪裡掉寫在魂像頁面。
+export const SOUL_RARITY = { gear: 'rare', post: 'common', magnet: 'common', thread: 'rare', bird: 'common', cat: 'rare' };
+export const SHARD_UNLOCK = { common: 30, rare: 60, legend: 120 };
+export const SHARD_STAR = { common: [10, 20, 40, 80], rare: [20, 40, 80, 160], legend: [40, 80, 160, 320] };
+export const SOUL_OF_CH = { 1: 'bird', 2: 'post', 3: 'magnet', 4: 'thread', 5: 'cat', 6: 'gear' };
+export const SOUL_SOURCE = { bird: '守燈草原的魔王與精英怪', post: '迴聲峽谷的魔王與精英怪', magnet: '鏽齒工坊城的魔王與精英怪', thread: '鏡湖古堡的魔王與精英怪', cat: '霧港夜市的魔王與精英怪', gear: '蝕夜神殿的魔王與精英怪' };
+export const shardNeed = (p, id) => { const r = SOUL_RARITY[id] || 'common', star = p.souls?.[id] || 0; return star ? SHARD_STAR[r][star - 1] ?? null : SHARD_UNLOCK[r]; };
+export function addShards(p, id, n) { p.shards ??= {}; p.shards[id] = (p.shards[id] || 0) + n; return p.shards[id]; }
+export function exchangeSoul(p, id) {
+  if (!SOULS[id]) return { ok: false, reason: '沒有這隻魂像' };
+  const need = shardNeed(p, id), have = p.shards?.[id] || 0;
+  if (need === null) return { ok: false, reason: '已經滿星' };
+  if (have < need) return { ok: false, reason: `碎片不夠（${have}／${need}）` };
+  p.shards[id] = have - need;
+  const star = (p.souls[id] || 0) + 1; p.souls[id] = star;
+  return { ok: true, id, star, isNew: star === 1 };
 }
+// 召喚：25% 抽到魂像（三隻平均），第 8 抽保底；重複的魂像升星
 
 export function stats(p) {
   const c = CLASSES[p.cls] || CLASSES.sword;

@@ -16,6 +16,8 @@ export const ITEMS = {
   white: { name: '白色藥水', kind: 'use', grade: 'common', price: 200, heal: 1, icon: 'potion', color: '#f3f0ff', unlock: 4, desc: '回復 100% 生命' },
   scroll: { name: '回城卷軸', kind: 'use', grade: 'common', price: 50, effect: 'home', icon: 'scroll', color: '#e8d29a', unlock: 2, desc: '立刻回到守燈村' },
   feather: { name: '瞬移羽毛', kind: 'use', grade: 'common', price: 20, effect: 'blink', icon: 'feather', color: '#bfe3ff', unlock: 2, desc: '傳送到這張地圖的隨機位置' },
+  nameShard: { name: '名字碎片', kind: 'use', grade: 'rare', sellPrice: 300, effect: 'combine', icon: 'ore', color: '#c9a7ff', desc: '深夜怪物身上剝落的名字。集滿 30 片可以拼成一個封名匣' },
+  nameBox: { name: '封名匣', kind: 'use', grade: 'rare', sellPrice: 5000, effect: 'namebox', icon: 'scroll', color: '#8a5cff', desc: '封著一個被長夜吞掉的名字。Lv100 以上可以打開，從三件裝備中挑一件' },
   elixir: { name: '魂之藥', kind: 'use', grade: 'rare', sellPrice: 120, effect: 'soul', icon: 'potion', color: '#c084ff', desc: '魂力 +50%' },
   ore: { name: '精煉石', kind: 'mat', grade: 'rare', sellPrice: 40, icon: 'ore', color: '#7fd8ff', desc: '精煉 +1～+6 的材料' },
   ore2: { name: '強化原石', kind: 'mat', grade: 'rare', sellPrice: 150, icon: 'ore', color: '#ffb03b', desc: '精煉 +7～+10 的材料' },

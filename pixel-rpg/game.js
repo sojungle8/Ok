@@ -3,7 +3,8 @@ import {
   MONSTERS, expNeed, stats, swordCost, POTION_PRICE, POTION_HEAL_PCT, FISH, rollFish, gainExp, newPlayer, loadPlayer,
   rollGear, rarityOf, rarityIdx, equipIfBetter, SLOTS, SLOT_NAME, DROP_RATE, CLASSES, CLASS_IDS,
   TALENTS, TALENT_MAX, TALENT_REQ, talentPoints, talentSpent, canLearn, learn, resetTalents,
-  SOULS, SOUL_IDS, SUMMON_COST, SUMMON_PITY, summon, offlineReward, affixName, LV_CAP, capFor, CHAPTERS, FIELD, buildField,
+  NIGHT, NIGHT_OPEN, NIGHT_LV, canNight, NAME_SHARD_RATE, NAME_BOX_RATE, NAME_SHARD_NEED, NAME_BOX_LV, openNameBox, nameBand,
+  SOULS, SOUL_IDS, SUMMON_COST, SUMMON_PITY, shardNeed, addShards, exchangeSoul, SOUL_OF_CH, SOUL_SOURCE, SOUL_RARITY, offlineReward, affixName, LV_CAP, capFor, CHAPTERS, FIELD, buildField,
 } from './world.js';
 import { soulSprite, soulBig } from './soul.js';
 import { ITEMS, GRADES, STAT_NAME, BAG_SIZE, ensureInv, count, addStack, takeStack, pickupGear, pickupItem, equipFromBag, unequip, sellFromBag, sellStack, sellAllJunk, findGear, insertCard, REFINE_RATE, refineCost, refine, rollDrops, shopList, buy, pickPotion, gearSell, itemSell } from './items.js';
@@ -53,7 +54,7 @@ const cv = $('cv');
 const ctx = cv.getContext('2d');
 addEventListener('resize', () => resize());
 // 地圖：0 = 守燈村與守燈草原；2～6 = 各章野外
-let mapId = 0, grid = buildWorld(), mapC = null, BZ = BOSS_ZONE, FMIN = FIELD_MIN_X;
+let nightMode = false, mapId = 0, grid = buildWorld(), mapC = null, BZ = BOSS_ZONE, FMIN = FIELD_MIN_X;
 const townNpcs = NPCS.map((n, i) => ({ ...n, face: n.id === 'fisher' ? 'right' : 'down', L: npcLook(n), seed: i }));
 let npcs = townNpcs;
 const mapCache = {};
@@ -164,14 +165,14 @@ function placeMon(m) {
   if (!t) { m.dead = 1; return; }
   Object.assign(m, { x: t.x, y: t.y, px: t.x, py: t.y, fx: t.x, fy: t.y, moving: false, hp: m.d.hp, dead: 0, cool: 1, think: R() * 1.5, flash: 0, kx: 0, ky: 0, spawnT: 0.4, frozen: 0, letter: 0, shield: false, phases: [], slamT: 3, spitT: 5, hidden: false, engaged: false, stolen: new Set(), rwT: 10, hist: [], histT: 0 });
 }
-function spawnRoster(list) { mons = []; for (const type of list) { const m = { type, d: MONSTERS[type], base: MONSTERS[type], anim: R() * 2 }; mons.push(m); placeMon(m); } }
+function spawnRoster(list) { mons = []; for (const type of list) { const D = nightMode && NIGHT[type] ? NIGHT[type] : MONSTERS[type]; const m = { type, d: D, base: D, night: !!D.night, anim: R() * 2 }; mons.push(m); placeMon(m); } }
 function fieldNpc(id) {
   const c = CHAPTERS[id - 1];
   if (!c.guide) return [];
   return [{ id: 'guide', ch: id, x: FIELD.guide.x, y: FIELD.guide.y, name: c.guide.name, look: c.guide.look, face: 'down', L: npcLook(c.guide), seed: 0 }];
 }
-function loadMap(id, at) {
-  mapId = id; trial = null;
+function loadMap(id, at, night = false) {
+  mapId = id; trial = null; nightMode = !!night && id > 0;
   grid = id === 0 ? buildWorld() : buildField(id);
   mapC = renderMapCanvas(id);
   BZ = FIELD.boss; FMIN = FIELD_MIN_X;
@@ -227,8 +228,9 @@ function checkGate() {
     if (gateMsgT <= 0) { gateMsgT = 3; const c = CHAPTERS[to - 1]; say('路標', [`前方是第 ${c.n} 章「${c.name}」。`, '那裡的怪物太強了，先完成目前的章節再過去吧。']); }
     return;
   }
-  loadMap(to, at);
-  const name = to === 0 ? '守燈村' : CHAPTERS[to - 1].name;
+  if (nightMode && to > NIGHT_OPEN) { const back = W - 2; Object.assign(me, { x: back, px: back, fx: back, moving: false }); if (gateMsgT <= 0) { gateMsgT = 3; say('路標', ['再往前的深夜還沒有人走過。', '（深夜地區目前開放到第 4 區）']); } return; }
+  loadMap(to, at, nightMode && to > 0);
+  const name = to === 0 ? '守燈村' : (nightMode ? '深夜・' : '') + CHAPTERS[to - 1].name;
   banner(name); feed(`來到了「${name}」`, '#c084ff'); hud(); save();
 }
 const inSafe = () => mapId === 0 || me.x < 5;
@@ -362,7 +364,6 @@ function hud() {
   if (lastCp && st.cp !== lastCp) bump('cpBox');
   lastCp = st.cp;
   $('potions').textContent = count(P, 'red') + count(P, 'orange') + count(P, 'white');
-  $('stoneN') && ($('stoneN').textContent = fmt(P.stones));
   $('talentDot').hidden = talentSpent(P) >= talentPoints(P) && (P.autoAttr || attrFree(P) <= 0);
   $('quest').textContent = questText();
 }
@@ -612,36 +613,37 @@ $('talentReset').addEventListener('click', () => { resetTalents(P); hud(); save(
 
 // ---------- 魂像 ----------
 function renderSouls() {
-  $('stoneN').textContent = fmt(P.stones);
-  $('pityN').textContent = P.pity || 0;
+  P.shards ??= {};
   $('soulList').replaceChildren(...SOUL_IDS.map((id) => {
-    const S = SOULS[id], star = P.souls[id] || 0;
+    const S = SOULS[id], star = P.souls[id] || 0, need = shardNeed(P, id), have = P.shards[id] || 0;
     const card = document.createElement('div');
     card.className = `soulcard${star ? '' : ' locked'}${P.soul === id ? ' on' : ''}`;
     card.style.setProperty('--sc', S.color);
     card.append(soulIcon(id, 'sart'));
-    card.insertAdjacentHTML('beforeend', `<div class="sinfo"><b>${star ? S.name : '？？？'}</b> <span class="stype">${S.type}</span> <span class="stars">${'★'.repeat(star)}${'☆'.repeat(5 - star)}</span><p>被動：${S.passive}</p><p>大招：${S.ult}</p>${star ? '' : `<p class="muted">${S.story ? '主線第 1 章取得' : '星痕召喚取得'}</p>`}</div>`);
+    card.insertAdjacentHTML('beforeend', `<div class="sinfo"><b>${S.name}</b> <span class="stype">${S.type}・${{ common: '普通', rare: '稀有', legend: '傳說' }[SOUL_RARITY[id]]}</span> <span class="stars">${'★'.repeat(star)}${'☆'.repeat(5 - star)}</span><p>被動：${S.passive}</p><p>大招：${S.ult}</p><p class="muted">碎片 ${have}${need ? ` / ${need}` : '（已滿星）'}・來源：${SOUL_SOURCE[id]}</p></div>`);
+    const row = document.createElement('div'); row.className = 'crow';
+    if (need !== null) {
+      const x = document.createElement('button'); x.type = 'button'; x.className = 'startbtn'; x.textContent = star ? '升星' : '兌換'; x.disabled = have < need;
+      x.addEventListener('click', () => {
+        const r = exchangeSoul(P, id); if (!r.ok) { $('summonRes').textContent = r.reason; return; }
+        if (r.isNew) { $('soulPanel').hidden = true; showCutin(id, '契約'); cutinT = 1.4; pendingUlt = null; setTimeout(() => { renderSouls(); $('soulPanel').hidden = false; }, 1500); }
+        else $('summonRes').textContent = `${S.name} 升到 ${r.star} 星！`;
+        hud(); save(); renderSouls();
+      });
+      row.append(x);
+    }
     if (star) {
       const b = document.createElement('button'); b.type = 'button'; b.className = P.soul === id ? 'ghostbtn' : 'startbtn'; b.textContent = P.soul === id ? '使用中' : '裝上';
       b.disabled = P.soul === id;
       b.addEventListener('click', () => { P.soul = id; soulPower = 0; hud(); save(); renderSouls(); });
-      card.append(b);
+      row.append(b);
     }
+    card.append(row);
     return card;
   }));
 }
 $('soulMenuBtn').addEventListener('click', () => { if (!started) return; $('summonRes').textContent = ''; renderSouls(); $('soulPanel').hidden = false; });
 $('soulClose').addEventListener('click', () => { $('soulPanel').hidden = true; });
-$('summonBtn').addEventListener('click', () => {
-  const r = summon(P, R);
-  if (!r.ok) { $('summonRes').textContent = r.reason; return; }
-  if (r.kind === 'soul') {
-    const S = SOULS[r.id];
-    $('summonRes').innerHTML = r.maxed ? `${S.name} 已滿星，轉換成 ${r.coins} 金幣` : r.isNew ? `<b style="color:${S.color2}">獲得新魂像【${S.name}】！</b>` : `${S.name} 升到 ${r.star} 星！大招傷害提升`;
-    if (r.isNew) { $('soulPanel').hidden = true; showCutin(r.id, '召喚'); cutinT = 1.4; pendingUlt = null; setTimeout(() => { renderSouls(); $('soulPanel').hidden = false; }, 1500); }
-  } else $('summonRes').textContent = `獲得 ${r.coins} 金幣、藥水 ×1`;
-  hud(); save(); renderSouls();
-});
 
 // ---------- 離線收益 ----------
 function checkOffline() {
@@ -739,7 +741,8 @@ function talk(n) {
   } else if (n.id === 'porter') {
     {
       const opts = CHAPTERS.filter((c) => c.n <= Math.min(6, P.ch)).map((c) => [`第 ${c.n} 章・${c.name}（Lv ${MONSTERS[c.mons[0]].lv}～）`, () => { loadMap(c.n); feed(`來到了「${c.name}」`, '#c084ff'); hud(); save(); }]);
-      say(nm, ['要去哪裡呢？也可以從東門一路走過去。回來時踩上傳送陣，或往西走回來都行。'], [...opts, ...(P.ch >= 2 ? [[`試煉之塔（最高第 ${ensureMeta(P).tower.best} 層）`, () => startTower(P.meta.tower.best + 1)]] : []), ['留在村子', null]]);
+      const nopts = canNight(P) ? CHAPTERS.slice(0, NIGHT_OPEN).map((c) => [`深夜・${c.name}（Lv ${NIGHT[c.mons[0]].lv}～）`, () => { loadMap(c.n, null, true); banner(`深夜・${c.name}`); feed('長夜吞掉的名字，在這裡的怪物身上', '#9a7cff'); hud(); save(); }]) : [];
+      say(nm, [canNight(P) ? '你也想去看看夜晚的另一面嗎？深夜的怪物身上，偶爾會掉出被吞掉的名字。' : '要去哪裡呢？也可以從東門一路走過去。回來時踩上傳送陣，或往西走回來都行。'], [...opts, ...nopts, ...(P.ch >= 2 ? [[`試煉之塔（最高第 ${ensureMeta(P).tower.best} 層）`, () => startTower(P.meta.tower.best + 1)]] : []), ['留在村子', null]]);
     }
   } else if (n.id === 'guide') {
     const c = CHAPTERS[n.ch - 1], here = P.ch === n.ch;
@@ -769,7 +772,7 @@ function awaken() {
   showCutin('gear', '覺醒'); cutinT = 1.8; pendingUlt = null;
   setTimeout(() => {
     banner('獲得魂像【鏽紅齒輪】');
-    say('村長・歐文', ['……鏽紅齒輪。它能讓時間倒轉。', '魂力集滿時，按右下角發光的「魂像」鍵就能發動大招。', '我另外給你 200 魂石，可以到「魂像」選單試試星痕召喚。', '現在，你有資格挑戰露滴王了。']);
+    say('村長・歐文', ['……鏽紅齒輪。它能讓時間倒轉。', '魂力集滿時，按右下角發光的「魂像」鍵就能發動大招。', '其他魂像不能抽，要打倒各地的魔王與精英怪收集碎片，到「魂像」選單兌換。', '現在，你有資格挑戰露滴王了。']);
     hud(); save();
   }, 1900);
 }
@@ -864,7 +867,8 @@ function dealDamage(m, mult, fromX = me.px, fromY = me.py, color, kind = 'skill'
   const elem = hitElem || (kind === 'basic' ? st.weaponElem : kind === 'ally' ? allyElem : kind === 'skill' && skillElemT > 0 ? skillElem : kind === 'skill' ? skillElem : '無');
   hitElem = null;
   if (kind !== 'ult' && kind !== 'ally' && R() > hitChance(st.hit, m.d.lv)) { float('Miss', cx(m), m.py * TS - 6, '#bdb6d0', 0.9); return; }
-  const dm = damageMult(P, st.mods, elem, m.type, m.d.lv, m.d.boss);
+  const magic = kind === 'skill' ? !!SK[curSkill]?.mag : kind === 'basic' && (P.cls === 'mage' || P.cls === 'priest');
+  const dm = damageMult(P, st.mods, elem, m.night ? m.type + '_n' : m.type, m.d.lv, m.d.boss, magic);
   const cm = kind === 'skill' ? castMods : null;
   if (cm?.pierce) { const d0 = monDef(m.d.lv, m.d.boss); dm.mult *= defMod(d0 * (1 - cm.pierce)) / defMod(d0); }
   const frozenCrit = m.frozen > 0 && debOn(m, '冰封暴擊') && !SK[curSkill]?.mag;
@@ -911,6 +915,11 @@ function killMon(m) {
   const dk = diffOf(P), rolls = m.d.boss ? 3 : m.minion ? 0 : R() < DROP_RATE * (m.d.trial ? 1 : dk.drop) ? 1 : 0;
   for (let i = 0; i < rolls; i++) drops.push(newDrop('gear', wx, wy, rollGear(R, m.d.lv + Math.floor(R() * 2), m.d.boss || (!m.d.trial && R() < dk.rare), P.cls)));
   if (!m.d.still && !m.d.decoy) for (const it of rollDrops(R, m.minion ? '' : m.type)) drops.push(newDrop('loot', wx, wy, it));
+  if (m.night && !m.minion) {
+    if (R() < NAME_SHARD_RATE) { drops.push(newDrop('loot', wx, wy, { id: 'nameShard', n: 1 })); feed('有什麼東西從怪物身上剝落了……名字碎片', '#c9a7ff'); }
+    if (R() < NAME_BOX_RATE) { drops.push(newDrop('loot', wx, wy, { id: 'nameBox', n: 1 })); banner('掉落了【封名匣】！'); flash = 0.3; shake = 0.3; addFx('pillar', 1.2, { x: wx, y: wy, color: '#8a5cff' }); }
+  }
+  { const sid = SOUL_OF_CH[Math.min(6, Math.max(1, mapId))]; const n = m.d.boss ? 3 + Math.floor(R() * 3) : m.d.elite && R() < 0.2 ? 1 : 0; if (sid && n && !m.minion) { addShards(P, sid, n); feed(`獲得 ${SOULS[sid].name}的碎片 ×${n}`, SOULS[sid].color); } }
   const curCh = CHAPTERS[P.ch - 1];
   if (P.step === 1 && curCh && curCh.mons.includes(m.type) && !m.minion) P.kills++;
   if (m.d.boss) {
@@ -1517,6 +1526,8 @@ function dodge() {
 
 // ---------- 隊伍 ----------
 function buildAllies() {
+  allies = []; return; // 設計定案：沒有 AI 傭兵，夥伴們改成各地的劇情 NPC；組隊留給真人玩家
+
   const st = stats(P);
   const old = new Map(allies.map((a) => [a.id, a]));
   const slots = [[-1, 1], [1, 1], [0, 2], [-1, -1], [1, -1]];
@@ -1633,27 +1644,17 @@ function renderPartyHp() {
   }
 }
 function renderPartyPanel() {
-  $('partyTactic').querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.t === P.party.tactic));
+  // 設計定案：沒有 AI 傭兵。這些人是各章的劇情夥伴；組隊之後開放給真人玩家
+  $('partyTactic').hidden = true;
   $('partyList').replaceChildren(...COMPANION_IDS.map((id) => {
-    const c = COMPANIONS[id], hired = P.party.hired.includes(id), on = P.party.active.includes(id);
-    const card = document.createElement('div'); card.className = `pcard${on ? ' on' : ''}`; card.style.setProperty('--c', c.color);
+    const c = COMPANIONS[id], met = unlocked(P, id);
+    const card = document.createElement('div'); card.className = `pcard${met ? '' : ' locked'}`; card.style.setProperty('--c', c.color);
     const art = asset('npc/ally_' + id);
     card.append(art ? Object.assign(art.cloneNode(), { className: 'pimg' }) : previewCanvas(c.look, 2));
-    card.insertAdjacentHTML('beforeend', `<div class="pinfo"><b>${c.name}</b> <span class="prole">${c.title}・${ROLE_NAME[c.role]}</span><p>${c.desc}</p><p class="muted">技能：${c.skill}</p></div>`);
-    const b = document.createElement('button'); b.type = 'button';
-    if (!hired) {
-      const ok = unlocked(P, id);
-      b.className = 'startbtn'; b.textContent = ok ? `招募 ${c.price} 金幣` : `第 ${c.unlock[0]} 章開放`; b.disabled = !ok;
-      b.addEventListener('click', () => { const r = hire(P, id); if (!r.ok) feed(r.reason, '#ff8fa0'); else { feed(`${c.name} 加入了隊伍！`, c.color); banner(`${c.title}${c.name} 加入隊伍`); $('partyPanel').hidden = true; say(c.name, [`我是${c.title}${c.name}，從今天起就跟你一起冒險了！`, '戰鬥交給我們，你只管往前衝吧。'], null, () => { renderPartyPanel(); $('partyPanel').hidden = false; }); } buildAllies(); hud(); save(); renderPartyPanel(); });
-    } else {
-      b.className = on ? 'ghostbtn' : 'startbtn'; b.textContent = on ? '休息' : '出戰';
-      b.disabled = !on && P.party.active.length >= PARTY_MAX;
-      b.addEventListener('click', () => { toggleActive(P, id); buildAllies(); save(); renderPartyPanel(); });
-    }
-    card.append(b);
+    card.insertAdjacentHTML('beforeend', met ? `<div class="pinfo"><b>${c.name}</b> <span class="prole">${c.title}</span><p>${c.desc}</p></div>` : `<div class="pinfo"><b>？？？</b><p class="muted">第 ${c.unlock[0]} 章會遇到</p></div>`);
     return card;
   }));
-  $('partyCount').textContent = `出戰 ${P.party.active.length}/${PARTY_MAX}`;
+  $('partyCount').textContent = '組隊會在多人版開放，和真人玩家一起冒險';
 }
 $('partyBtn').addEventListener('click', () => { if (!started) return; renderPartyPanel(); $('partyPanel').hidden = false; });
 $('partyClose').addEventListener('click', () => { $('partyPanel').hidden = true; });
@@ -1780,6 +1781,19 @@ function useItem(id) {
     takeStack(P, id); burst(cx(me), cy(me), '#bfe3ff', 14, 80);
     Object.assign(me, { x, y, px: x, py: y, fx: x, fy: y, moving: false }); soulPos.x = cx(me); soulPos.y = cy(me);
     burst(cx(me), cy(me), '#bfe3ff', 14, 80);
+  } else if (d.effect === 'combine') {
+    if (count(P, id) < NAME_SHARD_NEED) { feed(`名字碎片 ${count(P, id)} / ${NAME_SHARD_NEED}，集滿才能拼成封名匣`, '#c9a7ff'); return; }
+    takeStack(P, id, NAME_SHARD_NEED); addStack(P, 'nameBox', 1); banner('拼成了一個【封名匣】'); sfx('reward');
+  } else if (d.effect === 'namebox') {
+    if (P.lv < NAME_BOX_LV) { feed(`封名匣要 Lv${NAME_BOX_LV} 才打得開`, '#ff8fa0'); return; }
+    const picks = openNameBox(P, R);
+    $('bagPanel').hidden = true;
+    say('封名匣', [`匣子裡浮出三個名字（Lv${nameBand(P.lv)} 級）。只能帶走一個，其他兩個會回到長夜裡。`],
+      [...picks.map((g) => [`${SLOT_NAME[g.slot]}・${g.name}：${g.affixes.map((a) => `${affixName(a.id)}+${a.val}%（T${a.tier}）`).join('、')}`, () => {
+        if (!takeStack(P, id)) return;
+        pickupGear(P, g); banner(`帶走了【${g.name}】`); addFx('pillar', 1, { x: cx(me), y: cy(me), color: '#8a5cff' }); sfx('reward'); hud(); save();
+      }]), ['先不打開', null]]);
+    return;
   } else if (d.effect === 'soul') { if (!P.soul) return; takeStack(P, id); soulPower = Math.min(100, soulPower + 50); floatT('魂力 +50%', me.x, me.y - 0.6, '#c084ff', 0.9); }
   hud(); save();
 }
@@ -2037,6 +2051,7 @@ function render() {
   ctx.globalAlpha = 1;
   ctx.restore();
   if (flash > 0) { ctx.fillStyle = `rgba(255,248,231,${Math.min(0.6, flash * 3)})`; ctx.fillRect(0, 0, VW, VH); }
+  if (nightMode) { ctx.fillStyle = 'rgba(14,8,44,.42)'; ctx.fillRect(0, 0, VW, VH); }
   if (tintT > 0) { ctx.globalAlpha = Math.min(0.22, tintT * 1.6); ctx.fillStyle = tintC; ctx.fillRect(0, 0, VW, VH); ctx.globalAlpha = 1; }
   // 高解析度文字層：名字、傷害數字
   ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -2631,4 +2646,4 @@ document.fonts?.ready.then(render);
 requestAnimationFrame(frame);
 
 // 自動化測試用（網址加 ?debug 才開）
-if (location.search.includes('debug')) globalThis.__game = { showCutin, get allies() { return allies; }, buildAllies, get P() { return P; }, newDrop, get drops() { return drops; }, set dropsAdd(d) { drops.push(d); }, me, get grid() { return grid; }, loadMap, get mapId() { return mapId; }, get mons() { return mons; }, get fishing() { return fishing; }, get dialog() { return dialog; }, get drops() { return drops; }, get skills() { return skills; }, castIdx, startTower, get trial() { return trial; }, renderAdv, hud, audioLevel, currentSong, sfx, get chests() { return chests; }, say, renderPartyPanel, renderShop };
+if (location.search.includes('debug')) globalThis.__game = { showCutin, get allies() { return allies; }, buildAllies, get P() { return P; }, newDrop, get drops() { return drops; }, set dropsAdd(d) { drops.push(d); }, me, get grid() { return grid; }, loadMap, get mapId() { return mapId; }, get mons() { return mons; }, get fishing() { return fishing; }, get dialog() { return dialog; }, get drops() { return drops; }, get skills() { return skills; }, castIdx, startTower, get trial() { return trial; }, renderAdv, hud, audioLevel, currentSong, sfx, get chests() { return chests; }, say, renderPartyPanel, renderShop, useItem, addStack };
