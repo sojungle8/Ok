@@ -1,6 +1,6 @@
 import {
-  W, H, T, TOWN_EDGE, FIELD_MIN_X, BOSS_ZONE, HOUSES, NPCS, SIGN, SPAWN, INN_SPOT, buildWorld, walkable,
-  MONSTERS, ROSTER, expNeed, stats, swordCost, POTION_PRICE, POTION_HEAL_PCT, FISH, rollFish, gainExp, newPlayer, loadPlayer,
+  W, H, T, TOWN_EDGE, FIELD_MIN_X, BOSS_ZONE, HOUSES, NPCS, SIGN, SPAWN, INN_SPOT, buildWorld, walkable, GATE_Y, FOUNTAIN_AT, reachable,
+  MONSTERS, expNeed, stats, swordCost, POTION_PRICE, POTION_HEAL_PCT, FISH, rollFish, gainExp, newPlayer, loadPlayer,
   rollGear, rarityOf, rarityIdx, equipIfBetter, SLOTS, SLOT_NAME, DROP_RATE, CLASSES, CLASS_IDS,
   TALENTS, TALENT_MAX, TALENT_REQ, talentPoints, talentSpent, canLearn, learn, resetTalents,
   SOULS, SOUL_IDS, SUMMON_COST, SUMMON_PITY, summon, offlineReward, affixName, LV_CAP, capFor, CHAPTERS, FIELD, buildField,
@@ -9,7 +9,7 @@ import { soulSprite, soulBig } from './soul.js';
 import { ITEMS, GRADES, STAT_NAME, BAG_SIZE, ensureInv, count, addStack, takeStack, pickupGear, pickupItem, equipFromBag, unequip, sellFromBag, sellStack, sellAllJunk, findGear, insertCard, REFINE_RATE, refineCost, refine, rollDrops, shopList, buy, pickPotion, gearSell, itemSell } from './items.js';
 import { iconCanvas, gearIcon } from './icons.js';
 import { loadAssets, asset, tinted, loadState } from './assets.js';
-import { ensureMeta, refresh, track, claimQuest, claimChest, claimable, claimLogin, loginReward, questLabel, rewardText, CHESTS, codexBonus, codexStars, CODEX_TIERS, ACHIEVEMENTS, achProgress, achReady, claimAch, ELITE_AFFIX, ELITE_RATE, makeElite, towerFloor, towerClear, LOGIN_CYCLE } from './meta.js';
+import { ensureMeta, refresh, track, claimQuest, claimChest, claimable, claimLogin, loginReward, questLabel, rewardText, CHESTS, codexBonus, codexStars, CODEX_TIERS, ACHIEVEMENTS, achProgress, achReady, claimAch, ELITE_AFFIX, ELITE_RATE, makeElite, DIFFS, diffOf, applyDiff, chestSpots, openChest, chestOpened, dayKey, towerFloor, towerClear, LOGIN_CYCLE } from './meta.js';
 import { pixelize } from './pixelize.js';
 import { audioOpt, saveAudioOpt, initAudio, sfx, playSong, audioLevel, currentSong } from './audio.js';
 // 美術風格：像素風。高畫質的角色、怪物、NPC 在遊戲畫面中即時轉成像素圖；特效、頭像、大招立繪維持高畫質
@@ -56,9 +56,8 @@ function renderMapCanvas(id) {
   return (mapCache[id] = c);
 }
 function drawHouses(x) {
-  const color = ['red', 'blue', 'green', 'purple'];
-  HOUSES.forEach((h, i) => { const im = asset(`prop/house_${color[i]}`); if (im) { x.save(); x.imageSmoothingEnabled = true; x.drawImage(im, h.x * TS - 6, h.y * TS - 14, 60, 62); x.restore(); } });
-  const f = asset('prop/fountain'); if (f) { x.save(); x.imageSmoothingEnabled = true; x.drawImage(f, 9 * TS - 4, 11 * TS - 6, 40, 40); x.restore(); }
+  HOUSES.forEach((h) => { const im = asset(`prop/house_${h.color}`); if (im) { x.save(); x.imageSmoothingEnabled = true; x.drawImage(im, h.x * TS - 6, h.y * TS - 14, 60, 62); x.restore(); } });
+  const f = asset('prop/fountain'); if (f) { x.save(); x.imageSmoothingEnabled = true; x.drawImage(f, FOUNTAIN_AT.x * TS - 4, FOUNTAIN_AT.y * TS - 6, 40, 40); x.restore(); }
 }
 mapC = renderMapCanvas(0);
 const crownS = makeSprite(CROWN), bobberS = makeSprite(BOBBER), bangS = makeSprite(BANG), heartS = makeSprite(HEART), coinS = makeSprite(COIN);
@@ -136,7 +135,7 @@ function spawnTile(m) {
   return null;
 }
 function placeMon(m) {
-  if (m.base && !trial) m.d = !m.base.boss && P && P.lv >= 5 && R() < ELITE_RATE ? makeElite(m.base, R) : m.base;
+  if (m.base && !trial) m.d = applyDiff(!m.base.boss && P && P.lv >= 5 && R() < ELITE_RATE ? makeElite(m.base, R) : m.base, P || {});
   const t = spawnTile(m);
   if (!t) { m.dead = 1; return; }
   Object.assign(m, { x: t.x, y: t.y, px: t.x, py: t.y, fx: t.x, fy: t.y, moving: false, hp: m.d.hp, dead: 0, cool: 1, think: R() * 1.5, flash: 0, kx: 0, ky: 0, spawnT: 0.4, frozen: 0, letter: 0, shield: false, phases: [], slamT: 3, spitT: 5, hidden: false, engaged: false, stolen: new Set(), rwT: 10, hist: [], histT: 0 });
@@ -151,7 +150,7 @@ function loadMap(id, at) {
   mapId = id; trial = null;
   grid = id === 0 ? buildWorld() : buildField(id);
   mapC = renderMapCanvas(id);
-  BZ = id === 0 ? BOSS_ZONE : FIELD.boss; FMIN = id === 0 ? FIELD_MIN_X : 5;
+  BZ = FIELD.boss; FMIN = FIELD_MIN_X;
   npcs = id === 0 ? townNpcs : fieldNpc(id);
   drops = []; projs = []; pending = []; fx = []; warns = []; fishing = null;
   const s0 = at && walkable(grid, at.x, at.y) ? at : id === 0 ? SPAWN : FIELD.spawn;
@@ -159,9 +158,56 @@ function loadMap(id, at) {
   soulPos.x = cx(me); soulPos.y = cy(me);
   const c = CHAPTERS[Math.max(1, id) - 1];
   if (typeof buildAllies === 'function' && P) { allies = []; buildAllies(); }
-  spawnRoster(id === 0 ? ROSTER : [...Array(9).fill(c.mons[0]), ...Array(8).fill(c.mons[1]), ...Array(7).fill(c.mons[2]), c.boss]);
+  spawnRoster(id === 0 ? [] : [...Array(9).fill(c.mons[0]), ...Array(8).fill(c.mons[1]), ...Array(7).fill(c.mons[2]), c.boss]);
+  placeChests();
 }
-const inSafe = () => (mapId === 0 ? me.x <= TOWN_EDGE : me.x < 5);
+// ---- 野外寶箱 ----
+let chests = [];
+function placeChests() {
+  chests = [];
+  if (mapId === 0 || !P) return;
+  const reach = reachable(grid, FIELD.spawn);
+  chests = chestSpots(grid, mapId, dayKey(), (x, y) => grid[y][x] !== T.PORTAL && walkable(grid, x, y) && reach.has(`${x},${y}`) && !(x >= BZ.x0 - 2 && x <= BZ.x1 + 2 && y >= BZ.y0 - 2 && y <= BZ.y1 + 2));
+}
+function drawChest(c) {
+  const open = chestOpened(P, c.key), X = c.x * TS, Y = c.y * TS;
+  if (!open) { ctx.globalAlpha = 0.35 + Math.sin(anim * 4 + c.x) * 0.2; ctx.fillStyle = '#ffd166'; ctx.beginPath(); ctx.ellipse(X + 8, Y + 13, 9, 3.5, 0, 0, 7); ctx.fill(); ctx.globalAlpha = 1; }
+  ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(X + 2, Y + 13, 12, 2);
+  ctx.fillStyle = '#2a1d2e'; ctx.fillRect(X + 1, Y + 5, 14, 9);
+  ctx.fillStyle = open ? '#6b4024' : '#a0603a'; ctx.fillRect(X + 2, Y + 8, 12, 5);
+  ctx.fillStyle = open ? '#4a2a18' : '#c97a45'; ctx.fillRect(X + 2, open ? Y + 3 : Y + 6, 12, open ? 3 : 2);
+  ctx.fillStyle = '#ffd166'; ctx.fillRect(X + 2, Y + 8, 12, 1); ctx.fillRect(X + 7, Y + 7, 2, 4);
+  if (!open && Math.sin(anim * 3 + c.y) > 0.7) { ctx.fillStyle = '#fff'; ctx.fillRect(X + 12, Y + 3, 1, 3); ctx.fillRect(X + 11, Y + 4, 3, 1); }
+}
+function checkChest() {
+  const c = chests.find((k) => k.x === me.x && k.y === me.y);
+  if (!c || chestOpened(P, c.key)) return;
+  const r = openChest(P, c.key, R);
+  if (!r) return;
+  sfx('reward'); burst(cx(me), cy(me) - 4, '#ffd166', 22, 120); addFx('pillar', 0.7, { x: cx(me), y: cy(me), color: '#ffd166' });
+  banner(r.big ? '發現華麗寶箱！' : '打開了寶箱！');
+  if (r.gear) drops.push(newDrop('gear', cx(me), cy(me), rollGear(R, Math.max(P.lv, MONSTERS[CHAPTERS[mapId - 1].mons[1]].lv), r.big || R() < diffOf(P).rare, P.cls)));
+  grant(r.reward); questDone(track(P, 'chest'));
+}
+// ---- 地圖相連：走到左右邊緣就換到相鄰地圖 ----
+let gateMsgT = 0;
+function checkGate() {
+  if (trial || !GATE_Y.includes(me.y)) return;
+  let to = null, at = null;
+  if (me.x <= 0 && mapId > 0) { to = mapId - 1; at = { x: W - 2, y: me.y }; }
+  else if (me.x >= W - 1 && mapId < 6) { to = mapId + 1; at = { x: 1, y: me.y }; }
+  if (to === null) return;
+  if (to > 0 && to > Math.min(6, P.ch)) {
+    const back = me.x <= 0 ? 1 : W - 2;
+    Object.assign(me, { x: back, px: back, fx: back, moving: false });
+    if (gateMsgT <= 0) { gateMsgT = 3; const c = CHAPTERS[to - 1]; say('路標', [`前方是第 ${c.n} 章「${c.name}」。`, '那裡的怪物太強了，先完成目前的章節再過去吧。']); }
+    return;
+  }
+  loadMap(to, at);
+  const name = to === 0 ? '微光村' : CHAPTERS[to - 1].name;
+  banner(name); feed(`來到了「${name}」`, '#c084ff'); hud(); save();
+}
+const inSafe = () => mapId === 0 || me.x < 5;
 const alive = () => mons.filter((m) => m.dead <= 0 && !m.hidden);
 const tdist = (m, x, y) => Math.hypot(m.px - x, m.py - y);
 function nearest(range, from = me) { let best = null, bd = 1e9; for (const m of alive()) { const d = tdist(m, from.px, from.py); if (d <= range + (m.d.boss ? 0.6 : 0) && d < bd) { bd = d; best = m; } } return best; }
@@ -293,11 +339,15 @@ function hud() {
   $('quest').textContent = questText();
 }
 function questText() {
+  const dpre = P.diff ? `【${diffOf(P).name}】` : '';
+  return dpre + questText0();
+}
+function questText0() {
   if (trial) return `試煉之塔 第 ${trial.f} 層｜剩 ${mons.filter((m) => m.dead <= 0).length} 隻｜${trial.done ? '通過！' : `⏱ ${Math.max(0, Math.ceil(trial.t))} 秒`}`;
   const c = CHAPTERS[P.ch - 1];
   if (!c) return '全章節完成｜自由冒險：收集卡片、精煉、刷傳說裝備';
   const pre = `第 ${c.n} 章｜`;
-  if (c.n === 1) return pre + ['找廣場北邊的村長歐文聊聊', `打倒史萊姆 ${Math.min(P.kills, 20)} / 20，再回報村長`, '擊敗東北方的史萊姆王（建議 Lv 7 以上）', '回村子向村長報告'][P.step];
+  if (c.n === 1) return pre + ['找廣場北邊的村長歐文聊聊', `打倒史萊姆 ${Math.min(P.kills, 20)} / 20，再回報村長`, '到史萊姆草原的東北角擊敗史萊姆王（建議 Lv 7 以上）', '回村子向村長報告'][P.step];
   const gn = c.guide.name.split('・')[1];
   if (P.step === 0) return pre + (mapId === c.n ? `和入口的${gn}說話` : `找村裡的傳送師小葵，前往「${c.name}」`);
   return pre + [`和${gn}說話`, `打倒${c.name}的怪物 ${Math.min(P.kills, c.kills)} / ${c.kills}，再找${gn}`, `擊敗${MONSTERS[c.boss].name}（建議 Lv ${MONSTERS[c.boss].lv - 3} 以上）`, `回報${gn}`][P.step];
@@ -574,7 +624,7 @@ function talk(n) {
     shopMenu(nm, total ? [`我來收購你的魚，一共 ${total} 金幣！`, '還需要什麼嗎？'] : ['歡迎光臨！要買點什麼嗎？']);
   } else if (n.id === 'elder') {
     const c1 = P.ch === 1;
-    if (c1 && P.step === 0) { P.step = 1; P.kills = 0; say(nm, [`${P.name}，你來得正好！草原上的史萊姆多到快滿出來了。`, '過了東邊的橋就是史萊姆草原。', '幫我清掉 20 隻。懶得操作就按「自動」吧！']); }
+    if (c1 && P.step === 0) { P.step = 1; P.kills = 0; say(nm, [`${P.name}，你來得正好！草原上的史萊姆多到快滿出來了。`, '從村子東門出去就是史萊姆草原。', '幫我清掉 20 隻。懶得操作就按「自動」吧！']); }
     else if (c1 && P.step === 1 && P.kills >= 20) {
       say(nm, ['……等等，你身上那道光是怎麼回事？', '那是「星痕」！艾斯特家的血脈，終於又覺醒了！', '別怕，閉上眼睛，聽聽你靈魂的聲音——'], null, awaken);
     }
@@ -584,13 +634,12 @@ function talk(n) {
       P.coins += 500; P.stones += 200;
       say(nm, ['你真的打倒了史萊姆王！收下這 500 金幣和 200 魂石。', '……那隻魂像，我以前見過。', '六十年前，你的曾祖父雷歐也帶著一模一樣的齒輪。', '他最後去了東邊的迴聲峽谷，就再也沒有回來。', '來，握住這塊懷錶，你會看到他的記憶。'], null, memoryCorridor);
     }
-    else if (P.ch <= 6) say(nm, [`${P.name}，${CHAPTERS[P.ch - 1].name}那邊就拜託你了。`, '傳送師小葵就在廣場南邊。']);
-    else say(nm, ['你結束了三百年的黑夜。整個微光大陸都在說你的故事。']);
+    else say(nm, [P.ch <= 6 ? `${P.name}，${CHAPTERS[P.ch - 1].name}那邊就拜託你了。` : '你結束了三百年的黑夜。整個微光大陸都在說你的故事。', '想挑戰更強的怪物、拿更好的寶物，可以調整冒險難度。', `目前難度：${diffOf(P).name}`],
+      [...DIFFS.map((d, i) => [`${i === (P.diff | 0) ? '✓ ' : ''}${d.name}：${d.desc}`, () => setDiff(i)]), ['離開', null]]);
   } else if (n.id === 'porter') {
-    if (P.ch === 1) say(nm, ['我能把你傳送到大陸各地。', '不過外面很危險，先完成村長的委託再來吧！']);
-    else {
-      const opts = CHAPTERS.slice(1).filter((c) => c.n <= Math.min(6, P.ch)).map((c) => [`第 ${c.n} 章・${c.name}（Lv ${MONSTERS[c.mons[0]].lv}～）`, () => { loadMap(c.n); feed(`來到了「${c.name}」`, '#c084ff'); hud(); save(); }]);
-      say(nm, ['要去哪裡呢？回來時踩上入口的傳送陣就好。'], [...opts, [`試煉之塔（最高第 ${ensureMeta(P).tower.best} 層）`, () => startTower(P.meta.tower.best + 1)], ['留在村子', null]]);
+    {
+      const opts = CHAPTERS.filter((c) => c.n <= Math.min(6, P.ch)).map((c) => [`第 ${c.n} 章・${c.name}（Lv ${MONSTERS[c.mons[0]].lv}～）`, () => { loadMap(c.n); feed(`來到了「${c.name}」`, '#c084ff'); hud(); save(); }]);
+      say(nm, ['要去哪裡呢？也可以從東門一路走過去。回來時踩上傳送陣，或往西走回來都行。'], [...opts, ...(P.ch >= 2 ? [[`試煉之塔（最高第 ${ensureMeta(P).tower.best} 層）`, () => startTower(P.meta.tower.best + 1)]] : []), ['留在村子', null]]);
     }
   } else if (n.id === 'guide') {
     const c = CHAPTERS[n.ch - 1], here = P.ch === n.ch;
@@ -609,6 +658,11 @@ function talk(n) {
     say(nm, ['想釣魚嗎？面向河邊按攻擊鍵就能拋竿。', '浮標旁邊跳出「！」的時候，馬上再按一次！', '釣到的魚可以賣給雜貨店的莉莉。']);
   }
   hud(); save();
+}
+function setDiff(i) {
+  P.diff = i; const d = DIFFS[i];
+  for (const m of mons) if (m.base && m.dead <= 0 && !m.d.trial) { const r = m.hp / m.d.hp; m.d = applyDiff(m.d.elite ? makeElite(m.base, R) : m.base, P); m.hp = Math.round(m.d.hp * r); }
+  banner(`冒險難度：${d.name}`); feed(d.desc, d.color); hud(); save();
 }
 function awaken() {
   P.souls.gear = P.souls.gear || 1; P.soul = 'gear'; soulPower = 100; P.stones += 200; P.step = 2;
@@ -726,8 +780,8 @@ function killMon(m) {
   let coins = m.d.coin[0] + Math.floor(R() * (m.d.coin[1] - m.d.coin[0] + 1));
   const n = Math.min(m.d.boss ? 14 : 5, coins);
   for (let i = 0; i < n; i++) { const v = i === n - 1 ? coins : Math.floor(coins / (n - i)); coins -= v; drops.push(newDrop('coin', wx, wy, v)); }
-  const rolls = m.d.boss ? 3 : m.minion ? 0 : R() < DROP_RATE ? 1 : 0;
-  for (let i = 0; i < rolls; i++) drops.push(newDrop('gear', wx, wy, rollGear(R, m.d.lv + Math.floor(R() * 2), m.d.boss, P.cls)));
+  const dk = diffOf(P), rolls = m.d.boss ? 3 : m.minion ? 0 : R() < DROP_RATE * (m.d.trial ? 1 : dk.drop) ? 1 : 0;
+  for (let i = 0; i < rolls; i++) drops.push(newDrop('gear', wx, wy, rollGear(R, m.d.lv + Math.floor(R() * 2), m.d.boss || (!m.d.trial && R() < dk.rare), P.cls)));
   if (!m.d.still && !m.d.decoy) for (const it of rollDrops(R, m.minion ? '' : m.type)) drops.push(newDrop('loot', wx, wy, it));
   const curCh = CHAPTERS[P.ch - 1];
   if (P.step === 1 && curCh && curCh.mons.includes(m.type) && !m.minion) P.kills++;
@@ -1051,7 +1105,7 @@ function trialCheck() {
   if (r.gear) drops.push(newDrop('gear', cx(me), cy(me), rollGear(R, towerFloor(P, f).lv, true, P.cls)));
   pending.push({ t: 1.4, fn: () => {
     grant(r.reward);
-    say('試煉之塔', [`第 ${f} 層通過！${r.first ? '（首次通過，額外獎勵）' : ''}`, `目前最高紀錄：第 ${P.meta.tower.best} 層`], [[`挑戰第 ${f + 1} 層`, () => startTower(f + 1)], ['回到村子', () => { loadMap(0, { x: 11, y: 17 }); hud(); }]]);
+    say('試煉之塔', [`第 ${f} 層通過！${r.first ? '（首次通過，額外獎勵）' : ''}`, `目前最高紀錄：第 ${P.meta.tower.best} 層`], [[`挑戰第 ${f + 1} 層`, () => startTower(f + 1)], ['回到村子', () => { loadMap(0, SPAWN); hud(); }]]);
   } });
   hud();
 }
@@ -1389,6 +1443,7 @@ function autoThink(dt) {
     if (adj) { me.face = dirTo(adj.x, adj.y); autoHit = true; return; }
   }
   const goal = new Set();
+  if (!targets.length && mapId === 0) for (const y of GATE_Y) goal.add(`${W - 1},${y}`);
   const reach = C.range > 1 ? 3 : 1;
   for (const m of targets) for (let ox = -reach; ox <= reach; ox++) for (let oy = -reach; oy <= reach; oy++) if (Math.abs(ox) + Math.abs(oy) === (C.range > 1 ? Math.min(3, Math.abs(ox) + Math.abs(oy)) : 1) && (ox || oy)) goal.add(`${m.x + ox},${m.y + oy}`);
   const start = `${me.x},${me.y}`, prev = { [start]: null }, q = [[me.x, me.y]];
@@ -1464,7 +1519,7 @@ function useItem(id) {
   const d = ITEMS[id];
   if (d.heal) { usePotion(false, id); return; }
   if (!count(P, id)) return;
-  if (d.effect === 'home') { if (mapId === 0) { floatT('已經在村子裡了', me.x, me.y - 0.6, '#bdf1ff', 0.8); return; } takeStack(P, id); loadMap(0, { x: 11, y: 17 }); feed('使用回城卷軸，回到微光村', '#e8d29a'); }
+  if (d.effect === 'home') { if (mapId === 0) { floatT('已經在村子裡了', me.x, me.y - 0.6, '#bdf1ff', 0.8); return; } takeStack(P, id); loadMap(0, SPAWN); feed('使用回城卷軸，回到微光村', '#e8d29a'); }
   else if (d.effect === 'blink') {
     const spots = [];
     for (let y = 1; y < H - 1; y++) for (let x = FMIN; x < W - 1; x++) if (walkable(grid, x, y) && !occupied(x, y) && !inBoss(x, y) && grid[y][x] !== T.PORTAL) spots.push([x, y]);
@@ -1538,19 +1593,19 @@ function pickSong() {
   if (trial) return trial.f % 5 === 0 ? 'boss' : 'tower';
   const boss = mons.find((m) => m.d.boss && m.dead <= 0 && m.engaged && Math.abs(m.x - me.x) + Math.abs(m.y - me.y) <= 9);
   if (boss) return 'boss';
-  if (mapId === 0) return me.x <= TOWN_EDGE ? 'town' : 'field1';
+  if (mapId === 0) return 'town';
   return 'field' + mapId;
 }
 function update(dt) {
-  anim += dt;
+  anim += dt; gateMsgT -= dt;
   playSong(pickSong());
   if (started) { metaT -= dt; if (metaT <= 0) { metaT = 30; if (refresh(P)) { feed('新的一天！每日任務已更新，到「冒險」查看', '#f6c945'); hud(); } } }
   if (trial && !trial.done && !dialog) {
     const before = Math.ceil(trial.t); trial.t -= dt;
     if (Math.ceil(trial.t) !== before) $('quest').textContent = questText();
-    if (trial.t <= 0) { const f = trial.f; trial.done = true; auto = false; syncAuto(); say('試煉之塔', [`時間到！第 ${f} 層挑戰失敗。`, '提升戰力、換個打法，再來挑戰吧。'], [[`再挑戰第 ${f} 層`, () => startTower(f)], ['回到村子', () => { loadMap(0, { x: 11, y: 17 }); hud(); }]]); }
+    if (trial.t <= 0) { const f = trial.f; trial.done = true; auto = false; syncAuto(); say('試煉之塔', [`時間到！第 ${f} 層挑戰失敗。`, '提升戰力、換個打法，再來挑戰吧。'], [[`再挑戰第 ${f} 層`, () => startTower(f)], ['回到村子', () => { loadMap(0, SPAWN); hud(); }]]); }
   }
-  if (me.moving && step(me, me.dur, dt)) { me.step ^= 1; me.dur = 0.14; if (grid[me.y]?.[me.x] === T.PORTAL && mapId !== 0) { loadMap(0, { x: 11, y: 17 }); feed('回到微光村', '#c084ff'); save(); return; } }
+  if (me.moving && step(me, me.dur, dt)) { me.step ^= 1; me.dur = 0.14; checkGate(); checkChest(); if (grid[me.y]?.[me.x] === T.PORTAL && mapId !== 0) { loadMap(0, SPAWN); feed('回到微光村', '#c084ff'); save(); return; } }
   if (held && auto) { auto = false; syncAuto(); }
   invertT = Math.max(0, invertT - dt);
   if (!me.moving && started && held && !dialog && !fishing) {
@@ -1677,6 +1732,7 @@ function render() {
     ctx.fillStyle = w.kind === 'slam' ? 'rgba(255,60,80,.45)' : 'rgba(140,220,90,.45)'; ctx.beginPath(); ctx.ellipse(X, Y, w.r * 16 * k, w.r * 11 * k, 0, 0, 7); ctx.fill();
     ctx.strokeStyle = w.kind === 'slam' ? '#ff5a6e' : '#7ad35a'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.ellipse(X, Y, w.r * 16, w.r * 11, 0, 0, 7); ctx.stroke();
   }
+  for (const c of chests) drawChest(c);
   for (const d of drops) {
     const x = Math.round(d.x), y = Math.round(d.y - d.z);
     if (d.kind === 'gear') {
@@ -2270,4 +2326,4 @@ document.fonts?.ready.then(render);
 requestAnimationFrame(frame);
 
 // 自動化測試用（網址加 ?debug 才開）
-if (location.search.includes('debug')) globalThis.__game = { showCutin, get allies() { return allies; }, buildAllies, get P() { return P; }, newDrop, get drops() { return drops; }, set dropsAdd(d) { drops.push(d); }, me, get grid() { return grid; }, loadMap, get mapId() { return mapId; }, get mons() { return mons; }, get fishing() { return fishing; }, get dialog() { return dialog; }, get drops() { return drops; }, get skills() { return skills; }, castIdx, startTower, get trial() { return trial; }, renderAdv, hud, audioLevel, currentSong, sfx };
+if (location.search.includes('debug')) globalThis.__game = { showCutin, get allies() { return allies; }, buildAllies, get P() { return P; }, newDrop, get drops() { return drops; }, set dropsAdd(d) { drops.push(d); }, me, get grid() { return grid; }, loadMap, get mapId() { return mapId; }, get mons() { return mons; }, get fishing() { return fishing; }, get dialog() { return dialog; }, get drops() { return drops; }, get skills() { return skills; }, castIdx, startTower, get trial() { return trial; }, renderAdv, hud, audioLevel, currentSong, sfx, get chests() { return chests; } };

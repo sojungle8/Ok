@@ -2,69 +2,69 @@
 export const W = 40, H = 28;
 export const T = { GRASS: 0, FLOWER: 1, PATH: 2, WATER: 3, TREE: 4, BRIDGE: 5, HOUSE: 6, FOUNTAIN: 7, SIGN: 8, ROCK: 9, PORTAL: 10 };
 export const SOLID = new Set([T.WATER, T.TREE, T.HOUSE, T.FOUNTAIN, T.SIGN, T.ROCK]);
-export const TOWN_EDGE = 18;           // x <= 18 是安全的村莊
-export const FIELD_MIN_X = 21;         // 怪物只在河的東邊活動
-export const BOSS_ZONE = { x0: 31, y0: 2, x1: 37, y1: 7 };
+export const TOWN_EDGE = W;            // 村莊（地圖 0）整張都是安全區
+export const FIELD_MIN_X = 5;          // 野外 x < 5 是入口安全區
+export const BOSS_ZONE = { x0: 30, y0: 2, x1: 37, y1: 7 };
+export const GATE_Y = [12, 13, 14];    // 地圖左右邊緣的出入口（走過去就換地圖）
 
 export function rng(seed) {
   let s = seed % 2147483647; if (s <= 0) s += 2147483646;
   return () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; };
 }
 
+// 微光村（整張地圖）：上下兩排房子、中央廣場與噴水池、東南池塘、東門通往史萊姆草原
 export const HOUSES = [
-  { x: 3, y: 3, roof: '#d0485a', roofD: '#8f2c3f', name: '雜貨店' },
-  { x: 12, y: 3, roof: '#3f74d1', roofD: '#284c95', name: '村長家' },
-  { x: 3, y: 20, roof: '#4f9a52', roofD: '#2f6b3a', name: '旅店' },
-  { x: 12, y: 20, roof: '#8a5cc7', roofD: '#5b3a8f', name: '鐵匠鋪' },
+  { x: 4, y: 3, color: 'red', roof: '#d0485a', roofD: '#8f2c3f', name: '雜貨店' },
+  { x: 10, y: 3, color: 'green', roof: '#4f9a52', roofD: '#2f6b3a', name: '民宅' },
+  { x: 17, y: 2, color: 'blue', roof: '#3f74d1', roofD: '#284c95', name: '村長家' },
+  { x: 26, y: 3, color: 'purple', roof: '#8a5cc7', roofD: '#5b3a8f', name: '民宅' },
+  { x: 4, y: 20, color: 'green', roof: '#4f9a52', roofD: '#2f6b3a', name: '旅店' },
+  { x: 10, y: 21, color: 'red', roof: '#d0485a', roofD: '#8f2c3f', name: '民宅' },
+  { x: 17, y: 20, color: 'purple', roof: '#8a5cc7', roofD: '#5b3a8f', name: '鐵匠鋪' },
+  { x: 25, y: 21, color: 'blue', roof: '#3f74d1', roofD: '#284c95', name: '倉庫' },
 ];
-
+export const FOUNTAIN_AT = { x: 19, y: 10 };
 export const NPCS = [
-  { id: 'shop', x: 4, y: 7, name: '雜貨店・莉莉', look: { hair: '#e8a33d', hairD: '#b06f22', band: '#ff8fb1', bandD: '#d0587e', tunic: '#f3e2c3', tunicD: '#c9ad85' } },
-  { id: 'elder', x: 13, y: 7, name: '村長・歐文', look: { hair: '#e8e4f0', hairD: '#b5b0c4', band: '#6b4fa0', bandD: '#46327a', tunic: '#8a5cc7', tunicD: '#5b3a8f' } },
-  { id: 'inn', x: 4, y: 19, name: '旅店・瑪莎', look: { hair: '#c8553d', hairD: '#8f3626', band: '#f3e2c3', bandD: '#c9ad85', tunic: '#4f9a52', tunicD: '#2f6b3a' } },
-  { id: 'smith', x: 13, y: 19, name: '鐵匠・葛倫', look: { hair: '#3b2a24', hairD: '#1f1512', band: '#6b6f85', bandD: '#454a5e', tunic: '#9a6337', tunicD: '#6b4024' } },
-  { id: 'porter', x: 11, y: 16, name: '傳送師・小葵', look: { hair: '#7fd8ff', hairD: '#4aa3df', band: '#c084ff', bandD: '#8a5cc7', tunic: '#fff1c4', tunicD: '#c9ad85' } },
-  { id: 'fisher', x: 18, y: 8, name: '釣客・阿杰', look: { hair: '#6b3e26', hairD: '#45261a', band: '#f6c945', bandD: '#c98b2b', tunic: '#4aa3df', tunicD: '#2d78b3' } },
+  { id: 'shop', x: 5, y: 7, name: '雜貨店・莉莉', look: { hair: '#e8a33d', hairD: '#b06f22', band: '#ff8fb1', bandD: '#d0587e', tunic: '#f3e2c3', tunicD: '#c9ad85' } },
+  { id: 'elder', x: 18, y: 6, name: '村長・歐文', look: { hair: '#e8e4f0', hairD: '#b5b0c4', band: '#6b4fa0', bandD: '#46327a', tunic: '#8a5cc7', tunicD: '#5b3a8f' } },
+  { id: 'inn', x: 5, y: 18, name: '旅店・瑪莎', look: { hair: '#c8553d', hairD: '#8f3626', band: '#f3e2c3', bandD: '#c9ad85', tunic: '#4f9a52', tunicD: '#2f6b3a' } },
+  { id: 'smith', x: 18, y: 18, name: '鐵匠・葛倫', look: { hair: '#3b2a24', hairD: '#1f1512', band: '#6b6f85', bandD: '#454a5e', tunic: '#9a6337', tunicD: '#6b4024' } },
+  { id: 'porter', x: 22, y: 16, name: '傳送師・小葵', look: { hair: '#7fd8ff', hairD: '#4aa3df', band: '#c084ff', bandD: '#8a5cc7', tunic: '#fff1c4', tunicD: '#c9ad85' } },
+  { id: 'fisher', x: 30, y: 21, name: '釣客・阿杰', look: { hair: '#6b3e26', hairD: '#45261a', band: '#f6c945', bandD: '#c98b2b', tunic: '#4aa3df', tunicD: '#2d78b3' } },
 ];
-export const SIGN = { x: 17, y: 12, text: ['→ 東邊：史萊姆草原', '小心！東北方的空地住著史萊姆王。'] };
-export const SPAWN = { x: 9, y: 16 };
-export const INN_SPOT = { x: 4, y: 18 };
+export const SIGN = { x: 36, y: 11, text: ['→ 東門出去：史萊姆草原', '草原再往東走，可以一路走到大陸各地。', '還沒去過的地方，要先完成前一章才過得去。'] };
+export const SPAWN = { x: 20, y: 15 };
+export const INN_SPOT = { x: 6, y: 18 };
 
 export function buildWorld(seed = 11) {
   const g = Array.from({ length: H }, () => Array(W).fill(T.GRASS));
   const inb = (x, y) => x >= 0 && y >= 0 && x < W && y < H;
   const rect = (x0, y0, x1, y1, t) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (inb(x, y)) g[y][x] = t; };
-  // 道路與廣場
-  rect(2, 13, 37, 14, T.PATH);
-  rect(5, 9, 15, 18, T.PATH);
-  for (const h of HOUSES) rect(h.x + 1, h.y + 3, h.x + 1, 8, T.PATH);
-  rect(4, 7, 4, 8, T.PATH); rect(13, 7, 13, 8, T.PATH);
-  rect(16, 8, 18, 8, T.PATH); rect(16, 8, 16, 12, T.PATH);
-  // 散布：村莊只有花，草原有樹石
+  // 道路：東西大道、廣場、通往每間房子的小路
+  rect(2, 13, W - 1, 14, T.PATH);
+  rect(14, 8, 25, 18, T.PATH);
+  for (const h of HOUSES) { const dy = h.y < 13 ? [h.y + 3, 12] : [15, h.y - 1]; rect(h.x + 1, dy[0], h.x + 1, dy[1], T.PATH); }
+  rect(5, 7, 5, 8, T.PATH); rect(5, 17, 5, 18, T.PATH);
+  rect(29, 15, 30, 21, T.PATH);
+  // 廣場四角的花圃
+  for (const [fx, fy] of [[14, 8], [24, 8], [14, 17], [24, 17]]) rect(fx, fy, fx + 1, fy + 1, T.FLOWER);
+  rect(15, 10, 16, 11, T.FLOWER); rect(23, 10, 24, 11, T.FLOWER);
+  // 東南池塘（釣魚）
+  for (let y = 17; y <= 25; y++) for (let x = 31; x <= 38; x++) if (((x - 34.8) / 3.8) ** 2 + ((y - 21.2) / 3.6) ** 2 < 1) g[y][x] = T.WATER;
+  // 散布花與少量樹
   const r = rng(seed);
   for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
     if (g[y][x] !== T.GRASS) continue;
     const p = r();
-    if (x <= TOWN_EDGE) { if (p < 0.14) g[y][x] = T.FLOWER; continue; }
-    if (x >= FIELD_MIN_X) {
-      if (Math.abs(y - 13.5) < 2.5) { if (p < 0.12) g[y][x] = T.FLOWER; continue; }
-      if (p < 0.1) g[y][x] = T.TREE; else if (p < 0.13) g[y][x] = T.ROCK; else if (p < 0.22) g[y][x] = T.FLOWER;
-    }
+    if (p < 0.13) g[y][x] = T.FLOWER; else if (p < 0.16 && (y < 2 || y > 25 || x > 33 || x < 3)) g[y][x] = T.TREE;
   }
-  // 村莊外圍的樹籬
-  for (let y = 1; y < H - 1; y++) if (y < 12 || y > 15) g[y][1] = T.TREE;
-  // 河、橋
-  rect(19, 0, 20, H - 1, T.WATER);
-  rect(19, 13, 20, 14, T.BRIDGE);
-  // 頭目空地
-  rect(BOSS_ZONE.x0, BOSS_ZONE.y0, BOSS_ZONE.x1, BOSS_ZONE.y1, T.GRASS);
-  rect(34, 8, 34, 12, T.PATH);
-  // 外框
-  for (let x = 0; x < W; x++) { if (x < 19 || x > 20) { g[0][x] = T.TREE; g[H - 1][x] = T.TREE; } }
-  for (let y = 0; y < H; y++) { g[y][0] = T.TREE; g[y][W - 1] = T.TREE; }
+  // 外框（東門留空）
+  for (let x = 0; x < W; x++) { g[0][x] = T.TREE; g[H - 1][x] = T.TREE; }
+  for (let y = 0; y < H; y++) { g[y][0] = T.TREE; if (!GATE_Y.includes(y)) g[y][W - 1] = T.TREE; }
+  for (const y of GATE_Y) g[y][W - 1] = T.PATH;
   // 建築、噴水池、告示牌
   for (const h of HOUSES) rect(h.x, h.y, h.x + 2, h.y + 2, T.HOUSE);
-  rect(9, 11, 10, 12, T.FOUNTAIN);
+  rect(FOUNTAIN_AT.x, FOUNTAIN_AT.y, FOUNTAIN_AT.x + 1, FOUNTAIN_AT.y + 1, T.FOUNTAIN);
   g[SIGN.y][SIGN.x] = T.SIGN;
   return g;
 }
@@ -98,9 +98,9 @@ const mk = (name, tpl, pal, lv, zone, extra = {}) => ({
 const boss = (name, tpl, pal, lv, hp, atk, mech) => ({ name, tpl, pal, lv, hp, atk, mech, boss: true, sight: 6, exp: lv * 70, coin: [lv * 20, lv * 30] });
 const ZA = [5, 16], ZB = [15, 27], ZC = [26, 37];
 export const MONSTERS = {
-  slime: { name: '露珠史萊姆', tpl: 'slime', pal: MPAL.dew, hp: 8, atk: 2, exp: 4, coin: [2, 5], lv: 1, sight: 3, zone: [21, 28] },
-  berry: { name: '莓果史萊姆', tpl: 'slime', pal: MPAL.berry, hp: 24, atk: 5, exp: 12, coin: [5, 10], lv: 4, sight: 4, zone: [27, 33] },
-  ember: { name: '餘燼史萊姆', tpl: 'slime', pal: MPAL.ember, hp: 55, atk: 9, exp: 28, coin: [10, 18], lv: 7, sight: 4, zone: [32, 38] },
+  slime: { name: '露珠史萊姆', tpl: 'slime', pal: MPAL.dew, hp: 8, atk: 2, exp: 4, coin: [2, 5], lv: 1, sight: 3, zone: [5, 18] },
+  berry: { name: '莓果史萊姆', tpl: 'slime', pal: MPAL.berry, hp: 24, atk: 5, exp: 12, coin: [5, 10], lv: 4, sight: 4, zone: [16, 28] },
+  ember: { name: '餘燼史萊姆', tpl: 'slime', pal: MPAL.ember, hp: 55, atk: 9, exp: 28, coin: [10, 18], lv: 7, sight: 4, zone: [26, 38] },
   king: { name: '史萊姆王', tpl: 'slime', pal: MPAL.king, hp: 6000, atk: 18, exp: 600, coin: [150, 250], lv: 9, sight: 5, boss: true, mech: 'split' },
   bat: mk('回音蝙蝠', 'bat', { g: '#9b6be0', G: '#5b3a8f', l: '#d4b8ff', m: '#ffd1dc' }, 12, ZA),
   pebble: mk('碎石怪', 'golem', { g: '#c9a77a', G: '#8a6a44', l: '#efd8b0', m: '#ffe066' }, 15, ZB),
@@ -162,7 +162,7 @@ export const CHAPTERS = [
 export const capFor = (p) => (p.ch > 6 ? 60 : CHAPTERS[Math.max(1, p.ch) - 1].cap);
 
 // ---- 各章野外地圖 ----
-export const FIELD = { portal: { x: 2, y: 13 }, guide: { x: 4, y: 11 }, spawn: { x: 3, y: 13 }, boss: { x0: 30, y0: 2, x1: 37, y1: 7 } };
+export const FIELD = { portal: { x: 2, y: 17 }, guide: { x: 4, y: 10 }, spawn: { x: 2, y: 13 }, boss: { x0: 30, y0: 2, x1: 37, y1: 7 } };
 export function buildField(ch, seed = 7) {
   const theme = CHAPTERS[ch - 1].theme;
   const g = Array.from({ length: H }, () => Array(W).fill(T.GRASS));
@@ -175,13 +175,14 @@ export function buildField(ch, seed = 7) {
     const p = r();
     if (p < 0.08) g[y][x] = T.TREE; else if (p < 0.11) g[y][x] = T.ROCK; else if (p < 0.18) g[y][x] = T.FLOWER;
   }
-  rect(1, 12, 36, 14, T.PATH);
+  rect(1, 12, W - 1, 14, T.PATH);
   rect(33, 8, 34, 14, T.PATH);
   rect(1, 9, 6, 17, T.PATH);
   if (theme === 'castle') rect(19, 15, 21, 25, T.BRIDGE);
   rect(FIELD.boss.x0, FIELD.boss.y0, FIELD.boss.x1, FIELD.boss.y1, T.GRASS);
   for (let x = 0; x < W; x++) { if (g[0][x] !== T.WATER) g[0][x] = T.TREE; if (g[H - 1][x] !== T.WATER) g[H - 1][x] = T.TREE; }
   for (let y = 0; y < H; y++) { g[y][0] = T.TREE; g[y][W - 1] = T.TREE; }
+  for (const y of GATE_Y) { g[y][0] = T.PATH; if (ch < 6) g[y][W - 1] = T.PATH; }
   g[FIELD.portal.y][FIELD.portal.x] = T.PORTAL;
   return g;
 }

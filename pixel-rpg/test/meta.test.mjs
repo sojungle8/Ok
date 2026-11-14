@@ -76,3 +76,23 @@ test('試煉之塔：越高越難、5 層一魔王、首通獎勵只一次', () 
   assert.equal(p.meta.tower.best, 5);
   assert.ok(!M.rewardText(a.reward).includes('×0'));
 });
+
+test('難度：越難越強、獎勵越多', () => {
+  const p = newPlayer(); const d = MONSTERS.berry;
+  assert.equal(M.applyDiff(d, p), d);
+  p.diff = 2; const h = M.applyDiff(d, p);
+  assert.ok(h.hp > d.hp && h.atk > d.atk && h.exp > d.exp && h.coin[1] > d.coin[1]);
+  assert.equal(M.diffOf({ diff: 9 }).name, '惡夢');
+});
+
+test('寶箱：每天固定位置、一天只能開一次', () => {
+  const g = Array.from({ length: 28 }, () => Array(40).fill(0));
+  const a = M.chestSpots(g, 2, '2026-11-14', () => true), b = M.chestSpots(g, 2, '2026-11-14', () => true), c = M.chestSpots(g, 2, '2026-11-15', () => true);
+  assert.equal(a.length, 3); assert.deepEqual(a, b); assert.notDeepEqual(a, c);
+  assert.ok(a.every((s) => s.y < 11 || s.y > 15));
+  const p = newPlayer(); const r = () => 0.1;
+  assert.ok(M.openChest(p, '2-0', r, '2026-11-14'));
+  assert.equal(M.openChest(p, '2-0', r, '2026-11-14'), null);
+  assert.ok(M.chestOpened(p, '2-0', '2026-11-14'));
+  assert.ok(M.openChest(p, '2-0', r, '2026-11-15'), '隔天重置');
+});

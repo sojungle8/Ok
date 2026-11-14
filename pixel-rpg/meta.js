@@ -44,6 +44,7 @@ const DAILY_POOL = [
   { id: 'refine', ev: 'refine', need: 2, text: (q) => `精煉裝備 ${q.need} 次（成功失敗都算）` },
   { id: 'fish', ev: 'fish', need: 3, text: (q) => `在村子東邊的河釣到 ${q.need} 條魚` },
   { id: 'coin', ev: 'coin', need: 0, text: (q) => `撿起 ${q.need} 金幣` },
+  { id: 'chest', ev: 'chest', need: 2, text: (q) => `在野外找到並打開 ${q.need} 個寶箱` },
 ];
 export const DAILY_COUNT = 5, DAILY_PTS = 20;
 export const CHESTS = [20, 40, 60, 80, 100];
@@ -233,3 +234,43 @@ export function towerReward(p, f) {
   return { reward: r, first, gear: f % 5 === 0 && first };
 }
 export function towerClear(p, f) { const m = ensureMeta(p); const r = towerReward(p, f); if (f > m.tower.best) m.tower.best = f; return r; }
+
+// ---- 冒險難度：越難，怪物越強，經驗、金幣、掉寶也越多 ----
+export const DIFFS = [
+  { name: '普通', color: '#a6ec7a', hp: 1, atk: 1, exp: 1, coin: 1, drop: 1, rare: 0, desc: '標準難度' },
+  { name: '困難', color: '#ffb03b', hp: 1.8, atk: 1.5, exp: 1.6, coin: 1.7, drop: 1.5, rare: 0.15, desc: '怪物血量 ×1.8、攻擊 ×1.5；經驗 ×1.6、金幣 ×1.7、掉寶 ×1.5，高稀有度裝備機率提升' },
+  { name: '惡夢', color: '#ff5a6e', hp: 3.2, atk: 2.2, exp: 2.4, coin: 2.6, drop: 2.2, rare: 0.35, desc: '怪物血量 ×3.2、攻擊 ×2.2；經驗 ×2.4、金幣 ×2.6、掉寶 ×2.2，常掉高稀有度裝備' },
+];
+export const diffOf = (p) => DIFFS[Math.max(0, Math.min(DIFFS.length - 1, p.diff | 0))];
+export function applyDiff(d, p) {
+  const k = diffOf(p);
+  if (k.hp === 1) return d;
+  return { ...d, hp: Math.round(d.hp * k.hp), atk: Math.round(d.atk * k.atk), exp: Math.round(d.exp * k.exp), coin: [Math.round(d.coin[0] * k.coin), Math.round(d.coin[1] * k.coin)], diff: true };
+}
+
+// ---- 野外寶箱：每張野外地圖每天換位置刷 3 個 ----
+export const CHESTS_PER_MAP = 3;
+export function chestSpots(g, mapId, day, ok) {
+  const r = rng(hash(`${day}#${mapId}`)), out = [];
+  for (let i = 0; i < 4000 && out.length < CHESTS_PER_MAP; i++) {
+    const x = 6 + Math.floor(r() * (g[0].length - 8)), y = 1 + Math.floor(r() * (g.length - 2));
+    if (y >= 11 && y <= 15) continue; // 不放在大路上，要稍微找一下
+    if (!ok(x, y)) continue;
+    if (out.some((c) => Math.abs(c.x - x) + Math.abs(c.y - y) < 9)) continue;
+    out.push({ x, y, key: `${mapId}-${out.length}` });
+  }
+  return out;
+}
+export function openChest(p, key, rand, day = dayKey()) {
+  const m = ensureMeta(p);
+  if (m.chestDay !== day) { m.chestDay = day; m.opened = []; }
+  if (m.opened.includes(key)) return null;
+  m.opened.push(key);
+  const k = diffOf(p), big = rand() < 0.12;
+  const r = { coins: Math.round(lvCoins(p, big ? 2.5 : 1) * k.coin), items: {} };
+  if (rand() < 0.6) r.items[p.lv >= 30 && rand() < 0.4 ? 'ore2' : 'ore'] = big ? 3 : 1;
+  if (rand() < 0.35) r.items[p.lv >= 30 ? 'orange' : 'red'] = 2;
+  if (big) r.items.elixir = 1;
+  return { reward: r, big, gear: big || rand() < 0.25 };
+}
+export const chestOpened = (p, key, day = dayKey()) => { const m = ensureMeta(p); return m.chestDay === day && (m.opened || []).includes(key); };
