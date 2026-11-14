@@ -5,7 +5,9 @@ from PIL import Image
 SRC = os.path.join(os.path.dirname(__file__), '..', 'assets')
 OUT = sys.argv[1]
 MAXS = {'hero/': 320, 'portrait/': 320, 'soul_art/': 640, 'vfx/': 256, 'ui/title_bg': 1280, 'ui/logo': 640, 'icon/': 96}
-files = json.load(open(f'{SRC}/manifest.json'))['files']
+# 網頁版不放的舊素材：零件拼裝的角色（所有職業都已有完整立繪）
+SKIP = ('char/', 'gear/')
+files = [f for f in json.load(open(f'{SRC}/manifest.json'))['files'] if not f.startswith(SKIP)]
 before = after = 0
 for f in files:
     src, dst = f'{SRC}/{f}', f'{OUT}/assets/{f}'
@@ -20,5 +22,5 @@ for f in files:
     else:
         shutil.copyfile(src, dst)
     before += os.path.getsize(src); after += os.path.getsize(dst)
-shutil.copyfile(f'{SRC}/manifest.json', f'{OUT}/assets/manifest.json')
+json.dump({'version': 1, 'files': files}, open(f'{OUT}/assets/manifest.json', 'w'), indent=1)
 print(f'{len(files)} 張：{before / 1e6:.1f} MB → {after / 1e6:.1f} MB')

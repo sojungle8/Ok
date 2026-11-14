@@ -15,7 +15,7 @@ export function loadAssets(base = 'assets/', onCore) {
     .then((r) => (r.ok ? r.json() : { files: [] }))
     .then(async (m) => {
       const files = (m.files || []).filter((f) => !/(^|\/)_|_preview\.png$/.test(f));
-      const late = files.filter((f) => LATE.some((p) => f.startsWith(p)));
+      const late = files.filter((f) => LATE.some((p) => f.startsWith(p)) || f.endsWith('_attack.png'));
       const core = files.filter((f) => !late.includes(f));
       loadState.total = files.length;
       await Promise.all(core.map(one));
