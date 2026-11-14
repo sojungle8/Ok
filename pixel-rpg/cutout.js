@@ -18,18 +18,22 @@ export function cutoutAvatar(L, dir, frame) {
   const c = document.createElement('canvas'); c.width = 192; c.height = 256;
   const x = c.getContext('2d');
   if (dir === 'left') { x.translate(c.width, 0); x.scale(-1, 1); }
-  const draw = (id, px, py, rotation = 0) => {
+  const draw = (id, px, py, rotation = 0, scaleX = 1, scaleY = scaleX) => {
     const im = asset(id); if (!im) return;
-    x.save(); x.translate(px, py); x.rotate(rotation); x.drawImage(im, -128, -128, 256, 256); x.restore();
+    x.save(); x.translate(px, py); x.rotate(rotation); x.scale(scaleX, scaleY); x.drawImage(im, -128, -128, 256, 256); x.restore();
   };
   const side = view === 'side', back = view === 'back', attack = frame === 2, step = frame === 1;
   const bob = step ? -2 : 0;
   const cape = L.cape ? `gear/cape/${L.armorTier === 4 ? 'red' : 'purple'}_${view}` : null;
   const neck = [96, 130 + bob];
-  const headJoint = [96, 133 + bob];
+  // Scale the complete head assembly together so hair and helmets keep their fit.
+  // Sink its neck into the collar instead of stacking two exposed neck segments.
+  const headJoint = [96, 139 + bob];
+  const drawHead = (id) => draw(id, ...headJoint, 0, .88);
+  const torsoWidth = side ? 1.16 : 1.10;
   const limb = (sign, front, heldOnly = false) => {
     // Attach inside the tapered shoulder silhouette, not at the torso's widest hem.
-    const shoulderX = side ? (front ? 100 : 87) : 96 + sign * 23;
+    const shoulderX = side ? (front ? 101 : 86) : 96 + sign * 25;
     const sleeveOffset = side ? -7 : 0;
     const angle = attack && front ? -1.05 : step ? sign * .17 : sign * -.08;
     x.save(); x.translate(shoulderX, 145 + bob); x.rotate(angle);
@@ -52,7 +56,7 @@ export function cutoutAvatar(L, dir, frame) {
   if (cape && !back) draw(cape, ...neck);
   // Long hair sits behind the shoulders and chest. Only its crown/fringe
   // is painted over the face; rear views retain the full hair silhouette.
-  if (!back) draw(hair, ...headJoint);
+  if (!back) drawHead(hair);
   limb(-1, false);
   for (const sign of [-1, 1]) {
     x.save(); x.translate(96 + sign * (side ? 9 : 16), 187 + bob); x.rotate(step ? sign * .16 : 0);
@@ -61,17 +65,17 @@ export function cutoutAvatar(L, dir, frame) {
     x.restore();
   }
   if (!side) limb(1, true);
-  draw(body('torso'), ...neck);
-  if (L.armorTier >= 0) draw(`gear/armor/${tiers[L.armorTier]}_${view}`, ...neck);
+  draw(body('torso'), ...neck, 0, torsoWidth, 1);
+  if (L.armorTier >= 0) draw(`gear/armor/${tiers[L.armorTier]}_${view}`, ...neck, 0, torsoWidth, 1);
   if (side) limb(1, true);
   if (cape && back) draw(cape, ...neck);
-  draw(body('head'), ...headJoint);
-  if (back) draw(hair, ...headJoint);
+  drawHead(body('head'));
+  if (back) drawHead(hair);
   else {
     x.save(); x.beginPath(); x.rect(0, 0, c.width, headJoint[1] - 8); x.clip();
-    draw(hair, ...headJoint); x.restore();
+    drawHead(hair); x.restore();
   }
-  if (L.helm) draw(`gear/helm/${L.helm.style}_${tiers[L.helm.tier]}_${view}`, ...headJoint);
+  if (L.helm) drawHead(`gear/helm/${L.helm.style}_${tiers[L.helm.tier]}_${view}`);
   limb(1, true, true);
   cache.set(key, c);
   return c;
