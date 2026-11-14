@@ -300,3 +300,4 @@ button{font-family:inherit;color:inherit}
 .cmon img{width:48px;height:48px;object-fit:contain}
 .cmon.unknown img{filter:brightness(0) opacity(.5)}
 .cmon .stars{color:#ffd166;letter-spacing:1px}
+.potbtn{white-space:nowrap}

@@ -29,7 +29,9 @@ function resize() {
   DPR = Math.min(3, window.devicePixelRatio || 1);
   const w = cv.clientWidth || innerWidth, h = cv.clientHeight || innerHeight;
   cv.width = Math.round(w * DPR); cv.height = Math.round(h * DPR);
-  S = (Math.min(w, h) * DPR) / (11 * TS);
+  const raw = (Math.min(w, h) * DPR) / (11 * TS);
+  // 整數倍（4 倍以上取偶數）：每個像素一樣寬，高精像素圖（2 倍密度）也不會變形
+  S = raw >= 4 ? Math.floor(raw / 2) * 2 : Math.max(1, Math.floor(raw));
   VW = cv.width / S; VH = cv.height / S;
   if (typeof render === 'function' && myLook) render();
 }
@@ -1564,7 +1566,7 @@ function update(dt) {
     if (!started || dialog || m.frozen > 0 || m.d.still || m.hidden) continue;
     const tg = monTarget(m);
     const dx = tg.x - m.x, dy = tg.y - m.y, dist = Math.abs(dx) + Math.abs(dy);
-    if (m.d.atk > 0 && (dist === 1 || (m.d.boss && Math.max(Math.abs(dx), Math.abs(dy)) <= 1)) && m.cool <= 0) { if (tg === me) hitPlayer(m); else allyHurt(tg, m.d.atk); m.cool = m.d.boss ? 1.2 : 1.5; continue; }
+    if (m.d.atk > 0 && (dist === 1 || (m.d.boss && Math.max(Math.abs(dx), Math.abs(dy)) <= 1)) && m.cool <= 0) { if (tg === me) hitPlayer(m); else allyHurt(tg, m.d.atk); m.cool = m.d.boss ? 1.2 : 1.5; m.swingAt = anim; m.faceL = tg.px < m.px; continue; }
     m.think -= dt;
     if (m.think > 0) continue;
     const chase = dist <= m.d.sight && dist > 1;
@@ -1724,7 +1726,9 @@ function render() {
 }
 function shadow(x, y, w = 12) { ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.fillRect(x + 8 - w / 2, y + 14, w, 2); ctx.fillRect(x + 9 - w / 2, y + 16, w - 2, 1); }
 function drawNpc(n, x, y) {
-  const hd = asset('npc/' + (n.id === 'guide' ? 'guide' + n.ch : n.id));
+  const nid = n.id === 'guide' ? 'guide' + n.ch : n.id, pxn = asset('px/npc/' + nid);
+  if (pxn) { drawPxHero(pxn, { px: x / TS, py: y / TS, face: n.face }, true); return; }
+  const hd = asset('npc/' + nid);
   if (!hd) { drawPerson(avatar(n.L, n.face, 0), x, y); return; }
   shadow(x, y);
   const p = pixelize(hd, PX_CHAR);
@@ -1767,23 +1771,26 @@ function pxHero(L) {
 }
 function feetOf(img) {
   if (pxFeet.has(img)) return pxFeet.get(img);
-  const c = document.createElement('canvas'); c.width = 48; c.height = 48; const x = c.getContext('2d'); x.drawImage(img, 0, 0, 48, 48, 0, 0, 48, 48);
-  const d = x.getImageData(0, 0, 48, 48).data; let f = 44;
-  for (let y = 47; y >= 0; y--) { let hit = false; for (let i = 0; i < 48; i++) if (d[(y * 48 + i) * 4 + 3] > 0) { hit = true; break; } if (hit) { f = y + 1; break; } }
+  const cs = img.width / 9;
+  const c = document.createElement('canvas'); c.width = cs; c.height = cs; const x = c.getContext('2d'); x.drawImage(img, 0, 0, cs, cs, 0, 0, cs, cs);
+  const d = x.getImageData(0, 0, cs, cs).data; let f = cs * 0.92;
+  for (let y = cs - 1; y >= 0; y--) { let hit = false; for (let i = 0; i < cs; i++) if (d[(y * cs + i) * 4 + 3] > 0) { hit = true; break; } if (hit) { f = y + 1; break; } }
   pxFeet.set(img, f); return f;
 }
-function drawPxHero(sheet, o) {
+// 原生像素動畫圖：9 欄（待機、走 1～4、攻 1～4）× 3 列（front/back/side）；格子 48＝標準、96＝高精（畫面上一樣大，細節加倍）
+function drawPxHero(sheet, o, still) {
   const x = Math.round(o.px * TS), y = Math.round(o.py * TS);
   shadow(x, y);
+  const cs = sheet.width / 9, k = 48 / cs;
   const row = o.face === 'up' ? 1 : o.face === 'left' || o.face === 'right' ? 2 : 0;
   const dur = o.atkDur || 0.18;
-  const col = o.atkT > 0 ? 5 + Math.min(3, Math.floor((1 - o.atkT / dur) * 4)) : o.moving ? 1 + ((o.step * 2 + (o.mt > 0.5 ? 1 : 0)) % 4) : 0;
+  const col = still ? 0 : o.atkT > 0 ? 5 + Math.min(3, Math.floor((1 - o.atkT / dur) * 4)) : o.moving ? 1 + ((o.step * 2 + (o.mt > 0.5 ? 1 : 0)) % 4) : 0;
   const lunge = o.atkT > 0 ? Math.sin((1 - o.atkT / dur) * Math.PI) : 0, [dx, dy] = DIRS[o.face] || [0, 1];
   ctx.save();
   ctx.translate(x + 8 + Math.round(dx * lunge * 3), y + 17 + Math.round(dy * lunge * 2));
   if (o.face === 'left') ctx.scale(-1, 1);
   ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(sheet, col * 48, row * 48, 48, 48, -24, -feetOf(sheet), 48, 48);
+  ctx.drawImage(sheet, col * cs, row * cs, cs, cs, -24, -feetOf(sheet) * k, 48, 48);
   ctx.restore();
 }
 function drawMe() {
@@ -1806,8 +1813,9 @@ function drawAlly(a) {
   if (a.down > 0) { ctx.globalAlpha = 0.45; ctx.save(); ctx.translate(x + 8, y + 12); ctx.rotate(Math.PI / 2); ctx.drawImage(avatar(a.c.look, 'down', 0), -12, -16, AW, AH); ctx.restore(); ctx.globalAlpha = 1; return; }
   if (a.hurtT > 0 && Math.floor(a.hurtT * 20) % 2) { shadow(x, y); return; }
   const frame = animFrame(a, a.atkDur || 0.18);
-  const hd = asset('npc/ally_' + a.id);
-  if (hd) { drawIllus(hd, a); }
+  const hd = asset('npc/ally_' + a.id), pxa = asset('px/ally/' + a.id);
+  if (pxa) drawPxHero(pxa, a);
+  else if (hd) { drawIllus(hd, a); }
   else if (false) {
     const flip = a.face === 'left' ? -1 : 1;
     const walk = a.moving ? Math.abs(Math.sin((a.mt + a.step) * Math.PI)) : 0;
@@ -1825,7 +1833,21 @@ function drawAlly(a) {
 }
 function drawMon(m) {
   const x = Math.round(m.px * TS + m.kx), y = Math.round(m.py * TS + m.ky);
-  if (m.d.decoy) { if (!m.real) shadow(x, y); const im = asset('npc/' + m.npcId); if (im) { const p = pixelize(im, PX_CHAR); ctx.drawImage(p, x + 8 - Math.round(p.width / 2), y + 17 - p.height); } else ctx.drawImage(avatar(m.look, 'down', 0), x - 4, y - 17, AW, AH); return; }
+  if (m.d.decoy) { if (!m.real) shadow(x, y); const pxn = asset('px/npc/' + m.npcId); if (pxn) { drawPxHero(pxn, { px: m.px + m.kx / TS, py: m.py + m.ky / TS, face: 'down' }, true); return; } const im = asset('npc/' + m.npcId); if (im) { const p = pixelize(im, PX_CHAR); ctx.drawImage(p, x + 8 - Math.round(p.width / 2), y + 17 - p.height); } else ctx.drawImage(avatar(m.look, 'down', 0), x - 4, y - 17, AW, AH); return; }
+  const pxm = m.d.tpl !== 'mirror' && asset('px/monster/' + m.type);
+  if (pxm) {
+    const big = m.d.boss, cs = pxm.height, dw = big ? 64 : 32, frozen = m.frozen > 0;
+    shadow(x, y, big ? 24 : 13);
+    if (m.d.elite) { ctx.globalAlpha = 0.35 + Math.sin(anim * 6) * 0.15; ctx.fillStyle = ELITE_AFFIX[m.d.elite].color; ctx.beginPath(); ctx.ellipse(x + 8, y + 15, 13, 5, 0, 0, 7); ctx.fill(); ctx.globalAlpha = 1; }
+    const col = !frozen && m.swingAt != null && anim - m.swingAt < 0.3 ? 2 + (anim - m.swingAt > 0.15 ? 1 : 0) : frozen ? 0 : Math.floor(m.anim * 2.4) % 2;
+    const draw = () => { ctx.save(); ctx.translate(x + 8, y + 17); if (m.faceL) ctx.scale(-1, 1); ctx.drawImage(pxm, col * cs, 0, cs, cs, -dw / 2, -dw, dw, dw); ctx.restore(); };
+    draw();
+    if (m.flash > 0) { ctx.globalCompositeOperation = 'lighter'; draw(); ctx.globalCompositeOperation = 'source-over'; }
+    if (frozen) { ctx.fillStyle = 'rgba(150,220,255,.4)'; ctx.fillRect(x + 8 - dw / 2, y + 16 - dw * 0.85, dw, dw * 0.8); }
+    if (m.shield) { ctx.strokeStyle = 'rgba(189,241,255,.9)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(x + 8, y + 16 - dw / 2, dw * 0.6, 0, 7); ctx.stroke(); }
+    if (m.hp < m.d.hp && !big) { ctx.fillStyle = '#2a1d2e'; ctx.fillRect(x + 1, y + 17, 14, 4); ctx.fillStyle = '#e8506a'; ctx.fillRect(x + 2, y + 18, Math.max(1, Math.round((m.hp / m.d.hp) * 12)), 2); }
+    return;
+  }
   const hd = asset('monster/' + (m.d.tpl === 'mirror' ? 'mirror_obj' : m.type));
   if (hd) {
     const big = m.d.boss, size = big ? 52 : 26, bob = m.frozen > 0 ? 0 : Math.round(Math.sin(m.anim * 5) * (big ? 1.5 : 1));
