@@ -4,11 +4,26 @@ import * as Wd from '../pixel-rpg/world.js';
 
 const g = Wd.buildWorld();
 
-test('地圖尺寸正確、外框封閉', () => {
+test('地圖尺寸正確、外框封閉（只有東門開口）', () => {
   assert.equal(g.length, Wd.H);
   g.forEach((row) => assert.equal(row.length, Wd.W));
   for (let x = 0; x < Wd.W; x++) { assert.ok(!Wd.walkable(g, x, 0)); assert.ok(!Wd.walkable(g, x, Wd.H - 1)); }
-  for (let y = 0; y < Wd.H; y++) { assert.ok(!Wd.walkable(g, 0, y)); assert.ok(!Wd.walkable(g, Wd.W - 1, y)); }
+  for (let y = 0; y < Wd.H; y++) {
+    assert.ok(!Wd.walkable(g, 0, y));
+    assert.equal(Wd.walkable(g, Wd.W - 1, y), Wd.GATE_Y.includes(y), `東邊 y=${y}`);
+  }
+  const R = Wd.reachable(g, Wd.SPAWN);
+  for (const y of Wd.GATE_Y) assert.ok(R.has(`${Wd.W - 1},${y}`), '東門走得到');
+});
+
+test('野外地圖：左右出入口相連，最後一章東邊封閉', () => {
+  for (const c of Wd.CHAPTERS) {
+    const f = Wd.buildField(c.n), R = Wd.reachable(f, Wd.FIELD.spawn);
+    for (const y of Wd.GATE_Y) {
+      assert.ok(R.has(`0,${y}`), `第 ${c.n} 章西側出入口`);
+      assert.equal(R.has(`${Wd.W - 1},${y}`), c.n < 6, `第 ${c.n} 章東側出入口`);
+    }
+  }
 });
 
 test('出生點、NPC、告示牌前、頭目空地、河邊釣點都走得到', () => {

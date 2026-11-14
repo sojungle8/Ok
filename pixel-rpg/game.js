@@ -905,7 +905,7 @@ function frontTiles() {
 const onTiles = (m, tiles) => tiles.some(([x, y]) => (m.d.boss ? Math.abs(m.x - x) <= 1 && Math.abs(m.y - y) <= 1 : m.x === x && m.y === y));
 function basicAttack(target) {
   const aspd = stats(P).aspd;
-  sfx({ sword: 'swing', archer: 'arrow', mage: 'bolt', monk: 'swing' }[P.cls] || 'swing');
+  sfx({ sword: 'swing', archer: 'arrow', mage: 'bolt', monk: 'swing', priest: 'bolt' }[P.cls] || 'swing');
   me.cool = C.cool / aspd; me.atkT = me.atkDur = Math.max(0.16, Math.min(0.28, me.cool * 0.8));
   const [dx, dy] = DIRS[me.face];
   if (P.cls === 'sword') {
@@ -934,7 +934,7 @@ function castIdx(i) {
   if (!s || s.t > 0 || cutinT > 0) return;
   s.t = s.cd * (1 - stats(P).cdr);
   questDone(track(P, 'skill'));
-  sfx({ sword: 'slash', archer: 'arrow', mage: 'magic', monk: 'punch' }[P.cls] || 'slash');
+  sfx({ sword: 'slash', archer: 'arrow', mage: 'magic', monk: 'punch', priest: s.id === 'lance' ? 'magic' : 'potion' }[P.cls] || 'slash');
   const echo = alive().find((m) => m.d.mech === 'echo' && tdist(m, me.px, me.py) <= 8);
   if (echo && lastSkill === s.id) {
     floatT('回音反彈！', me.x, me.y - 1.2, '#b48cff', 1.3); ring(cx(echo), cy(echo), 40, '#b48cff', 0.4, 4);
