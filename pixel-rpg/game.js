@@ -11,6 +11,7 @@ import { iconCanvas, gearIcon } from './icons.js';
 import { loadAssets, asset, tinted, loadState } from './assets.js';
 import { ensureMeta, refresh, track, claimQuest, claimChest, claimable, claimLogin, loginReward, questLabel, rewardText, CHESTS, codexBonus, codexStars, CODEX_TIERS, ACHIEVEMENTS, achProgress, achReady, claimAch, ELITE_AFFIX, ELITE_RATE, makeElite, towerFloor, towerClear, LOGIN_CYCLE } from './meta.js';
 import { pixelize } from './pixelize.js';
+import { audioOpt, saveAudioOpt, initAudio, sfx, playSong, audioLevel, currentSong } from './audio.js';
 // 美術風格：像素風。高畫質的角色、怪物、NPC 在遊戲畫面中即時轉成像素圖；特效、頭像、大招立繪維持高畫質
 const PX_CHAR = 36, PX_MON = 26, PX_BOSS = 52;
 import { COMPANIONS, COMPANION_IDS, ROLE_NAME, PARTY_MAX, ensureParty, unlocked, hire, toggleActive, allyStats } from './party.js';
@@ -453,8 +454,8 @@ $('refineGo').addEventListener('click', () => {
   const r = refine(P, refineSel, R);
   if (r.ok) questDone(track(P, 'refine'));
   if (!r.ok) feed(r.reason, '#ff8fa0');
-  else if (r.success) { banner(`精煉成功！+${r.level}`); flash = 0.12; burst(cx(me), cy(me), '#fff1a8', 24, 110); const after = stats(P).cp; if (after > before) popCp(before, after); }
-  else { feed('精煉失敗……材料消失了，裝備沒事', '#ff8fa0'); shake = 0.2; }
+  else if (r.success) { sfx('refineOk'); banner(`精煉成功！+${r.level}`); flash = 0.12; burst(cx(me), cy(me), '#fff1a8', 24, 110); const after = stats(P).cp; if (after > before) popCp(before, after); }
+  else { sfx('refineFail'); feed('精煉失敗……材料消失了，裝備沒事', '#ff8fa0'); shake = 0.2; }
   hud(); save(); renderRefine();
 });
 $('refineClose').addEventListener('click', () => { $('refinePanel').hidden = true; });
@@ -660,7 +661,7 @@ function hurt(raw, m) {
   if (fishing) { fishing = null; floatT('魚跑了', me.x, me.y - 0.5, '#bdf1ff'); }
   const dmg = Math.max(1, Math.round(raw * (1 - stats(P).dr)));
   P.hp -= dmg; me.hurtT = 0.4; shake = Math.max(shake, 0.12);
-  floatT(`-${dmg}`, me.x, me.y, '#ff5a6e');
+  floatT(`-${dmg}`, me.x, me.y, '#ff5a6e'); sfx('hurt');
   if (P.hp <= 0 && P.soul === 'cat' && P.souls.cat && catT <= 0) {
     catT = 180; P.hp = Math.round(stats(P).hp * 0.5); me.inv = 1.2;
     banner('九命發動！'); burst(cx(me), cy(me), '#ffe066', 24, 120); hud(); return;
@@ -699,6 +700,7 @@ function dealDamage(m, mult, fromX = me.px, fromY = me.py, color, kind = 'skill'
   if (st.leech && P.hp < st.hp && kind !== 'ally') P.hp = Math.min(st.hp, P.hp + Math.max(1, Math.round(dmg * st.leech)));
   if (kind !== 'ult') gainSoul(kind === 'skill' ? 1.2 : kind === 'ally' ? 0.5 : 1.6);
   m.hp -= dmg; m.flash = 0.12;
+  if (kind !== 'ally') sfx(crit ? 'crit' : 'hit');
   const a = Math.atan2(m.py - fromY, m.px - fromX);
   m.kx = Math.cos(a) * 4; m.ky = Math.sin(a) * 4;
   float(crit ? `${fmt(dmg)}!` : fmt(dmg), cx(m) + (R() - 0.5) * 12, m.py * TS - 2 - R() * 6, crit ? '#ff9f1c' : (color || '#fff8e7'), crit ? 1.45 : 1);
@@ -713,6 +715,7 @@ function hitArea(tx, ty, radius, mult, color, each, kind = 'skill') {
   for (const m of alive()) if (tdist(m, tx, ty) <= radius + (m.d.boss ? 0.8 : 0)) { dealDamage(m, mult, tx, ty, color, kind); each?.(m); }
 }
 function killMon(m) {
+  sfx(m.d.boss ? 'boom' : 'kill');
   const wx = cx(m), wy = cy(m);
   m.dead = m.d.boss ? 30 : 2.5;
   gainSoul(5);
@@ -755,6 +758,7 @@ function killMon(m) {
   hud();
 }
 function levelUp(before) {
+  sfx('levelup');
   P.stones += 20 * (P.lv - before);
   if (talentPoints(P) > talentSpent(P)) feed('獲得天賦點，到「天賦」選單分配', '#7ad35a');
   banner(`等級提升！Lv ${before} → Lv ${P.lv}`);
@@ -770,7 +774,8 @@ function newDrop(kind, wx, wy, val) {
   return { kind, val, x: wx, y: wy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.6, z: 0, vz: 60 + R() * 50, t: 0 };
 }
 function collect(d) {
-  if (d.kind === 'coin') { P.coins += d.val; bump('coinBox'); questDone(track(P, 'coin', d.val)); return; }
+  if (d.kind === 'coin') { sfx('coin'); P.coins += d.val; bump('coinBox'); questDone(track(P, 'coin', d.val)); return; }
+  sfx('pickup');
   if (d.kind === 'loot') {
     const it = ITEMS[d.val.id], g = GRADES.find((x) => x.id === it.grade);
     const res = pickupItem(P, d.val.id, d.val.n);
@@ -846,6 +851,7 @@ function frontTiles() {
 const onTiles = (m, tiles) => tiles.some(([x, y]) => (m.d.boss ? Math.abs(m.x - x) <= 1 && Math.abs(m.y - y) <= 1 : m.x === x && m.y === y));
 function basicAttack(target) {
   const aspd = stats(P).aspd;
+  sfx({ sword: 'swing', archer: 'arrow', mage: 'bolt', monk: 'swing' }[P.cls] || 'swing');
   me.cool = C.cool / aspd; me.atkT = me.atkDur = Math.max(0.16, Math.min(0.28, me.cool * 0.8));
   const [dx, dy] = DIRS[me.face];
   if (P.cls === 'sword') {
@@ -874,6 +880,7 @@ function castIdx(i) {
   if (!s || s.t > 0 || cutinT > 0) return;
   s.t = s.cd * (1 - stats(P).cdr);
   questDone(track(P, 'skill'));
+  sfx({ sword: 'slash', archer: 'arrow', mage: 'magic', monk: 'punch' }[P.cls] || 'slash');
   const echo = alive().find((m) => m.d.mech === 'echo' && tdist(m, me.px, me.py) <= 8);
   if (echo && lastSkill === s.id) {
     floatT('回音反彈！', me.x, me.y - 1.2, '#b48cff', 1.3); ring(cx(echo), cy(echo), 40, '#b48cff', 0.4, 4);
@@ -1002,6 +1009,7 @@ function castIdx(i) {
 
 // ---------- 魂像大招 ----------
 function showCutin(id, label) {
+  sfx('cutin');
   const S = SOULS[id];
   const el = $('cutin');
   el.style.setProperty('--sc', S.color); el.style.setProperty('--sc2', S.color2);
@@ -1014,13 +1022,15 @@ function showCutin(id, label) {
 // ---------- 長期玩法：獎勵、試煉之塔、冒險手冊 ----------
 function grant(r) {
   if (!r) return;
+  sfx('reward');
   if (r.coins) P.coins += r.coins;
   if (r.stones) P.stones += r.stones;
   for (const [id, n] of Object.entries(r.items || {})) if (n > 0) addStack(P, id, n);
   if (r.exp) { const before = P.lv; if (gainExp(P, r.exp)) levelUp(before); }
   feed(`獲得：${rewardText(r)}`, '#ffd166'); bump('coinBox'); hud(); save();
 }
-function questDone(list) { for (const q of list) feed(`任務完成：${questLabel(q)}（到「冒險」領獎）`, '#f6c945'); if (list.length) hud(); }
+function questDone(list) {
+  if (list.length) sfx('quest'); for (const q of list) feed(`任務完成：${questLabel(q)}（到「冒險」領獎）`, '#f6c945'); if (list.length) hud(); }
 function startTower(f) {
   const fl = towerFloor(P, f);
   loadMap(fl.ch);
@@ -1037,7 +1047,7 @@ function trialCheck() {
   trial.done = true;
   const f = trial.f, r = towerClear(P, f);
   questDone(track(P, 'tower'));
-  banner(`第 ${f} 層　通過！`); flash = 0.2;
+  banner(`第 ${f} 層　通過！`); flash = 0.2; sfx('clear');
   if (r.gear) drops.push(newDrop('gear', cx(me), cy(me), rollGear(R, towerFloor(P, f).lv, true, P.cls)));
   pending.push({ t: 1.4, fn: () => {
     grant(r.reward);
@@ -1123,7 +1133,7 @@ function bossIntro() {
   if (cutinT > 0 || dialog || !inBoss(me.x, me.y)) return;
   const b = mons.find((m) => m.d.boss && m.dead <= 0);
   if (!b || bossSeen.has(b.type)) return;
-  bossSeen.add(b.type);
+  bossSeen.add(b.type); sfx('boss');
   const art = asset('monster/' + b.type);
   if (!art) return;
   const el = $('cutin');
@@ -1140,6 +1150,7 @@ function castUlt() {
   showCutin(P.soul); cutinT = 1.1;
 }
 function doUlt(id) {
+  sfx('ult');
   const wx = cx(me), wy = cy(me);
   addFx('circle', 0.9, { x: wx, y: wy, color: SOULS[id].color2 }); tintC = SOULS[id].color; tintT = 0.25;
   flash = 0.18; shake = 0.35;
@@ -1199,6 +1210,7 @@ function doUlt(id) {
 }
 function dodge() {
   if (!started || dialog || me.dodgeT > 0 || cutinT > 0) return;
+  sfx('dodge');
   const dir = held || me.face, [dx, dy] = DIRS[dir];
   if (fishing) fishing = null;
   const path = [];
@@ -1412,7 +1424,7 @@ $('autoBtn').addEventListener('click', () => {
 function reelIn() {
   if (fishing.state === 'bite') {
     const f = rollFish(R);
-    P.fish[f.id] = (P.fish[f.id] || 0) + 1; questDone(track(P, 'fish'));
+    sfx('splash'); P.fish[f.id] = (P.fish[f.id] || 0) + 1; questDone(track(P, 'fish'));
     feed(`釣到 <b>${f.name}</b>（可賣 ${f.price} 金幣）`, '#4fb3ff');
     burst(fishing.tx * TS + 8, fishing.ty * TS + 8, '#bdf1ff', 10);
     save();
@@ -1443,7 +1455,7 @@ function usePotion(quiet, which) {
   if (P.hp >= max) { if (!quiet) floatT('HP 已經是滿的', me.x, me.y - 0.6, '#a6ec7a', 0.8); return; }
   const id = which || pickPotion(P, 1 - P.hp / max);
   if (!id || !takeStack(P, id)) { if (!quiet) floatT('沒有藥水了', me.x, me.y - 0.6, '#ff8fb1', 0.8); return; }
-  const heal = Math.round(max * ITEMS[id].heal * (st.potion / 0.5));
+  const heal = Math.round(max * ITEMS[id].heal * (st.potion / 0.5)); sfx('potion');
   P.hp = Math.min(max, P.hp + heal);
   floatT(`+${fmt(heal)}`, me.x, me.y, '#a6ec7a'); burst(cx(me), cy(me), ITEMS[id].color, 8);
   hud(); save();
@@ -1521,8 +1533,17 @@ function step(o, dur, dt) {
   if (o.mt >= 1) { o.moving = false; o.px = o.x; o.py = o.y; return true; }
   o.px = o.fx + (o.x - o.fx) * o.mt; o.py = o.fy + (o.y - o.fy) * o.mt; return false;
 }
+function pickSong() {
+  if (!started) return 'town';
+  if (trial) return trial.f % 5 === 0 ? 'boss' : 'tower';
+  const boss = mons.find((m) => m.d.boss && m.dead <= 0 && m.engaged && Math.abs(m.x - me.x) + Math.abs(m.y - me.y) <= 9);
+  if (boss) return 'boss';
+  if (mapId === 0) return me.x <= TOWN_EDGE ? 'town' : 'field1';
+  return 'field' + mapId;
+}
 function update(dt) {
   anim += dt;
+  playSong(pickSong());
   if (started) { metaT -= dt; if (metaT <= 0) { metaT = 30; if (refresh(P)) { feed('新的一天！每日任務已更新，到「冒險」查看', '#f6c945'); hud(); } } }
   if (trial && !trial.done && !dialog) {
     const before = Math.ceil(trial.t); trial.t -= dt;
@@ -2205,6 +2226,13 @@ $('classGo').addEventListener('click', () => {
   save(); start();
 });
 $('startBtn').addEventListener('click', start);
+const wakeAudio = () => { initAudio(); playSong(pickSong()); };
+addEventListener('pointerdown', wakeAudio, { capture: true }); addEventListener('keydown', wakeAudio, { capture: true });
+document.addEventListener('click', (e) => { if (e.target.closest('button') && !e.target.closest('.acts')) sfx('ui'); }, true);
+const SOUND_MODES = [['開', 0.55, 0.8], ['只有音效', 0, 0.8], ['靜音', 0, 0]];
+function syncSoundBtn() { const i = SOUND_MODES.findIndex(([, b, f]) => (audioOpt.bgm > 0) === (b > 0) && (audioOpt.sfx > 0) === (f > 0)); $('soundBtn').textContent = `♪ ${SOUND_MODES[Math.max(0, i)][0]}`; return Math.max(0, i); }
+$('soundBtn').addEventListener('click', () => { const [, b, f] = SOUND_MODES[(syncSoundBtn() + 1) % SOUND_MODES.length]; audioOpt.bgm = b; audioOpt.sfx = f; saveAudioOpt(); syncSoundBtn(); });
+syncSoundBtn();
 function syncStyleBtn() { $('styleBtn').textContent = `人物畫風：${charStyle === 'hd' ? '精緻 Q 版' : '像素'}（點一下切換）`; }
 $('styleBtn').addEventListener('click', () => { charStyle = charStyle === 'hd' ? 'px' : 'hd'; try { localStorage.setItem('glimmer-style', charStyle); } catch { /* 忽略 */ } syncStyleBtn(); render(); });
 syncStyleBtn();
@@ -2242,4 +2270,4 @@ document.fonts?.ready.then(render);
 requestAnimationFrame(frame);
 
 // 自動化測試用（網址加 ?debug 才開）
-if (location.search.includes('debug')) globalThis.__game = { showCutin, get allies() { return allies; }, buildAllies, get P() { return P; }, newDrop, get drops() { return drops; }, set dropsAdd(d) { drops.push(d); }, me, get grid() { return grid; }, loadMap, get mapId() { return mapId; }, get mons() { return mons; }, get fishing() { return fishing; }, get dialog() { return dialog; }, get drops() { return drops; }, get skills() { return skills; }, castIdx, startTower, get trial() { return trial; }, renderAdv, hud };
+if (location.search.includes('debug')) globalThis.__game = { showCutin, get allies() { return allies; }, buildAllies, get P() { return P; }, newDrop, get drops() { return drops; }, set dropsAdd(d) { drops.push(d); }, me, get grid() { return grid; }, loadMap, get mapId() { return mapId; }, get mons() { return mons; }, get fishing() { return fishing; }, get dialog() { return dialog; }, get drops() { return drops; }, get skills() { return skills; }, castIdx, startTower, get trial() { return trial; }, renderAdv, hud, audioLevel, currentSong, sfx };

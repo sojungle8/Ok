@@ -301,3 +301,7 @@ button{font-family:inherit;color:inherit}
 .cmon.unknown img{filter:brightness(0) opacity(.5)}
 .cmon .stars{color:#ffd166;letter-spacing:1px}
 .potbtn{white-space:nowrap}
+/* 上方按鈕：手機窄螢幕自動換行，不會把畫面撐寬 */
+.side{min-width:0;flex:1 1 auto}
+.tools{flex-wrap:wrap;justify-content:flex-end;max-width:100%}
+@media (max-width:480px){.tbtn{padding:3px 6px}}
