@@ -1,14 +1,16 @@
-# 攻擊姿勢立繪檢查：python3 tools/check_attack.py assets/hero/sword_common_side_attack.png ...（可用萬用字元）
-# 每張 *_attack.png 都要和同名站姿圖（去掉 _attack）畫在同一張畫布、同一比例、腳底同一高度。
+# 動作姿勢立繪檢查（攻擊 *_attack.png、走路 *_walk1.png／*_walk2.png）：
+#   python3 tools/check_attack.py assets/hero/sword_common_side_attack.png assets/hero/sword_common_side_walk1.png ...（可用萬用字元）
+# 每張都要和同名站姿圖（去掉 _attack／_walk1／_walk2）畫在同一張畫布、同一比例、腳底同一高度。
 # 會輸出對照表 assets/_attack_sheet.png：左邊站姿、右邊攻擊姿勢，紅線是站姿的腳底
-import sys, os
+import sys, os, re
+POSE = re.compile(r'_(attack|walk1|walk2)\.png$')
 from PIL import Image, ImageDraw
 
 def bbox(im):
     return im.getchannel('A').point(lambda a: 255 if a > 40 else 0).getbbox()
 
 def check(path, errs, warns):
-    base = path.replace('_attack.png', '.png')
+    base = POSE.sub('.png', path)
     name = os.path.basename(path)
     if not os.path.exists(base): errs.append(f'{name}：找不到對應的站姿圖 {os.path.basename(base)}'); return None
     a, s = Image.open(path).convert('RGBA'), Image.open(base).convert('RGBA')
@@ -25,7 +27,7 @@ def check(path, errs, warns):
     return s, a, bs[3]
 
 if __name__ == '__main__':
-    files = [f for f in sys.argv[1:] if f.endswith('_attack.png')]
+    files = [f for f in sys.argv[1:] if POSE.search(f)]
     errs, warns, pairs = [], [], []
     for f in files:
         r = check(f, errs, warns)
@@ -39,9 +41,9 @@ if __name__ == '__main__':
             k = S / s.height
             sheet.alpha_composite(s.resize((S, S), Image.LANCZOS), (x, y + 18)); sheet.alpha_composite(a.resize((S, S), Image.LANCZOS), (x + S, y + 18))
             d.line((x, y + 18 + foot * k, x + 2 * S, y + 18 + foot * k), fill='#ff5a6e')
-            d.text((x + 4, y + 3), n.replace('_attack.png', ''), fill='#fff')
+            d.text((x + 4, y + 3), n.replace('.png', ''), fill='#fff')
         os.makedirs('assets', exist_ok=True); sheet.save('assets/_attack_sheet.png')
-    print(f'== 攻擊姿勢 {len(files)} 張')
+    print(f'== 動作姿勢 {len(files)} 張')
     for e in errs: print('  ✗', e)
     for w in warns: print('  △', w)
     print('  ✓ 全部通過' if not errs else f'  共 {len(errs)} 個錯誤', '｜對照表：assets/_attack_sheet.png' if pairs else '')

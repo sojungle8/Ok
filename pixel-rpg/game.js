@@ -1618,6 +1618,10 @@ function pickSong() {
   if (mapId === 0) return 'town';
   return 'field' + mapId;
 }
+function dust(wx, wy) {
+  if (mapId === 0 && grid[me.y]?.[me.x] === T.WATER) return;
+  for (let i = 0; i < 3; i++) parts.push({ x: wx + (R() - 0.5) * 8, y: wy, vx: (R() - 0.5) * 18, vy: -8 - R() * 10, c: R() < 0.5 ? '#e8dcc0' : '#cbb994', t: 0, g: 20, size: 1, life: 0.35 });
+}
 function update(dt) {
   anim += dt; gateMsgT -= dt;
   playSong(pickSong());
@@ -1627,7 +1631,7 @@ function update(dt) {
     if (Math.ceil(trial.t) !== before) $('quest').textContent = questText();
     if (trial.t <= 0) { const f = trial.f; trial.done = true; auto = false; syncAuto(); say('試煉之塔', [`時間到！第 ${f} 層挑戰失敗。`, '提升戰力、換個打法，再來挑戰吧。'], [[`再挑戰第 ${f} 層`, () => startTower(f)], ['回到村子', () => { loadMap(0, SPAWN); hud(); }]]); }
   }
-  if (me.moving && step(me, me.dur, dt)) { me.step ^= 1; me.dur = 0.14; checkGate(); checkChest(); if (grid[me.y]?.[me.x] === T.PORTAL && mapId !== 0) { loadMap(0, SPAWN); feed('回到微光村', '#c084ff'); save(); return; } }
+  if (me.moving && step(me, me.dur, dt)) { me.step ^= 1; me.dur = 0.14; dust(cx(me), me.py * TS + 16); checkGate(); checkChest(); if (grid[me.y]?.[me.x] === T.PORTAL && mapId !== 0) { loadMap(0, SPAWN); feed('回到微光村', '#c084ff'); save(); return; } }
   if (held && auto) { auto = false; syncAuto(); }
   invertT = Math.max(0, invertT - dt);
   if (!me.moving && started && held && !dialog && !fishing) {
@@ -1916,29 +1920,56 @@ function drawHD(img, o, h, flip, extra, ref) {
   const dw = t.width * k, dh = t.height * k, ox = ((t.bx0 || 0) - fx) * k, oy = ((t.by0 || 0) - fy) * k;
   const c = hdScaled(img, dh), w = r.width * k;
   const x = o.px * TS + 8 + (o.kx || 0), y = o.py * TS + 17 + (o.ky || 0);
+  // 走路週期：每走兩格是一個完整週期（左腳、右腳各一步）
   const walk = o.moving ? Math.sin(((o.mt || 0) + (o.step || 0)) * Math.PI) : 0;
   const dur = o.atkDur || 0.18, ak = o.atkT > 0 ? 1 - o.atkT / dur : -1, atk = ak >= 0 ? Math.sin(ak * Math.PI) : 0;
   const pose = ref && ref !== img, lean = pose ? 0.4 : 1;
   const still = !o.moving && !atk, breathe = still ? Math.sin(anim * 2.4 + (o.i || 0) * 1.7) : 0;
   const [dx, dy] = DIRS[o.face] || [0, 1];
-  ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.beginPath(); ctx.ellipse(x, y - 1, Math.max(5, w * 0.36), 2.6, 0, 0, 7); ctx.fill();
+  const legs = o.moving && !pose && !atk && !extra?.noLegs; // 沒有走路姿勢圖時，用程式擺動下半身
+  ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.beginPath(); ctx.ellipse(x, y - 1, Math.max(5, w * (0.36 - Math.abs(walk) * 0.06)), 2.6, 0, 0, 7); ctx.fill();
   ctx.save();
-  ctx.translate(x + dx * atk * 5, y + dy * atk * 3 - Math.abs(walk) * 1.6 + (extra?.bob || 0));
+  ctx.translate(x + dx * atk * 5, y + dy * atk * 3 - Math.abs(walk) * 2.2 + (extra?.bob || 0));
   if (flip) ctx.scale(-1, 1);
-  ctx.rotate(walk * 0.05 + atk * lean * (dx ? 0.2 : 0.08));
-  ctx.scale(1 + breathe * 0.012 + atk * lean * 0.05, 1 - breathe * 0.014 - atk * lean * 0.03);
+  ctx.rotate((o.moving && dx ? 0.07 : 0) + walk * (dx ? 0.03 : 0.05) + atk * lean * (dx ? 0.2 : 0.08));
+  ctx.scale(1 + breathe * 0.012 + atk * lean * 0.05, 1 - breathe * 0.014 - atk * lean * 0.03 + (o.moving ? Math.abs(walk) * 0.025 : 0));
   ctx.imageSmoothingEnabled = true;
-  ctx.drawImage(c, ox, oy, dw, dh);
-  if (extra?.flash) { ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.6; ctx.drawImage(c, ox, oy, dw, dh); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; }
+  const paint = () => {
+    if (!legs) { ctx.drawImage(c, ox, oy, dw, dh); return; }
+    const hip = oy + dh * 0.6, bottom = oy + dh + 2, L = ox - 30, R = dw + 60;
+    // 上半身
+    ctx.save(); ctx.beginPath(); ctx.rect(L, oy - 30, R, hip - oy + 30.6); ctx.clip(); ctx.drawImage(c, ox, oy, dw, dh); ctx.restore();
+    if (dx) {
+      // 側面：下半身以腰為軸前後擺，做出跨步
+      ctx.save(); ctx.beginPath(); ctx.rect(L, hip, R, bottom - hip); ctx.clip();
+      ctx.translate(0, hip); ctx.transform(1, 0, walk * 0.42, 1, 0, 0); ctx.translate(0, -hip);
+      ctx.drawImage(c, ox, oy, dw, dh); ctx.restore();
+    } else {
+      // 正面／背面：左右腳輪流抬起
+      for (const sgn of [-1, 1]) {
+        const lift = Math.max(0, walk * sgn) * 2.4;
+        ctx.save(); ctx.beginPath(); ctx.rect(sgn < 0 ? L : 0, hip, sgn < 0 ? -L : R, bottom - hip); ctx.clip();
+        ctx.translate(sgn * lift * 0.3, -lift); ctx.drawImage(c, ox, oy, dw, dh); ctx.restore();
+      }
+    }
+  };
+  paint();
+  if (extra?.flash) { ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.6; paint(); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; }
   ctx.restore(); ctx.imageSmoothingEnabled = false;
   return { w, h };
 }
 // 攻擊姿勢：有 {key}_attack 圖就在攻擊瞬間換上
 const atkPose = (key, o) => (o.atkT > 0 && asset(key + '_attack')) || null;
+function walkPose(key, o) {
+  if (!o.moving || o.atkT > 0) return null;
+  const q = Math.floor((((o.step || 0) + (o.mt || 0)) % 2) * 2);
+  return q === 0 ? asset(key + '_walk1') : q === 2 ? asset(key + '_walk2') : null;
+}
+const heroKey = (L, dir) => { const view = dir === 'up' ? 'back' : dir === 'left' || dir === 'right' ? 'side' : 'front'; const k = `hero/${L.cls}_${TIER[Math.max(0, L.armorTier ?? 0)]}_${view}`; return asset(k) ? k : `hero/${L.cls}_common_${view}`; };
 function drawMe() {
   const x = Math.round(me.px * TS), y = Math.round(me.py * TS);
   const frame = animFrame(me, me.atkDur || 0.18);
-  if (charStyle === 'hd') { const im = heroImg(myLook, me.face), ai = me.atkT > 0 ? heroImg(myLook, me.face, true) : null, pose = ai && ai !== im ? ai : null; if (im) { if (me.hurtT > 0 && Math.floor(me.hurtT * 20) % 2) { shadow(x, y); return; } if (me.inv > 0) ctx.globalAlpha = 0.6; drawHD(pose || im, me, 40, me.face === 'left', null, pose ? im : null); ctx.globalAlpha = 1; return; } }
+  if (charStyle === 'hd') { const im = heroImg(myLook, me.face), ai = me.atkT > 0 ? heroImg(myLook, me.face, true) : null, pose = (ai && ai !== im ? ai : null) || (im && walkPose(heroKey(myLook, me.face), me)); if (im) { if (me.hurtT > 0 && Math.floor(me.hurtT * 20) % 2) { shadow(x, y); return; } if (me.inv > 0) ctx.globalAlpha = 0.6; drawHD(pose || im, me, 40, me.face === 'left', null, pose ? im : null); ctx.globalAlpha = 1; return; } }
   const sheet = pxHero(myLook);
   if (sheet) { if (me.hurtT > 0 && Math.floor(me.hurtT * 20) % 2) { shadow(x, y); return; } if (me.inv > 0) ctx.globalAlpha = 0.6; drawPxHero(sheet, me); ctx.globalAlpha = 1; return; }
   const hero = heroImg(myLook, me.face, me.atkT > 0);
@@ -1957,7 +1988,7 @@ function drawAlly(a) {
   if (a.hurtT > 0 && Math.floor(a.hurtT * 20) % 2) { shadow(x, y); return; }
   const frame = animFrame(a, a.atkDur || 0.18);
   const hd = asset('npc/ally_' + a.id), pxa = asset('px/ally/' + a.id);
-  if (hd && charStyle === 'hd') { const ap = atkPose('npc/ally_' + a.id, a); drawHD(ap || hd, a, 40, a.face === 'left', null, ap ? hd : null); }
+  if (hd && charStyle === 'hd') { const ap = atkPose('npc/ally_' + a.id, a) || walkPose('npc/ally_' + a.id, a); drawHD(ap || hd, a, 40, a.face === 'left', null, ap ? hd : null); }
   else if (pxa) drawPxHero(pxa, a);
   else if (hd) { drawIllus(hd, a); }
   else if (false) {
