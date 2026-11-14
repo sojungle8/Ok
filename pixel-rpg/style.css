@@ -264,3 +264,15 @@ button{font-family:inherit;color:inherit}
 .hdprev{image-rendering:auto!important}
 .eqrow .doll canvas.hdprev{width:96px;height:128px}
 .pcard canvas.hdprev{width:60px;height:80px}
+/* 介面美術圖示 */
+.skill.hasicon,.round.a.hasicon,.potbtn.hasicon{background-size:cover;background-position:center;background-repeat:no-repeat}
+.skill.hasicon{border-radius:16px;background-color:#0b0816}
+.skill.hasicon span,.round.a.hasicon{font-size:11px;text-shadow:0 1px 0 #000,0 0 3px #000}
+.skill.hasicon span{position:absolute;left:0;right:0;bottom:-15px;visibility:visible!important;white-space:nowrap;color:#fff}
+.skill.hasicon:not(.ready){filter:saturate(.5) brightness(.85)}
+.dodge.hasicon{border-radius:50%;background-color:transparent}
+.dodge.hasicon span{bottom:-14px}
+.round.a.hasicon{background-color:transparent;box-shadow:none;font-size:0;color:transparent}
+.potbtn.hasicon{background-size:22px 22px;background-position:6px center;padding-left:32px;background-color:#1d6aa8}
+.title{background-size:cover;background-position:center}
+.logo img{width:min(78vw,440px);height:auto;filter:drop-shadow(0 6px 0 #0006)}

@@ -90,6 +90,22 @@ function setupClass() {
     b.style.setProperty('--c', i === 2 ? '#ffb35c' : C.color);
   });
   myLook = lookOf(P, CLASSES, rarityIdx);
+  applyUiArt();
+}
+// 介面美術：有圖就換上，沒有就維持程式畫的按鈕
+function applyUiArt() {
+  const url = (k) => asset('ui/' + k)?.src;
+  skills.forEach((sk, i) => {
+    const b = $(`sk${i}Btn`), u = url('skill_' + sk.id);
+    b.classList.toggle('hasicon', !!u);
+    b.style.backgroundImage = u ? `conic-gradient(#0b0816cc var(--p,0deg),transparent 0),url("${u}")` : '';
+  });
+  for (const [id, k] of [['aBtn', 'btn_attack'], ['dodgeBtn', 'btn_dodge'], ['bBtn', 'btn_potion']]) {
+    const u = url(k), b = $(id); b.classList.toggle('hasicon', !!u); b.style.backgroundImage = u ? (id === 'dodgeBtn' ? `conic-gradient(#0b0816cc var(--p,0deg),transparent 0),url("${u}")` : `url("${u}")`) : '';
+  }
+  const bg = url('title_bg'), logo = url('logo');
+  if (bg) $('title').style.backgroundImage = `linear-gradient(#140f2699,#140f26cc),url("${bg}")`;
+  if (logo && !document.querySelector('.logo img')) { const im = new Image(); im.src = logo; im.alt = '微光大陸'; $('title').querySelector('.logo').replaceChildren(im); }
 }
 
 // ---------- 怪物 ----------
@@ -273,9 +289,22 @@ function questText() {
   if (P.step === 0) return pre + (mapId === c.n ? `和入口的${gn}說話` : `找村裡的傳送師小葵，前往「${c.name}」`);
   return pre + [`和${gn}說話`, `打倒${c.name}的怪物 ${Math.min(P.kills, c.kills)} / ${c.kills}，再找${gn}`, `擊敗${MONSTERS[c.boss].name}（建議 Lv ${MONSTERS[c.boss].lv - 3} 以上）`, `回報${gn}`][P.step];
 }
+const trimCache = new WeakMap();
+function trimmed(img) {
+  if (trimCache.has(img)) return trimCache.get(img);
+  const w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+  const c = document.createElement('canvas'); c.width = w; c.height = h; const x = c.getContext('2d'); x.drawImage(img, 0, 0);
+  let out = img;
+  try {
+    const d = x.getImageData(0, 0, w, h).data; let x0 = w, y0 = h, x1 = 0, y1 = 0;
+    for (let y = 0; y < h; y += 2) for (let i = 0; i < w; i += 2) if (d[(y * w + i) * 4 + 3] > 30) { if (i < x0) x0 = i; if (i > x1) x1 = i; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    if (x1 > x0 && y1 > y0) { const t = document.createElement('canvas'); t.width = x1 - x0 + 4; t.height = y1 - y0 + 4; t.getContext('2d').drawImage(img, x0 - 2, y0 - 2, t.width, t.height, 0, 0, t.width, t.height); out = t; }
+  } catch { /* 跨來源圖片讀不到像素就用原圖 */ }
+  trimCache.set(img, out); return out;
+}
 function previewCanvas(L, size = 4, dir = 'down') {
   const c = document.createElement('canvas'); c.width = AW * size; c.height = AH * size;
-  const x = c.getContext('2d'); const h = heroImg(L, dir); const src = h || avatar(L, dir, 0);
+  const x = c.getContext('2d'); const h = heroImg(L, dir); const src = h ? trimmed(h) : avatar(L, dir, 0);
   // 介面特寫（裝備、隊伍、標題）放精緻原圖；大地圖上才用像素小人
   if (h || src.width > AW) { x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high'; const k = Math.min((AW * size) / src.width, (AH * size) / src.height); x.drawImage(src, (AW * size - src.width * k) / 2, AH * size - src.height * k, src.width * k, src.height * k); c.classList.add('hdprev'); }
   else { x.imageSmoothingEnabled = false; x.drawImage(src, 0, 0, AW * size, AH * size); }
@@ -1593,9 +1622,38 @@ function drawIllus(img, o, frameStr) {
   ctx.imageSmoothingEnabled = false; ctx.drawImage(p, -Math.round(p.width / 2), -p.height);
   ctx.restore();
 }
+// 原生像素動畫圖：432×144，3 列（front/back/side）× 9 欄（待機、走 1～4、攻 1～4）
+const pxFeet = new WeakMap();
+function pxHero(L) {
+  if (!L?.cls) return null;
+  return asset(`px/hero/${L.cls}_${TIER[Math.max(0, L.armorTier ?? 0)]}`) || asset(`px/hero/${L.cls}_common`);
+}
+function feetOf(img) {
+  if (pxFeet.has(img)) return pxFeet.get(img);
+  const c = document.createElement('canvas'); c.width = 48; c.height = 48; const x = c.getContext('2d'); x.drawImage(img, 0, 0, 48, 48, 0, 0, 48, 48);
+  const d = x.getImageData(0, 0, 48, 48).data; let f = 44;
+  for (let y = 47; y >= 0; y--) { let hit = false; for (let i = 0; i < 48; i++) if (d[(y * 48 + i) * 4 + 3] > 0) { hit = true; break; } if (hit) { f = y + 1; break; } }
+  pxFeet.set(img, f); return f;
+}
+function drawPxHero(sheet, o) {
+  const x = Math.round(o.px * TS), y = Math.round(o.py * TS);
+  shadow(x, y);
+  const row = o.face === 'up' ? 1 : o.face === 'left' || o.face === 'right' ? 2 : 0;
+  const dur = o.atkDur || 0.18;
+  const col = o.atkT > 0 ? 5 + Math.min(3, Math.floor((1 - o.atkT / dur) * 4)) : o.moving ? 1 + ((o.step * 2 + (o.mt > 0.5 ? 1 : 0)) % 4) : 0;
+  const lunge = o.atkT > 0 ? Math.sin((1 - o.atkT / dur) * Math.PI) : 0, [dx, dy] = DIRS[o.face] || [0, 1];
+  ctx.save();
+  ctx.translate(x + 8 + Math.round(dx * lunge * 3), y + 17 + Math.round(dy * lunge * 2));
+  if (o.face === 'left') ctx.scale(-1, 1);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(sheet, col * 48, row * 48, 48, 48, -24, -feetOf(sheet), 48, 48);
+  ctx.restore();
+}
 function drawMe() {
   const x = Math.round(me.px * TS), y = Math.round(me.py * TS);
   const frame = animFrame(me, me.atkDur || 0.18);
+  const sheet = pxHero(myLook);
+  if (sheet) { if (me.hurtT > 0 && Math.floor(me.hurtT * 20) % 2) { shadow(x, y); return; } if (me.inv > 0) ctx.globalAlpha = 0.6; drawPxHero(sheet, me); ctx.globalAlpha = 1; return; }
   const hero = heroImg(myLook, me.face, me.atkT > 0);
   if (hero && !(me.hurtT > 0 && Math.floor(me.hurtT * 20) % 2)) { if (me.inv > 0) ctx.globalAlpha = 0.6; drawIllus(hero, me); ctx.globalAlpha = 1; return; }
   if (me.hurtT > 0 && Math.floor(me.hurtT * 20) % 2) { shadow(x, y); return; }
@@ -1845,7 +1903,7 @@ function drawFxInner(f, k) {
       break;
     }
     case 'ghost': {
-      ctx.globalAlpha = 0.45 * (1 - k); { const g0 = heroImg(myLook, f.face) || avatar(myLook, f.face, 1); const p = g0.width > AW ? pixelize(g0, PX_CHAR) : g0; ctx.drawImage(p, Math.round(f.x * TS) + 8 - Math.round(p.width / 2), Math.round(f.y * TS) + 17 - p.height); }
+      ctx.globalAlpha = 0.45 * (1 - k); { const sh = pxHero(myLook); if (sh) { drawPxHero(sh, { px: f.x, py: f.y, face: f.face }); break; } const g0 = heroImg(myLook, f.face) || avatar(myLook, f.face, 1); const p = g0.width > AW ? pixelize(g0, PX_CHAR) : g0; ctx.drawImage(p, Math.round(f.x * TS) + 8 - Math.round(p.width / 2), Math.round(f.y * TS) + 17 - p.height); }
       break;
     }
     case 'heal': {
@@ -1936,7 +1994,7 @@ function titleScreen() {
   const looks = CLASS_IDS.map((id, i) => lookOf({ cls: id, gear: i % 2 ? { armor: { rarity: 'epic' }, weapon: { rarity: 'epic' }, helm: { rarity: 'epic' } } : { armor: { rarity: 'rare' }, weapon: { rarity: 'rare' } } }, CLASSES, rarityIdx));
   $('titleArt').replaceChildren(...looks.map((L) => previewCanvas(L, 2)));
 }
-loadAssets().then(() => { for (const k of Object.keys(mapCache)) delete mapCache[k]; mapC = renderMapCanvas(mapId); titleScreen(); if (typeof render === 'function') render(); });
+loadAssets().then(() => { for (const k of Object.keys(mapCache)) delete mapCache[k]; mapC = renderMapCanvas(mapId); applyUiArt(); titleScreen(); if (typeof render === 'function') render(); });
 loadMap(P.map && P.map <= Math.min(6, P.ch) ? P.map : 0, { x: P.x, y: P.y });
 setupClass();
 resize();
