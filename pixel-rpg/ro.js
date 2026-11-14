@@ -1,4 +1,4 @@
-// 微光大陸：RO 風格數值系統——六大能力值、屬性相剋、種族、體型、卡片效果、輔助狀態（原創名稱與數值，純函式可測試）
+// 長夜燈火：RO 風格數值系統——六大能力值、屬性相剋、種族、體型、卡片效果、輔助狀態（原創名稱與數值，純函式可測試）
 // 設計原則：機制照 RO 的架構，但配合「舒壓」：屬性最低 5 折、不會完全打不動；命中下限 85%
 
 // ---- 六大能力值 ----
@@ -11,7 +11,7 @@ export const ATTR_MAX = 99;
 // 每升一級 4 點，起始 10 點自由分配（每項能力起始 1）
 export const attrPointsTotal = (lv) => 10 + Math.max(0, lv - 1) * 4;
 export const attrSpent = (a) => ATTRS.reduce((s, k) => s + Math.max(0, (a?.[k] || 1) - 1), 0);
-export const attrFree = (p) => Math.max(0, attrPointsTotal(p.lv) + 10 * (p.reborn | 0) - attrSpent(p.attrs));
+export const attrFree = (p) => Math.max(0, attrPointsTotal(p.lv) + (p.job?.tier >= 3 ? 20 : 0) - attrSpent(p.attrs));
 export const newAttrs = () => Object.fromEntries(ATTRS.map((k) => [k, 1]));
 // 主要攻擊能力：近戰看力量、弓手看靈巧、法系看智力
 export const MAIN_ATTR = { sword: 'str', monk: 'str', archer: 'dex', mage: 'int', priest: 'int' };

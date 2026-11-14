@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>微光大陸</title>
+<title>長夜燈火</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Huninn&family=Silkscreen&display=swap">
 <link rel="stylesheet" href="style.css">
@@ -17,6 +17,7 @@
         <div class="lvbox"><span class="lbl" id="clsName">劍士</span><b id="lv">1</b></div>
         <div class="bars">
           <div class="bar hp"><i id="hpBar"></i><span><em>HP</em> <b id="hpText">0</b></span></div>
+          <div class="bar mp"><i id="mpBar"></i><span><em>MP</em> <b id="mpText">0</b></span></div>
           <div class="bar xp"><i id="xpBar"></i><span><em>EXP</em> <b id="xpText">0%</b></span></div>
         </div>
       </div>
@@ -36,8 +37,10 @@
       </div>
     </header>
     <div class="quest"><span class="qlbl">任務</span><span id="quest"></span></div>
+    <div id="resBar" class="resbar" hidden></div>
+    <div id="effBar" class="effbar" hidden></div>
     <div id="party" class="party" hidden></div>
-    <div id="bossBar" class="bossbar" hidden><span id="bossName">史萊姆王</span><div class="bb"><i id="bossFill"></i></div></div>
+    <div id="bossBar" class="bossbar" hidden><span id="bossName">露滴王</span><div class="bb"><i id="bossFill"></i></div></div>
     <div id="combo" class="combo" hidden></div>
     <div id="cpPop" class="cppop"></div>
     <div id="banner" class="banner"></div>
@@ -54,6 +57,9 @@
         <div id="stick" class="stick" aria-label="移動搖桿"><div id="knob" class="knob"></div></div>
       </div>
       <div class="acts">
+        <button id="sk5Btn" class="skill sk5" type="button" hidden><span></span><em></em></button>
+        <button id="sk4Btn" class="skill sk4" type="button" hidden><span></span><em></em></button>
+        <button id="sk3Btn" class="skill sk3" type="button" hidden><span></span><em></em></button>
         <button id="sk2Btn" class="skill sk2" type="button"><span></span><em></em></button>
         <button id="sk1Btn" class="skill sk1" type="button"><span></span><em></em></button>
         <button id="sk0Btn" class="skill sk0" type="button"><span></span><em></em></button>
@@ -136,7 +142,7 @@
     <div class="crow"><button id="refineGo" class="startbtn" type="button">精煉</button><button id="refineClose" class="ghostbtn" type="button">關閉</button></div>
   </div>
   <div id="title" class="title">
-    <div class="logo">微光大陸<small>GLIMMERLAND</small></div>
+    <div class="logo">長夜燈火<small>GLIMMERLAND</small></div>
     <div class="title-art" id="titleArt"></div>
     <button id="startBtn" class="startbtn" type="button" hidden>繼續冒險</button>
     <p id="loadTip" class="tip"></p>

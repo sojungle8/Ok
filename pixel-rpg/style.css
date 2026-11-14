@@ -18,7 +18,7 @@ button{font-family:inherit;color:inherit}
 .ui button,.ui .stick,.dialog{pointer-events:auto}
 /* 頂部 HUD */
 .hud{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;font-size:.78em}
-.me{display:flex;gap:6px;align-items:stretch;width:min(58%,260px);background:var(--glass);border:2px solid #ffffff22;border-radius:12px;padding:5px;backdrop-filter:blur(2px)}
+.me{display:flex;gap:6px;align-items:stretch;width:min(64%,290px);background:var(--glass);border:2px solid #ffffff22;border-radius:12px;padding:5px;backdrop-filter:blur(2px)}
 .lvbox{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:2.6em;line-height:1.05}
 .lvbox .lbl{font-size:.68em;color:var(--muted);white-space:nowrap}
 .lvbox b{font-family:var(--pixel);font-size:1.35em;font-weight:400;color:var(--gold)}
@@ -349,3 +349,24 @@ button{font-family:inherit;color:inherit}
 .skrow button:disabled{opacity:.3}
 .advbox{display:grid;gap:6px;padding:10px;border-radius:12px;background:linear-gradient(135deg,#ffd16626,#c084ff26);border:1px solid #ffd16688;font-size:.85em}
 .advbox button{display:flex;flex-direction:column;gap:2px;padding:8px}.advbox button small{font-size:.8em;font-weight:400}
+
+/* 技能列 4～6 格、魔力、專屬機制 */
+.sk3{right:160px;bottom:64px;width:54px!important;height:54px!important}
+.sk4{right:176px;bottom:136px;width:54px!important;height:54px!important}
+.sk5{right:20px;bottom:186px;width:54px!important;height:54px!important}
+.skill[hidden]{display:none}
+.skill.nomp{filter:saturate(.3) brightness(.7)}
+.bar.mp i{background:linear-gradient(90deg,#4f8cff,#7fd8ff)}
+.resbar{margin-top:6px;width:max-content;display:flex;gap:4px;align-items:center;padding:3px 8px;border-radius:10px;background:#0b0816aa;font-size:11px;color:#ffe3af}
+.resbar span{margin-right:4px}
+.resbar[hidden],.effbar[hidden]{display:none}
+.resbar i{width:11px;height:11px;border-radius:50%;background:#ffffff22;border:1px solid #ffd16688}
+.resbar i.on{background:radial-gradient(circle at 35% 30%,#fff8e7,#ffd166);box-shadow:0 0 6px #ffd166}
+.effbar{margin-top:4px;width:max-content;padding:3px 10px;border-radius:10px;background:#0b0816cc;font-size:11px;color:#ffd166}
+.skrow.off{opacity:.6}
+.skrow em{font-style:normal;color:#ff8fa0}
+.skrow{grid-template-columns:auto auto 1fr auto auto}
+.barbtn{width:28px;height:28px;border-radius:8px;border:0;background:#ffffff1a;color:#ffd166;font-weight:700}
+.barbtn.on{background:#ffd16633}
+.tsub{margin:10px 0 4px;font-size:.85em;color:#ffd166}
+.bar span b{font-size:.9em;letter-spacing:-.02em}

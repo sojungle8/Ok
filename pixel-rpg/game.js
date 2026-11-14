@@ -11,8 +11,10 @@ import { iconCanvas, gearIcon } from './icons.js';
 import { loadAssets, asset, tinted, loadState } from './assets.js';
 import { ensureMeta, refresh, track, claimQuest, claimChest, claimable, claimLogin, loginReward, questLabel, rewardText, CHESTS, codexBonus, codexStars, CODEX_TIERS, ACHIEVEMENTS, achProgress, achReady, claimAch, ELITE_AFFIX, ELITE_RATE, makeElite, DIFFS, diffOf, applyDiff, chestSpots, openChest, chestOpened, dayKey, quickIdleState, useQuickIdle, QUICK_IDLE_MIN, QUICK_COST, SHOP, buySku, canBuy, monthActive, monthDaysLeft, claimMonthDaily, monthClaimable, claimAll, MONTH_DAILY, towerFloor, towerClear, LOGIN_CYCLE } from './meta.js';
 import { pixelize } from './pixelize.js';
-import { ensureJob, gainJobExp, jobExpNeed, JOB_CAP, JOB_EXP_RATE, SKILL_MAX, skillPointsFree, skillLevel, learnSkill, autoLearn, resetSkills, skillDmgMult, skillCdMult, JOB2, ADVANCE_LV, ADVANCE_JOB, canAdvance, advanceJob, branchOf, jobTitle, REBORN_LV, canReborn, doReborn, rebornBonus } from './progress.js';
-import { ATTRS, ATTR_NAME, ATTR_DESC, ATTR_MAX, attrFree, attrPointsTotal, addAttr, autoAllocate, resetAttrs, ensureAttrs, addBuff, activeBuffs, BUFFS, hitChance, dodgeChance, damageMult, profileOf, ELEM_COLOR, SKILL_ELEM, ALLY_ELEM, monDef, MAIN_ATTR } from './ro.js';
+import { ensureJob, gainJobExp, jobExpNeed, JOB_CAP, JOB_EXP_RATE, JOB2, ADVANCE_LV, ADVANCE_JOB, canAdvance, advanceJob, branchOf, jobTitle } from './progress.js';
+import { BY_ID, RES, BAR_SIZE, ensureTree, skillPoints, learnSkill, autoLearnSkills, resetTree, whyNot, lvOf, skillNums, barSkills, describeSkill, routesOf, SKILLS } from './skilltree.js';
+import { guardExp, effRatio, levelGapMult, newbieMult } from './balance.js';
+import { ATTRS, ATTR_NAME, ATTR_DESC, ATTR_MAX, attrFree, attrPointsTotal, addAttr, autoAllocate, resetAttrs, ensureAttrs, addBuff, activeBuffs, BUFFS, hitChance, dodgeChance, damageMult, profileOf, ELEM_COLOR, SKILL_ELEM, ALLY_ELEM, monDef, defMod, MAIN_ATTR } from './ro.js';
 import { audioOpt, saveAudioOpt, initAudio, sfx, playSong, audioLevel, currentSong } from './audio.js';
 // 美術風格：像素風。高畫質的角色、怪物、NPC 在遊戲畫面中即時轉成像素圖；特效、頭像、大招立繪維持高畫質
 const PX_CHAR = 36, PX_MON = 26, PX_BOSS = 52;
@@ -50,7 +52,7 @@ function resize() {
 const cv = $('cv');
 const ctx = cv.getContext('2d');
 addEventListener('resize', () => resize());
-// 地圖：0 = 微光村與史萊姆草原；2～6 = 各章野外
+// 地圖：0 = 守燈村與守燈草原；2～6 = 各章野外
 let mapId = 0, grid = buildWorld(), mapC = null, BZ = BOSS_ZONE, FMIN = FIELD_MIN_X;
 const townNpcs = NPCS.map((n, i) => ({ ...n, face: n.id === 'fisher' ? 'right' : 'down', L: npcLook(n), seed: i }));
 let npcs = townNpcs;
@@ -84,6 +86,7 @@ const me = { x: P.x, y: P.y, px: P.x, py: P.y, fx: P.x, fy: P.y, face: 'down', m
 function save() { P.x = me.x; P.y = me.y; P.map = mapId; P.seen = Date.now(); hasSave = true; try { localStorage.setItem(KEY, JSON.stringify(P)); } catch { /* 無痕模式不存 */ } }
 
 const R = Math.random;
+const SK = BY_ID, skPoints = skillPoints, learnSk = learnSkill, autoLearnSk = autoLearnSkills, skDesc = describeSkill, ALL_SKILLS = SKILLS;
 const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 let C = CLASSES[P.cls], skills = [], myLook = null;
 let mons = [], floats = [], parts = [], drops = [], fx = [], projs = [], pending = [];
@@ -92,6 +95,9 @@ let anim = 0, regenT = 0, saveT = 0, shake = 0, freeze = 0, flash = 0, combo = 0
 let allies = [], atkOverride = 0, partyT = 0;
 let trial = null, metaT = 0;
 let skillElem = '無', skillElemT = 0, hitElem = null, allyElem = '無', curSkill = null;
+// 專屬機制：誓約／燭火／星點／共鳴／鐘聲（層數），斥候的影是狀態
+const res = { n: 0, max: 0, name: '' };
+let shadowT = 0, comboNext = 1, lastElem = null, castMods = null;
 // 人物畫風：hd＝精緻 Q 版立繪（預設）、px＝原生像素動畫
 const charStyle = 'hd';
 let soulPower = 0, cutinT = 0, pendingUlt = null, catT = 0, warns = [], tintC = '#fff', tintT = 0;
@@ -102,20 +108,27 @@ const cx = (o) => o.px * TS + 8, cy = (o) => o.py * TS + 8;
 
 function setupClass() {
   C = CLASSES[P.cls];
-  skills = C.skills.map((s) => ({ ...s, t: 0 }));
-  skills.forEach((s, i) => {
-    const b = $(`sk${i}Btn`);
-    b.querySelector('span').textContent = s.name;
-    b.style.setProperty('--c', i === 2 ? '#ffb35c' : C.color);
-  });
+  ensureJob(P); ensureTree(P);
+  const old = Object.fromEntries(skills.map((x) => [x.id, x.t]));
+  skills = barSkills(P).map((sk) => ({ id: sk.id, name: sk.name, cd: sk.cd || 1, t: old[sk.id] || 0 }));
+  for (let i = 0; i < BAR_SIZE; i++) {
+    const b = $(`sk${i}Btn`), sk = skills[i];
+    b.hidden = !sk;
+    if (!sk) continue;
+    b.querySelector('span').textContent = sk.name;
+    b.style.setProperty('--c', SK[sk.id].kind === 'act' ? (SK[sk.id].need ? '#ffb35c' : C.color) : SK[sk.id].kind === 'heal' ? '#7ad35a' : '#7fd8ff');
+  }
+  res.max = RES[P.cls]?.max || 0; res.name = RES[P.cls]?.name || ''; res.n = Math.min(res.n, res.max);
   myLook = lookOf(P, CLASSES, rarityIdx);
   applyUiArt();
 }
+// 舊技能圖示暫時沿用到新技能（新圖示做好前）
+const OLD_ICON = { lampSlash: 'spin', ringSlash: 'spin', lightBlade: 'wave', vowRelease: 'quake', twinStar: 'triple', scatterStar: 'triple', starfall: 'rain', meteorPierce: 'pierce', emberSeed: 'fireball', frostBreath: 'nova', thunderThread: 'chain', lightCandle: 'mend', candleArrow: 'lance', candleArray: 'sanctum', bellPalm: 'barrage', bellFists: 'barrage', bellQuake: 'shock', dawnStrike: 'dragon' };
 // 介面美術：有圖就換上，沒有就維持程式畫的按鈕
 function applyUiArt() {
   const url = (k) => asset('ui/' + k)?.src;
   skills.forEach((sk, i) => {
-    const b = $(`sk${i}Btn`), u = url('skill_' + sk.id);
+    const b = $(`sk${i}Btn`), u = url('skill_' + sk.id) || url('skill_' + (OLD_ICON[sk.id] || ''));
     b.classList.toggle('hasicon', !!u);
     b.style.backgroundImage = u ? `conic-gradient(#0b0816cc var(--p,0deg),transparent 0),url("${u}")` : '';
   });
@@ -124,7 +137,7 @@ function applyUiArt() {
   }
   const bg = url('title_bg'), logo = url('logo');
   if (bg) $('title').style.backgroundImage = `linear-gradient(#140f2699,#140f26cc),url("${bg}")`;
-  if (logo && !document.querySelector('.logo img')) { const im = new Image(); im.src = logo; im.alt = '微光大陸'; $('title').querySelector('.logo').replaceChildren(im); }
+  if (logo && !document.querySelector('.logo img')) { const im = new Image(); im.src = logo; im.alt = '長夜燈火'; $('title').querySelector('.logo').replaceChildren(im); }
 }
 
 // ---------- 怪物 ----------
@@ -215,7 +228,7 @@ function checkGate() {
     return;
   }
   loadMap(to, at);
-  const name = to === 0 ? '微光村' : CHAPTERS[to - 1].name;
+  const name = to === 0 ? '守燈村' : CHAPTERS[to - 1].name;
   banner(name); feed(`來到了「${name}」`, '#c084ff'); hud(); save();
 }
 const inSafe = () => mapId === 0 || me.x < 5;
@@ -223,7 +236,7 @@ const alive = () => mons.filter((m) => m.dead <= 0 && !m.hidden);
 const tdist = (m, x, y) => Math.hypot(m.px - x, m.py - y);
 function nearest(range, from = me) { let best = null, bd = 1e9; for (const m of alive()) { const d = tdist(m, from.px, from.py); if (d <= range + (m.d.boss ? 0.6 : 0) && d < bd) { bd = d; best = m; } } return best; }
 
-const MINION = { name: '小史萊姆王', tpl: 'slime', pal: MONSTERS.king.pal, hp: 160, atk: 8, exp: 10, coin: [2, 4], lv: 8, sight: 7 };
+const MINION = { name: '小露滴王', tpl: 'slime', pal: MONSTERS.king.pal, hp: 160, atk: 8, exp: 10, coin: [2, 4], lv: 8, sight: 7 };
 const MIRROR_OBJ = (b) => ({ name: '魔鏡', tpl: 'mirror', pal: {}, hp: Math.round(b.d.hp * 0.035), atk: 0, exp: 40, coin: [20, 40], lv: b.d.lv, sight: 0, still: true });
 const DECOY = { name: '路人', tpl: 'decoy', pal: {}, hp: 1, atk: 0, exp: 0, coin: [0, 0], lv: 1, sight: 0, still: true, decoy: true };
 let invertT = 0, lastSkill = null, lastUltId = null;
@@ -250,7 +263,7 @@ function bossThink(m, dt) {
   if (firstLook) m.engaged = true;
   if (mech === 'split') for (const th of [0.75, 0.5, 0.25]) if (ratio <= th && !m.phases.includes(th)) {
     m.phases.push(th); spawnMinions(m, 3); m.shield = true;
-    banner('史萊姆王分裂了！'); feed('打倒<b>小史萊姆王</b>才能打破護盾', '#ff8a3d'); shake = 0.3;
+    banner('露滴王分裂了！'); feed('打倒<b>小露滴王</b>才能打破護盾', '#ff8a3d'); shake = 0.3;
   }
   if (mech === 'mirror') for (const th of [1, 0.5]) if ((th === 1 ? firstLook : ratio <= th) && !m.phases.includes(th)) {
     m.phases.push(th); spawnMinions(m, 3, MIRROR_OBJ(m), { spread: true }); m.shield = true;
@@ -334,7 +347,11 @@ function hud() {
   if (started) { $('talentDot').hidden = !(talentPoints(P) > talentSpent(P) || (!P.autoAttr && attrFree(P) > 0)); $('advDot').hidden = !claimable(P); $('shopDot').hidden = !(monthClaimable(P) || canBuy(P, 'daily')); }
   myLook = lookOf(P, CLASSES, rarityIdx);
   $('lv').textContent = P.lv;
-  ensureJob(P); $('clsName').textContent = `${jobTitle(P, C.name)}${P.reborn ? `★${P.reborn}` : ''}`;
+  ensureJob(P); $('clsName').textContent = jobTitle(P, C.name);
+  if (P.mp === undefined || P.mp > st.mpMax) P.mp = st.mpMax;
+  $('mpBar').style.width = `${Math.max(0, P.mp / st.mpMax) * 100}%`; $('mpText').textContent = `${fmt(P.mp)} / ${fmt(st.mpMax)}`;
+  const rb = $('resBar'); rb.hidden = !res.max; if (res.max) rb.innerHTML = `<span>${P.cls === 'scout' ? (shadowT > 0 ? '影中' : '光下') : res.name}</span>${P.cls === 'scout' ? '' : Array.from({ length: res.max }, (_, i) => `<i class="${i < res.n ? 'on' : ''}"></i>`).join('')}`;
+  const ef = effRatio(P); $('effBar').hidden = ef < 1.5; $('effBar').textContent = ef >= 2 ? `本小時效率 ${ef.toFixed(1)} 倍・之後經驗遞減` : `本小時效率 ${ef.toFixed(1)} 倍`;
   $('clsName').style.color = C.color;
   $('hpBar').style.width = `${Math.max(0, P.hp / st.hp) * 100}%`;
   $('hpText').textContent = `${fmt(Math.max(0, P.hp))} / ${fmt(st.hp)}`;
@@ -358,7 +375,7 @@ function questText0() {
   const c = CHAPTERS[P.ch - 1];
   if (!c) return '全章節完成｜自由冒險：收集卡片、精煉、刷傳說裝備';
   const pre = `第 ${c.n} 章｜`;
-  if (c.n === 1) return pre + ['找廣場北邊的村長歐文聊聊', `打倒史萊姆 ${Math.min(P.kills, 20)} / 20，再回報村長`, '到史萊姆草原的東北角擊敗史萊姆王（建議 Lv 7 以上）', '回村子向村長報告'][P.step];
+  if (c.n === 1) return pre + ['找廣場北邊的村長歐文聊聊', `打倒露滴團 ${Math.min(P.kills, 20)} / 20，再回報村長`, '到守燈草原的東北角擊敗露滴王（建議 Lv 7 以上）', '回村子向村長報告'][P.step];
   const gn = c.guide.name.split('・')[1];
   if (P.step === 0) return pre + (mapId === c.n ? `和入口的${gn}說話` : `找村裡的傳送師小葵，前往「${c.name}」`);
   return pre + [`和${gn}說話`, `打倒${c.name}的怪物 ${Math.min(P.kills, c.kills)} / ${c.kills}，再找${gn}`, `擊敗${MONSTERS[c.boss].name}（建議 Lv ${MONSTERS[c.boss].lv - 3} 以上）`, `回報${gn}`][P.step];
@@ -544,27 +561,39 @@ function renderAttrs() {
   $('attrReset').addEventListener('click', () => { resetAttrs(P); if (P.autoAttr) autoAllocate(P); hud(); save(); renderTalents(); });
 }
 function renderJob() {
-  ensureJob(P);
-  if (P.autoAttr) autoLearn(P, skills.map((x) => x.id));
-  const j = P.job, cap = JOB_CAP[j.tier], need = jobExpNeed(j.lv, j.tier), free = skillPointsFree(P), br = branchOf(P);
+  ensureJob(P); ensureTree(P);
+  if (P.autoAttr) { autoLearnSk(P); setupClass(); }
+  const j = P.job, cap = JOB_CAP[j.tier], need = jobExpNeed(j.lv, j.tier), pt = skPoints(P), br = branchOf(P);
   const pct = j.lv >= cap ? 100 : Math.round((j.exp / need) * 100);
-  const sk = skills.map((x) => { const lv = skillLevel(P, x.id); return `<div class="skrow"><b>${x.name}</b><span>Lv ${lv}/${SKILL_MAX[j.tier]}</span><small>傷害 +${Math.round((skillDmgMult(lv) - 1) * 100)}%・冷卻 -${Math.round((1 - skillCdMult(lv)) * 100)}%</small><button type="button" data-s="${x.id}" ${free && lv < SKILL_MAX[j.tier] && !P.autoAttr ? '' : 'disabled'}>＋</button></div>`; }).join('');
+  const row = (sk) => {
+    const lv = lvOf(P, sk.id), why = whyNot(P, sk.id), onBar = P.bar.includes(sk.id), active = sk.kind !== 'pas';
+    return `<div class="skrow ${lv ? '' : 'off'}"><b>${sk.name}</b><span>Lv ${lv}/${sk.max}</span><small>${skDesc(sk, lv || 1)}${sk.pre.length ? `<br><em>前置：${sk.pre.map(([id, l]) => `${SK[id].name} ${l}`).join('、')}</em>` : ''}</small>
+      ${active && lv ? `<button type="button" class="barbtn ${onBar ? 'on' : ''}" data-bar="${sk.id}" title="放到技能列">${onBar ? '★' : '☆'}</button>` : '<span></span>'}
+      <button type="button" data-s="${sk.id}" ${why || P.autoAttr ? 'disabled' : ''} title="${why}">＋</button></div>`;
+  };
+  const mine = (owner) => ALL_SKILLS.filter((x) => x.owner === owner);
   let adv = '';
-  if (j.tier === 1) adv = canAdvance(P) ? `<div class="advbox"><b>可以轉職了！</b>選一條路線（之後不能更改）：${(JOB2[P.cls] || []).map((b) => `<button type="button" class="startbtn" data-b="${b.id}">${b.name}<small>${b.desc}</small></button>`).join('')}</div>` : `<p class="small muted">轉職條件：Lv ${ADVANCE_LV}、職業 Lv ${ADVANCE_JOB}（二轉後技能上限 ${SKILL_MAX[2]}，並獲得路線加成）</p>`;
-  else adv = canReborn(P) ? `<div class="advbox"><b>可以轉生了！</b>回到 Lv1 重新冒險，永久攻擊、生命 +6%、能力點 +10、經驗 +10%（可以一直轉）<button type="button" class="startbtn" id="rebornBtn">轉生</button></div>` : `<p class="small muted">${br ? `${br.name}：${br.desc}` : ''}<br>轉生條件：Lv ${REBORN_LV}、二轉職業 Lv ${JOB_CAP[2]}</p>`;
-  $('jobBox').innerHTML = `<div class="ahead"><span><b>${jobTitle(P, C.name)}</b>${P.reborn ? `（轉生 ${P.reborn} 次）` : ''}　職業 Lv <b>${j.lv}</b> / ${cap}</span><span>技能點 <b>${free}</b></span></div>
+  if (j.tier === 1) adv = canAdvance(P) ? `<div class="advbox"><b>可以轉職了！</b>選一條路線（之後不能更改）：${routesOf(P.cls).map((b) => `<button type="button" class="startbtn" data-b="${b.id}">${b.name}<small>${mine(b.id).slice(0, 4).map((x) => x.name).join('・')}…</small></button>`).join('')}</div>` : `<p class="small muted">轉職條件：Lv ${ADVANCE_LV}、職業 Lv ${ADVANCE_JOB}。二轉後多 69 個技能點與 10 招路線技能。</p>`;
+  $('jobBox').innerHTML = `<div class="ahead"><span><b>${jobTitle(P, C.name)}</b>　職業 Lv <b>${j.lv}</b> / ${cap}</span><span>技能點 <b>${pt.free}</b>${j.tier >= 2 ? `（二轉 ${pt.free2}）` : ''}</span></div>
     <div class="qbar"><i style="width:${pct}%"></i><span>${j.lv >= cap ? '職業等級已滿' : `${fmt(j.exp)} / ${fmt(need)}`}</span></div>
-    <div class="sklist">${sk}</div>${adv}`;
-  $('jobBox').querySelectorAll('button[data-s]').forEach((b) => b.addEventListener('click', () => { if (learnSkill(P, b.dataset.s)) { save(); renderTalents(); } }));
-  $('jobBox').querySelectorAll('button[data-b]').forEach((b) => b.addEventListener('click', () => {
-    const name = (JOB2[P.cls] || []).find((x) => x.id === b.dataset.b)?.name;
-    $('talentPanel').hidden = true;
-    say('轉職', [`確定轉職成「${name}」？轉職後不能更改路線。`], [['轉職！', () => { if (advanceJob(P, b.dataset.b)) { banner(`轉職成功：${name}`); flash = 0.3; burst(cx(me), cy(me), '#ffd166', 50, 180); addFx('pillar', 1, { x: cx(me), y: cy(me), color: '#ffd166' }); sfx('levelup'); if (P.autoAttr) autoLearn(P, skills.map((x) => x.id)); hud(); save(); } }], ['再想想', null]]);
+    <p class="small muted">${P.autoAttr ? '自動配點中（照推薦流派）。關掉上面的「自動」就能自己點。' : '技能點有限，不能全部點滿；選擇就是你的流派。☆ 可以把技能放到技能列（最多 6 招）。'}</p>
+    <h5 class="tsub">一轉・${C.name}</h5><div class="sklist">${mine(P.cls).map(row).join('')}</div>
+    ${br ? `<h5 class="tsub">二轉・${br.name}</h5><div class="sklist">${mine(br.id).map(row).join('')}</div>` : ''}${adv}
+    <div class="crow"><button id="skReset" class="ghostbtn" type="button">重置技能</button><button id="skAuto" class="ghostbtn" type="button">推薦配點</button></div>`;
+  const redo = () => { setupClass(); hud(); save(); renderTalents(); };
+  $('jobBox').querySelectorAll('button[data-s]').forEach((b) => b.addEventListener('click', () => { if (learnSk(P, b.dataset.s)) redo(); }));
+  $('jobBox').querySelectorAll('button[data-bar]').forEach((b) => b.addEventListener('click', () => {
+    const id = b.dataset.bar, i = P.bar.indexOf(id);
+    if (i >= 0) P.bar.splice(i, 1); else if (P.bar.length < BAR_SIZE) P.bar.push(id); else feed('技能列已滿（6 招），先取下一招', '#ff8fa0');
+    redo();
   }));
-  $('rebornBtn')?.addEventListener('click', () => {
+  $('skReset').addEventListener('click', () => { resetTree(P); redo(); });
+  $('skAuto').addEventListener('click', () => { autoLearnSk(P); redo(); });
+  $('jobBox').querySelectorAll('button[data-b]').forEach((b) => b.addEventListener('click', () => {
+    const name = routesOf(P.cls).find((x) => x.id === b.dataset.b)?.name;
     $('talentPanel').hidden = true;
-    say('轉生', ['回到 Lv1、職業回到一轉，但裝備、魂像、圖鑑、金幣全部保留。', '每次轉生永久：攻擊、生命 +6%，能力點 +10，經驗 +10%。確定嗎？'], [['轉生！', () => { if (doReborn(P)) { resetAttrs(P); if (P.autoAttr) autoAllocate(P); P.hp = stats(P).hp; banner(`轉生成功！第 ${P.reborn} 次`); flash = 0.4; burst(cx(me), cy(me), '#c084ff', 60, 200); sfx('levelup'); hud(); save(); } }], ['再想想', null]]);
-  });
+    say('轉職', [`確定轉職成「${name}」？轉職後不能更改路線。`], [['轉職！', () => { if (advanceJob(P, b.dataset.b)) { banner(`轉職成功：${name}`); flash = 0.3; burst(cx(me), cy(me), '#ffd166', 50, 180); addFx('pillar', 1, { x: cx(me), y: cy(me), color: '#ffd166' }); sfx('levelup'); if (P.autoAttr) autoLearnSk(P); setupClass(); hud(); save(); } }], ['再想想', null]]);
+  }));
 }
 function renderTalents() {
   renderAttrs(); renderJob();
@@ -695,17 +724,17 @@ function talk(n) {
     shopMenu(nm, total ? [`我來收購你的魚，一共 ${total} 金幣！`, '還需要什麼嗎？'] : ['歡迎光臨！要買點什麼嗎？']);
   } else if (n.id === 'elder') {
     const c1 = P.ch === 1;
-    if (c1 && P.step === 0) { P.step = 1; P.kills = 0; say(nm, [`${P.name}，你來得正好！草原上的史萊姆多到快滿出來了。`, '從村子東門出去就是史萊姆草原。', '幫我清掉 20 隻。懶得操作就按「自動」吧！']); }
+    if (c1 && P.step === 0) { P.step = 1; P.kills = 0; say(nm, [`${P.name}，你來得正好！草原上的露滴團多到快滿出來了。`, '從村子東門出去就是守燈草原。', '幫我清掉 20 隻。懶得操作就按「自動」吧！']); }
     else if (c1 && P.step === 1 && P.kills >= 20) {
       say(nm, ['……等等，你身上那道光是怎麼回事？', '那是「星痕」！艾斯特家的血脈，終於又覺醒了！', '別怕，閉上眼睛，聽聽你靈魂的聲音——'], null, awaken);
     }
     else if (c1 && P.step === 1) say(nm, [`還差 ${20 - P.kills} 隻，加油！`]);
-    else if (c1 && P.step === 2) say(nm, ['史萊姆王受傷會分裂，分裂時會張開護盾。', '先打倒小史萊姆王，護盾才會破。', '地上出現紅圈就快點「閃避」！']);
+    else if (c1 && P.step === 2) say(nm, ['露滴王受傷會分裂，分裂時會張開護盾。', '先打倒小露滴王，護盾才會破。', '地上出現紅圈就快點「閃避」！']);
     else if (c1 && P.step === 3) {
       P.coins += 500; P.stones += 200;
-      say(nm, ['你真的打倒了史萊姆王！收下這 500 金幣和 200 魂石。', '……那隻魂像，我以前見過。', '六十年前，你的曾祖父雷歐也帶著一模一樣的齒輪。', '他最後去了東邊的迴聲峽谷，就再也沒有回來。', '來，握住這塊懷錶，你會看到他的記憶。'], null, memoryCorridor);
+      say(nm, ['你真的打倒了露滴王！收下這 500 金幣和 200 魂石。', '……那隻魂像，我以前見過。', '六十年前，你的曾祖父雷歐也帶著一模一樣的齒輪。', '他最後去了東邊的迴聲峽谷，就再也沒有回來。', '來，握住這塊懷錶，你會看到他的記憶。'], null, memoryCorridor);
     }
-    else say(nm, [P.ch <= 6 ? `${P.name}，${CHAPTERS[P.ch - 1].name}那邊就拜託你了。` : '你結束了三百年的黑夜。整個微光大陸都在說你的故事。', '想挑戰更強的怪物、拿更好的寶物，可以調整冒險難度。', `目前難度：${diffOf(P).name}`],
+    else say(nm, [P.ch <= 6 ? `${P.name}，${CHAPTERS[P.ch - 1].name}那邊就拜託你了。` : '你結束了三百年的黑夜。整個長夜燈火都在說你的故事。', '想挑戰更強的怪物、拿更好的寶物，可以調整冒險難度。', `目前難度：${diffOf(P).name}`],
       [...DIFFS.map((d, i) => [`${i === (P.diff | 0) ? '✓ ' : ''}${d.name}：${d.desc}`, () => (P.lv >= (d.minLv || 0) ? setDiff(i) : feed(`${d.name}需要 Lv${d.minLv}`, '#ff8fa0'))]).filter((_, i) => P.lv >= (DIFFS[i].minLv || 0) - 10), ['離開', null]]);
   } else if (n.id === 'porter') {
     {
@@ -722,7 +751,7 @@ function talk(n) {
     else say(nm, c.report, null, () => memoryScene(c));
   } else if (n.id === 'inn') {
     P.hp = stats(P).hp;
-    say(nm, ['歡迎來到微光旅店！', '（你好好休息了一下，HP 全部恢復了）']);
+    say(nm, ['歡迎來到守燈旅店！', '（你好好休息了一下，HP 全部恢復了）']);
   } else if (n.id === 'smith') {
     say(nm, ['想讓裝備更強嗎？我這裡可以「精煉」。', '+4 以內保證成功，再往上就看運氣了。失敗只會吃掉材料，不會弄壞你的裝備。'], [['精煉裝備', () => openRefine()], ['離開', null]]);
   } else if (n.id === 'fisher') {
@@ -740,7 +769,7 @@ function awaken() {
   showCutin('gear', '覺醒'); cutinT = 1.8; pendingUlt = null;
   setTimeout(() => {
     banner('獲得魂像【鏽紅齒輪】');
-    say('村長・歐文', ['……鏽紅齒輪。它能讓時間倒轉。', '魂力集滿時，按右下角發光的「魂像」鍵就能發動大招。', '我另外給你 200 魂石，可以到「魂像」選單試試星痕召喚。', '現在，你有資格挑戰史萊姆王了。']);
+    say('村長・歐文', ['……鏽紅齒輪。它能讓時間倒轉。', '魂力集滿時，按右下角發光的「魂像」鍵就能發動大招。', '我另外給你 200 魂石，可以到「魂像」選單試試星痕召喚。', '現在，你有資格挑戰露滴王了。']);
     hud(); save();
   }, 1900);
 }
@@ -750,14 +779,14 @@ function memoryScene(c) {
     $('app').classList.remove('memory');
     P.coins += 500 * c.n; P.stones += 200;
     banner(`第 ${c.n} 章　完`);
-    if (c.n === 6) { P.ch = 7; P.step = 0; setTimeout(() => banner('微光大陸　完'), 2000); feed('恭喜通關！等級上限提高到 60，繼續收集卡片與傳說裝備吧', '#f6c945'); }
+    if (c.n === 6) { P.ch = 7; P.step = 0; setTimeout(() => banner('長夜燈火　完'), 2000); feed('恭喜通關！等級上限提高到 60，繼續收集卡片與傳說裝備吧', '#f6c945'); }
     else { P.ch = c.n + 1; P.step = 0; feed(`第 ${c.n + 1} 章「${CHAPTERS[c.n].name}」開放了，找傳送師小葵`, '#f6c945'); }
     hud(); save();
   });
 }
 function memoryCorridor() {
   $('app').classList.add('memory');
-  say('記憶迴廊・六十年前', ['（懷錶的指針開始倒轉，四周的顏色褪成了褐色……）', '雷歐：「齒輪，再幫我一次。只要倒轉三秒就夠了！」', '雷歐：「瓦爾德……你偷走的那些魂像，我一定會一個一個拿回來。」', '雷歐：「如果我回不來，就讓下一個艾斯特來結束這一切吧。」', '（指針停住了。你回到了微光村。）'], null, () => {
+  say('記憶迴廊・六十年前', ['（懷錶的指針開始倒轉，四周的顏色褪成了褐色……）', '雷歐：「齒輪，再幫我一次。只要倒轉三秒就夠了！」', '雷歐：「瓦爾德……你偷走的那些魂像，我一定會一個一個拿回來。」', '雷歐：「如果我回不來，就讓下一個艾斯特來結束這一切吧。」', '（指針停住了。你回到了守燈村。）'], null, () => {
     $('app').classList.remove('memory');
     P.ch = 2; P.step = 0; banner('第 1 章　完'); feed('第 2 章「迴聲峽谷」開放了！找廣場南邊的傳送師小葵', '#f6c945'); hud(); save();
   });
@@ -780,7 +809,7 @@ function smithMenu(nm, lines) {
 }
 
 // ---------- 傷害與掉落 ----------
-function hitPlayer(m) { hurt(m.d.atk, m); }
+function hitPlayer(m) { hurt(m.d.atk * (1 - debOn(m, '攻擊降低')), m); }
 function hurt(raw, m) {
   if (me.inv > 0) { floatT('閃避！', me.x, me.y - 0.4, '#bdf1ff', 0.9); return; }
   if (m) {
@@ -821,6 +850,7 @@ function stealCheck(m, kind) {
 function gainSoul(x) { if (P.soul && cutinT <= 0) soulPower = Math.min(100, soulPower + x * stats(P).soulGain); }
 const DEF_COMP = 1.1;
 function dealDamage(m, mult, fromX = me.px, fromY = me.py, color, kind = 'skill') {
+  if (kind === 'basic' && P.cls === 'scout' && shadowT > 0) { mult *= 1.5; }
   if (m.dead > 0 || m.hp <= 0) return;
   if (m.d.decoy) {
     const boss = mons.find((x) => x.d.mech === 'faceless');
@@ -835,13 +865,21 @@ function dealDamage(m, mult, fromX = me.px, fromY = me.py, color, kind = 'skill'
   hitElem = null;
   if (kind !== 'ult' && kind !== 'ally' && R() > hitChance(st.hit, m.d.lv)) { float('Miss', cx(m), m.py * TS - 6, '#bdb6d0', 0.9); return; }
   const dm = damageMult(P, st.mods, elem, m.type, m.d.lv, m.d.boss);
-  const crit = R() < st.crit;
-  const k = (kind === 'skill' ? st.skill * (curSkill && skillElemT > 0 ? skillDmgMult(skillLevel(P, curSkill)) : 1) : kind === 'ult' ? ultMult() : 1) * dm.mult * DEF_COMP;
+  const cm = kind === 'skill' ? castMods : null;
+  if (cm?.pierce) { const d0 = monDef(m.d.lv, m.d.boss); dm.mult *= defMod(d0 * (1 - cm.pierce)) / defMod(d0); }
+  const frozenCrit = m.frozen > 0 && debOn(m, '冰封暴擊') && !SK[curSkill]?.mag;
+  const crit = cm?.crit || frozenCrit || R() < st.crit;
+  if (cm?.exec && m.hp / m.d.hp < 0.3) mult += cm.exec;
+  const debuffs = (1 + debOn(m, '受傷提高')) * (1 + debOn(m, '防禦降低'));
+  const k = (kind === 'skill' ? st.skill : kind === 'ult' ? ultMult() : 1) * dm.mult * DEF_COMP * debuffs * (m.d.boss ? 1 + (st.boss || 0) : 1);
   const base = kind === 'ally' ? atkOverride : st.atk;
   const dmg = Math.max(1, Math.round(base * mult * k * (0.85 + R() * 0.3) * (crit ? st.critDmg : 1)));
   if (st.leech && P.hp < st.hp && kind !== 'ally') P.hp = Math.min(st.hp, P.hp + Math.max(1, Math.round(dmg * st.leech)));
   if (kind !== 'ult') gainSoul(kind === 'skill' ? 1.2 : kind === 'ally' ? 0.5 : 1.6);
   m.hp -= dmg; m.flash = 0.12;
+  if (cm) { if (cm.freeze) m.frozen = Math.max(m.frozen, m.d.boss ? cm.freeze / 3 : cm.freeze); if (cm.stun) m.frozen = Math.max(m.frozen, m.d.boss ? cm.stun / 3 : cm.stun); if (cm.db) applyDebuff(m, cm.db); if (cm.healFrac) P.hp = Math.min(st.hp, P.hp + Math.round(dmg * cm.healFrac)); }
+  if (kind === 'basic' && st.dot > 0) m.pois = { v: st.atk * st.dot, t: 5 };
+  if (kind === 'basic' && st.double > 0 && !m.dbl && R() < st.double) { m.dbl = true; pending.push({ t: 0.08, fn: () => { dealDamage(m, 1, fromX, fromY, color, 'basic'); m.dbl = false; } }); }
   if (kind !== 'ally') sfx(crit ? 'crit' : 'hit');
   const a = Math.atan2(m.py - fromY, m.px - fromX);
   m.kx = Math.cos(a) * 4; m.ky = Math.sin(a) * 4;
@@ -895,8 +933,8 @@ function killMon(m) {
     const st1 = codexStars(m.type, P.meta.codex[m.type]);
     if (st1 > st0) { P.cb = codexBonus(P); feed(`圖鑑「${MONSTERS[m.type].name}」升到 ★${st1}，永久能力提升！`, '#ffd166'); }
   }
-  const ex = Math.round(m.d.exp * (1 + rebornBonus(P).exp / 100));
-  floatT(`+${ex} EXP`, m.x, m.y - 0.9, '#a6ec7a', 0.8);
+  const ex = guardExp(P, Math.round(m.d.exp * levelGapMult(P.lv, m.d.lv) * newbieMult(P.lv)));
+  if (ex > 0) floatT(`+${fmt(ex)} EXP`, m.x, m.y - 0.9, '#a6ec7a', 0.8); else if (R() < 0.2) floatT('本小時效率已滿', m.x, m.y - 0.9, '#bdb6d0', 0.8);
   const before = P.lv;
   if (gainExp(P, ex)) levelUp(before);
   jobExp(ex * JOB_EXP_RATE);
@@ -907,7 +945,7 @@ function jobExp(n) {
   const ups = gainJobExp(P, Math.round(n));
   if (!ups) return;
   sfx('levelup'); floatT(`職業 Lv ${P.job.lv}`, me.x, me.y - 1.4, '#7fd8ff', 1.1);
-  if (P.autoAttr) autoLearn(P, skills.map((x) => x.id)); else feed(`職業等級提升！獲得技能點，到「能力」選單升級技能（剩 ${skillPointsFree(P)} 點）`, '#7fd8ff');
+  if (P.autoAttr) { autoLearnSk(P); setupClass(); } else feed(`職業等級提升！獲得技能點，到「能力」選單的技能樹配點（剩 ${skPoints(P).free} 點）`, '#7fd8ff');
   if (canAdvance(P)) feed(`可以轉職了！到「能力」選單選擇二轉路線`, '#ffd166');
   hud();
 }
@@ -962,7 +1000,7 @@ function showCombo() {
 function shoot(kind, ang, opt) {
   const sp = opt.speed;
   const org = opt.from || me;
-  projs.push({ elem: opt.elem || (opt.dk === 'basic' ? stats(P).weaponElem : opt.dk === 'ally' ? allyElem : skillElemT > 0 ? skillElem : '無'), kind, x: cx(org), y: cy(org) - 4, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, trav: 0, range: opt.range * TS, pierce: opt.pierce ?? 0, mult: opt.mult, r: opt.r ?? 6, hit: new Set(), home: opt.home || null, onEnd: opt.onEnd, color: opt.color, dk: opt.dk || 'skill', by: opt.by || null });
+  projs.push({ elem: opt.elem || (opt.dk === 'basic' ? stats(P).weaponElem : opt.dk === 'ally' ? allyElem : skillElemT > 0 ? skillElem : '無'), kind, x: cx(org), y: cy(org) - 4, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, trav: 0, range: opt.range * TS, pierce: opt.pierce ?? 0, mult: opt.mult, r: opt.r ?? 6, hit: new Set(), home: opt.home || null, onEnd: opt.onEnd, color: opt.color, dk: opt.dk || 'skill', by: opt.by || null, mods: opt.mods || null });
 }
 const faceAng = () => ({ right: 0, down: Math.PI / 2, left: Math.PI, up: -Math.PI / 2 })[me.face];
 const angTo = (m) => Math.atan2(cy(m) - (cy(me) - 4), cx(m) - cx(me));
@@ -986,7 +1024,7 @@ function updateProjs(dt) {
       if (p.hit.has(m)) continue;
       if (Math.hypot(cx(m) - p.x, cy(m) - p.y) < p.r + (m.d.boss ? 12 : 6)) {
         p.hit.add(m);
-        if (p.kind !== 'fire') { if (p.by) atkOverride = p.by.atk; hitElem = p.elem; dealDamage(m, p.mult, (p.x - p.vx * 0.05) / TS - 0.5, (p.y - p.vy * 0.05) / TS - 0.5, p.color, p.dk); }
+        if (p.kind !== 'fire' && p.mult) { if (p.by) atkOverride = p.by.atk; hitElem = p.elem; const keep = castMods; castMods = p.mods; dealDamage(m, p.mult, (p.x - p.vx * 0.05) / TS - 0.5, (p.y - p.vy * 0.05) / TS - 0.5, p.color, p.dk); castMods = keep; }
         if (p.pierce-- <= 0) { p.onEnd?.(p); return false; }
       }
     }
@@ -1029,161 +1067,200 @@ function basicAttack(target) {
 }
 
 // ---------- 技能 ----------
+// 技能資料在 skilldata.js（由 design/skilldb.py 產生）；這裡依 shape 決定畫面與打到誰
+function addTB(kind, v, dur) { P.tb ??= {}; P.tb[kind] = { v, until: Date.now() + dur * 1000 }; }
+const tbOn = (k) => P.tb?.[k] && P.tb[k].until > Date.now();
+function gainRes(n = 1) {
+  if (!res.max) return;
+  const before = res.n; res.n = Math.max(0, Math.min(res.max, res.n + n));
+  if (P.cls === 'monk' && before < 3 && res.n >= 3) { addTB('攻速', 0.10, 5); floatT('三響！全隊攻速 +10%', me.x, me.y - 1.3, '#ffd166', 1); ring(cx(me), cy(me), 40, '#ffd166', 0.5, 4); }
+}
+function applyDebuff(m, db) {
+  if (!db || !m || m.dead > 0) return;
+  const [k, v, dur] = db;
+  if (k === '封印' || k === '定身') { m.frozen = Math.max(m.frozen, m.d.boss ? dur / 2 : dur); return; }
+  m.deb ??= {}; m.deb[k] = { v, until: anim + dur * (1 + (stats(P).debuffDur || 0)) };
+}
+const debOn = (m, k) => (m.deb?.[k] && m.deb[k].until > anim ? m.deb[k].v : 0);
 function castIdx(i) {
   if (!started || dialog || fishing) return;
   const s = skills[i];
   if (!s || s.t > 0 || cutinT > 0) return;
-  s.t = s.cd * (1 - stats(P).cdr) * skillCdMult(skillLevel(P, s.id)); curSkill = s.id;
+  const n = skillNums(P, s.id), sk = n.s, st = stats(P);
+  if (sk.need && res.n < sk.need) { floatT(`需要 ${sk.need} 層${res.name}`, me.x, me.y - 0.9, '#bdb6d0', 0.8); s.t = 0.4; return; }
+  const cost = Math.round(n.mp * st.mpCost);
+  if ((P.mp ?? st.mpMax) < cost) { floatT('魔力不夠', me.x, me.y - 0.9, '#7fb4ff', 0.8); s.t = 0.4; return; }
+  P.mp = (P.mp ?? st.mpMax) - cost;
+  s.t = n.cd * (1 - st.cdr); curSkill = s.id;
   questDone(track(P, 'skill'));
-  skillElem = SKILL_ELEM[s.id] || '無'; skillElemT = 1.2;
-  sfx({ sword: 'slash', archer: 'arrow', mage: 'magic', monk: 'punch', priest: s.id === 'lance' ? 'magic' : 'potion' }[P.cls] || 'slash');
+  skillElem = sk.elem || (sk.shape === 'shot' && P.cls === 'priest' ? '聖' : '無'); skillElemT = 1.2;
+  sfx({ sword: 'slash', archer: 'arrow', mage: 'magic', monk: 'punch', priest: sk.kind === 'heal' ? 'potion' : 'magic' }[P.cls] || 'slash');
   const echo = alive().find((m) => m.d.mech === 'echo' && tdist(m, me.px, me.py) <= 8);
-  if (echo && lastSkill === s.id) {
+  if (echo && lastSkill === s.id && sk.c) {
     floatT('回音反彈！', me.x, me.y - 1.2, '#b48cff', 1.3); ring(cx(echo), cy(echo), 40, '#b48cff', 0.4, 4);
     hurt(Math.round(stats(P).hp * 0.3), null); lastSkill = null; return;
   }
   lastSkill = s.id;
-  addFx('circle', 0.55, { x: cx(me), y: cy(me), color: i === 2 ? '#ffb35c' : C.color });
-  tintC = i === 2 ? '#ffb35c' : C.color; tintT = 0.12;
+  // 專屬機制：先算消耗與加成
+  let mult = n.mult;
+  if (sk.use1 && res.n >= 1) { mult *= 1 + sk.use1 / 100; res.n--; }
+  if (sk.need && sk.use !== undefined) { mult *= 1 + (sk.use / 100) * res.n; if (sk.buff?.[0] === 'dmgPerStack') addTB('dmgPerStack', n.buff[1] * res.n, n.buff[2]); res.n = 0; }
+  if (sk.useCandle) mult *= 1 + (sk.useCandle / 100) * res.n;
+  if (sk.shadowX && shadowT > 0) mult *= sk.shadowX * (1 + (st.shadowStab || 0));
+  if (sk.combo) { if (sk.combo === comboNext) { gainRes(1); comboNext = (comboNext % 3) + 1; } else comboNext = sk.combo === 1 ? 2 : 1; }
+  else if (sk.gen) gainRes(sk.gen);
+  if (sk.star || sk.candle) gainRes(1);
+  if (sk.elem && P.cls === 'mage' && sk.c) { gainRes(sk.elem !== lastElem ? 1 : -1); lastElem = sk.elem; }
+  if (sk.shadow) { shadowT = Math.max(shadowT, sk.shadow); res.n = 1; }
+  castMods = { pierce: sk.pierce || 0, crit: !!sk.crit || (sk.shadowX && shadowT > 0 && P.cls === 'scout' && sk.id === 'hide'), freeze: sk.freeze || 0, stun: sk.stun || 0, exec: n.exec, db: sk.kind === 'act' ? n.db : null, healFrac: sk.healFrac || 0, hits: 0 };
+  addFx('circle', 0.55, { x: cx(me), y: cy(me), color: sk.need ? '#ffb35c' : C.color });
+  tintC = sk.need ? '#ffb35c' : C.color; tintT = 0.12;
+  me.atkT = 0.2;
+  // 增益、減益、治療
+  if (n.buff && sk.buff[0] !== 'dmgPerStack') { addTB(n.buff[0], n.buff[1], n.buff[2]); banner(sk.name); }
+  if (n.pb) { addTB(n.pb[0], n.pb[1], n.pb[2]); for (const a of allies) if (a.down <= 0) addFx('heal', 0.5, { x: cx(a), y: cy(a) }); banner(sk.name); }
+  if (sk.kind === 'debuff') { const t = nearest(6); if (t) { applyDebuff(t, n.db); ring(cx(t), cy(t), 22, '#c084ff', 0.4, 3); floatT(sk.name, t.x, t.y - 1, '#c084ff', 0.9); } }
+  if (sk.kind === 'heal' || sk.healAoe) {
+    const amt = (x) => Math.round(st.atk * x * st.heal);
+    if (n.heal) { P.hp = Math.min(st.hp, P.hp + amt(n.heal)); addFx('heal', 0.7, { x: cx(me), y: cy(me) }); }
+    if (n.healAoe) {
+      const k = n.healAoe * (1 + (sk.perCandle || 0) * res.n);
+      P.hp = Math.min(st.hp, P.hp + amt(k)); addFx('heal', 0.7, { x: cx(me), y: cy(me) });
+      for (const a of allies) if (a.down <= 0 && Math.hypot(a.px - me.px, a.py - me.py) <= 5) { a.hp = Math.min(a.max, a.hp + amt(k)); addFx('heal', 0.7, { x: cx(a), y: cy(a) }); }
+    }
+    if (n.shield) { addTB('dr', 0.25, 6); ring(cx(me), cy(me), 22, '#ffe3af', 0.5, 3); }
+    hud();
+  }
+  if (sk.kind === 'util' && sk.desc) floatT(sk.name, me.x, me.y - 1, '#7fd8ff', 0.9);
+  if (sk.shape === 'taunt') { for (const m of alive()) if (tdist(m, me.px, me.py) <= 3) { m.engaged = true; } if (sk.genPer2) gainRes(Math.floor(alive().filter((m) => tdist(m, me.px, me.py) <= 3).length / 2)); applyDebuff(nearest(3), n.db); ring(cx(me), cy(me), 48, '#ffd166', 0.5, 4); }
+  if (!mult && !n.exec) { castMods = null; hud(); return; }
+  shapeHit(sk, mult, n);
+}
+// 依施放方式打到怪物；mult 是每個目標的總倍率
+function shapeHit(sk, mult, n) {
   const [dx, dy] = DIRS[me.face];
   const wx = cx(me), wy = cy(me);
-  me.atkT = 0.2;
-  const tgt = nearest(P.cls === 'archer' ? C.range : 6);
-  switch (s.id) {
-    case 'mend':
-    case 'sanctum': {
-      const major = s.id === 'sanctum';
-      const fraction = major ? 0.32 : 0.22;
-      const max = stats(P).hp;
-      P.hp = Math.min(max, P.hp + Math.round(max * fraction));
-      addFx('heal', 0.7, { x: wx, y: wy });
-      for (const ally of allies) {
-        if (ally.down > 0 || Math.hypot(ally.px - me.px, ally.py - me.py) > 5) continue;
-        ally.hp = Math.min(ally.max, ally.hp + Math.round(ally.max * fraction));
-        addFx('heal', 0.7, { x: cx(ally), y: cy(ally) });
-      }
-      addBuff(P, major ? 'agi' : 'bless', major ? 30 : 60); if (major) addBuff(P, 'guard', 15);
-      banner(major ? '加速・守護！' : '祝福！');
-      if (major) hitArea(me.px, me.py, 2.5, 2.4, C.color);
-      hud();
+  const maxT = sk.t || 1, mods = castMods;
+  const tgt = nearest(P.cls === 'archer' ? C.range + (stats(P).range || 0) : 6);
+  const color = ELEM_COLOR[sk.elem] || (P.cls === 'priest' ? C.color : '#dff6ff');
+  const area = (x, y, r, k, each) => { let c = 0; for (const m of alive()) if (c < maxT && tdist(m, x, y) <= r + (m.d.boss ? 0.8 : 0)) { c++; dmgWith(m, k, x, y, color, mods); each?.(m); } if (c >= 3 && sk.genAoe) gainRes(sk.genAoe); return c; };
+  switch (sk.shape) {
+    case 'melee': {
+      const big = mult >= 5;
+      addFx(P.cls === 'monk' ? 'punch' : 'slash', 0.2, { x: wx + dx * 13, y: wy + dy * 13 - 3, ang: faceAng(), color: '#ffe08a', size: big ? 26 : 21, big });
+      let hit = 0; for (const m of alive()) if (hit < Math.max(1, maxT) && onTiles(m, frontTiles())) { hit++; dmgWith(m, mult, me.px, me.py, color, mods); }
+      if (!hit && tgt && tdist(tgt, me.px, me.py) <= 1.6) dmgWith(tgt, mult, me.px, me.py, color, mods);
+      if (big) shake = Math.max(shake, 0.18);
       break;
     }
-    case 'lance':
-      if (tgt) faceToward(tgt);
-      shoot('wave', tgt ? angTo(tgt) : faceAng(), { speed: 250, range: 7, pierce: 2, mult: 2.1, r: 7, color: C.color });
-      break;
     case 'spin':
-      addFx('spin', 0.32, { x: wx, y: wy - 3, color: '#dff6ff' });
-      ring(wx, wy, 26, '#bdf1ff', 0.3, 3);
-      shake = Math.max(shake, 0.15);
-      hitArea(me.px, me.py, 1.5, 2.2);
+      addFx('spin', 0.32, { x: wx, y: wy - 3, color }); ring(wx, wy, 26, color, 0.3, 3); shake = Math.max(shake, 0.15);
+      area(me.px, me.py, 1.6, mult); break;
+    case 'barrage': {
+      const k = 6;
+      for (let h = 0; h < k; h++) pending.push({ t: h * 0.06, fn: () => {
+        const off = (R() - 0.5) * 14;
+        addFx('punch', 0.12, { x: wx + dx * (13 + R() * 6) + (dy ? off : 0), y: wy + dy * (13 + R() * 6) - 3 + (dx ? off : 0), color: h === k - 1 ? '#ffd166' : '#ffd8a8', big: h === k - 1 });
+        const m = alive().find((x) => onTiles(x, frontTiles())) || (tgt && tdist(tgt, me.px, me.py) <= 1.6 ? tgt : null);
+        if (m) dmgWith(m, mult / k, me.px, me.py, color, mods);
+      } });
       break;
-    case 'wave':
-      shoot('wave', faceAng(), { speed: 240, range: 6, pierce: 99, mult: 2, r: 10, color: '#bdf1ff' });
-      ring(wx + dx * 10, wy + dy * 10, 12, '#bdf1ff', 0.2);
-      break;
+    }
+    case 'shock':
+      ring(wx, wy + 4, 48, color, 0.5, 6); burst(wx, wy + 6, '#c9a77a', 22, 110); shake = Math.max(shake, 0.25);
+      area(me.px, me.py, 2.2, mult); break;
     case 'quake': {
       const px = me.px + dx * 2, py = me.py + dy * 2;
       addFx('bigsword', 0.3, { x: px * TS + 8, y: py * TS + 8 });
       pending.push({ t: 0.26, fn: () => {
-        addFx('crack', 0.9, { x: px * TS + 8, y: py * TS + 8, seed: R() });
-        ring(px * TS + 8, py * TS + 8, 52, '#ffd166', 0.5, 6); ring(px * TS + 8, py * TS + 8, 32, '#fff8e7', 0.4, 3); addFx('pillar', 0.5, { x: px * TS + 8, y: py * TS + 8, color: '#ffd166' });
-        burst(px * TS + 8, py * TS + 8, '#c9a77a', 24, 120);
-        shake = 0.45; flash = 0.15;
-        hitArea(px, py, 2.2, 4.5, '#ffe08a');
+        addFx('crack', 0.9, { x: px * TS + 8, y: py * TS + 8, seed: R() }); ring(px * TS + 8, py * TS + 8, 52, '#ffd166', 0.5, 6);
+        addFx('pillar', 0.5, { x: px * TS + 8, y: py * TS + 8, color: '#ffd166' }); shake = 0.45; flash = 0.15;
+        area(px, py, 2.3, mult);
       } });
       break;
     }
-    case 'triple': {
-      const base = tgt ? angTo(tgt) : faceAng();
+    case 'wave':
+      shoot('wave', faceAng(), { speed: 240, range: 6, pierce: Math.max(1, maxT), mult, r: 10, color, mods });
+      break;
+    case 'shot': {
+      const hits = sk.hits || 1, a = tgt ? angTo(tgt) : faceAng();
       if (tgt) faceToward(tgt);
-      for (const o of [-0.22, 0, 0.22]) shoot('arrow', base + o, { speed: 340, range: C.range + 1, pierce: 1, mult: 1.4, r: 4, color: '#e8ffe0' });
+      for (let h = 0; h < hits; h++) pending.push({ t: h * 0.08, fn: () => shoot(P.cls === 'archer' ? 'arrow' : sk.elem === '火' ? 'fire' : 'bolt', a, { speed: 300, range: (C.range || 5) + 2, mult: mult / hits, r: 5, home: tgt, color, mods }) });
       break;
     }
-    case 'rain': {
+    case 'fan': {
+      const a = tgt ? angTo(tgt) : faceAng(); if (tgt) faceToward(tgt);
+      for (const o of [-0.22, 0, 0.22]) shoot('arrow', a + o, { speed: 340, range: C.range + 1, pierce: 1, mult, r: 4, color, mods });
+      break;
+    }
+    case 'bigshot': {
+      const a = tgt ? angTo(tgt) : faceAng(); if (tgt) faceToward(tgt);
+      shoot('bigarrow', a, { speed: 380, range: 10, pierce: Math.max(1, maxT), mult, r: 8, color: '#ffe08a', mods });
+      ring(wx, wy, 16, '#ffe08a', 0.25, 3); shake = Math.max(shake, 0.12);
+      break;
+    }
+    case 'fireball': {
+      const a = tgt ? angTo(tgt) : faceAng(); if (tgt) faceToward(tgt);
+      shoot('fire', a, { speed: 210, range: 6, mult: 0, r: 7, home: tgt, color: '#ffb347', onEnd: (p) => {
+        ring(p.x, p.y, 38, '#ff8a3d', 0.45, 6); addFx('boom', 0.35, { x: p.x, y: p.y }); burst(p.x, p.y, '#ff5a36', 18, 110); shake = Math.max(shake, 0.2);
+        area(p.x / TS - 0.5, p.y / TS - 0.5, 1.7, mult);
+      } });
+      break;
+    }
+    case 'rain': case 'trap': case 'ground': {
       const px = tgt ? tgt.px : me.px + dx * 3, py = tgt ? tgt.py : me.py + dy * 3;
       if (tgt) faceToward(tgt);
       addFx('target', 0.8, { x: px * TS + 8, y: py * TS + 8 });
-      for (let k = 0; k < 16; k++) {
-        const ax = px + (R() - 0.5) * 3, ay = py + (R() - 0.5) * 3, delay = 0.1 + k * 0.045;
-        addFx('arrowfall', delay + 0.12, { x: ax * TS + 8, y: ay * TS + 8, delay });
-        pending.push({ t: delay + 0.12, fn: () => { burst(ax * TS + 8, ay * TS + 8, '#e8ffe0', 3, 40); hitArea(ax, ay, 0.8, 0.75, '#e8ffe0'); } });
-      }
-      break;
-    }
-    case 'pierce': {
-      const a = tgt ? angTo(tgt) : faceAng();
-      if (tgt) faceToward(tgt);
-      shoot('bigarrow', a, { speed: 380, range: 10, pierce: 99, mult: 3.6, r: 8, color: '#ffe08a' });
-      ring(wx, wy, 16, '#ffe08a', 0.25, 3); shake = Math.max(shake, 0.12);
+      const waves = sk.shape === 'rain' ? 6 : 1;
+      for (let k = 0; k < waves; k++) pending.push({ t: 0.15 + k * 0.12, fn: () => {
+        if (sk.shape === 'rain') for (let a = 0; a < 3; a++) addFx('arrowfall', 0.15, { x: (px + (R() - 0.5) * 3) * TS + 8, y: (py + (R() - 0.5) * 3) * TS + 8, delay: 0 });
+        else { ring(px * TS + 8, py * TS + 8, 44, color, 0.5, 6); addFx('pillar', 0.5, { x: px * TS + 8, y: py * TS + 8, color }); shake = Math.max(shake, 0.2); }
+        area(px, py, 2, mult / waves);
+      } });
       break;
     }
     case 'nova':
       addFx('nova', 0.45, { x: wx, y: wy });
-      for (let k = 0; k < 16; k++) { const a = (k / 16) * Math.PI * 2; parts.push({ x: wx, y: wy, vx: Math.cos(a) * 110, vy: Math.sin(a) * 110, c: k % 2 ? '#dff6ff' : '#7fd8ff', t: 0, g: 0, size: 3, life: 0.35 }); }
-      shake = Math.max(shake, 0.12);
-      hitArea(me.px, me.py, 2.3, 1.8, '#bdf1ff', (m) => { m.frozen = 2.5; });
-      break;
-    case 'fireball': {
-      const a = tgt ? angTo(tgt) : faceAng();
-      if (tgt) faceToward(tgt);
-      shoot('fire', a, { speed: 210, range: 6, mult: 3, r: 7, home: tgt, color: '#ffb347', onEnd: (p) => {
-        const ex = p.x / TS - 0.5, ey = p.y / TS - 0.5;
-        ring(p.x, p.y, 38, '#ff8a3d', 0.45, 6); ring(p.x, p.y, 22, '#ffe08a', 0.35, 3); addFx('boom', 0.35, { x: p.x, y: p.y });
-        burst(p.x, p.y, '#ff5a36', 18, 110); burst(p.x, p.y, '#ffd166', 12, 80);
-        shake = Math.max(shake, 0.22); flash = Math.max(flash, 0.06);
-        hitArea(ex, ey, 1.7, 3, '#ffb347');
-      } });
-      break;
-    }
+      for (let k = 0; k < 16; k++) { const a = (k / 16) * Math.PI * 2; parts.push({ x: wx, y: wy, vx: Math.cos(a) * 110, vy: Math.sin(a) * 110, c: k % 2 ? '#dff6ff' : color, t: 0, g: 0, size: 3, life: 0.35 }); }
+      shake = Math.max(shake, 0.12); area(me.px, me.py, 2.3, mult); break;
     case 'chain': {
-      if (!tgt) { floatT('附近沒有怪物', me.x, me.y - 0.8, '#bdf1ff', 0.8); s.t = 0.5; break; }
-      const chain = [tgt]; const used = new Set([tgt]);
-      while (chain.length < 6) {
-        const last = chain[chain.length - 1];
-        let nx = null, nd = 1e9;
+      if (!tgt) { floatT('附近沒有怪物', me.x, me.y - 0.8, '#bdf1ff', 0.8); break; }
+      const chain = [tgt], used = new Set([tgt]);
+      while (chain.length < maxT) {
+        const last = chain[chain.length - 1]; let nx = null, nd = 1e9;
         for (const m of alive()) if (!used.has(m)) { const d = tdist(m, last.px, last.py); if (d <= 3.2 && d < nd) { nd = d; nx = m; } }
         if (!nx) break; chain.push(nx); used.add(nx);
       }
-      const pts = [[wx, wy - 6], ...chain.map((m) => [cx(m), cy(m)])];
-      addFx('lightning', 0.32, { pts });
-      flash = Math.max(flash, 0.08); shake = Math.max(shake, 0.15);
-      chain.forEach((m, k) => pending.push({ t: 0.03 * k, fn: () => { burst(cx(m), cy(m), '#fff7a8', 6, 60); dealDamage(m, 2.4, me.px, me.py, '#fff7a8'); } }));
+      addFx('lightning', 0.32, { pts: [[wx, wy - 6], ...chain.map((m) => [cx(m), cy(m)])] }); flash = Math.max(flash, 0.08);
+      chain.forEach((m, k) => pending.push({ t: 0.03 * k, fn: () => dmgWith(m, mult, me.px, me.py, '#fff7a8', mods) }));
       break;
     }
-    case 'barrage':
-      for (let k = 0; k < 10; k++) pending.push({ t: k * 0.055, fn: () => {
-        const off = (R() - 0.5) * 14;
-        addFx('punch', 0.12, { x: cx(me) + dx * (13 + R() * 6) + (dy ? off : 0), y: cy(me) + dy * (13 + R() * 6) - 3 + (dx ? off : 0), color: k === 9 ? '#ffd166' : '#ffd8a8', big: k === 9 });
-        for (const m of alive()) if (onTiles(m, frontTiles())) dealDamage(m, k === 9 ? 1.8 : 0.6);
-        if (k === 9) { ring(cx(me) + dx * 16, cy(me) + dy * 16, 18, '#ffd166', 0.3, 3); shake = Math.max(shake, 0.15); }
-      } });
-      break;
-    case 'shock':
-      ring(wx, wy + 4, 48, '#c9a77a', 0.5, 6); ring(wx, wy + 4, 30, '#ffd8a8', 0.4, 3);
-      burst(wx, wy + 6, '#c9a77a', 22, 110);
-      shake = Math.max(shake, 0.28);
-      hitArea(me.px, me.py, 2.2, 2.2, '#ffd8a8', (m) => {
-        const kx = Math.sign(m.x - me.x), ky = Math.sign(m.y - me.y);
-        if (!m.d.boss && !m.moving && m.dead <= 0 && monCanGo(m, m.x + kx, m.y + ky)) Object.assign(m, { fx: m.x, fy: m.y, x: m.x + kx, y: m.y + ky, moving: true, mt: 0 });
-      });
-      break;
-    case 'dragon': {
-      const path = [];
-      let x = me.x, y = me.y;
-      for (let k = 0; k < 3; k++) { const nx = x + dx, ny = y + dy; if (!walkable(grid, nx, ny) || npcs.some((n) => n.x === nx && n.y === ny)) break; x = nx; y = ny; path.push([x, y]); }
+    case 'dash': {
+      const path = []; let x = me.x, y = me.y;
+      for (let k = 0; k < 3; k++) { const nx = x + dx, ny = y + dy; if (!walkable(grid, nx, ny) || npcs.some((q) => q.x === nx && q.y === ny)) break; x = nx; y = ny; path.push([x, y]); }
       while (path.length && occupied(path[path.length - 1][0], path[path.length - 1][1])) path.pop();
       const end = path.length ? path[path.length - 1] : [me.x, me.y];
-      addFx('dragon', 0.55, { x0: cx(me), y0: cy(me), x1: end[0] * TS + 8, y1: end[1] * TS + 8 });
-      Object.assign(me, { fx: me.x, fy: me.y, x: end[0], y: end[1], moving: true, mt: 0, dur: 0.16 });
-      shake = Math.max(shake, 0.25);
+      addFx('dragon', 0.55, { x0: wx, y0: wy, x1: end[0] * TS + 8, y1: end[1] * TS + 8 });
+      Object.assign(me, { fx: me.x, fy: me.y, x: end[0], y: end[1], moving: true, mt: 0, dur: 0.16 }); shake = Math.max(shake, 0.25);
       const hitSet = new Set();
-      for (const [px, py] of [[me.fx, me.fy], ...path]) for (const m of alive()) if (!hitSet.has(m) && tdist(m, px, py) <= 1.3 + (m.d.boss ? 0.8 : 0)) hitSet.add(m);
-      hitSet.forEach((m) => pending.push({ t: 0.08, fn: () => dealDamage(m, 3.2, me.fx, me.fy, '#ffe08a') }));
+      for (const [qx, qy] of [[me.fx, me.fy], ...path]) for (const m of alive()) if (hitSet.size < maxT && !hitSet.has(m) && tdist(m, qx, qy) <= 1.3 + (m.d.boss ? 0.8 : 0)) hitSet.add(m);
+      hitSet.forEach((m) => pending.push({ t: 0.08, fn: () => dmgWith(m, mult, me.fx, me.fy, '#ffe08a', mods) }));
       break;
     }
+    case 'veil':
+      addFx('nova', 0.5, { x: wx, y: wy }); ring(wx, wy, 44, '#3b3350', 0.6, 8);
+      area(me.px, me.py, 2.2, mult, (m) => { if (sk.confuse) m.frozen = Math.max(m.frozen, sk.confuse); });
+      break;
+    case 'screen':
+      flash = 0.4; shake = 0.5; for (const m of alive()) if (tdist(m, me.px, me.py) <= 9) dmgWith(m, mult, me.px, me.py, '#fff8e7', mods);
+      break;
+    default:
+      if (tgt) dmgWith(tgt, mult, me.px, me.py, color, mods);
   }
+  castMods = null;
+  hud();
 }
+function dmgWith(m, mult, x, y, color, mods) { const keep = castMods; castMods = mods; dealDamage(m, mult, x, y, color, 'skill'); castMods = keep; }
 
 // ---------- 魂像大招 ----------
 function soulIcon(id, cls) {
@@ -1283,7 +1360,7 @@ function renderAdv() {
   } else if (advTab === 'tower') {
     const best = m.tower.best;
     note(`無限層數的挑戰。每層要在時限內打倒全部怪物，每 5 層是魔王層。<br>首次通過有魂石，魔王層首通再送精煉材料和高稀有度裝備。重複挑戰也能拿金幣和經驗。<br>最高紀錄：<b>第 ${best} 層</b>　下一層怪物等級：Lv ${towerFloor(P, best + 1).lv}`);
-    if (P.ch < 2) note('<b>打倒第 1 章的史萊姆王後開放。</b>');
+    if (P.ch < 2) note('<b>打倒第 1 章的露滴王後開放。</b>');
     else {
       out.push(mkBtn(`挑戰第 ${best + 1} 層`, true, () => startTower(best + 1)));
       const pick = document.createElement('div'); pick.className = 'chests';
@@ -1594,8 +1671,22 @@ function autoThink(dt) {
   autoCastT -= dt;
   const near = targets.filter((m) => tdist(m, me.px, me.py) <= (C.range > 1 ? 4.5 : 2.2));
   if (near.length && autoCastT <= 0) {
-    const i = [2, 1, 0].find((k) => skills[k].t <= 0 && (k !== 2 || near.length >= 2 || near.some((m) => m.d.boss)));
-    if (i !== undefined) { if (C.range === 1) me.face = dirTo(near[0].x, near[0].y); castIdx(i); autoCastT = 0.45; }
+    const st = stats(P), boss = near.some((m) => m.d.boss);
+    let bi, bv = 0;
+    skills.forEach((x, k) => {
+      if (x.t > 0) return;
+      const n = skillNums(P, x.id), sk = n.s;
+      if ((P.mp ?? 0) < n.mp * st.mpCost || (sk.need && res.n < sk.need)) return;
+      let v = n.mult * Math.min(sk.t || 1, near.length) * (sk.use ? 1 + (sk.use / 100) * res.n : 1) / Math.max(0.5, sk.ct || 0.5);
+      if (n.buff && !tbOn(n.buff[0])) v = boss || near.length >= 2 ? 50 : 0;
+      if (n.pb && !tbOn(n.pb[0])) v = 40;
+      if (sk.kind === 'debuff') v = boss || near.length >= 3 ? 30 : 0;
+      if (sk.kind === 'heal') v = P.hp < st.hp * 0.6 ? 99 : 0;
+      if (sk.kind === 'util' || sk.shape === 'taunt') v = sk.gen ? 1 : 0;
+      if (sk.need && sk.use === 0) v = boss || near.length >= 3 ? 80 : 0;
+      if (v > bv) { bv = v; bi = k; }
+    });
+    if (bi !== undefined) { if (C.range === 1) me.face = dirTo(near[0].x, near[0].y); castIdx(bi); autoCastT = 0.45; }
   }
   if (C.range > 1) {
     const m = nearest(Math.min(4.5, C.range - 0.5));
@@ -1681,7 +1772,7 @@ function useItem(id) {
   const d = ITEMS[id];
   if (d.heal) { usePotion(false, id); return; }
   if (!count(P, id)) return;
-  if (d.effect === 'home') { if (mapId === 0) { floatT('已經在村子裡了', me.x, me.y - 0.6, '#bdf1ff', 0.8); return; } takeStack(P, id); loadMap(0, SPAWN); feed('使用回城卷軸，回到微光村', '#e8d29a'); }
+  if (d.effect === 'home') { if (mapId === 0) { floatT('已經在村子裡了', me.x, me.y - 0.6, '#bdf1ff', 0.8); return; } takeStack(P, id); loadMap(0, SPAWN); feed('使用回城卷軸，回到守燈村', '#e8d29a'); }
   else if (d.effect === 'blink') {
     const spots = [];
     for (let y = 1; y < H - 1; y++) for (let x = FMIN; x < W - 1; x++) if (walkable(grid, x, y) && !occupied(x, y) && !inBoss(x, y) && grid[y][x] !== T.PORTAL) spots.push([x, y]);
@@ -1713,7 +1804,7 @@ const stickEnd = (e) => { if (e.pointerId !== stickId) return; stickId = null; h
 stick.addEventListener('pointerup', stickEnd); stick.addEventListener('pointercancel', stickEnd); stick.addEventListener('lostpointercapture', stickEnd);
 bindHold($('aBtn'), pressA, () => { aHeld = false; });
 bindHold($('bBtn'), usePotion);
-[0, 1, 2].forEach((i) => bindHold($(`sk${i}Btn`), () => castIdx(i)));
+[0, 1, 2, 3, 4, 5].forEach((i) => bindHold($(`sk${i}Btn`), () => castIdx(i)));
 bindHold($('dodgeBtn'), dodge);
 bindHold($('soulBtn'), castUlt);
 const KEYS = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', KeyW: 'up', KeyS: 'down', KeyA: 'left', KeyD: 'right' };
@@ -1771,7 +1862,7 @@ function update(dt) {
     if (Math.ceil(trial.t) !== before) $('quest').textContent = questText();
     if (trial.t <= 0) { const f = trial.f; trial.done = true; auto = false; syncAuto(); say('試煉之塔', [`時間到！第 ${f} 層挑戰失敗。`, '提升戰力、換個打法，再來挑戰吧。'], [[`再挑戰第 ${f} 層`, () => startTower(f)], ['回到村子', () => { loadMap(0, SPAWN); hud(); }]]); }
   }
-  if (me.moving && step(me, me.dur, dt)) { me.step ^= 1; me.dur = 0.14; dust(cx(me), me.py * TS + 16); checkGate(); checkChest(); if (grid[me.y]?.[me.x] === T.PORTAL && mapId !== 0) { loadMap(0, SPAWN); feed('回到微光村', '#c084ff'); save(); return; } }
+  if (me.moving && step(me, me.dur, dt)) { me.step ^= 1; me.dur = 0.14; dust(cx(me), me.py * TS + 16); checkGate(); checkChest(); if (grid[me.y]?.[me.x] === T.PORTAL && mapId !== 0) { loadMap(0, SPAWN); feed('回到守燈村', '#c084ff'); save(); return; } }
   if (held && auto) { auto = false; syncAuto(); }
   invertT = Math.max(0, invertT - dt);
   if (!me.moving && started && held && !dialog && !fishing) {
@@ -1791,6 +1882,8 @@ function update(dt) {
   const ranged = C.range > 1;
   if ((aHeld || autoHit) && me.cool <= 0 && !dialog && !fishing && (ranged || !me.moving) && started) basicAttack(autoTarget);
   for (const s of skills) s.t = Math.max(0, s.t - dt);
+  { const st = stats(P); P.mp = Math.min(st.mpMax, (P.mp ?? st.mpMax) + st.mpRegen * dt); }
+  if (shadowT > 0) { shadowT -= dt; if (shadowT <= 0 && P.cls === 'scout') res.n = 0; }
   shake = Math.max(0, shake - dt); flash = Math.max(0, flash - dt); tintT = Math.max(0, tintT - dt);
   comboT -= dt;
   if (comboT <= 0 && combo) { combo = 0; $('combo').hidden = true; }
@@ -1805,6 +1898,7 @@ function update(dt) {
     if (m.d.elite === 'regen' && m.hp < m.d.hp) m.hp = Math.min(m.d.hp, m.hp + m.d.hp * 0.025 * dt);
     if (m.letter > 0) m.letter -= dt;
     if (m.d.boss && started && !dialog) bossThink(m, dt);
+    if (m.pois?.t > 0 && m.dead <= 0) { m.pois.t -= dt; m.poisAcc = (m.poisAcc || 0) + m.pois.v * dt; if (m.poisAcc >= 1) { const d = Math.floor(m.poisAcc); m.poisAcc -= d; m.hp -= d; if (R() < dt * 2) float(fmt(d), cx(m), m.py * TS - 4, '#a66bd6', 0.8); if (m.hp <= 0) killMon(m); } }
     m.flash = Math.max(0, m.flash - dt); m.cool -= dt; m.spawnT = Math.max(0, m.spawnT - dt); m.frozen = Math.max(0, m.frozen - dt);
     m.kx *= 0.8; m.ky *= 0.8;
     if (m.moving) { step(m, m.d.boss ? 0.5 : 0.35, dt); continue; }
@@ -1866,7 +1960,8 @@ function updateSkillUi() {
   db.style.setProperty('--p', `${(me.dodgeT / 3) * 360}deg`); db.classList.toggle('ready', me.dodgeT <= 0);
   skills.forEach((s, i) => {
     const el = $(`sk${i}Btn`);
-    el.style.setProperty('--p', `${(s.t / s.cd) * 360}deg`);
+    el.classList.toggle('nomp', (P.mp ?? 0) < skillNums(P, s.id).mp * stats(P).mpCost);
+    el.style.setProperty('--p', `${(s.t / (s.cd * (1 - stats(P).cdr) || 1)) * 360}deg`);
     el.querySelector('em').textContent = s.t > 0 ? Math.ceil(s.t) : '';
     el.classList.toggle('ready', s.t <= 0);
   });
@@ -2466,7 +2561,7 @@ function start() {
   $('ui').hidden = false;
   refresh(P); setupClass(); hud();
   checkOffline();
-  if (P.ch === 1 && P.step === 0 && P.lv === 1) say('村長・歐文', [`歡迎來到微光村，${C.name}${P.name}！`, '按住紅色「攻擊」鍵連續攻擊，旁邊三顆是職業專屬技能。', '懶得操作就按左上的「自動」，角色會自己去打怪！', '先來廣場北邊找我說話吧。']);
+  if (P.ch === 1 && P.step === 0 && P.lv === 1) say('村長・歐文', [`歡迎來到守燈村，${C.name}${P.name}！`, '按住紅色「攻擊」鍵連續攻擊，旁邊三顆是職業專屬技能。', '懶得操作就按左上的「自動」，角色會自己去打怪！', '先來廣場北邊找我說話吧。']);
 }
 function buildClassGrid() {
   $('classGrid').replaceChildren(...CLASS_IDS.map((id) => {

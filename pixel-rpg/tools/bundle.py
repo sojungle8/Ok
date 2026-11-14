@@ -17,9 +17,9 @@ def names(path):
     return found
 def block(path):
     n = names(path); return "const { " + ", ".join(n) + " } = (() => {\n" + strip(open(path).read()) + "\nreturn { " + ", ".join(n) + " };\n})();"
-parts = [strip(open('world.js').read()), strip(open('sprites.js').read())] + [block(f) for f in ['ro.js', 'progress.js', 'assets.js', 'pixelize.js', 'cutout.js', 'avatar.js', 'soul.js', 'items.js', 'icons.js', 'party.js', 'meta.js', 'audio.js']] + [strip(open('game.js').read())]
+parts = [block(f) for f in ['skilldata.js', 'skilltree.js', 'balance.js', 'bestiary.js']] + [strip(open('world.js').read()), strip(open('sprites.js').read())] + [block(f) for f in ['ro.js', 'progress.js', 'assets.js', 'pixelize.js', 'cutout.js', 'avatar.js', 'soul.js', 'items.js', 'icons.js', 'party.js', 'meta.js', 'audio.js']] + [strip(open('game.js').read())]
 # 打包成單一檔案後所有模組共用同一個範圍：檢查名稱有沒有互相衝突
-BLOCKS = ['ro.js', 'progress.js', 'assets.js', 'pixelize.js', 'cutout.js', 'avatar.js', 'soul.js', 'items.js', 'icons.js', 'party.js', 'meta.js', 'audio.js']
+BLOCKS = ['skilldata.js', 'skilltree.js', 'balance.js', 'bestiary.js', 'ro.js', 'progress.js', 'assets.js', 'pixelize.js', 'cutout.js', 'avatar.js', 'soul.js', 'items.js', 'icons.js', 'party.js', 'meta.js', 'audio.js']
 decl = lambda src: set(re.findall(r'^(?:export )?(?:const|let|function|var|class) (\w+)', src, flags=re.M))
 owner = {}
 for f in ['world.js', 'sprites.js', 'game.js'] + BLOCKS:
@@ -28,7 +28,7 @@ for f in ['world.js', 'sprites.js', 'game.js'] + BLOCKS:
         owner[n] = f
 css = open('style.css').read(); html = open('index.html').read()
 body = html.split('<body>')[1].split('<script type="module"')[0]
-open(out, 'w').write(f'''<meta charset="utf-8"><title>微光大陸</title>
+open(out, 'w').write(f'''<meta charset="utf-8"><title>長夜燈火</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Huninn&family=Silkscreen&display=swap">

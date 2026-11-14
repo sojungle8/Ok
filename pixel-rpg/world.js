@@ -1,6 +1,8 @@
-// 微光大陸：地圖生成與數值公式（純函式，可測試）
+// 長夜燈火：地圖生成與數值公式（純函式，可測試）
 import { attrBonus, cardMods, ensureAttrs, newAttrs } from './ro.js';
 import { jobBonus, ensureJob } from './progress.js';
+import { levelExp, LV_LAUNCH, playerBaseAtk, playerBaseHp, gearScaleAtk, gearScaleHp } from './balance.js';
+import { BESTIARY } from './bestiary.js';
 export const W = 40, H = 28;
 export const T = { GRASS: 0, FLOWER: 1, PATH: 2, WATER: 3, TREE: 4, BRIDGE: 5, HOUSE: 6, FOUNTAIN: 7, SIGN: 8, ROCK: 9, PORTAL: 10 };
 export const SOLID = new Set([T.WATER, T.TREE, T.HOUSE, T.FOUNTAIN, T.SIGN, T.ROCK]);
@@ -14,7 +16,7 @@ export function rng(seed) {
   return () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; };
 }
 
-// 微光村（整張地圖）：上下兩排房子、中央廣場與噴水池、東南池塘、東門通往史萊姆草原
+// 守燈村（整張地圖）：上下兩排房子、中央廣場與噴水池、東南池塘、東門通往守燈草原
 export const HOUSES = [
   { x: 4, y: 3, color: 'red', roof: '#d0485a', roofD: '#8f2c3f', name: '雜貨店' },
   { x: 10, y: 3, color: 'green', roof: '#4f9a52', roofD: '#2f6b3a', name: '民宅' },
@@ -34,7 +36,7 @@ export const NPCS = [
   { id: 'porter', x: 22, y: 16, name: '傳送師・小葵', look: { hair: '#7fd8ff', hairD: '#4aa3df', band: '#c084ff', bandD: '#8a5cc7', tunic: '#fff1c4', tunicD: '#c9ad85' } },
   { id: 'fisher', x: 30, y: 21, name: '釣客・阿杰', look: { hair: '#6b3e26', hairD: '#45261a', band: '#f6c945', bandD: '#c98b2b', tunic: '#4aa3df', tunicD: '#2d78b3' } },
 ];
-export const SIGN = { x: 36, y: 11, text: ['→ 東門出去：史萊姆草原', '草原再往東走，可以一路走到大陸各地。', '還沒去過的地方，要先完成前一章才過得去。'] };
+export const SIGN = { x: 36, y: 11, text: ['→ 東門出去：守燈草原', '草原再往東走，可以一路走到大陸各地。', '還沒去過的地方，要先完成前一章才過得去。'] };
 export const SPAWN = { x: 20, y: 15 };
 export const INN_SPOT = { x: 6, y: 18 };
 
@@ -103,7 +105,7 @@ export const MONSTERS = {
   slime: { name: '露珠史萊姆', tpl: 'slime', pal: MPAL.dew, hp: 8, atk: 2, exp: 4, coin: [2, 5], lv: 1, sight: 3, zone: [5, 18] },
   berry: { name: '莓果史萊姆', tpl: 'slime', pal: MPAL.berry, hp: 24, atk: 5, exp: 12, coin: [5, 10], lv: 4, sight: 4, zone: [16, 28] },
   ember: { name: '餘燼史萊姆', tpl: 'slime', pal: MPAL.ember, hp: 55, atk: 9, exp: 28, coin: [10, 18], lv: 7, sight: 4, zone: [26, 38] },
-  king: { name: '史萊姆王', tpl: 'slime', pal: MPAL.king, hp: 6000, atk: 18, exp: 600, coin: [150, 250], lv: 9, sight: 5, boss: true, mech: 'split' },
+  king: { name: '露滴王', tpl: 'slime', pal: MPAL.king, hp: 6000, atk: 18, exp: 600, coin: [150, 250], lv: 9, sight: 5, boss: true, mech: 'split' },
   bat: mk('回音蝙蝠', 'bat', { g: '#9b6be0', G: '#5b3a8f', l: '#d4b8ff', m: '#ffd1dc' }, 12, ZA),
   pebble: mk('碎石怪', 'golem', { g: '#c9a77a', G: '#8a6a44', l: '#efd8b0', m: '#ffe066' }, 15, ZB),
   howl: mk('嚎叫蝙蝠', 'bat', { g: '#e0533d', G: '#8f2c1f', l: '#ffb39c', m: '#fff1a8' }, 18, ZC),
@@ -125,43 +127,49 @@ export const MONSTERS = {
   eclipse: mk('蝕月史萊姆', 'slime', { g: '#5b3a8f', G: '#2a1d5c', l: '#b48cff', m: '#ffe066', M: '#c9a227' }, 58, ZC),
   valde: boss('蝕夜教主・瓦爾德', 'imp', { g: '#2a1d3a', G: '#120c1c', l: '#6b4fb0', m: '#ff4d6d' }, 60, 140000, 115, 'steal'),
 };
+// 怪物數值改由圖鑑（design/monsters.py → bestiary.js）產生；這裡只保留美術模板與調色
+for (const [id, m] of Object.entries(MONSTERS)) {
+  const b = BESTIARY[id === 'valde' ? 'valde_f' : id];
+  if (!b) continue;
+  Object.assign(m, { name: id === 'valde' ? m.name : b.name, lv: b.lv, hp: b.hp, atk: b.atk, exp: b.exp, coin: [Math.max(1, Math.round(b.coin * 0.6)), Math.max(1, Math.round(b.coin * 1.4))], elem: b.elem, el: b.el, race: b.race, size: b.size, trait: b.trait });
+}
 export const ROSTER = [...Array(10).fill('slime'), ...Array(8).fill('berry'), ...Array(6).fill('ember'), 'king'];
 
 // ---- 章節 ----
 export const CHAPTERS = [
-  { n: 1, name: '史萊姆草原', theme: 'meadow', cap: 15, boss: 'king', kills: 20, mons: ['slime', 'berry', 'ember'] },
-  { n: 2, name: '迴聲峽谷', theme: 'canyon', cap: 25, boss: 'echo', kills: 30, mons: ['bat', 'pebble', 'howl'], soul: 'post',
+  { n: 1, name: '守燈草原', theme: 'meadow', cap: 20, boss: 'king', kills: 20, mons: ['slime', 'berry', 'ember'] },
+  { n: 2, name: '迴聲峽谷', theme: 'canyon', cap: 35, boss: 'echo', kills: 30, mons: ['bat', 'pebble', 'howl'], soul: 'post',
     guide: { name: '峽谷嚮導・露娜', look: { hair: '#f6c945', hairD: '#c98b2b', band: '#e0533d', bandD: '#8f2c1f', tunic: '#a0693a', tunicD: '#5e3a20' } },
     intro: ['你就是艾斯特家的人？峽谷裡的蝙蝠最近吵得要命。', '六十年前也有個帶齒輪的人來過，他說要去找「回音師」。', '先幫我清掉 30 隻怪物，我再告訴你回音師在哪。'],
     bossHint: ['回音師在峽谷東北角。', '牠會記住你的上一招，你連續用同一招，就會被原封不動打回來。', '記得每一招輪流用！'],
     report: ['回音師倒下的地方，留著這個……一枚生鏽的懷錶。'],
     memory: ['（懷錶的指針倒轉，畫面褪成褐色……）', '雷歐：「回音師，你只是被瓦爾德控制了。」', '雷歐：「千手郵差，把這封信送到工坊城，給我妻子艾莉絲。」', '（信件化成無數隻手，飛向遠方。）'] },
-  { n: 3, name: '鏽齒工坊城', theme: 'factory', cap: 35, boss: 'clock', kills: 35, mons: ['cog', 'spark', 'smelter'], soul: 'thread',
+  { n: 3, name: '鏽齒工坊城', theme: 'factory', cap: 50, boss: 'clock', kills: 35, mons: ['cog', 'spark', 'smelter'], soul: 'thread',
     guide: { name: '工坊領班・鐵叔', look: { hair: '#3b2a24', hairD: '#1f1512', band: '#f6c945', bandD: '#c98b2b', tunic: '#5d6475', tunicD: '#3a3f4d' } },
     intro: ['工坊城的機器全部失控了，連時鐘塔都在倒著走。', '時鐘塔頂住著時鐘匠，他每隔幾秒就把時間倒轉回去。', '先幫我處理 35 隻暴走的機器。'],
     bossHint: ['時鐘匠每 10 秒會倒轉 3 秒，那 3 秒內你打的傷害會被抹掉，你的位置也會被拉回去。', '看到時鐘倒數，就停手等它轉完，再把大招一口氣丟出去！'],
     report: ['時鐘塔停下來了……你的曾祖母艾莉絲以前也在這裡工作過。'],
     memory: ['（工坊的齒輪聲慢慢停下，畫面褪成褐色……）', '艾莉絲：「白線裁縫，把城裡斷掉的線都縫起來。」', '艾莉絲：「雷歐沒有回來……但我們的孩子會繼續走下去。」'] },
-  { n: 4, name: '鏡湖古堡', theme: 'castle', cap: 45, boss: 'mirror', kills: 40, mons: ['wisp', 'armor', 'gargoyle'], soul: 'bird',
+  { n: 4, name: '鏡湖古堡', theme: 'castle', cap: 65, boss: 'mirror', kills: 40, mons: ['wisp', 'armor', 'gargoyle'], soul: 'bird',
     guide: { name: '古堡管家・賽巴', look: { hair: '#e8e4f0', hairD: '#b5b0c4', band: '#1b1420', bandD: '#000000', tunic: '#2a2338', tunicD: '#140f1c' } },
     intro: ['歡迎來到鏡湖古堡。主人……已經被鏡子吞掉了。', '堡裡到處是她召喚的幽魂，請先清掉 40 隻。'],
     bossHint: ['鏡之夫人會召喚三面魔鏡。', '魔鏡還在的時候，你的左右操作會顛倒，她也不會受傷。', '先打破所有魔鏡！'],
     report: ['夫人恢復成原本的樣子了……她留下一句話：「瓦爾德在霧港有眼線。」'],
     memory: ['（湖面泛起漣漪，畫面褪成褐色……）', '祖父卡爾：「玻璃夜鶯，唱吧，把鏡子裡的人都叫醒。」', '卡爾：「瓦爾德偷走的魂像，一共有一百隻。」'] },
-  { n: 5, name: '霧港夜市', theme: 'harbor', cap: 55, boss: 'faceless', kills: 45, mons: ['crab', 'lantern', 'pirate'],
+  { n: 5, name: '霧港夜市', theme: 'harbor', cap: 80, boss: 'faceless', kills: 45, mons: ['crab', 'lantern', 'pirate'],
     guide: { name: '夜市老闆娘・阿月', look: { hair: '#d64550', hairD: '#8f2c3f', band: '#f6c945', bandD: '#c98b2b', tunic: '#3fb3a8', tunicD: '#1f6b64' } },
     intro: ['霧港夜市一到晚上就怪事不斷，海盜和燈籠鬼到處亂跑。', '聽說有個「千面商人」混在攤販裡，替瓦爾德收集情報。', '先清掉 45 隻，我幫你打聽他在哪。'],
     bossHint: ['千面商人會變成好幾個一模一樣的路人。', '真正的他「沒有影子」，仔細看腳下！', '打錯人會被反炸，小心。'],
     report: ['商人招了：瓦爾德就在東邊的蝕夜神殿，他在等最後一個艾斯特。'],
     memory: ['（燈籠一盞盞熄滅，畫面褪成褐色……）', '父親：「孩子，如果你看到這段記憶，代表我也失敗了。」', '父親：「瓦爾德會偷走你用過的魂像能力。不要依賴同一隻魂像。」'] },
-  { n: 6, name: '蝕夜神殿', theme: 'temple', cap: 65, boss: 'valde', kills: 50, mons: ['cultist', 'shade', 'eclipse'],
+  { n: 6, name: '蝕夜神殿', theme: 'temple', cap: 99, boss: 'valde', kills: 50, mons: ['cultist', 'shade', 'eclipse'],
     guide: { name: '神殿守衛・凱', look: { hair: '#c8d0e0', hairD: '#7a8399', band: '#6b4fb0', bandD: '#3a2a6b', tunic: '#8a8f9e', tunicD: '#4f5361' } },
     intro: ['我曾經是瓦爾德的守衛，現在只想看他倒下。', '神殿裡的信徒會拼命阻止你，先清掉 50 隻。'],
     bossHint: ['瓦爾德會偷走你用過的魂像大招，被偷走的大招對他無效。', '帶著不同的魂像輪流上，讓他偷不完！'],
     report: ['三百年的黑夜，結束了。'],
-    memory: ['（星痕的光芒從神殿四面八方湧出……）', '雷歐、艾莉絲、卡爾和父親的身影一一浮現。', '雷歐：「做得好，最後的艾斯特。」', '被偷走的一百隻魂像化成流星，回到了大陸各地。', '— 微光大陸　完 —'] },
+    memory: ['（星痕的光芒從神殿四面八方湧出……）', '雷歐、艾莉絲、卡爾和父親的身影一一浮現。', '雷歐：「做得好，最後的艾斯特。」', '被偷走的一百隻魂像化成流星，回到了大陸各地。', '— 長夜燈火　完 —'] },
 ];
-export const capFor = (p) => (p.ch > 6 ? LV_CAP : CHAPTERS[Math.max(1, p.ch) - 1].cap);
+export const capFor = (p) => (p.ch > 6 ? LV_LAUNCH : CHAPTERS[Math.max(1, p.ch) - 1].cap);
 
 // ---- 各章野外地圖 ----
 export const FIELD = { portal: { x: 2, y: 17 }, guide: { x: 4, y: 10 }, spawn: { x: 2, y: 13 }, boss: { x0: 30, y0: 2, x1: 37, y1: 7 } };
@@ -188,47 +196,47 @@ export function buildField(ch, seed = 7) {
   g[FIELD.portal.y][FIELD.portal.x] = T.PORTAL;
   return g;
 }
-export const expNeed = (lv) => Math.round((10 + lv * lv * 6 + 0.15 * lv * lv * lv) * (lv > 50 ? 1.08 ** (lv - 50) : 1));
-export const baseHp = (lv) => 20 + lv * 8;
-export const baseAtk = (lv) => 3 + lv * 2;
+export const expNeed = levelExp;
+export const baseHp = (lv) => Math.max(20, Math.round(playerBaseHp(lv)));
+export const baseAtk = (lv) => Math.max(3, Math.round(playerBaseAtk(lv)));
 export const swordCost = (sword) => 30 + sword * 40 + sword * sword * 20;
 export const POTION_PRICE = 15, POTION_HEAL_PCT = 0.5;
 
 // ---- 職業 ----
 export const CLASSES = {
   sword: {
-    name: '劍士', color: '#ff5a6e', role: '近戰・坦克', desc: '揮劍橫掃前方三格，血量最厚，適合正面硬打。',
+    name: '戰士', color: '#ff5a6e', role: '近戰・坦克', desc: '守燈人的傳承。替隊友擋傷累積「誓約」，再一口氣燒掉換爆發。',
     hpMul: 1.35, atkMul: 1, cool: 0.24, range: 1, weapon: 'sword', helm: 'helm', hair: '#6b3e26',
     outfit: { main: '#c8404f', dark: '#7a2533', trim: '#f6c945' },
-    skills: [{ id: 'spin', name: '旋風斬', cd: 4 }, { id: 'wave', name: '破空劍氣', cd: 6 }, { id: 'quake', name: '天崩斬', cd: 14 }],
+    skills: [{ id: 'lampSlash', name: '守燈斬' }, { id: 'ringSlash', name: '燈環斬' }, { id: 'vowRelease', name: '誓約解放' }], mp: 0.6,
     names: { weapon: ['木劍', '鐵劍', '騎士長劍', '龍牙劍', '星辰聖劍'], helm: ['布帽', '皮盔', '鐵盔', '翼盔', '王者之冠'] },
   },
   archer: {
-    name: '弓手', color: '#6fd36a', role: '遠程・輸出', desc: '7 格外放箭，攻速快，可以邊退邊打。',
+    name: '射手', color: '#6fd36a', role: '遠程・輸出', desc: '觀星人的傳承。箭留下「星點」，連成星座就觸發效果。',
     hpMul: 0.95, atkMul: 1, cool: 0.28, range: 7, weapon: 'bow', helm: 'hood', hair: '#e8a33d',
     outfit: { main: '#4f9a52', dark: '#2f6b3a', trim: '#e8d29a' },
-    skills: [{ id: 'triple', name: '三連射', cd: 3 }, { id: 'rain', name: '箭雨', cd: 8 }, { id: 'pierce', name: '穿雲箭', cd: 11 }],
+    skills: [{ id: 'twinStar', name: '雙星矢' }, { id: 'starfall', name: '星落' }, { id: 'linkStars', name: '連星' }], mp: 0.8,
     names: { weapon: ['短弓', '獵弓', '精靈長弓', '風神弓', '星辰之弓'], helm: ['布兜帽', '皮兜帽', '遊俠兜帽', '風之兜帽', '星辰兜帽'] },
   },
   mage: {
-    name: '法師', color: '#b48cff', role: '範圍・爆發', desc: '自動追蹤的魔法彈，冰、火、雷三系大範圍魔法。',
+    name: '魔法使', color: '#b48cff', role: '範圍・爆發', desc: '共鳴者的傳承。輪流施放不同屬性累積「共鳴」，集滿放大招。',
     hpMul: 0.85, atkMul: 1.6, cool: 0.42, range: 5, weapon: 'staff', helm: 'hat', hair: '#d8e4ff',
     outfit: { main: '#6b4fb0', dark: '#3f2c7a', trim: '#7fd8ff' },
-    skills: [{ id: 'nova', name: '冰霜新星', cd: 6 }, { id: 'fireball', name: '火球術', cd: 4 }, { id: 'chain', name: '雷霆鎖鏈', cd: 9 }],
+    skills: [{ id: 'emberSeed', name: '餘燼之種' }, { id: 'frostBreath', name: '霜之息' }, { id: 'fourResonance', name: '四象共鳴' }], mp: 1.6,
     names: { weapon: ['木杖', '學徒法杖', '秘銀法杖', '龍晶法杖', '星辰權杖'], helm: ['尖帽', '學徒帽', '秘法帽', '星象帽', '賢者之冠'] },
   },
   priest: {
-    name: '牧師', color: '#ffe3af', role: '遠程・治療', desc: '以聖光彈牽制敵人，為自己與附近隊友恢復生命。',
+    name: '治療師', color: '#ffe3af', role: '遠程・治療', desc: '點燭者的傳承。治療會留下「燭火」，連成燭陣保護大家。',
     hpMul: 1, atkMul: 1.05, cool: 0.32, range: 5, weapon: 'staff', helm: 'band', hair: '#9b6758',
     outfit: { main: '#f5ead9', dark: '#b77f79', trim: '#edc777' },
-    skills: [{ id: 'mend', name: '百合祈禱', cd: 9 }, { id: 'lance', name: '聖光槍', cd: 5 }, { id: 'sanctum', name: '聖域頌歌', cd: 15 }],
+    skills: [{ id: 'lightCandle', name: '點燭' }, { id: 'candleArrow', name: '燭焰矢' }, { id: 'candleArray', name: '燭陣' }], mp: 1.4,
     names: { weapon: ['百合木杖', '珍珠禱杖', '藍晶牧杖', '紫晶權杖', '晨曦聖杖'], helm: ['絲帶', '珍珠髮飾', '銀百合冠', '紫晶額飾', '晨曦聖冠'] },
   },
   monk: {
-    name: '拳師', color: '#ffa94d', role: '近戰・連打', desc: '攻速是劍士的兩倍，貼身之後就停不下來。',
+    name: '拳師', color: '#ffa94d', role: '近戰・連打', desc: '撞鐘人的傳承。在節拍上接招敲響「鐘聲」，三響強化全隊。',
     hpMul: 1.15, atkMul: 0.62, cool: 0.13, range: 1, weapon: 'fist', helm: 'band', hair: '#2b2230',
     outfit: { main: '#f08a3c', dark: '#9c4f1c', trim: '#fff1c4' },
-    skills: [{ id: 'barrage', name: '百裂拳', cd: 5 }, { id: 'shock', name: '震地波', cd: 7 }, { id: 'dragon', name: '昇龍擊', cd: 11 }],
+    skills: [{ id: 'bellPalm', name: '撞鐘掌' }, { id: 'bellFists', name: '連鐘拳' }, { id: 'dawnStrike', name: '破曉一擊' }], mp: 0.8,
     names: { weapon: ['布手套', '皮拳套', '鐵拳套', '龍爪拳套', '星辰拳套'], helm: ['頭帶', '皮頭帶', '鐵頭帶', '龍紋頭帶', '星辰頭帶'] },
   },
 };
@@ -312,19 +320,26 @@ export function stats(p) {
   const soul = p.soul && p.souls?.[p.soul] ? p.soul : null;
   // RO 風格：能力值與卡片效果
   const ab = attrBonus(p), cm = cardMods(p), cp = (k) => (cm.pct[k] || 0), jb = jobBonus(p);
-  for (const k of ['atkPct', 'hpPct', 'crit', 'aspd', 'skill', 'dr', 'soul']) aff[k] += jb[k];
+  for (const k of ['atkPct', 'hpPct', 'crit', 'aspd', 'skill', 'dr', 'soul']) aff[k] += jb[k] || 0;
+  // 技能的暫時增益（p.tb：{種類: {v, until}}）
+  const now = Date.now(), tb = (k) => (p.tb?.[k] && p.tb[k].until > now ? p.tb[k].v : 0);
+  aff.atkPct += (tb('dmg') + tb('能力') + tb('屬性') * 0.5 + tb('dmgPerStack')) * 100; aff.crit += tb('crit') * 100;
+  aff.aspd += (tb('aspd') + tb('攻速')) * 100; aff.dr += (tb('dr') + tb('減傷') + tb('防禦') / 4 + tb('屬性減傷') / 4) * 100;
   aff.atkPct += ab.atkPct + cp('atkPct'); aff.hpPct += ab.hpPct + cp('hpPct'); aff.crit += ab.crit + cp('crit'); aff.aspd += ab.aspd + cp('aspd');
   aff.skill += ab.skill + cp('skill'); aff.soul += ab.soul; aff.dr += ab.dr + ab.buffDr + cp('dr');
   atk *= 1 + 0.02 * tv('might') + (soul === 'magnet' ? 0.08 : 0) + aff.atkPct / 100 + (p.cb?.atkPct || 0) / 100;
   hp *= 1 + 0.025 * tv('vigor') + aff.hpPct / 100 + (soul === 'thread' ? 0.1 : 0) + (p.cardBonus?.hpPct || 0) / 100 + (p.cb?.hpPct || 0) / 100;
   const crit = Math.min(0.75, 0.1 + 0.012 * tv('precision') + aff.crit / 100 + (soul === 'post' ? 0.08 : 0));
-  const critDmg = 2 + 0.06 * tv('ferocity') + ab.critDmg / 100 + jb.critDmg / 100;
+  const critDmg = 2 + 0.06 * tv('ferocity') + ab.critDmg / 100 + (jb.critDmg || 0) / 100;
   const aspd = 1 + 0.02 * tv('haste') + aff.aspd / 100;
-  const cdr = Math.min(0.5, 0.02 * tv('focus') + (soul === 'gear' ? 0.12 : 0) + cp('cdr') / 100 + jb.cdr / 100);
+  const cdr = Math.min(0.5, 0.02 * tv('focus') + (soul === 'gear' ? 0.12 : 0) + cp('cdr') / 100 + (jb.cdr || 0) / 100);
+  const mpMax = Math.round((20 + p.lv * 4) * (c.mp || 1) * (1 + (ab.attrs?.int || 0) / 100));
   atk = Math.round(atk); hp = Math.round(hp);
   const dps = (atk * aspd / c.cool) * (1 + crit * (critDmg - 1));
   return {
     atk, hp, crit, critDmg, aspd, cdr, hit: ab.hit, flee: ab.flee, perfect: ab.perfect, attrs: ab.attrs, mods: cm, weaponElem: cm.enchant || '無',
+    mpMax, mpRegen: mpMax * (0.01 + (ab.attrs?.int || 0) * 0.0005), mpCost: 1 - Math.min(0.5, tb('耗魔')), heal: 1 + (jb.heal || 0) / 100, boss: (jb.boss || 0) / 100,
+    double: (jb.double || 0) / 100, shadowStab: jb.shadowStab || 0, debuffDur: jb.debuffDur || 0, proc: (jb.proc || 0) / 100, dot: (jb.dot || 0) / 100, flee2: jb.flee || 0, hit2: jb.hit || 0, range: jb.range || 0,
     skill: 1 + aff.skill / 100, leech: aff.leech / 100, soulGain: 1 + 0.06 * tv('resonance') + aff.soul / 100 + (soul === 'bird' ? 0.2 : 0),
     dr: Math.min(0.6, 0.02 * tv('iron') + aff.dr / 100), regen: 0.0012 * tv('recover'), potion: 0.5 + 0.04 * tv('recover'),
     cp: Math.round(dps * 3 + hp * 3 + p.lv * 20 + (soul ? 150 * (p.souls[soul] || 1) : 0)),
@@ -376,7 +391,7 @@ export function rollGear(rand, mlv, boss = false, cls = 'sword') {
     affixes.push({ id: a.id, val: a.lo + Math.floor(rand() * (a.hi - a.lo + 1)) });
   }
   const slots = [rand() < 0.2 ? 1 : 0, rand() < 0.5 ? 1 : 0, 1, rand() < 0.5 ? 2 : 1, 2][tier];
-  return { slot, rarity: rar.id, name: names[tier], stat: g.stat, val: Math.max(1, Math.round(g.v * (1 + mlv * 0.7) * rar.mult)), lv: mlv, affixes, slots, refine: 0, cards: [] };
+  return { slot, rarity: rar.id, name: names[tier], stat: g.stat, val: Math.max(1, Math.round(g.v * (g.stat === 'atk' ? gearScaleAtk(mlv) : gearScaleHp(mlv)) * rar.mult)), lv: mlv, affixes, slots, refine: 0, cards: [] };
 }
 export const itemPower = (it) => it.val * (1 + 0.08 * (it.refine || 0)) * (1 + 0.12 * (it.affixes?.length || 0) + 0.15 * (it.cards?.length || 0));
 export const rarityOf = (id) => RARITY.find((r) => r.id === id) || RARITY[0];
@@ -405,7 +420,7 @@ export function rollFish(rand) {
   return FISH[0];
 }
 
-export const LV_CAP = 99;
+export const LV_CAP = LV_LAUNCH;
 export function gainExp(p, amount) {
   p.exp += amount;
   let ups = 0;
@@ -432,7 +447,7 @@ export function offlineReward(p, minutes, rand, cap = OFFLINE_MAX_MIN) {
 }
 
 export function newPlayer(cls = 'sword', name = '冒險者') {
-  const p = { v: 4, attrs: newAttrs(), autoAttr: true, job: { tier: 1, lv: 1, exp: 0, branch: '' }, skillLv: {}, reborn: 0, cls: CLASSES[cls] ? cls : 'sword', name: String(name).slice(0, 8) || '冒險者', lv: 1, exp: 0, hp: 0, coins: 0, potions: 3, sword: 0, gear: {}, fish: {}, kills: 0, quest: 0, ch: 1, step: 0, talents: {}, souls: {}, soul: '', stones: 0, pity: 0, seen: 0, x: SPAWN.x, y: SPAWN.y };
+  const p = { v: 4, attrs: newAttrs(), autoAttr: true, job: { tier: 1, lv: 1, exp: 0, branch: '' }, sk: {}, bar: [], cls: CLASSES[cls] ? cls : 'sword', name: String(name).slice(0, 8) || '冒險者', lv: 1, exp: 0, hp: 0, coins: 0, potions: 3, sword: 0, gear: {}, fish: {}, kills: 0, quest: 0, ch: 1, step: 0, talents: {}, souls: {}, soul: '', stones: 0, pity: 0, seen: 0, x: SPAWN.x, y: SPAWN.y };
   p.hp = stats(p).hp;
   return p;
 }

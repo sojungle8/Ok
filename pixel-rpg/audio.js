@@ -1,4 +1,4 @@
-// 微光大陸：程式合成的背景音樂與音效（Web Audio，不需要音檔）
+// 長夜燈火：程式合成的背景音樂與音效（Web Audio，不需要音檔）
 let meter = null;
 // 測試用：目前輸出音量（0～1）
 export function audioLevel() { if (!meter) return -1; const a = new Float32Array(meter.fftSize); meter.getFloatTimeDomainData(a); return Math.sqrt(a.reduce((x, v) => x + v * v, 0) / a.length); }

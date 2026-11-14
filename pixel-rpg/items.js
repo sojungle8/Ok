@@ -1,4 +1,4 @@
-// 微光大陸：背包、道具、怪物卡片、精煉、自動販賣（RO 風格的玩法機制，名稱與內容皆為原創）
+// 長夜燈火：背包、道具、怪物卡片、精煉、自動販賣（RO 風格的玩法機制，名稱與內容皆為原創）
 import { MONSTERS, RARITY, rarityIdx, sellValue, itemPower, stats } from './world.js';
 import { cardDesc, CARD_EFFECT } from './ro.js';
 
@@ -14,7 +14,7 @@ export const ITEMS = {
   red: { name: '紅色藥水', kind: 'use', grade: 'common', price: 15, heal: 0.25, icon: 'potion', color: '#e8506a', unlock: 1, desc: '回復 25% 生命' },
   orange: { name: '橙色藥水', kind: 'use', grade: 'common', price: 60, heal: 0.5, icon: 'potion', color: '#ff9f40', unlock: 2, desc: '回復 50% 生命' },
   white: { name: '白色藥水', kind: 'use', grade: 'common', price: 200, heal: 1, icon: 'potion', color: '#f3f0ff', unlock: 4, desc: '回復 100% 生命' },
-  scroll: { name: '回城卷軸', kind: 'use', grade: 'common', price: 50, effect: 'home', icon: 'scroll', color: '#e8d29a', unlock: 2, desc: '立刻回到微光村' },
+  scroll: { name: '回城卷軸', kind: 'use', grade: 'common', price: 50, effect: 'home', icon: 'scroll', color: '#e8d29a', unlock: 2, desc: '立刻回到守燈村' },
   feather: { name: '瞬移羽毛', kind: 'use', grade: 'common', price: 20, effect: 'blink', icon: 'feather', color: '#bfe3ff', unlock: 2, desc: '傳送到這張地圖的隨機位置' },
   elixir: { name: '魂之藥', kind: 'use', grade: 'rare', sellPrice: 120, effect: 'soul', icon: 'potion', color: '#c084ff', desc: '魂力 +50%' },
   ore: { name: '精煉石', kind: 'mat', grade: 'rare', sellPrice: 40, icon: 'ore', color: '#7fd8ff', desc: '精煉 +1～+6 的材料' },

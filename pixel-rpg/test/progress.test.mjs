@@ -1,57 +1,38 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { newPlayer, stats, expNeed, gainExp, LV_CAP, loadPlayer } from '../world.js';
-import * as G from '../progress.js';
-import { attrFree } from '../ro.js';
+import * as Pg from '../progress.js';
+import * as S from '../skilltree.js';
+import * as Wd from '../world.js';
+import * as B from '../balance.js';
 
-test('等級上限 99，50 級後經驗需求明顯變高', () => {
-  assert.equal(LV_CAP, 99);
-  assert.ok(expNeed(99) / expNeed(50) > 15, '99 級遠比 50 級難');
-  const p = newPlayer(); p.ch = 7; gainExp(p, 1e15); assert.equal(p.lv, 99);
+test('等級上限：上線開到 150，經驗表到 200', () => {
+  assert.equal(Wd.LV_CAP, 150); assert.equal(B.LV_MAX, 200);
+  assert.ok(Wd.expNeed(150) > Wd.expNeed(100) * 4);
 });
-
-test('職業等級：打怪升級、一轉上限 50、得技能點', () => {
-  const p = newPlayer('sword');
-  assert.equal(G.skillPointsFree(p), 3, '職業 Lv1 先給 3 點');
-  assert.ok(G.gainJobExp(p, G.jobExpNeed(1) + G.jobExpNeed(2)) === 2);
-  assert.equal(p.job.lv, 3); assert.equal(G.skillPointsFree(p), 5);
-  G.gainJobExp(p, 1e12); assert.equal(p.job.lv, 50);
+test('職業等級：打怪升級、一轉上限 50、技能點 49', () => {
+  const p = Pg.ensureJob(Wd.newPlayer('sword'));
+  assert.ok(Pg.gainJobExp(p, 1e9) > 0); assert.equal(p.job.lv, 50);
+  assert.equal(S.skillPoints(p).free, 49);
 });
-
-test('技能等級：加點、上限、自動分配平均升級', () => {
-  const p = newPlayer('mage'); p.job.lv = 20;
-  const ids = ['nova', 'fireball', 'chain'];
-  G.autoLearn(p, ids);
-  assert.equal(G.skillPointsFree(p), 0);
-  const lvs = ids.map((x) => G.skillLevel(p, x)); assert.ok(Math.max(...lvs) - Math.min(...lvs) <= 1);
-  assert.ok(G.skillDmgMult(10) > G.skillDmgMult(1) && G.skillCdMult(10) < 1);
-  p.job.lv = 50; G.autoLearn(p, ids); assert.ok(ids.every((x) => G.skillLevel(p, x) <= 10));
+test('轉職：條件、兩條路線、二轉多 69 點與路線技能', () => {
+  const p = Pg.ensureJob(Wd.newPlayer('archer'));
+  assert.equal(Pg.advanceJob(p, 'hawk'), false, '等級不夠不能轉');
+  p.lv = 45; p.job.lv = 40;
+  assert.equal(Pg.advanceJob(p, 'guard'), false, '別的職業的路線不行');
+  assert.equal(Pg.advanceJob(p, 'hawk'), true);
+  assert.equal(Pg.jobTitle(p, '射手'), '鷹眼射手');
+  Pg.gainJobExp(p, 1e12); assert.equal(p.job.lv, 70);
+  assert.equal(S.skillPoints(p).free, 49 + 69);
+  assert.equal(S.whyNot(p, 'starEye'), '需要 觀星 Lv5');
 });
-
-test('轉職：等級條件、兩條路線、加成生效', () => {
-  const p = newPlayer('sword'); p.lv = 44; p.job.lv = 50;
-  assert.ok(!G.canAdvance(p)); p.lv = 45; assert.ok(G.canAdvance(p));
-  const atk0 = stats(p).atk;
-  assert.ok(G.advanceJob(p, 'blademaster'));
-  assert.equal(p.job.tier, 2); assert.equal(G.jobTitle(p, '劍士'), '劍聖');
-  assert.ok(stats(p).atk > atk0);
-  assert.ok(G.skillPointsTotal(p) > 50, '二轉保留一轉的技能點');
-  for (const c of Object.keys(G.JOB2)) assert.equal(G.JOB2[c].length, 2);
+test('技能被動會反映在能力值', () => {
+  const p = Pg.ensureJob(Wd.newPlayer('sword')); p.lv = 30; p.job.lv = 30;
+  const a0 = Wd.stats(p).atk;
+  for (let i = 0; i < 10; i++) S.learnSkill(p, 'lampSword');
+  assert.ok(Wd.stats(p).atk > a0 * 1.15);
 });
-
-test('轉生：回到 1 級、永久加成、多給能力點', () => {
-  const p = newPlayer('archer'); p.lv = 99; p.job = { tier: 2, lv: 70, exp: 0, branch: 'sniper' };
-  assert.ok(G.canReborn(p));
-  assert.ok(G.doReborn(p));
-  assert.equal(p.lv, 1); assert.equal(p.reborn, 1); assert.equal(p.job.tier, 1);
-  const fresh = newPlayer('archer'); fresh.lv = 40; p.lv = 40;
-  assert.ok(stats(p).atk > stats(fresh).atk && stats(p).hp > stats(fresh).hp);
-  p.lv = 1;
-  assert.equal(attrFree(p), 20);
-});
-
-test('舊存檔載入會補上職業資料', () => {
-  const old = newPlayer('monk'); delete old.job; delete old.skillLv; delete old.reborn;
-  const p = loadPlayer(JSON.stringify(old));
-  assert.equal(p.job.tier, 1); assert.equal(p.reborn, 0); assert.deepEqual(p.skillLv, {});
+test('舊存檔：舊路線 id 換成新的、舊技能等級免費重置、轉生拿掉', () => {
+  const p = Pg.ensureJob({ cls: 'sword', lv: 80, job: { tier: 2, lv: 30, branch: 'blademaster' }, skillLv: { spin: 5 }, reborn: 2 });
+  assert.equal(p.job.branch, 'heavy'); assert.equal(p.skillLv, undefined); assert.equal(p.reborn, undefined);
+  assert.equal(S.lvOf(p, 'lampSlash'), 1);
 });

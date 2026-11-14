@@ -55,14 +55,13 @@ test('升級：經驗溢出可連升、升級補滿血', () => {
   assert.equal(p.hp, Wd.stats(p).hp);
 });
 
-test('節奏：每個職業 1 級打露珠史萊姆都在 0.8 秒內、4 隻內升級', () => {
+test('節奏：每個職業 1 級光靠普攻 3 秒內打倒露滴團；新手經驗加倍下 30 隻內升級', () => {
   for (const c of Wd.CLASS_IDS) {
     const p = Wd.newPlayer(c);
     const hits = Math.ceil(Wd.MONSTERS.slime.hp / Wd.stats(p).atk);
-    assert.ok(hits * Wd.CLASSES[c].cool <= 0.8, `${c}: ${hits} hits`);
+    assert.ok(hits * Wd.CLASSES[c].cool <= 3, `${c}: ${hits} hits`);
   }
-  const p = Wd.newPlayer();
-  assert.ok(Math.ceil(Wd.expNeed(1) / Wd.MONSTERS.slime.exp) <= 4);
+  assert.ok(Math.ceil(Wd.expNeed(1) / (Wd.MONSTERS.slime.exp * 2)) <= 30);
 });
 
 test('裝備：更好的自動穿上並提升戰鬥力，較差的自動賣掉', () => {
@@ -117,7 +116,8 @@ test('職業：四職業都有 3 個技能、名稱齊全，各職業的 DPS 差
     const k = Wd.CLASSES[c];
     assert.equal(k.skills.length, 3);
     assert.equal(k.names.weapon.length, 5); assert.equal(k.names.helm.length, 5);
-    const st = Wd.stats(Wd.newPlayer(c));
+    const p = Wd.newPlayer(c); p.lv = 30;
+    const st = Wd.stats(p);
     dps.push(st.atk / k.cool);
   }
   assert.ok(Math.max(...dps) / Math.min(...dps) < 1.6, dps.join(','));
@@ -196,7 +196,7 @@ test('離線收益：不到 1 分鐘沒有、上限 12 小時、等級越高打�
   const a = Wd.offlineReward(p, 99999, Wd.rng(1));
   assert.equal(a.mins, Wd.OFFLINE_MAX_MIN);
   assert.ok(a.items.length <= 8);
-  p.lv = 8;
+  p.lv = 14;
   const b = Wd.offlineReward(p, 60, Wd.rng(1));
   assert.equal(b.zone, Wd.MONSTERS.ember.name);
 });
@@ -204,9 +204,9 @@ test('離線收益：不到 1 分鐘沒有、上限 12 小時、等級越高打�
 test('等級上限：依章節提高，超過的經驗不累積', () => {
   const p = Wd.newPlayer();
   Wd.gainExp(p, 1e12);
-  assert.equal(p.lv, 15);
+  assert.equal(p.lv, 20);
   assert.equal(p.exp, 0);
-  p.ch = 3; Wd.gainExp(p, 1e12); assert.equal(p.lv, 35);
+  p.ch = 3; Wd.gainExp(p, 1e12); assert.equal(p.lv, 50);
   p.ch = 7; Wd.gainExp(p, 1e12); assert.equal(p.lv, Wd.LV_CAP);
 });
 
@@ -235,19 +235,21 @@ test('第 2～6 章：怪物資料齊全、地圖走得到傳送點、嚮導、�
   }
 });
 
-test('數值曲線：怪物越後面越強，每章入口等級的玩家 4 刀內打倒小怪', () => {
-  const lvls = Wd.CHAPTERS.flatMap((c) => c.mons.map((k) => Wd.MONSTERS[k]));
-  for (let i = 1; i < lvls.length; i++) assert.ok(lvls[i].hp >= lvls[i - 1].hp * 0.9, lvls[i].name);
+test('數值曲線：怪物一章比一章強，每章入口等級、標準配裝（不含能力點）的玩家光靠普攻 8 秒內打倒小怪', () => {
+  // 怪物強度依圖鑑：同章裡有群聚、硬殼等不同原型，所以比的是「每章最高等級」一路往上
+  const tops = Wd.CHAPTERS.map((c) => Math.max(...c.mons.map((k) => Wd.MONSTERS[k].lv)));
+  for (let i = 1; i < tops.length; i++) assert.ok(tops[i] > tops[i - 1], `第 ${i + 1} 章`);
   for (const c of Wd.CHAPTERS.slice(1)) {
     const p = Wd.newPlayer('sword'); p.lv = Wd.CHAPTERS[c.n - 2].cap;
-    const weak = Wd.MONSTERS[c.mons[0]];
-    const gearAtk = 2 * (1 + p.lv * 0.7) * 1.4 + 1.2 * (1 + p.lv * 0.7) * 1.4 + (1 + p.lv * 0.7) * 1.4;
-    const atk = Wd.stats(p).atk + gearAtk;
-    assert.ok(weak.hp / atk <= 4, `ch${c.n}: ${weak.hp} / ${atk}`);
+    const weak = c.mons.map((k) => Wd.MONSTERS[k]).sort((a, b) => a.hp - b.hp)[0];
+    for (const [slot, v] of [['weapon', 2], ['gloves', 1.2], ['ring', 1]]) p.gear[slot] = { slot, stat: 'atk', val: Math.round(v * B.gearScaleAtk(p.lv) * 1.4), affixes: [], refine: 0, cards: [] };
+    const atk = Wd.stats(p).atk, perSec = (atk / Wd.CLASSES.sword.cool) * 0.8;   // 只算普攻、扣掉防禦
+    assert.ok(weak.hp / perSec <= 8, `ch${c.n}: ${weak.hp} / ${perSec}`);
   }
 });
 
 import * as It from '../pixel-rpg/items.js';
+import * as B from '../pixel-rpg/balance.js';
 const gearOf = (o) => ({ slot: 'weapon', rarity: 'common', name: 'x', stat: 'atk', val: 10, lv: 5, affixes: [], slots: 1, refine: 0, cards: [], ...o });
 
 test('背包：舊存檔的藥水搬進背包、預設只自動賣普通裝備', () => {

@@ -1,4 +1,4 @@
-// 微光大陸：外部美術素材載入器。assets/manifest.json 列出的圖才會載入；沒有的就用程式繪製的版本。
+// 長夜燈火：外部美術素材載入器。assets/manifest.json 列出的圖才會載入；沒有的就用程式繪製的版本。
 const imgs = new Map();
 let ready = Promise.resolve();
 // 先載入畫面立即需要的圖（角色、介面、地圖），大張的大招立繪、頭像、舊零件放到後面

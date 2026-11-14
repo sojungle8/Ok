@@ -1,16 +1,16 @@
-// 微光大陸：隊伍（AI 隊友）。之後上線化時，同一套隊伍資料可以換成真人玩家。
+// 長夜燈火：隊伍（AI 隊友）。之後上線化時，同一套隊伍資料可以換成真人玩家。
 export const PARTY_MAX = 3;
 export const COMPANIONS = {
-  lena: { name: '蕾娜', title: '聖騎士', role: 'tank', color: '#ffd166', unlock: [1, 2], price: 300, hpMul: 1.6, atkMul: 0.35, range: 1, cool: 0.7, skillCd: 10,
+  lena: { name: '蕾娜', title: '盾衛', role: 'tank', color: '#ffd166', unlock: [1, 2], price: 300, hpMul: 1.6, atkMul: 0.35, range: 1, cool: 0.7, skillCd: 10,
     desc: '血最厚。每 10 秒「嘲諷」周圍怪物，讓牠們改打她。', skill: '神聖嘲諷',
     look: { hair: '#f6c945', outfit: { main: '#c8ccdb', dark: '#7a8399', trim: '#ffd166' }, trimClass: '#ffd166', cape: '#3f74d1', helm: { style: 'helm', color: '#e8e4f0', tier: 2 }, weapon: { type: 'sword', color: '#cfe3ff', tier: 2 }, gloves: '#a9bad6', boots: '#5d6f94' } },
-  mia: { name: '米婭', title: '牧師', role: 'heal', color: '#7ad35a', unlock: [1, 2], price: 300, hpMul: 0.8, atkMul: 0.2, range: 5, cool: 1.1, skillCd: 4,
+  mia: { name: '米婭', title: '治療師', role: 'heal', color: '#7ad35a', unlock: [1, 2], price: 300, hpMul: 0.8, atkMul: 0.2, range: 5, cool: 1.1, skillCd: 4,
     desc: '幫血最少的隊友補血，倒地的隊友也能救起來。', skill: '聖光治癒',
     look: { hair: '#ffe8b0', outfit: { main: '#fff8e7', dark: '#d9c9a0', trim: '#f6c945' }, trimClass: '#f6c945', cape: null, helm: { style: 'hat', color: '#fff8e7', tier: 1 }, weapon: { type: 'staff', color: '#ffe066', tier: 3 } } },
-  carlos: { name: '卡洛斯', title: '遊俠', role: 'dps', color: '#6fd36a', unlock: [2, 0], price: 600, hpMul: 0.85, atkMul: 0.55, range: 6, cool: 0.55, skillCd: 7,
+  carlos: { name: '卡洛斯', title: '射手', role: 'dps', color: '#6fd36a', unlock: [2, 0], price: 600, hpMul: 0.85, atkMul: 0.55, range: 6, cool: 0.55, skillCd: 7,
     desc: '遠距離射擊，每 7 秒放一次「扇形連射」。', skill: '扇形連射',
     look: { hair: '#6b3e26', outfit: { main: '#3f7a3a', dark: '#24502a', trim: '#e8d29a' }, trimClass: '#e8d29a', cape: null, helm: { style: 'hood', color: '#2f6b3a', tier: 1 }, weapon: { type: 'bow', color: '#c98b4a', tier: 1 } } },
-  nova: { name: '諾娃', title: '元素師', role: 'dps', color: '#ff7b54', unlock: [2, 0], price: 600, hpMul: 0.7, atkMul: 0.6, range: 5, cool: 0.85, skillCd: 8,
+  nova: { name: '諾娃', title: '魔法使', role: 'dps', color: '#ff7b54', unlock: [2, 0], price: 600, hpMul: 0.7, atkMul: 0.6, range: 5, cool: 0.85, skillCd: 8,
     desc: '火焰魔法輸出，每 8 秒丟一顆會爆炸的大火球。', skill: '爆炎球',
     look: { hair: '#d64550', outfit: { main: '#3a1f2e', dark: '#1f1018', trim: '#ff7b54' }, trimClass: '#ff7b54', cape: '#d64550', helm: null, weapon: { type: 'staff', color: '#ff8a3d', tier: 3 } } },
   buck: { name: '巴克', title: '拳師', role: 'dps', color: '#ffa94d', unlock: [3, 0], price: 900, hpMul: 1.15, atkMul: 0.45, range: 1, cool: 0.3, skillCd: 6,

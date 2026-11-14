@@ -1,4 +1,4 @@
-// 微光大陸：長期玩法——每日／每週任務、簽到、怪物圖鑑、成就、精英怪、試煉之塔（純函式，可測試）
+// 長夜燈火：長期玩法——每日／每週任務、簽到、怪物圖鑑、成就、精英怪、試煉之塔（純函式，可測試）
 import { MONSTERS, CHAPTERS, expNeed, rng } from './world.js';
 import { ITEMS } from './items.js';
 

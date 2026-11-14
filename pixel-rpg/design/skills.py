@@ -181,18 +181,19 @@ def simulate(route, targets, T=120.0):
     return total / T, mpu / T, log
 
 def party_value(route, ally_dps):
-    """隊伍增益與目標減益換算成等效輸出（假設另外 4 個隊友每人 ally_dps）"""
-    v = 0
+    """隊伍增益與目標減益換算成等效輸出（假設另外 4 個隊友每人 ally_dps）；同一類只取最高"""
+    best = {}
+    ext = sum((x.get('pas') or {}).get('debuffDur', 0) for x in R[route]['build'])
     for s in R[route]['build']:
         if s['lv'] <= 0: continue
         if s.get('pb'):
             k, val, dur = s['pb']; cd = s.get('cd', 0) or dur
             up = min(1, dur / max(cd, dur))
-            if k in ('能力', '攻速', '屬性'): v += val * up * ally_dps * 4
+            if k in ('能力', '攻速', '屬性'): best[k] = max(best.get(k, 0), val * up * ally_dps * 4)
         if s.get('db'):
-            k, val, dur = s['db']; ext = sum((x.get('pas') or {}).get('debuffDur', 0) for x in R[route]['build']); up = min(1, dur * (1 + ext) / max(s.get('cd', dur), dur))
-            if k in ('受傷提高', '防禦降低', '冰封暴擊'): v += val * up * ally_dps * 5
-    return v
+            k, val, dur = s['db']; up = min(1, dur * (1 + ext) / max(s.get('cd', dur), dur))
+            if k in ('受傷提高', '防禦降低', '冰封暴擊'): best[k] = max(best.get(k, 0), val * up * ally_dps * 5)
+    return sum(best.values())
 
 def ehp(route):
     """有效生命（相對值）：職業生命係數 ×(1＋生命加成) ÷ (1−平均減傷)，格擋與迴避也算成減傷"""
