@@ -920,10 +920,10 @@ function basicAttack(target) {
     const m = target || nearest(C.range);
     if (m) faceToward(m);
     shoot('arrow', m ? angTo(m) : faceAng(), { speed: 320, range: C.range + 1, mult: 1, r: 4, color: '#e8ffe0', dk: 'basic' });
-  } else if (P.cls === 'mage') {
+  } else if (P.cls === 'mage' || P.cls === 'priest') {
     const m = target || nearest(C.range);
     if (m) faceToward(m);
-    shoot('bolt', m ? angTo(m) : faceAng(), { speed: 200, range: C.range + 1.5, mult: 1, r: 5, home: m, color: '#e3d0ff', dk: 'basic' });
+    shoot('bolt', m ? angTo(m) : faceAng(), { speed: 200, range: C.range + 1.5, mult: 1, r: 5, home: m, color: P.cls === 'priest' ? C.color : '#e3d0ff', dk: 'basic' });
   }
 }
 
@@ -948,6 +948,26 @@ function castIdx(i) {
   me.atkT = 0.2;
   const tgt = nearest(P.cls === 'archer' ? C.range : 6);
   switch (s.id) {
+    case 'mend':
+    case 'sanctum': {
+      const major = s.id === 'sanctum';
+      const fraction = major ? 0.32 : 0.22;
+      const max = stats(P).hp;
+      P.hp = Math.min(max, P.hp + Math.round(max * fraction));
+      addFx('heal', 0.7, { x: wx, y: wy });
+      for (const ally of allies) {
+        if (ally.down > 0 || Math.hypot(ally.px - me.px, ally.py - me.py) > 5) continue;
+        ally.hp = Math.min(ally.max, ally.hp + Math.round(ally.max * fraction));
+        addFx('heal', 0.7, { x: cx(ally), y: cy(ally) });
+      }
+      if (major) hitArea(me.px, me.py, 2.5, 2.4, C.color);
+      hud();
+      break;
+    }
+    case 'lance':
+      if (tgt) faceToward(tgt);
+      shoot('wave', tgt ? angTo(tgt) : faceAng(), { speed: 250, range: 7, pierce: 2, mult: 2.1, r: 7, color: C.color });
+      break;
     case 'spin':
       addFx('spin', 0.32, { x: wx, y: wy - 3, color: '#dff6ff' });
       ring(wx, wy, 26, '#bdf1ff', 0.3, 3);

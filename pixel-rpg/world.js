@@ -215,6 +215,13 @@ export const CLASSES = {
     skills: [{ id: 'nova', name: '冰霜新星', cd: 6 }, { id: 'fireball', name: '火球術', cd: 4 }, { id: 'chain', name: '雷霆鎖鏈', cd: 9 }],
     names: { weapon: ['木杖', '學徒法杖', '秘銀法杖', '龍晶法杖', '星辰權杖'], helm: ['尖帽', '學徒帽', '秘法帽', '星象帽', '賢者之冠'] },
   },
+  priest: {
+    name: '牧師', color: '#ffe3af', role: '遠程・治療', desc: '以聖光彈牽制敵人，為自己與附近隊友恢復生命。',
+    hpMul: 1, atkMul: 1.05, cool: 0.32, range: 5, weapon: 'staff', helm: 'band', hair: '#9b6758',
+    outfit: { main: '#f5ead9', dark: '#b77f79', trim: '#edc777' },
+    skills: [{ id: 'mend', name: '百合祈禱', cd: 9 }, { id: 'lance', name: '聖光槍', cd: 5 }, { id: 'sanctum', name: '聖域頌歌', cd: 15 }],
+    names: { weapon: ['百合木杖', '珍珠禱杖', '藍晶牧杖', '紫晶權杖', '晨曦聖杖'], helm: ['絲帶', '珍珠髮飾', '銀百合冠', '紫晶額飾', '晨曦聖冠'] },
+  },
   monk: {
     name: '拳師', color: '#ffa94d', role: '近戰・連打', desc: '攻速是劍士的兩倍，貼身之後就停不下來。',
     hpMul: 1.15, atkMul: 0.62, cool: 0.13, range: 1, weapon: 'fist', helm: 'band', hair: '#2b2230',
