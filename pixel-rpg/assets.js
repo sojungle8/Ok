@@ -5,15 +5,17 @@ let ready = Promise.resolve();
 const LATE = ['soul_art/', 'portrait/', 'char/', 'gear/', 'icon/', 'vfx/'];
 export const loadState = { done: 0, total: 0, core: false };
 export function loadAssets(base = 'assets/', onCore) {
+  let ver = {};
   const one = (f) => new Promise((res) => {
     const im = new Image();
     im.onload = () => { imgs.set(f.replace(/\.png$/, ''), im); loadState.done++; res(); };
     im.onerror = () => { loadState.done++; res(); };
-    im.src = base + f;
+    im.src = base + f + (ver[f] ? `?v=${ver[f]}` : '');
   });
   ready = fetch(base + 'manifest.json', { cache: 'no-cache' })
     .then((r) => (r.ok ? r.json() : { files: [] }))
     .then(async (m) => {
+      ver = m.v || {};
       const files = (m.files || []).filter((f) => !/(^|\/)_|_preview\.png$/.test(f));
       const late = files.filter((f) => LATE.some((p) => f.startsWith(p)) || f.endsWith('_attack.png'));
       const core = files.filter((f) => !late.includes(f));

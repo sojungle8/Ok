@@ -583,7 +583,9 @@ function checkOffline() {
 function say(name, lines, opts, onClose) { dialog = { name, lines, i: 0, opts, onClose }; showDialog(); }
 function portraitKey(name) {
   const n = [...townNpcs, ...CHAPTERS.slice(1).map((c) => ({ id: 'guide' + c.n, name: c.guide.name }))].find((x) => x.name === name);
-  return n ? 'portrait/' + n.id : null;
+  if (n) return 'portrait/' + n.id;
+  const a = COMPANION_IDS.find((id) => COMPANIONS[id].name === name);
+  return a ? 'portrait/ally_' + a : null;
 }
 function showDialog() {
   const d = dialog;
@@ -1425,7 +1427,7 @@ function renderPartyPanel() {
     if (!hired) {
       const ok = unlocked(P, id);
       b.className = 'startbtn'; b.textContent = ok ? `招募 ${c.price} 金幣` : `第 ${c.unlock[0]} 章開放`; b.disabled = !ok;
-      b.addEventListener('click', () => { const r = hire(P, id); if (!r.ok) feed(r.reason, '#ff8fa0'); else { feed(`${c.name} 加入了隊伍！`, c.color); banner(`${c.title}${c.name} 加入隊伍`); } buildAllies(); hud(); save(); renderPartyPanel(); });
+      b.addEventListener('click', () => { const r = hire(P, id); if (!r.ok) feed(r.reason, '#ff8fa0'); else { feed(`${c.name} 加入了隊伍！`, c.color); banner(`${c.title}${c.name} 加入隊伍`); $('partyPanel').hidden = true; say(c.name, [`我是${c.title}${c.name}，從今天起就跟你一起冒險了！`, '戰鬥交給我們，你只管往前衝吧。'], null, () => { renderPartyPanel(); $('partyPanel').hidden = false; }); } buildAllies(); hud(); save(); renderPartyPanel(); });
     } else {
       b.className = on ? 'ghostbtn' : 'startbtn'; b.textContent = on ? '休息' : '出戰';
       b.disabled = !on && P.party.active.length >= PARTY_MAX;
@@ -2346,4 +2348,4 @@ document.fonts?.ready.then(render);
 requestAnimationFrame(frame);
 
 // 自動化測試用（網址加 ?debug 才開）
-if (location.search.includes('debug')) globalThis.__game = { showCutin, get allies() { return allies; }, buildAllies, get P() { return P; }, newDrop, get drops() { return drops; }, set dropsAdd(d) { drops.push(d); }, me, get grid() { return grid; }, loadMap, get mapId() { return mapId; }, get mons() { return mons; }, get fishing() { return fishing; }, get dialog() { return dialog; }, get drops() { return drops; }, get skills() { return skills; }, castIdx, startTower, get trial() { return trial; }, renderAdv, hud, audioLevel, currentSong, sfx, get chests() { return chests; } };
+if (location.search.includes('debug')) globalThis.__game = { showCutin, get allies() { return allies; }, buildAllies, get P() { return P; }, newDrop, get drops() { return drops; }, set dropsAdd(d) { drops.push(d); }, me, get grid() { return grid; }, loadMap, get mapId() { return mapId; }, get mons() { return mons; }, get fishing() { return fishing; }, get dialog() { return dialog; }, get drops() { return drops; }, get skills() { return skills; }, castIdx, startTower, get trial() { return trial; }, renderAdv, hud, audioLevel, currentSong, sfx, get chests() { return chests; }, say, renderPartyPanel };

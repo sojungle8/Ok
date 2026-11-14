@@ -22,5 +22,7 @@ for f in files:
     else:
         shutil.copyfile(src, dst)
     before += os.path.getsize(src); after += os.path.getsize(dst)
-json.dump({'version': 1, 'files': files}, open(f'{OUT}/assets/manifest.json', 'w'), indent=1)
+import hashlib
+v = {f: hashlib.md5(open(f'{OUT}/assets/{f}', 'rb').read()).hexdigest()[:8] for f in files}
+json.dump({'version': 1, 'files': files, 'v': v}, open(f'{OUT}/assets/manifest.json', 'w'), indent=1)
 print(f'{len(files)} 張：{before / 1e6:.1f} MB → {after / 1e6:.1f} MB')
