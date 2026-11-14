@@ -11,7 +11,7 @@ def names(path):
     return found
 def block(path):
     n = names(path); return "const { " + ", ".join(n) + " } = (() => {\n" + strip(open(path).read()) + "\nreturn { " + ", ".join(n) + " };\n})();"
-parts = [strip(open('world.js').read()), strip(open('sprites.js').read())] + [block(f) for f in ['assets.js', 'cutout.js', 'avatar.js', 'soul.js', 'items.js', 'icons.js', 'party.js']] + [strip(open('game.js').read())]
+parts = [strip(open('world.js').read()), strip(open('sprites.js').read())] + [block(f) for f in ['assets.js', 'pixelize.js', 'cutout.js', 'avatar.js', 'soul.js', 'items.js', 'icons.js', 'party.js']] + [strip(open('game.js').read())]
 css = open('style.css').read(); html = open('index.html').read()
 body = html.split('<body>')[1].split('<script type="module"')[0]
 open(out, 'w').write(f'''<title>微光大陸</title>

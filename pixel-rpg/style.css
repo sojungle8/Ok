@@ -259,3 +259,5 @@ button{font-family:inherit;color:inherit}
 .pinfo p{margin:2px 0;line-height:1.4}
 .prole{font-size:.85em;color:#140f26;background:var(--c);border-radius:6px;padding:0 5px}
 .pcard .startbtn,.pcard .ghostbtn{font-size:.7em;padding:6px 10px}
+
+.cart canvas,.doll canvas,.title-art canvas,.pcard canvas{image-rendering:pixelated}
