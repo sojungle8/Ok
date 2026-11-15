@@ -7,10 +7,10 @@ import {
   SOULS, SOUL_IDS, SUMMON_COST, SUMMON_PITY, shardNeed, addShards, exchangeSoul, SOUL_OF_CH, SOUL_SOURCE, SOUL_RARITY, offlineReward, affixName, LV_CAP, capFor, CHAPTERS, FIELD, buildField,
 } from './world.js';
 import { soulSprite, soulBig } from './soul.js';
-import { ITEMS, GRADES, STAT_NAME, BAG_SIZE, ensureInv, count, addStack, takeStack, pickupGear, pickupItem, equipFromBag, unequip, sellFromBag, sellStack, sellAllJunk, findGear, insertCard, REFINE_RATE, refineCost, refine, rollDrops, shopList, buy, pickPotion, gearSell, itemSell } from './items.js';
+import { ITEMS, GRADES, STAT_NAME, BAG_SIZE, bagSize, ensureInv, count, addStack, takeStack, pickupGear, pickupItem, equipFromBag, unequip, sellFromBag, sellStack, sellAllJunk, findGear, insertCard, REFINE_RATE, refineCost, refine, rollDrops, shopList, buy, pickPotion, gearSell, itemSell } from './items.js';
 import { iconCanvas, gearIcon } from './icons.js';
 import { loadAssets, asset, tinted, loadState } from './assets.js';
-import { ensureMeta, refresh, track, claimQuest, claimChest, claimable, claimLogin, loginReward, questLabel, rewardText, CHESTS, codexBonus, codexStars, CODEX_TIERS, ACHIEVEMENTS, achProgress, achReady, claimAch, ELITE_AFFIX, ELITE_RATE, makeElite, DIFFS, diffOf, applyDiff, chestSpots, openChest, chestOpened, dayKey, quickIdleState, useQuickIdle, QUICK_IDLE_MIN, QUICK_COST, SHOP, buySku, canBuy, monthActive, monthDaysLeft, claimMonthDaily, monthClaimable, claimAll, MONTH_DAILY, towerFloor, towerClear, LOGIN_CYCLE } from './meta.js';
+import { ensureMeta, refresh, track, claimQuest, claimChest, claimable, claimLogin, loginReward, questLabel, rewardText, CHESTS, codexBonus, codexStars, CODEX_TIERS, ACHIEVEMENTS, achProgress, achReady, claimAch, ELITE_AFFIX, ELITE_RATE, makeElite, DIFFS, diffOf, applyDiff, chestSpots, openChest, chestOpened, dayKey, quickIdleState, useQuickIdle, QUICK_IDLE_MIN, QUICK_COST, SHOP, buySku, canBuy, monthActive, monthDaysLeft, claimMonthDaily, monthClaimable, claimAll, MONTH_DAILY, BAG_PLUS_STEP, bagPlusNext, buyBagPlus, towerFloor, towerClear, LOGIN_CYCLE } from './meta.js';
 import { pixelize } from './pixelize.js';
 import { ensureJob, gainJobExp, jobExpNeed, JOB_CAP, JOB_EXP_RATE, JOB2, ADVANCE_LV, ADVANCE_JOB, canAdvance, advanceJob, branchOf, jobTitle } from './progress.js';
 import { BY_ID, RES, BAR_SIZE, ensureTree, skillPoints, learnSkill, autoLearnSkills, resetTree, whyNot, lvOf, skillNums, barSkills, describeSkill, routesOf, SKILLS } from './skilltree.js';
@@ -183,7 +183,7 @@ function loadMap(id, at, night = false) {
   soulPos.x = cx(me); soulPos.y = cy(me);
   const c = CHAPTERS[Math.max(1, id) - 1];
   if (typeof buildAllies === 'function' && P) { allies = []; buildAllies(); }
-  spawnRoster(id === 0 ? [] : [...Array(9).fill(c.mons[0]), ...Array(8).fill(c.mons[1]), ...Array(7).fill(c.mons[2]), c.boss]);
+  spawnRoster(id === 0 ? [] : [...c.mons, ...c.mons, c.boss]);
   placeChests();
 }
 // ---- 野外寶箱 ----
@@ -429,7 +429,7 @@ function cell(canvas, label, color, sel, extra = '') {
 function renderBag() {
   myLook = lookOf(P, CLASSES, rarityIdx);
   $('gearDoll').replaceChildren(previewCanvas(myLook, 6, 'down'), previewCanvas(myLook, 6, 'right'));
-  $('bagCount').textContent = `裝備 ${P.bag.gear.length}/${BAG_SIZE}`;
+  $('bagCount').textContent = `裝備 ${P.bag.gear.length}/${bagSize(P)}`;
   $('statLine').textContent = statLine();
   $('eqSlots').replaceChildren(...SLOTS.map((sl) => {
     const it = P.gear[sl];
@@ -1410,7 +1410,7 @@ function renderShop() {
   if (monthActive(P)) mo.append(mkBtn(monthClaimable(P) ? `領今天的 ${MONTH_DAILY} 魂石` : '今天已領', monthClaimable(P), () => { grant(claimMonthDaily(P)); renderShop(); }));
   out.push(mo);
   for (const it of SHOP) {
-    const card = document.createElement('div'); card.className = 'shopcard' + (it.id === 'month' || it.id === 'daily' ? ' hot' : '');
+    const card = document.createElement('div'); card.className = 'shopcard hot';
     const first = it.first && !P.shop?.bought?.[it.id];
     const gives = rewardText({ ...it.give, stones: (it.give.stones || 0) * (first ? 2 : 1) });
     card.innerHTML = `<div class="sc-l"><b>${it.name}</b><span class="sc-tag">${first ? '首購雙倍！' : it.tag}</span><span class="sc-give">${gives}</span>${it.perks ? `<ul>${it.perks.map((x) => `<li>${x}</li>`).join('')}</ul>` : ''}</div>`;
@@ -1421,6 +1421,11 @@ function renderShop() {
     }));
     out.push(card);
   }
+  const st = document.createElement('div'); st.className = 'shopcard';
+  const nx = bagPlusNext(P);
+  st.innerHTML = `<div class="sc-l"><b>魂石兌換・背包擴充</b><span class="sc-tag">裝備欄 ${bagSize(P)} 格${nx ? `，再 +${BAG_PLUS_STEP} 格` : '（已滿）'}</span><span class="sc-give">你有 ${fmt(P.stones)} 魂石。魂石靠每日任務、成就、圖鑑就拿得到，只用在方便，不會讓角色變強</span></div>`;
+  st.append(mkBtn(nx ? `${nx} 魂石` : '已滿', !!nx && P.stones >= nx, () => { const r = buyBagPlus(P); if (r) { feed(`背包擴充到 ${bagSize(P)} 格`, '#7fd8ff'); hud(); save(); } renderShop(); }));
+  out.push(st);
   $('shopList').replaceChildren(...out);
 }
 $('shopBtn').addEventListener('click', () => { if (!started) return; renderShop(); $('shopPanel').hidden = false; });

@@ -295,16 +295,20 @@ export function useQuickIdle(p, t = Date.now()) {
   return { cost };
 }
 
-// ---- 商城：小額、划算、每一筆都看得到回報 ----
-// 示範版：沒有串接真實金流，購買會直接發放。正式上架時換成 App Store／Google Play／網頁金流
+// ---- 商城：只賣月卡（定案）。月卡只給方便：魂石、掛機次數、離線上限；不賣精煉石、藥水、魂像碎片 ----
+// 示範版：沒有串接真實金流，購買會直接發放。正式上架時接綠界，App 版再接 App 內購
 export const SHOP = [
-  { id: 'daily', name: '每日超值包', price: 30, limit: 'day', give: { stones: 80, items: { ore: 3, elixir: 1, white: 2 } }, tag: '每天限購 1 次・最划算' },
   { id: 'month', name: '月卡', price: 90, month: true, give: { stones: 300 }, tag: '立刻 300 魂石＋30 天每天 100 魂石', perks: ['每天可領 100 魂石（共 3000）', '快速掛機每天多 2 次', '離線收益上限 12 → 24 小時'] },
-  { id: 'grow', name: '新手成長禮包', price: 60, limit: 'once', give: { stones: 200, items: { ore: 10, ore2: 2, white: 5, elixir: 2 } }, tag: '限購 1 次' },
-  { id: 's60', name: '一小袋魂石', price: 30, give: { stones: 60 }, first: true, tag: '首次購買雙倍' },
-  { id: 's330', name: '一盒魂石', price: 150, give: { stones: 330 }, first: true, tag: '首次購買雙倍' },
-  { id: 's700', name: '一箱魂石', price: 300, give: { stones: 700 }, first: true, tag: '首次購買雙倍' },
 ];
+// 魂石只用在方便：快速掛機、背包擴充。全部都能靠每日任務、成就、圖鑑免費拿到
+export const BAG_PLUS_STEP = 10, BAG_PLUS_COST = [200, 400, 800, 1600];
+export const bagPlusNext = (p) => BAG_PLUS_COST[(p.bagPlus || 0) / BAG_PLUS_STEP] ?? null;
+export function buyBagPlus(p) {
+  const cost = bagPlusNext(p);
+  if (cost === null || p.stones < cost) return null;
+  p.stones -= cost; p.bagPlus = (p.bagPlus || 0) + BAG_PLUS_STEP;
+  return { cost, size: p.bagPlus };
+}
 export const MONTH_DAYS = 30, MONTH_DAILY = 100;
 const DAY = 86400000;
 function shopState(p) { p.shop ??= {}; p.shop.bought ??= {}; p.shop.day ??= {}; return p.shop; }

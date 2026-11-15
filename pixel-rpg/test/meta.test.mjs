@@ -108,17 +108,19 @@ test('快速掛機：每天免費 2 次，之後花魂石，有上限；月卡�
   assert.equal(M.quickIdleState(p, day('2026-11-15')).freeLeft, 4);
 });
 
-test('商城：首購雙倍、每日限購、限購一次、月卡每天領', () => {
+test('商城：只賣月卡、月卡每天領；魂石擴充背包', () => {
   const p = newPlayer(); const t = day('2026-11-14');
-  assert.equal(M.buySku(p, 's60', t).stones, 120, '首購雙倍');
-  assert.equal(M.buySku(p, 's60', t).stones, 60);
-  assert.ok(M.buySku(p, 'daily', t)); assert.equal(M.buySku(p, 'daily', t), null); assert.ok(M.buySku(p, 'daily', day('2026-11-15')));
-  assert.ok(M.buySku(p, 'grow', t)); assert.equal(M.buySku(p, 'grow', day('2026-12-01')), null);
+  assert.deepEqual(M.SHOP.map((x) => x.id), ['month']);
+  assert.equal(M.buySku(p, 's60', t), null);
   assert.equal(M.buySku(p, 'month', t).stones, 300);
   assert.equal(M.claimMonthDaily(p, t).stones, 100); assert.equal(M.claimMonthDaily(p, t), null);
   assert.ok(M.claimMonthDaily(p, day('2026-12-13')), '第 30 天還能領');
   assert.equal(M.claimMonthDaily(p, day('2026-12-15')), null, '過期');
   assert.equal(M.monthDaysLeft(p, t), 30);
+  p.stones = 3000;
+  for (let i = 0; i < 4; i++) assert.ok(M.buyBagPlus(p));
+  assert.equal(M.buyBagPlus(p), null, '最多 +40');
+  assert.equal(p.bagPlus, 40); assert.equal(p.stones, 3000 - 3000);
 });
 
 test('一鍵全領：任務、寶箱、簽到、成就一次領完', () => {

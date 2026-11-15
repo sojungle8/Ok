@@ -127,6 +127,21 @@ export const MONSTERS = {
   eclipse: mk('蝕月史萊姆', 'slime', { g: '#5b3a8f', G: '#2a1d5c', l: '#b48cff', m: '#ffe066', M: '#c9a227' }, 58, ZC),
   valde: boss('蝕夜教主・瓦爾德', 'imp', { g: '#2a1d3a', G: '#120c1c', l: '#6b4fb0', m: '#ff4d6d' }, 60, 140000, 115, 'steal'),
 };
+// 圖鑑其他怪物：先用現有像素模板＋屬性配色上場，等正式美術（assets/monster/<id>.png）放進來就會自動換掉
+const EPAL = {
+  無: ['#c9b8a0', '#7a6a55', '#efe2cc', '#3b2a24'], 水: ['#5fb8e8', '#2f6f9e', '#c8ecff', '#1b1420'], 地: ['#b08a5a', '#6b5030', '#e2c89a', '#ffe066'],
+  火: ['#ff7a3d', '#b03a1f', '#ffc48a', '#fff1a8'], 風: ['#8fd88a', '#3f8a4a', '#d8ffd0', '#1b1420'], 毒: ['#9b6be0', '#5b3a8f', '#d8b8ff', '#a6ec7a'],
+  聖: ['#fff1c4', '#c9a227', '#ffffff', '#7fd8ff'], 暗: ['#4b3a6b', '#22183a', '#8f7ab8', '#ff4d6d'], 念: ['#b8c8ff', '#6b7ab8', '#eef2ff', '#c084ff'], 不死: ['#c8c4b0', '#6b6655', '#f0ecdc', '#7affc4'],
+};
+const FLY = /蝠|鷹|鳥|鷗|獅鷲|龍|蝶|蜂/;
+const tplOf = (b) => FLY.test(b.name) ? 'bat' : b.race === '人形' || b.race === '惡魔' ? 'imp' : b.race === '不死' || b.race === '天使' || b.elem === '念' ? 'ghost'
+  : b.size === '大型' || b.arch === 'tank' ? 'golem' : b.race === '昆蟲' || b.race === '魚貝' ? 'crab' : b.race === '動物' ? 'crab' : 'slime';
+const shade = (hex, k) => '#' + [1, 3, 5].map((i) => Math.max(0, Math.min(255, Math.round(parseInt(hex.slice(i, i + 2), 16) * k)))).map((v) => v.toString(16).padStart(2, '0')).join('');
+Object.values(BESTIARY).filter((b) => !b.night && b.arch !== 'boss' && !MONSTERS[b.id]).forEach((b, i) => {
+  const [g, G, l, m] = EPAL[b.elem] || EPAL.無, k = [1, 0.85, 1.12][i % 3];
+  MONSTERS[b.id] = mk(b.name, tplOf(b), { g: shade(g, k), G: shade(G, k), l, m }, b.lv, ZA);
+});
+for (const [id, m] of Object.entries(MONSTERS)) { const b = BESTIARY[id === 'valde' ? 'valde_f' : id]; if (b) m.mat = b.matA; }
 // 怪物數值改由圖鑑（design/monsters.py → bestiary.js）產生；這裡只保留美術模板與調色
 for (const [id, m] of Object.entries(MONSTERS)) {
   const b = BESTIARY[id === 'valde' ? 'valde_f' : id];
@@ -194,6 +209,10 @@ export const CHAPTERS = [
     report: ['三百年的黑夜，結束了。'],
     memory: ['（星痕的光芒從神殿四面八方湧出……）', '雷歐、艾莉絲、卡爾和父親的身影一一浮現。', '雷歐：「做得好，最後的艾斯特。」', '被偷走的一百隻魂像化成流星，回到了大陸各地。', '— 長夜燈火　完 —'] },
 ];
+for (const c of CHAPTERS) {
+  c.mons = Object.values(BESTIARY).filter((b) => !b.night && b.arch !== 'boss' && b.region === c.name).sort((a, b) => a.lv - b.lv).map((b) => b.id);
+  c.mons.forEach((id, i) => { MONSTERS[id].zone = i < 5 ? ZA : i < 9 ? ZB : ZC; });
+}
 export const capFor = (p) => (p.ch > 6 ? LV_LAUNCH : CHAPTERS[Math.max(1, p.ch) - 1].cap);
 
 // ---- 各章野外地圖 ----

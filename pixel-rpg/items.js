@@ -32,7 +32,7 @@ export const STAT_NAME = { hpPct: '生命', atkPct: '攻擊', crit: '暴擊率',
 const CARD_BASE = { hpPct: [5, 0.2], atkPct: [3, 0.12], crit: [2, 0.06], aspd: [3, 0.08], skill: [5, 0.15], dr: [2, 0.05], leech: [1, 0.03], soul: [6, 0.15] };
 Object.keys(MONSTERS).forEach((k, i) => {
   const m = MONSTERS[k];
-  ITEMS['mat_' + k] = { name: MAT_NAMES[k] || '素材', kind: 'mat', grade: m.boss ? 'rare' : 'junk', sellPrice: Math.max(1, Math.round(m.lv * (m.boss ? 20 : 1.5))), icon: 'mat', color: m.pal.g, desc: `${m.name}掉落的素材，可以賣錢` };
+  ITEMS['mat_' + k] = { name: MAT_NAMES[k] || m.mat || '素材', kind: 'mat', grade: m.boss ? 'rare' : 'junk', sellPrice: Math.max(1, Math.round(m.lv * (m.boss ? 20 : 1.5))), icon: 'mat', color: m.pal.g, desc: `${m.name}掉落的素材，可以賣錢` };
   const stat = CARD_STATS[i % CARD_STATS.length];
   const [b, per] = CARD_BASE[stat];
   ITEMS['card_' + k] = { name: `${m.name}卡片`, kind: 'card', grade: 'card', sellPrice: 50 + m.lv * 10, icon: 'card', color: m.pal.g, mon: k, stat, val: Math.round((b + per * m.lv) * (m.boss ? 2.5 : 1)), desc: '' };
@@ -42,6 +42,7 @@ export const itemSell = (id) => ITEMS[id].sellPrice ?? Math.max(1, Math.round((I
 
 // ---- 背包與設定 ----
 export const BAG_SIZE = 60;
+export const bagSize = (p) => BAG_SIZE + (p.bagPlus || 0);
 export function ensureInv(p) {
   if (!p.bag || typeof p.bag !== 'object') p.bag = {};
   if (!Array.isArray(p.bag.gear)) p.bag.gear = [];
@@ -85,7 +86,7 @@ export function pickupGear(p, it) {
 function stash(p, it, tag) {
   const k = tag ? 'old' : 'action';
   if (!it.locked && !it.cards?.length && !it.refine && p.autoSell.equip[it.rarity]) { const c = gearSell(it); p.coins += c; return { [k]: 'sell', coins: c }; }
-  if (p.bag.gear.length >= BAG_SIZE) { const c = gearSell(it); p.coins += c; return { [k]: 'full', coins: c }; }
+  if (p.bag.gear.length >= bagSize(p)) { const c = gearSell(it); p.coins += c; return { [k]: 'full', coins: c }; }
   p.bag.gear.push(it);
   return { [k]: 'bag' };
 }
@@ -107,7 +108,7 @@ export function equipFromBag(p, uid) {
 }
 export function unequip(p, slot) {
   const it = p.gear[slot];
-  if (!it || p.bag.gear.length >= BAG_SIZE) return false;
+  if (!it || p.bag.gear.length >= bagSize(p)) return false;
   delete p.gear[slot]; p.bag.gear.push(it); return true;
 }
 export function sellFromBag(p, uid) {

@@ -11,7 +11,7 @@ test('屬性相剋：剋 1.75、被剋 0.75、同屬 0.5、最低 0.5', () => {
 
 test('每種怪物都有屬性、種族、體型與卡片效果', () => {
   for (const k of Object.keys(MONSTERS)) {
-    const pr = RO.MON_PROFILE[k];
+    const pr = RO.profileOf(k);
     assert.ok(pr && RO.ELEMS.includes(pr.elem) && RO.RACES.includes(pr.race) && RO.BODY_SIZES.includes(pr.size), k);
     assert.ok(RO.cardDesc(k).length > 3, k);
   }

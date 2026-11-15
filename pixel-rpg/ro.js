@@ -199,6 +199,22 @@ export const CARD_EFFECT = {
   eclipse: { size: { 大型: 15 } },
   valde: { race: Object.fromEntries(RACES.map((r) => [r, 10])), attrs: { str: 3, int: 3 } },
 };
+// 其他怪物的卡片：照圖鑑寫的效果換算成卡片欄位（回血換生命、迴避換敏捷、防遠程換減傷）
+const ATTR_BY_NAME = Object.fromEntries(Object.entries(ATTR_NAME).map(([k, v]) => [v, k]));
+export function parseCardEff(t) {
+  const e = {}, n = (re) => { const m = t.match(re); return m ? +m[1] : 0; }, add = (g, k, v) => { (e[g] ??= {})[k] = ((e[g] ??= {})[k] || 0) + v; };
+  let m;
+  if ((m = t.match(/對(.+?)族 \+([\d.]+)%/))) add('race', m[1], +m[2]);
+  if ((m = t.match(/受(.+?)屬性傷害 −([\d.]+)%/))) add('resist', m[1], +m[2]);
+  if ((m = t.match(/生命 \+([\d.]+)%/)) && !/每秒/.test(t)) add('pct', 'hpPct', +m[1]);
+  if (/每秒回復生命/.test(t)) add('pct', 'hpPct', Math.round(n(/([\d.]+)%/) * 15));
+  if (/迴避/.test(t)) add('attrs', 'agi', Math.max(1, Math.round(n(/迴避 \+([\d.]+)/) / 2)));
+  if (/遠程/.test(t)) add('pct', 'dr', Math.max(1, Math.round(n(/([\d.]+)%/) / 2)));
+  if ((m = t.match(/^(力量|敏捷|體質|智力|靈巧|幸運) \+(\d+)/))) add('attrs', ATTR_BY_NAME[m[1]], +m[2]);
+  if ((m = t.match(/全能力 \+(\d+)，(.+?)屬性攻擊/))) { for (const k of Object.keys(ATTR_NAME)) add('attrs', k, +m[1]); e.enchant = m[2]; }
+  return e;
+}
+for (const b of Object.values(BESTIARY)) if (!b.night && !CARD_EFFECT[b.id === 'valde_f' ? 'valde' : b.id]) CARD_EFFECT[b.id] = parseCardEff(b.cardEff);
 const PCT_NAME = { hpPct: '生命', atkPct: '攻擊', crit: '暴擊率', aspd: '攻擊速度', skill: '技能傷害', dr: '減傷', cdr: '技能冷卻縮短' };
 export function cardDesc(mon) {
   const e = CARD_EFFECT[mon]; if (!e) return '';
