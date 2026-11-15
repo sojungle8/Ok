@@ -2360,7 +2360,7 @@ function render() {
     ctx.lineWidth = 3 * DPR; ctx.strokeStyle = '#1b1420'; ctx.strokeText(text, (wx - camX) * S, (wy - camY) * S);
     ctx.fillStyle = color; ctx.fillText(text, (wx - camX) * S, (wy - camY) * S);
   };
-  if (started) { const ly = artStyle === 'hd' ? 27 : 20; label(P.name, cx(me), me.py * TS - ly, C.color, 12); if (P.meta?.title) label(`【${P.meta.title}】`, cx(me), me.py * TS - ly - 9, '#ffd166', 9); }
+  if (started) { const ly = 27; label(P.name, cx(me), me.py * TS - ly, C.color, 12); if (P.meta?.title) label(`【${P.meta.title}】`, cx(me), me.py * TS - ly - 9, '#ffd166', 9); }
   for (const m of mons) if (m.d.elite && m.dead <= 0 && !m.hidden) label(`精英・${m.d.name}`, cx(m), m.py * TS - 14, ELITE_AFFIX[m.d.elite].color, 9);
   for (const a of allies) label(a.down > 0 ? `${a.c.name}（倒地）` : a.c.name, cx(a), a.py * TS - 20, a.c.color, 10.5);
   for (const d of drops) {
@@ -2548,16 +2548,16 @@ function recolor(src, pal) {
   g.putImageData(d, 0, 0); return c;
 }
 function heroSheet(cls, tier) {
-  const key = `hero/${cls}/${tier}`;
+  const art = asset(sheetPath('hero', cls)), key = `hero/${cls}/${tier}/${art ? 1 : 0}`; // 正式圖載入後換掉暫用圖
   if (!sheetCache.has(key)) {
-    const C0 = CLASSES[cls], art = asset(sheetPath('hero', cls));
+    const C0 = CLASSES[cls];
     sheetCache.set(key, recolor(art || genSheet('hero', heroLookFor(cls, C0)), paletteOf(cls, C0.outfit, tier)));
   }
   return sheetCache.get(key);
 }
 function npcSheet(id, look) {
-  const key = 'npc/' + id;
-  if (!sheetCache.has(key)) { const art = asset(sheetPath('npc', id)); sheetCache.set(key, art || genSheet('npc', npcLookFor({ look }))); }
+  const art = asset(sheetPath('npc', id)), key = `npc/${id}/${art ? 1 : 0}`;
+  if (!sheetCache.has(key)) { sheetCache.set(key, art || genSheet('npc', npcLookFor({ look }))); }
   return sheetCache.get(key);
 }
 function monSheet(m) { const id = m.type, art = asset(sheetPath('mon', id)); return art ? { img: art, kind: monKind({ boss: m.d.boss, size: profileOf(m.type).size }) } : null; }

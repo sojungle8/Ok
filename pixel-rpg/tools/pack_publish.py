@@ -7,7 +7,7 @@ from PIL import Image
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'assets')
 OUT = os.path.join(sys.argv[1], 'assets')
-SKIP_DIRS = ('char/', 'gear/', 'px/', 'soul/', 'sprite/')  # 舊零件與目前沒用到的
+SKIP_DIRS = ('char/', 'gear/', 'px/', 'soul/')  # 舊零件與目前沒用到的
 MAX_W, MAX_H = 4096, 2048
 
 man = json.load(open(os.path.join(ROOT, 'manifest.json'), encoding='utf-8'))
