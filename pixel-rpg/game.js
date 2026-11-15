@@ -105,6 +105,8 @@ const res = { n: 0, max: 0, name: '' };
 let shadowT = 0, comboNext = 1, lastElem = null, castMods = null;
 // 人物畫風：hd＝精緻 Q 版立繪（預設）、px＝原生像素動畫
 const charStyle = 'hd';
+// 角色畫風：pixel＝類 RO 逐格像素動畫（預設）、hd＝精緻立繪＋程式動作
+let artStyle = (() => { try { return localStorage.getItem('glimmer-art') || 'pixel'; } catch { return 'pixel'; } })();
 let soulPower = 0, cutinT = 0, pendingUlt = null, catT = 0, warns = [], tintC = '#fff', tintT = 0;
 const soulPos = { x: 0, y: 0 };
 const fmt = (n) => Math.round(n).toLocaleString('en-US');
@@ -2107,6 +2109,9 @@ let fsIdx = 1;
 try { const raw = localStorage.getItem('glimmer-fs'); if (raw !== null && SIZES[+raw]) fsIdx = +raw; } catch { /* 忽略 */ }
 const fsK = () => SIZES[fsIdx][1] / 20;
 function applyFs() { document.documentElement.style.setProperty('--fs', `${SIZES[fsIdx][1]}px`); $('fontBtn').textContent = `字 ${SIZES[fsIdx][0]}`; }
+const applyArt = () => { $('styleBtn').textContent = artStyle === 'hd' ? '畫風 立繪' : '畫風 像素'; };
+applyArt();
+$('styleBtn').addEventListener('click', () => { artStyle = artStyle === 'hd' ? 'pixel' : 'hd'; applyArt(); try { localStorage.setItem('glimmer-art', artStyle); } catch { /* 忽略 */ } });
 $('fontBtn').addEventListener('click', () => { fsIdx = (fsIdx + 1) % SIZES.length; applyFs(); try { localStorage.setItem('glimmer-fs', fsIdx); } catch { /* 忽略 */ } });
 applyFs();
 
@@ -2273,12 +2278,14 @@ function updateSkillUi() {
 
 // ---------- 繪製 ----------
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lastCam = { x: 0, y: 0 };
 function render() {
   ctx.setTransform(S, 0, 0, S, 0, 0);
   ctx.imageSmoothingEnabled = false;
   ctx.fillStyle = '#0b0816'; ctx.fillRect(0, 0, VW, VH);
   let camX = W * TS <= VW ? Math.round((W * TS - VW) / 2) : clamp(Math.round(cx(me) - VW / 2), 0, W * TS - VW);
   let camY = H * TS <= VH ? Math.round((H * TS - VH) / 2) : clamp(Math.round(cy(me) - 4 - VH / 2), 0, H * TS - VH);
+  lastCam.x = camX; lastCam.y = camY;
   if (shake > 0) { const s = Math.min(4, shake * 14); camX += Math.round((R() - 0.5) * s); camY += Math.round((R() - 0.5) * s); }
   ctx.imageSmoothingEnabled = mapC.width > W * TS; ctx.drawImage(mapC, -camX, -camY, W * TS, H * TS); ctx.imageSmoothingEnabled = false;
   ctx.fillStyle = 'rgba(255,255,255,.45)';
@@ -2353,7 +2360,7 @@ function render() {
     ctx.lineWidth = 3 * DPR; ctx.strokeStyle = '#1b1420'; ctx.strokeText(text, (wx - camX) * S, (wy - camY) * S);
     ctx.fillStyle = color; ctx.fillText(text, (wx - camX) * S, (wy - camY) * S);
   };
-  if (started) { label(P.name, cx(me), me.py * TS - 20, C.color, 12); if (P.meta?.title) label(`【${P.meta.title}】`, cx(me), me.py * TS - 29, '#ffd166', 9); }
+  if (started) { const ly = artStyle === 'hd' ? 27 : 20; label(P.name, cx(me), me.py * TS - ly, C.color, 12); if (P.meta?.title) label(`【${P.meta.title}】`, cx(me), me.py * TS - ly - 9, '#ffd166', 9); }
   for (const m of mons) if (m.d.elite && m.dead <= 0 && !m.hidden) label(`精英・${m.d.name}`, cx(m), m.py * TS - 14, ELITE_AFFIX[m.d.elite].color, 9);
   for (const a of allies) label(a.down > 0 ? `${a.c.name}（倒地）` : a.c.name, cx(a), a.py * TS - 20, a.c.color, 10.5);
   for (const d of drops) {
@@ -2381,7 +2388,7 @@ function render() {
 function shadow(x, y, w = 12) { ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.fillRect(x + 8 - w / 2, y + 14, w, 2); ctx.fillRect(x + 9 - w / 2, y + 16, w - 2, 1); }
 function drawNpc(n, x, y) {
   const nid = n.id === 'guide' ? 'guide' + n.ch : n.id, pxn = asset('px/npc/' + nid);
-  { const look = n.look || (n.id === 'guide' ? CHAPTERS[n.ch - 1]?.guide?.look : null) || NPCS.find((k) => k.id === n.id)?.look; const L = layout('npc'); n.seed ??= R() * 3; drawSheet({ px: x / TS, py: y / TS, seed: n.seed }, npcSheet(nid, look), 'npc', 'idle', Math.floor((anim + n.seed) * L.anims.idle.fps) % L.anims.idle.n, D8[n.face] || 's'); return; }
+  if (artStyle !== 'hd') { const look = n.look || (n.id === 'guide' ? CHAPTERS[n.ch - 1]?.guide?.look : null) || NPCS.find((k) => k.id === n.id)?.look; const L = layout('npc'); n.seed ??= R() * 3; drawSheet({ px: x / TS, py: y / TS, seed: n.seed }, npcSheet(nid, look), 'npc', 'idle', Math.floor((anim + n.seed) * L.anims.idle.fps) % L.anims.idle.n, D8[n.face] || 's'); return; }
   const hd = asset('npc/' + nid);
   if (hd && charStyle === 'hd') { drawHD(hd, { px: x / TS, py: y / TS, face: n.face, i: n.seed || 0 }, 40, n.face === 'left'); return; }
   if (pxn) { drawPxHero(pxn, { px: x / TS, py: y / TS, face: n.face }, true); return; }
@@ -2575,6 +2582,7 @@ function charAnim(o, L, extra = {}) {
   return ['idle', Math.floor((anim + (o.seed || 0)) * L.anims.idle.fps) % L.anims.idle.n];
 }
 function drawHeroSprite() {
+  if (artStyle === 'hd') return false;
   const tier = Math.max(0, myLook?.armorTier ?? 0), img = heroSheet(P.cls, tier), L = layout('hero');
   const [a, i] = charAnim(me, L, { sit: pst.sleep > 0 });
   if (myLook?.aura) { ctx.globalAlpha = 0.25 + Math.sin(anim * 4) * 0.08; ctx.fillStyle = '#ffd75e'; ctx.beginPath(); ctx.ellipse(me.px * TS + 8, me.py * TS + 15, 12, 4, 0, 0, 7); ctx.fill(); ctx.globalAlpha = 1; }
@@ -2997,4 +3005,4 @@ document.fonts?.ready.then(render);
 requestAnimationFrame(frame);
 
 // 自動化測試用（網址加 ?debug 才開）
-if (location.search.includes('debug')) globalThis.__game = { showCutin, get allies() { return allies; }, buildAllies, get P() { return P; }, newDrop, get drops() { return drops; }, set dropsAdd(d) { drops.push(d); }, me, get grid() { return grid; }, loadMap, get mapId() { return mapId; }, get mons() { return mons; }, get fishing() { return fishing; }, get dialog() { return dialog; }, get drops() { return drops; }, get skills() { return skills; }, castIdx, startTower, get trial() { return trial; }, renderAdv, hud, audioLevel, currentSong, sfx, get chests() { return chests; }, say, renderPartyPanel, renderShop, useItem, addStack, get eshots() { return eshots; }, get warns() { return warns; }, pst, TR, killMon, hitPlayer, dealDamage, set mons(v) { mons = v; }, get lamps() { return lamps; }, inLight, get deathN() { return deathN; }, rollGear, SLOTS, R, stats: () => stats(P) };
+if (location.search.includes('debug')) globalThis.__game = { showCutin, get allies() { return allies; }, buildAllies, get P() { return P; }, newDrop, get drops() { return drops; }, set dropsAdd(d) { drops.push(d); }, me, get grid() { return grid; }, loadMap, get mapId() { return mapId; }, get mons() { return mons; }, get fishing() { return fishing; }, get dialog() { return dialog; }, get drops() { return drops; }, get skills() { return skills; }, castIdx, startTower, get trial() { return trial; }, renderAdv, hud, audioLevel, currentSong, sfx, get chests() { return chests; }, say, renderPartyPanel, renderShop, useItem, addStack, get eshots() { return eshots; }, get warns() { return warns; }, pst, TR, killMon, hitPlayer, dealDamage, set mons(v) { mons = v; }, setArt(v) { artStyle = v; applyArt(); }, asset, get anim() { return anim; }, toCss: (wx, wy) => [(wx - lastCam.x) * S / DPR, (wy - lastCam.y) * S / DPR], MONSTERS, ITEMS, CHAPTERS, newDropLoot: (id, x, y) => drops.push(newDrop('loot', x, y, { id, n: 1 })), renderBag: () => { if (typeof renderBag === 'function') renderBag(); }, skillsList: () => skills.map((k) => k.id), get lamps() { return lamps; }, inLight, get deathN() { return deathN; }, rollGear, SLOTS, R, stats: () => stats(P) };
