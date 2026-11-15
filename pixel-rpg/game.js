@@ -13,6 +13,7 @@ import { iconCanvas, gearIcon } from './icons.js';
 import { loadAssets, asset, tinted, loadState } from './assets.js';
 import { ensureMeta, refresh, track, claimQuest, claimChest, claimable, claimLogin, loginReward, questLabel, rewardText, CHESTS, codexBonus, codexStars, CODEX_TIERS, ACHIEVEMENTS, achProgress, achReady, claimAch, ELITE_AFFIX, ELITE_RATE, makeElite, DIFFS, diffOf, applyDiff, chestSpots, openChest, chestOpened, dayKey, quickIdleState, useQuickIdle, QUICK_IDLE_MIN, QUICK_COST, SHOP, buySku, canBuy, monthActive, monthDaysLeft, claimMonthDaily, monthClaimable, claimAll, MONTH_DAILY, BAG_PLUS_STEP, bagPlusNext, buyBagPlus, towerFloor, towerClear, LOGIN_CYCLE } from './meta.js';
 import { pixelize } from './pixelize.js';
+import { DIR8, DIR_VEC, dirOf } from './spritesheet.js';
 import { ensureJob, gainJobExp, jobExpNeed, JOB_CAP, JOB_EXP_RATE, JOB2, ADVANCE_LV, ADVANCE_JOB, canAdvance, advanceJob, branchOf, jobTitle } from './progress.js';
 import { BY_ID, RES, BAR_SIZE, ensureTree, skillPoints, learnSkill, autoLearnSkills, resetTree, whyNot, lvOf, skillNums, barSkills, describeSkill, routesOf, SKILLS } from './skilltree.js';
 import { guardExp, effRatio, levelGapMult, newbieMult } from './balance.js';
@@ -92,6 +93,7 @@ const SK = BY_ID, skPoints = skillPoints, learnSk = learnSkill, autoLearnSk = au
 const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 let C = CLASSES[P.cls], skills = [], myLook = null;
 let mons = [], floats = [], parts = [], drops = [], fx = [], projs = [], pending = [];
+let held8 = null;
 let dialog = null, fishing = null, started = false, held = null, aHeld = false, auto = false, autoHit = false, autoCastT = 0;
 let anim = 0, regenT = 0, saveT = 0, shake = 0, freeze = 0, flash = 0, combo = 0, comboT = 0, auraT = 0;
 let allies = [], atkOverride = 0, partyT = 0;
@@ -144,13 +146,19 @@ function applyUiArt() {
 
 // ---------- 怪物 ----------
 const inBoss = (x, y) => x >= BZ.x0 && x <= BZ.x1 && y >= BZ.y0 && y <= BZ.y1;
+// 8 方向：斜走時兩側都要走得通（不能切牆角）
+const FACE4 = { s: 'down', n: 'up', w: 'left', e: 'right', sw: 'left', nw: 'left', se: 'right', ne: 'right' };
+const D8 = { down: 's', up: 'n', left: 'w', right: 'e' };
+const cheb = (a, b) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
+const diagOk = (x, y, dx, dy) => !(dx && dy) || (walkable(grid, x + dx, y) && walkable(grid, x, y + dy));
+function face8(o, dx, dy) { const d = dirOf(dx, dy); if (d) { o.dir8 = d; if (o === me) me.face = Math.abs(dy) > Math.abs(dx) ? (dy > 0 ? 'down' : 'up') : FACE4[d]; } }
 function occupied(x, y, self) {
   if (self !== me && me.x === x && me.y === y) return true;
   if (npcs.some((n) => n.x === x && n.y === y)) return true;
   if (allies.some((a) => a !== self && a.x === x && a.y === y)) return true;
   return mons.some((m) => m !== self && m.dead <= 0 && m.x === x && m.y === y);
 }
-const monCanGo = (m, x, y) => walkable(grid, x, y) && x >= FMIN && grid[y][x] !== T.PORTAL && !occupied(x, y, m) && (m.d.boss || m.minion ? inBoss(x, y) : !inBoss(x, y));
+const monCanGo = (m, x, y) => (Math.abs(x - m.x) > 1 || Math.abs(y - m.y) > 1 || diagOk(m.x, m.y, Math.sign(x - m.x), Math.sign(y - m.y))) && walkable(grid, x, y) && x >= FMIN && grid[y][x] !== T.PORTAL && !occupied(x, y, m) && (m.d.boss || m.minion ? inBoss(x, y) : !inBoss(x, y));
 function spawnTile(m) {
   for (let i = 0; i < 300; i++) {
     let x, y;
@@ -1242,7 +1250,7 @@ function shoot(kind, ang, opt) {
 }
 const faceAng = () => ({ right: 0, down: Math.PI / 2, left: Math.PI, up: -Math.PI / 2 })[me.face];
 const angTo = (m) => Math.atan2(cy(m) - (cy(me) - 4), cx(m) - cx(me));
-function faceToward(m) { const dx = m.px - me.px, dy = m.py - me.py; me.face = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'); }
+function faceToward(m) { const dx = m.px - me.px, dy = m.py - me.py; me.face = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'); const d = dirOf(Math.round(dx * 2) / 2, Math.round(dy * 2) / 2); if (d) me.dir8 = d; }
 function updateProjs(dt) {
   projs = projs.filter((p) => {
     if (p.home && p.home.dead <= 0) {
@@ -1275,6 +1283,8 @@ function updateProjs(dt) {
 
 // ---------- 普攻 ----------
 function frontTiles() {
+  const v = DIR_VEC[me.dir8 || D8[me.face]];
+  if (v && v[0] && v[1]) { const [dx, dy] = v; return [[me.x + dx, me.y + dy], [me.x + dx, me.y], [me.x, me.y + dy]]; }
   const [dx, dy] = DIRS[me.face];
   const fx = me.x + dx, fy = me.y + dy;
   return dx ? [[fx, fy], [fx, fy - 1], [fx, fy + 1]] : [[fx, fy], [fx - 1, fy], [fx + 1, fy]];
@@ -1939,8 +1949,8 @@ function autoThink(dt) {
     const m = w || nearest(rr);
     if (m && ok(m) && (w || !worth.length || tdist(m, me.px, me.py) <= 2)) { autoHit = true; autoTarget = m; return; }
   } else {
-    const adj = targets.find((m) => Math.abs(m.x - me.x) + Math.abs(m.y - me.y) === 1 || (m.d.boss && Math.max(Math.abs(m.x - me.x), Math.abs(m.y - me.y)) <= 1));
-    if (adj) { me.face = dirTo(adj.x, adj.y); autoHit = true; return; }
+    const adj = targets.find((m) => cheb(m, me) === 1);
+    if (adj) { face8(me, adj.x - me.x, adj.y - me.y); autoHit = true; return; }
   }
   const goal = new Set();
   if (!targets.length && mapId === 0) for (const y of GATE_Y) goal.add(`${W - 1},${y}`);
@@ -1950,9 +1960,9 @@ function autoThink(dt) {
   let found = null;
   while (q.length && !found) {
     const [x, y] = q.shift();
-    for (const [ddx, ddy] of Object.values(DIRS)) {
-      const nx = x + ddx, ny = y + ddy, k = `${nx},${ny}`;
-      if (k in prev || !walkable(grid, nx, ny) || (occupied(nx, ny) && !allies.some((al) => al.x === nx && al.y === ny))) continue;
+    for (const d of DIR8) {
+      const [ddx, ddy] = DIR_VEC[d], nx = x + ddx, ny = y + ddy, k = `${nx},${ny}`;
+      if (k in prev || !walkable(grid, nx, ny) || !diagOk(x, y, ddx, ddy) || (occupied(nx, ny) && !allies.some((al) => al.x === nx && al.y === ny))) continue;
       prev[k] = `${x},${y}`;
       if (goal.has(k)) { found = k; break; }
       q.push([nx, ny]);
@@ -1962,11 +1972,11 @@ function autoThink(dt) {
   let k = found;
   while (prev[k] !== start) k = prev[k];
   const [nx, ny] = k.split(',').map(Number);
-  me.face = dirTo(nx, ny);
+  face8(me, nx - me.x, ny - me.y);
   const mate = allies.find((al) => al.x === nx && al.y === ny);
   if (mate) { if (mate.moving) return; Object.assign(mate, { fx: mate.x, fy: mate.y, x: me.x, y: me.y, moving: true, mt: 0 }); }
   if (stuck()) return;
-  Object.assign(me, { fx: me.x, fy: me.y, x: nx, y: ny, moving: true, mt: 0, dur: 0.14 });
+  Object.assign(me, { fx: me.x, fy: me.y, x: nx, y: ny, moving: true, mt: 0, dur: nx !== me.x && ny !== me.y ? 0.2 : 0.14 });
 }
 function syncAuto() { $('autoBtn').classList.toggle('on', auto); $('autoBtn').innerHTML = auto ? '自動 <b>ON</b>' : '自動 <b>OFF</b>'; }
 $('autoBtn').addEventListener('click', () => {
@@ -2058,20 +2068,23 @@ function stickMove(e) {
   const max = r.width * 0.36, d = Math.hypot(dx, dy), k = d > max ? max / d : 1;
   knob.style.transform = `translate(${dx * k}px, ${dy * k}px)`;
   held = d < r.width * 0.12 ? null : Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
+  held8 = held ? dirOf(dx, dy) : null;
 }
 stick.addEventListener('pointerdown', (e) => { e.preventDefault(); stickId = e.pointerId; stick.setPointerCapture?.(e.pointerId); stick.classList.add('on'); stickMove(e); });
 stick.addEventListener('pointermove', (e) => { if (e.pointerId === stickId) stickMove(e); });
-const stickEnd = (e) => { if (e.pointerId !== stickId) return; stickId = null; held = null; knob.style.transform = ''; stick.classList.remove('on'); };
+const stickEnd = (e) => { if (e.pointerId !== stickId) return; stickId = null; held = null; held8 = null; knob.style.transform = ''; stick.classList.remove('on'); };
 stick.addEventListener('pointerup', stickEnd); stick.addEventListener('pointercancel', stickEnd); stick.addEventListener('lostpointercapture', stickEnd);
 bindHold($('aBtn'), pressA, () => { aHeld = false; });
 bindHold($('bBtn'), usePotion);
 [0, 1, 2, 3, 4, 5].forEach((i) => bindHold($(`sk${i}Btn`), () => castIdx(i)));
 bindHold($('dodgeBtn'), dodge);
 bindHold($('soulBtn'), castUlt);
+const keyDirs = new Set();
+const keyDir8 = () => { let x = 0, y = 0; for (const k of keyDirs) { const [a, b] = DIRS[k]; x += a; y += b; } return dirOf(x, y); };
 const KEYS = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', KeyW: 'up', KeyS: 'down', KeyA: 'left', KeyD: 'right' };
 addEventListener('keydown', (e) => {
   if (e.target instanceof HTMLInputElement) return;
-  if (KEYS[e.code]) { held = KEYS[e.code]; e.preventDefault(); return; }
+  if (KEYS[e.code]) { keyDirs.add(KEYS[e.code]); held = KEYS[e.code]; held8 = keyDir8(); e.preventDefault(); return; }
   if (e.repeat) return;
   if (['Space', 'Enter', 'KeyJ'].includes(e.code)) { e.preventDefault(); if (started) pressA(); }
   else if (e.code === 'KeyQ') castIdx(0);
@@ -2083,7 +2096,7 @@ addEventListener('keydown', (e) => {
   else if (e.code === 'KeyR') $('autoBtn').click();
 });
 addEventListener('keyup', (e) => {
-  if (KEYS[e.code] === held) held = null;
+  if (KEYS[e.code]) { keyDirs.delete(KEYS[e.code]); held8 = keyDir8(); held = held8 ? (keyDirs.has(held) ? held : [...keyDirs][0]) : null; }
   if (['Space', 'Enter', 'KeyJ'].includes(e.code)) aHeld = false;
 });
 document.addEventListener('contextmenu', (e) => { if (e.target.closest('.pad')) e.preventDefault(); });
@@ -2124,17 +2137,20 @@ function update(dt) {
     if (Math.ceil(trial.t) !== before) $('quest').textContent = questText();
     if (trial.t <= 0) { const f = trial.f; trial.done = true; auto = false; syncAuto(); say('試煉之塔', [`時間到！第 ${f} 層挑戰失敗。`, '提升戰力、換個打法，再來挑戰吧。'], [[`再挑戰第 ${f} 層`, () => startTower(f)], ['回到村子', () => { loadMap(0, SPAWN); hud(); }]]); }
   }
-  if (me.moving && step(me, me.dur * (pst.slow > 0 ? 1.6 : 1), dt)) { me.step ^= 1; me.dur = 0.14; dust(cx(me), me.py * TS + 16); checkGate(); checkChest(); if (grid[me.y]?.[me.x] === T.PORTAL && mapId !== 0) { loadMap(0, SPAWN); feed('回到守燈村', '#c084ff'); save(); return; } }
+  if (me.moving && step(me, me.dur * (pst.slow > 0 ? 1.6 : 1), dt)) { me.step ^= 1; me.walkD = (me.walkD || 0) + Math.hypot(me.x - me.fx, me.y - me.fy); me.dur = 0.14; dust(cx(me), me.py * TS + 16); checkGate(); checkChest(); if (grid[me.y]?.[me.x] === T.PORTAL && mapId !== 0) { loadMap(0, SPAWN); feed('回到守燈村', '#c084ff'); save(); return; } }
   if (held && auto) { auto = false; syncAuto(); }
   invertT = Math.max(0, invertT - dt);
   if (!me.moving && started && held && !dialog && !fishing && !stuck()) {
-    const dir = invertT > 0 ? ({ left: 'right', right: 'left' }[held] || held) : held;
-    const [dx, dy] = DIRS[dir];
-    me.face = dir;
-    const nx = me.x + dx, ny = me.y + dy;
+    let d8 = held8 || D8[held];
+    if (invertT > 0) d8 = { w: 'e', e: 'w', sw: 'se', se: 'sw', nw: 'ne', ne: 'nw' }[d8] || d8;
+    let [dx, dy] = DIR_VEC[d8];
+    face8(me, dx, dy);
+    // 斜向被擋住時，改走比較接近的那個直向
+    if (dx && dy && (!diagOk(me.x, me.y, dx, dy) || !walkable(grid, me.x + dx, me.y + dy) || occupied(me.x + dx, me.y + dy))) { const [ax, ay] = DIRS[FACE4[d8] === me.face ? me.face : held]; dx = ax; dy = ay; }
+    const nx = me.x + dx, ny = me.y + dy, dur = dx && dy ? 0.2 : 0.14;
     const mate = allies.find((a) => a.x === nx && a.y === ny && !a.moving);
-    if (mate && walkable(grid, nx, ny)) { Object.assign(mate, { fx: mate.x, fy: mate.y, x: me.x, y: me.y, moving: true, mt: 0 }); Object.assign(me, { fx: me.x, fy: me.y, x: nx, y: ny, moving: true, mt: 0, dur: 0.14 }); }
-    else if (walkable(grid, nx, ny) && !occupied(nx, ny)) Object.assign(me, { fx: me.x, fy: me.y, x: nx, y: ny, moving: true, mt: 0, dur: 0.14 });
+    if (mate && walkable(grid, nx, ny)) { Object.assign(mate, { fx: mate.x, fy: mate.y, x: me.x, y: me.y, moving: true, mt: 0 }); Object.assign(me, { fx: me.x, fy: me.y, x: nx, y: ny, moving: true, mt: 0, dur }); }
+    else if (walkable(grid, nx, ny) && !occupied(nx, ny)) Object.assign(me, { fx: me.x, fy: me.y, x: nx, y: ny, moving: true, mt: 0, dur });
   }
   if (started && !held) autoThink(dt);
   me.atkT = Math.max(0, me.atkT - dt); me.hurtT = Math.max(0, me.hurtT - dt); me.cool = Math.max(0, me.cool - dt);
@@ -2166,7 +2182,7 @@ function update(dt) {
     const B = m.d.beh || {};
     if (m.angryT > 0) m.angryT -= dt;
     m.chargeT = (m.chargeT || 0) - dt;
-    if (m.moving) { step(m, m.d.boss ? 0.5 : m.dash ? 0.12 : B.fast || m.hasteT > 0 ? 0.24 : B.slow ? 0.5 : 0.35, dt) && (m.dash = m.dash > 1 ? m.dash - 1 : 0); continue; }
+    if (m.moving) { step(m, (m.d.boss ? 0.5 : m.dash ? 0.12 : B.fast || m.hasteT > 0 ? 0.24 : B.slow ? 0.5 : 0.35) * (m.x !== m.fx && m.y !== m.fy && !m.dash ? 1.4 : 1), dt) && (m.dash = m.dash > 1 ? m.dash - 1 : 0); continue; }
     if (started && !dialog && !m.d.boss && traitTick(m, dt)) continue;
     if (!started || dialog || m.frozen > 0 || m.d.still || m.hidden) continue;
     const tg = monTarget(m);
@@ -2183,7 +2199,7 @@ function update(dt) {
         continue;
       }
     }
-    if (angry && !fleeing && m.d.atk > 0 && (dist === 1 || (m.d.boss && Math.max(Math.abs(dx), Math.abs(dy)) <= 1)) && m.cool <= 0) { if (tg === me) hitPlayer(m); else allyHurt(tg, m.d.atk); m.cool = m.d.boss ? 1.2 : 1.5; m.swingAt = anim; m.faceL = tg.px < m.px; continue; }
+    if (angry && !fleeing && m.d.atk > 0 && Math.max(Math.abs(dx), Math.abs(dy)) === 1 && m.cool <= 0) { if (tg === me) hitPlayer(m); else allyHurt(tg, m.d.atk); m.cool = m.d.boss ? 1.2 : 1.5; m.swingAt = anim; m.faceL = tg.px < m.px; face8(m, dx, dy); continue; }
     m.think -= dt;
     if (m.think > 0) continue;
     if (B.root) continue;
@@ -2199,9 +2215,10 @@ function update(dt) {
     let opts = [];
     if (chase) {
       const a = Math.abs(dx) > Math.abs(dy) ? [[Math.sign(dx), 0], [0, Math.sign(dy)]] : [[0, Math.sign(dy)], [Math.sign(dx), 0]];
+      if (dx && dy && Math.max(Math.abs(dx), Math.abs(dy)) > 1) a.unshift([Math.sign(dx), Math.sign(dy)]);
       opts = a.filter(([x, y]) => x || y);
     } else if (R() < 0.6) opts = [Object.values(DIRS)[Math.floor(R() * 4)]];
-    for (const [ox, oy] of opts) if (monCanGo(m, m.x + ox, m.y + oy)) { Object.assign(m, { fx: m.x, fy: m.y, x: m.x + ox, y: m.y + oy, moving: true, mt: 0 }); break; }
+    for (const [ox, oy] of opts) if (monCanGo(m, m.x + ox, m.y + oy)) { Object.assign(m, { fx: m.x, fy: m.y, x: m.x + ox, y: m.y + oy, moving: true, mt: 0 }); face8(m, ox, oy); break; }
   }
   if (fishing) {
     fishing.t -= dt;
