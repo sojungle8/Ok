@@ -257,6 +257,8 @@ export const swordCost = (sword) => 30 + sword * 40 + sword * sword * 20;
 export const POTION_PRICE = 15, POTION_HEAL_PCT = 0.5;
 
 // ---- 職業 ----
+// 近戰要貼身吃傷害，內建受傷 −15%（平衡試玩：同裝備下近戰掉血是遠程的 3～5 倍）
+export const MELEE_DR = 0.15;
 export const CLASSES = {
   sword: {
     name: '戰士', color: '#ff5a6e', role: '近戰・坦克', desc: '守燈人的傳承。替隊友擋傷累積「誓約」，再一口氣燒掉換爆發。',
@@ -274,7 +276,7 @@ export const CLASSES = {
   },
   mage: {
     name: '魔法使', color: '#b48cff', role: '範圍・爆發', desc: '共鳴者的傳承。輪流施放不同屬性累積「共鳴」，集滿放大招。',
-    hpMul: 0.85, atkMul: 1.6, cool: 0.42, range: 5, weapon: 'staff', helm: 'hat', hair: '#d8e4ff',
+    hpMul: 0.85, atkMul: 1.35, cool: 0.42, range: 5, weapon: 'staff', helm: 'hat', hair: '#d8e4ff',
     outfit: { main: '#6b4fb0', dark: '#3f2c7a', trim: '#7fd8ff' },
     skills: [{ id: 'emberSeed', name: '餘燼之種' }, { id: 'frostBreath', name: '霜之息' }, { id: 'fourResonance', name: '四象共鳴' }], mp: 1.6,
     names: { weapon: ['木杖', '學徒法杖', '秘銀法杖', '龍晶法杖', '星辰權杖'], helm: ['尖帽', '學徒帽', '秘法帽', '星象帽', '賢者之冠'] },
@@ -402,7 +404,7 @@ export function stats(p) {
     mpMax, mpRegen: mpMax * (0.01 + (ab.attrs?.int || 0) * 0.0005), mpCost: 1 - Math.min(0.5, tb('耗魔')), heal: 1 + (jb.heal || 0) / 100, boss: (jb.boss || 0) / 100,
     double: (jb.double || 0) / 100, shadowStab: jb.shadowStab || 0, debuffDur: jb.debuffDur || 0, proc: (jb.proc || 0) / 100, dot: (jb.dot || 0) / 100, flee2: jb.flee || 0, hit2: jb.hit || 0, range: jb.range || 0,
     skill: 1 + aff.skill / 100, leech: aff.leech / 100, soulGain: 1 + 0.06 * tv('resonance') + aff.soul / 100 + (soul === 'bird' ? 0.2 : 0),
-    dr: Math.min(0.6, 0.02 * tv('iron') + aff.dr / 100), regen: 0.0012 * tv('recover'), potion: 0.5 + 0.04 * tv('recover'),
+    dr: Math.min(0.6, 0.02 * tv('iron') + aff.dr / 100 + (c.range <= 1 ? MELEE_DR : 0)), regen: 0.0012 * tv('recover'), potion: 0.5 + 0.04 * tv('recover'),
     cp: Math.round(dps * 3 + hp * 3 + p.lv * 20 + (soul ? 150 * (p.souls[soul] || 1) : 0)),
   };
 }
