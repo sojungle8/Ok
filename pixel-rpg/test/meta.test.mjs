@@ -108,9 +108,12 @@ test('快速掛機：每天免費 2 次，之後花魂石，有上限；月卡�
   assert.equal(M.quickIdleState(p, day('2026-11-15')).freeLeft, 4);
 });
 
-test('商城：只賣月卡、月卡每天領；魂石擴充背包', () => {
+test('商城：月卡＋首次禮包、月卡每天領；魂石擴充背包', () => {
   const p = newPlayer(); const t = day('2026-11-14');
-  assert.deepEqual(M.SHOP.map((x) => x.id), ['month']);
+  assert.deepEqual(M.SHOP.map((x) => x.id), ['first', 'month']);
+  const f = M.buySku(p, 'first', t); assert.equal(f.stones, 300); assert.equal(f.title, '初燈者');
+  assert.equal(M.buySku(p, 'first', day('2026-12-01')), null, '限購一次');
+  for (const it of M.SHOP) assert.ok(!Object.keys(it.give.items || {}).length, '不賣道具');
   assert.equal(M.buySku(p, 's60', t), null);
   assert.equal(M.buySku(p, 'month', t).stones, 300);
   assert.equal(M.claimMonthDaily(p, t).stones, 100); assert.equal(M.claimMonthDaily(p, t), null);

@@ -13,7 +13,7 @@ export function ensureMeta(p) {
   m.day ??= ''; m.daily ??= []; m.act ??= 0; m.chests ??= [];
   m.week ??= ''; m.weekly ??= [];
   m.login ??= { last: '', n: 0 };
-  m.codex ??= {}; m.ach ??= {}; m.title ??= '';
+  m.codex ??= {}; m.ach ??= {}; m.title ??= ''; m.titles ??= [];
   m.tower ??= { best: 0 };
   m.st ??= {};
   p.meta = m;
@@ -25,7 +25,7 @@ export const fieldMons = (p) => CHAPTERS.slice(0, unlockedCh(p)).flatMap((c) => 
 // ---- 獎勵 ----
 // 獎勵格式：{ coins, exp, stones, items: { id: n } }
 export const rewardText = (r) => [
-  r.coins && `金幣 ${r.coins}`, r.exp && `經驗 ${r.exp}`, r.stones && `魂石 ${r.stones}`,
+  r.coins && `金幣 ${r.coins}`, r.exp && `經驗 ${r.exp}`, r.stones && `魂石 ${r.stones}`, r.title && `稱號【${r.title}】`,
   ...Object.entries(r.items || {}).filter(([, n]) => n > 0).map(([id, n]) => `${ITEMS[id]?.name || id} ×${n}`),
 ].filter(Boolean).join('、');
 const lvCoins = (p, k) => Math.round(k * (40 + p.lv * 12));
@@ -295,9 +295,10 @@ export function useQuickIdle(p, t = Date.now()) {
   return { cost };
 }
 
-// ---- 商城：只賣月卡（定案）。月卡只給方便：魂石、掛機次數、離線上限；不賣精煉石、藥水、魂像碎片 ----
+// ---- 商城：月卡＋首次禮包（定案）。月卡只給方便：魂石、掛機次數、離線上限；不賣精煉石、藥水、魂像碎片 ----
 // 示範版：沒有串接真實金流，購買會直接發放。正式上架時接綠界，App 版再接 App 內購
 export const SHOP = [
+  { id: 'first', name: '首次禮包', price: 30, limit: 'once', give: { stones: 300, title: '初燈者' }, tag: '限購 1 次', perks: ['300 魂石：夠擴充一次背包，或多用幾次快速掛機', '專屬稱號【初燈者】，顯示在角色頭上', '只有方便和外觀，不會讓角色變強'] },
   { id: 'month', name: '月卡', price: 90, month: true, give: { stones: 300 }, tag: '立刻 300 魂石＋30 天每天 100 魂石', perks: ['每天可領 100 魂石（共 3000）', '快速掛機每天多 2 次', '離線收益上限 12 → 24 小時'] },
 ];
 // 魂石只用在方便：快速掛機、背包擴充。全部都能靠每日任務、成就、圖鑑免費拿到

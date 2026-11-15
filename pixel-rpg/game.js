@@ -164,7 +164,8 @@ function placeMon(m) {
   if (m.base && !trial) m.d = applyDiff(!m.base.boss && P && P.lv >= 5 && R() < ELITE_RATE ? makeElite(m.base, R) : m.base, P || {});
   const t = spawnTile(m);
   if (!t) { m.dead = 1; return; }
-  Object.assign(m, { angryT: 0, chargeT: 3 + R() * 3, x: t.x, y: t.y, px: t.x, py: t.y, fx: t.x, fy: t.y, moving: false, hp: m.d.hp, dead: 0, cool: 1, think: R() * 1.5, flash: 0, kx: 0, ky: 0, spawnT: 0.4, frozen: 0, letter: 0, shield: false, phases: [], slamT: 3, spitT: 5, hidden: false, engaged: false, stolen: new Set(), rwT: 10, hist: [], histT: 0 });
+  Object.assign(m, { angryT: 0, retreatT: 0, hasteT: 0, pauseT: 0, fuse: 0, revived: 0, lurk: !!TR[m.type]?.lurk, home: { x: t.x, y: t.y }, chargeT: 3 + R() * 3, x: t.x, y: t.y, px: t.x, py: t.y, fx: t.x, fy: t.y, moving: false, hp: m.d.hp, dead: 0, cool: 1, think: R() * 1.5, flash: 0, kx: 0, ky: 0, spawnT: 0.4, frozen: 0, letter: 0, shield: false, phases: [], slamT: 3, spitT: 5, hidden: false, engaged: false, stolen: new Set(), rwT: 10, hist: [], histT: 0 });
+  m.hidden = m.lurk;
 }
 function spawnRoster(list) { mons = []; for (const type of list) { const D = nightMode && NIGHT[type] ? NIGHT[type] : MONSTERS[type]; const m = { type, d: D, base: D, night: !!D.night, anim: R() * 2 }; mons.push(m); placeMon(m); } }
 function fieldNpc(id) {
@@ -178,7 +179,7 @@ function loadMap(id, at, night = false) {
   mapC = renderMapCanvas(id);
   BZ = FIELD.boss; FMIN = FIELD_MIN_X;
   npcs = id === 0 ? townNpcs : fieldNpc(id);
-  drops = []; projs = []; eshots = []; pending = []; fx = []; warns = []; fishing = null;
+  drops = []; projs = []; eshots = []; zones = []; for (const k of Object.keys(pst)) pst[k] = 0; pending = []; fx = []; warns = []; fishing = null;
   const s0 = at && walkable(grid, at.x, at.y) ? at : id === 0 ? SPAWN : FIELD.spawn;
   Object.assign(me, { x: s0.x, y: s0.y, px: s0.x, py: s0.y, fx: s0.x, fy: s0.y, moving: false });
   soulPos.x = cx(me); soulPos.y = cy(me);
@@ -815,8 +816,131 @@ function smithMenu(nm, lines) {
 // ---------- 傷害與掉落 ----------
 function hitPlayer(m, k = 1) {
   const B = m.d.beh || {};
-  hurt(m.d.atk * k * (1 - debOn(m, '攻擊降低')) * (B.rage && m.hp < m.d.hp * 0.3 ? 1.3 : 1), m);
-  if ((B.burn || B.poison) && me.inv <= 0) for (let i = 1; i <= 3; i++) pending.push({ t: i, fn: () => { if (P.hp > 1) { const d = Math.max(1, Math.round(m.d.atk * 0.12)); P.hp = Math.max(1, P.hp - d); floatT(`-${d}`, me.x, me.y, B.burn ? '#ff9f40' : '#a66bd6', 0.7); hud(); } } });
+  const T0 = TR[m.type];
+  const before = P.hp;
+  hurt(m.d.atk * k * (T0?.hitK?.(m) ?? 1) * (1 - debOn(m, '攻擊降低')) * (B.rage && m.hp < m.d.hp * 0.3 ? 1.3 : 1), m);
+  if (P.hp >= before) return;
+  if (B.burn || B.poison) playerDot(m, B.burn ? '#ff9f40' : '#a66bd6');
+  T0?.hit?.(m);
+}
+
+// ---------- 怪物專屬特性（照圖鑑「特性」欄）與玩家異常狀態 ----------
+const pst = { slow: 0, root: 0, sleep: 0, deep: 0, silence: 0, hitDown: 0, aspdDown: 0, blind: 0, weak: 0 };
+const PST_NAME = { slow: '減速', root: '定身', sleep: '睡著了', silence: '沉默', hitDown: '命中降低', aspdDown: '攻速降低', blind: '視野變小', weak: '詛咒' };
+function addPst(k, t, quiet) {
+  if (me.inv > 0) return;
+  if (!quiet && pst[k] <= 0) floatT(PST_NAME[k], me.x, me.y - 0.8, '#d0a8ff', 0.9);
+  pst[k] = Math.max(pst[k], t);
+}
+const stuck = () => pst.root > 0 || pst.sleep > 0;
+function playerDot(m, color, ticks = 3) {
+  if (me.inv > 0) return;
+  for (let i = 1; i <= ticks; i++) pending.push({ t: i, fn: () => { if (P.hp > 1) { const d = Math.max(1, Math.round(m.d.atk * 0.12)); P.hp = Math.max(1, P.hp - d); floatT(`-${d}`, me.x, me.y, color, 0.7); hud(); } } });
+}
+let zones = [];
+const mdist = (m) => Math.abs(m.x - me.x) + Math.abs(m.y - me.y);
+const front = (m, c) => (c.fromX < m.px) === !!m.faceL;
+function spawnClone(m, frac) {
+  const x = m.x, y = m.y, d = { ...m.d, hp: Math.max(1, Math.round(m.d.hp * frac)), exp: 0, coin: [0, 0] };
+  const o = { type: m.type, d, night: m.night, minion: true, anim: R() * 2, x, y, px: x, py: y, fx: x, fy: y, moving: false, mt: 0, hp: d.hp, dead: 0, cool: 1, think: 0.3, flash: 0, kx: 0, ky: 0, spawnT: 0.3, frozen: 0, letter: 0, angryT: 10, chargeT: 5, phases: [], hist: [] };
+  mons.push(o); burst(cx(m), cy(m), m.d.pal.l || '#fff', 8, 60);
+  return o;
+}
+function stripBuff() {
+  const ks = Object.keys(P.tb || {}).filter((k) => P.tb[k].until > Date.now());
+  if (!ks.length) return;
+  delete P.tb[ks[Math.floor(R() * ks.length)]]; floatT('增益被解除', me.x, me.y - 0.8, '#ff8fa0', 0.9);
+}
+const WHISPER = ['……我以前是誰的守護？', '……燈還亮著嗎？', '……我還記得他的手很溫暖。'];
+const NAMES = ['……我叫露西。', '……我是磨坊的湯姆。', '……原來我叫阿禾。', '……我想起來了，我叫米拉。'];
+const TR = {
+  dandelion: { death: (m) => mdist(m) <= 2 && addPst('slow', 1) },
+  mouse: { tick: (m) => { if (R() > 0.05) return; const i = drops.findIndex((d) => d.kind === 'loot' && Math.hypot(d.x - cx(m), d.y - cy(m)) < 28); if (i >= 0) { (m.loot ??= []).push(drops[i]); drops.splice(i, 1); float('偷走了！', cx(m), m.py * TS - 10, '#ffd166', 0.8); } },
+    death: (m) => { for (const d of m.loot || []) drops.push(newDrop('loot', cx(m), cy(m), d.val)); m.loot = []; } },
+  beetle: { dmg: (m, c) => (front(m, c) ? 0.7 : 1) },
+  mushroom: { hurt: (m) => mdist(m) <= 2 && R() < 0.15 && addPst('sleep', 1) },
+  foxfire: { tick: (m, d) => { if (m.angryT > 0 && d >= 3 && R() < 0.02) { const k = Math.min(2, d - 1), sx = Math.sign(me.x - m.x), sy = Math.sign(me.y - m.y); const nx = m.x + (Math.abs(me.x - m.x) >= Math.abs(me.y - m.y) ? sx * k : 0), ny = m.y + (Math.abs(me.x - m.x) < Math.abs(me.y - m.y) ? sy * k : 0); if (monCanGo(m, nx, ny)) { burst(cx(m), cy(m), '#ff9f40', 8, 60); Object.assign(m, { x: nx, y: ny, px: nx, py: ny, fx: nx, fy: ny }); } } } },
+  lizard: { lurk: 3 }, croc: { lurk: 2 }, mask: { lurk: 2 },
+  dust: { hit: () => addPst('hitDown', 3) }, soot: { hit: () => addPst('hitDown', 3) },
+  octopus: { hit: () => { addPst('hitDown', 3); addPst('blind', 3, true); } },
+  hawk: { hit: (m) => { m.retreatT = 1.2; } },
+  letter: { hurt: (m) => mdist(m) <= 3 && R() < 0.2 && addPst('silence', 1) },
+  echoling: { hurt: (m, c) => { if (c.kind === 'skill' && c.elem !== '無' && m.copied !== c.elem) { m.copied = c.elem; float(`複製了${c.elem}屬性`, cx(m), m.py * TS - 12, ELEM_COLOR[c.elem], 0.8); } }, dmg: (m, c) => (c.elem === m.copied ? 0.5 : 1) },
+  bandit: { hit: (m) => { const n = Math.min(P.coins, m.d.lv * 5); if (n > 0) { P.coins -= n; m.coins = (m.coins || 0) + n; floatT(`金幣 -${n}`, me.x, me.y - 0.8, '#ffd166', 0.9); hud(); } },
+    death: (m) => { if (m.coins) { drops.push(newDrop('coin', cx(m), cy(m), m.coins)); m.coins = 0; } } },
+  oilslime: { death: (m) => zones.push({ x: m.px, y: m.py, r: 0.9, t: 5, kind: 'oil' }) },
+  rat: { hit: stripBuff }, gull: { hit: stripBuff },
+  screw: { hit: () => R() < 0.25 && addPst('root', 0.5) },
+  cog: { hurt: (m, c) => { if (c.elem === '風') m.hasteT = 5; } },
+  sparkbug: { tick: (m, d) => { if (m.angryT > 0 && d <= 1 && !m.fuse) { m.fuse = 1; warns.push({ x: m.px, y: m.py, r: 1.3, t: 0, life: 0.8, dmg: Math.round(m.d.atk * 2.2), kind: 'slam' }); pending.push({ t: 0.8, fn: () => { if (m.dead <= 0) { burst(cx(m), cy(m), '#ffb347', 16, 120); m.dead = m.minion ? 1 : 2.5; m.fuse = 0; } } }); } } },
+  clockbird: { tick: (m, d, dt) => { m.wind = (m.wind || 0) + dt; if (m.wind > 6) { m.pauseT = 2; m.wind = 0; float('停住了！', cx(m), m.py * TS - 10, '#ffd166', 0.8); } }, dmg: (m) => (m.pauseT > 0 ? 1.5 : 1) },
+  doll: { hitK: (m) => ((m.atkN = (m.atkN || 0) + 1) % 3 === 0 ? 2 : 1) },
+  rustknight: { dmg: (m, c) => { if (front(m, c) && R() < 0.3) { float('格擋', cx(m), m.py * TS - 10, '#bdf1ff', 0.8); return 0.3; } return 1; } },
+  smelter: { tick: (m, d, dt) => { if (d > 1 || me.inv > 0) return; m.auraT = (m.auraT || 0) + dt; if (m.auraT >= 1) { m.auraT = 0; hurt(m.d.atk * 0.1, null); } } },
+  wisp: { tick: (m, d, dt) => { if (d <= 2 && P.mp > 0) P.mp = Math.max(0, P.mp - stats(P).mpMax * 0.03 * dt); } },
+  lily: { tick: (m, d) => d <= 2 && addPst('aspdDown', 0.5, true) },
+  butterfly: { hurt: (m) => { if (!m.minion && !m.split && m.hp > 0 && R() < 0.15) { m.split = 1; spawnClone(m, 0.3); float('鏡像！', cx(m), m.py * TS - 12, '#c8ecff', 0.8); } } },
+  bat2: { hit: (m) => { m.hp = Math.min(m.d.hp, m.hp + Math.round(m.d.atk * 0.3)); } },
+  rose: { hurt: (m, c) => c.kind === 'basic' && C.range <= 1 && playerDot(m, '#a66bd6', 2) },
+  snake: { hit: () => R() < 0.2 && addPst('root', 1) },
+  reflect: { dmg: (m, c) => { if (c.magic && c.kind === 'skill' && R() < 0.3) { float('反射', cx(m), m.py * TS - 10, '#c8ecff', 0.9); hurt(m.d.atk * 1.2, null); return 0; } return 1; } },
+  dancer: { dmg: (m) => { if (R() < 0.25) { float('Miss', cx(m), m.py * TS - 6, '#bdb6d0', 0.9); return 0; } return 1; } },
+  armor: { dmg: (m, c) => (c.magic ? 1 : 0.75) }, obsidian: { dmg: (m, c) => (c.magic ? 0.7 : 1) },
+  gargoyle: { tick: (m) => { if (nightMode) m.angryT = Math.max(m.angryT, 1); } },
+  deer: { hit: () => R() < 0.15 && addPst('root', 1) },
+  crab: { dmg: (m, c) => (Math.abs(c.fromY - m.py) > Math.abs(c.fromX - m.px) ? 1.3 : 1) },
+  mist: { tick: (m, d) => d <= 3 && addPst('blind', 0.5, true) },
+  cat: { hurt: (m) => { for (const o of mons) if (o !== m && o.type === 'cat' && o.dead <= 0 && Math.abs(o.x - m.x) + Math.abs(o.y - m.y) <= 6) o.angryT = 10; } },
+  lantern: { hitK: (m) => (m.hp < m.d.hp * 0.5 ? 1.5 : 1) },
+  dice: { hitK: () => 0.5 + R() * 1.5 },
+  barrel: { hurt: (m, c) => { if (c.elem === '火' && m.hp > 0) { warns.push({ x: m.px, y: m.py, r: 1.6, t: 0.5, life: 0.6, dmg: Math.round(m.d.atk * 2.5), kind: 'slam' }); m.hp = 0; killMon(m); } } },
+  coral: { tick: (m, d, dt) => { m.healT = (m.healT || 0) + dt; if (m.healT < 2) return; m.healT = 0; for (const o of mons) if (o.dead <= 0 && o.hp < o.d.hp && profileOf(o.type).race === '魚貝' && Math.abs(o.x - m.x) + Math.abs(o.y - m.y) <= 3) o.hp = Math.min(o.d.hp, o.hp + Math.round(o.d.hp * 0.03)); } },
+  drowned: { hit: () => addPst('slow', 2) },
+  shark: { tick: (m) => { if (P.hp < stats(P).hp * 0.5) m.hasteT = 0.5; } },
+  relic: { tick: (m, d, dt) => { if (d <= 2 && R() < dt * 0.25) float(WHISPER[Math.floor(R() * WHISPER.length)], cx(m), m.py * TS - 14, '#c8c4e8', 0.8); } },
+  eclipse: { death: (m) => { if (!m.minion) { spawnClone(m, 0.25); spawnClone(m, 0.25); } } },
+  priest2: { tick: (m, d, dt) => { m.healT = (m.healT || 0) + dt; if (m.healT < 4) return; m.healT = 0; for (const o of mons) if (o !== m && o.dead <= 0 && o.hp < o.d.hp && Math.abs(o.x - m.x) + Math.abs(o.y - m.y) <= 3) { o.hp = Math.min(o.d.hp, o.hp + Math.round(o.d.hp * 0.08)); float('+', cx(o), o.py * TS - 4, '#a6ec7a', 0.7); } }, hit: () => addPst('weak', 4) },
+  shade: { dmg: (m) => { if (mdist(m) > 3) { if (R() < 0.3) float('看不見', cx(m), m.py * TS - 8, '#8f7ab8', 0.8); return 0; } return 1; } },
+  nightmare: { hit: () => { if (R() < 0.2) { addPst('sleep', 2); pst.deep = 2; } } },
+  nameless: { death: (m) => R() < 0.2 && float(NAMES[Math.floor(R() * NAMES.length)], cx(m), m.py * TS - 14, '#fff1c4', 1) },
+  angel: { hitK: () => (stats(P).weaponElem === '暗' ? 2 : 1) },
+  guard: { tick: (m) => { if (m.home && Math.abs(m.x - m.home.x) + Math.abs(m.y - m.home.y) > 6 && !m.moving) { Object.assign(m, { x: m.home.x, y: m.home.y, px: m.home.x, py: m.home.y, fx: m.home.x, fy: m.home.y, hp: m.d.hp, angryT: 0 }); float('回到祭壇', cx(m), m.py * TS - 10, '#fff1c4', 0.8); } } },
+  gryphon: { dmg: (m, c) => { if (c.kind === 'basic' && C.range <= 1 && R() < 0.3) { float('Miss', cx(m), m.py * TS - 6, '#bdb6d0', 0.9); return 0; } return 1; } },
+  ashdrake: { hit: (m) => playerDot(m, '#ff9f40') },
+  bonedrake: { death: (m) => { if (m.revived || m.minion) return; pending.push({ t: 0, fn: () => { m.dead = 6; } }); pending.push({ t: 5, fn: () => { if (m.dead > 0 && !m.revived) { m.revived = 1; m.dead = 0; m.hp = Math.round(m.d.hp * 0.5); m.spawnT = 0.4; burst(cx(m), cy(m), '#7affc4', 20, 100); banner(`${m.d.name}站起來了！`); } } }); } },
+};
+// 修道信徒：附近有信徒時同伴受到的傷害 −20%
+const cultistNear = (m) => m.type !== 'cultist' && mons.some((o) => o.type === 'cultist' && o.dead <= 0 && Math.abs(o.x - m.x) + Math.abs(o.y - m.y) <= 3);
+function traitDmg(m, c) {
+  let k = TR[m.type]?.dmg?.(m, c) ?? 1;
+  if (k && cultistNear(m)) k *= 0.8;
+  if (k && pst.weak > 0) k *= 0.8;
+  return k;
+}
+function traitTick(m, dt) {
+  const t = TR[m.type]; if (!t) return false;
+  if (m.pauseT > 0) { m.pauseT -= dt; return true; }
+  if (m.retreatT > 0) m.retreatT -= dt;
+  if (m.hasteT > 0) m.hasteT -= dt;
+  const d = mdist(m);
+  if (m.lurk) { if (d <= t.lurk) { m.lurk = false; m.hidden = false; m.angryT = 10; burst(cx(m), cy(m), '#e8d29a', 14, 90); float('！', cx(m), m.py * TS - 12, '#ffd166', 1); } else return true; }
+  t.tick?.(m, d, dt);
+  return false;
+}
+function updatePst(dt) {
+  for (const k of Object.keys(pst)) pst[k] = Math.max(0, pst[k] - dt);
+  zones = zones.filter((z) => { z.t -= dt; if (Math.hypot(me.px - z.x, me.py - z.y) <= z.r) addPst('slow', 0.3, true); return z.t > 0; });
+}
+function drawZones() {
+  for (const z of zones) { ctx.globalAlpha = Math.min(0.6, z.t / 2); ctx.fillStyle = '#1b1420'; ctx.beginPath(); ctx.ellipse(z.x * TS + 8, z.y * TS + 12, z.r * 16, z.r * 8, 0, 0, 7); ctx.fill(); ctx.globalAlpha = 1; }
+}
+function drawPst() {
+  if (pst.blind > 0) { const g = ctx.createRadialGradient(cx(me), cy(me), 30, cx(me), cy(me), 130); g.addColorStop(0, 'rgba(20,16,30,0)'); g.addColorStop(1, 'rgba(20,16,30,.85)'); ctx.fillStyle = g; ctx.fillRect(cx(me) - 600, cy(me) - 600, 1200, 1200); }
+  const on = Object.keys(PST_NAME).filter((k) => pst[k] > 0 && k !== 'blind');
+  if (!on.length) return;
+  ctx.font = 'bold 8px sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.strokeStyle = '#1b1420'; ctx.fillStyle = '#d0a8ff';
+  const tx = on.map((k) => PST_NAME[k]).join('・') + (pst.sleep > 0 ? ' z' : ''), y = me.py * TS - 24;
+  ctx.strokeText(tx, cx(me), y); ctx.fillText(tx, cx(me), y);
 }
 // 怪物的遠程攻擊（遠程怪吐、射；法術怪施法）
 let eshots = [];
@@ -850,6 +974,7 @@ function monProvoked(m) {
   }
 }
 function hurt(raw, m) {
+  if (pst.sleep > 0 && me.inv <= 0) { if (pst.deep > 0) raw *= 2; pst.sleep = 0; pst.deep = 0; }
   if (me.inv > 0) { floatT('閃避！', me.x, me.y - 0.4, '#bdf1ff', 0.9); return; }
   if (m) {
     const st0 = stats(P);
@@ -904,6 +1029,9 @@ function dealDamage(m, mult, fromX = me.px, fromY = me.py, color, kind = 'skill'
   hitElem = null;
   if (kind !== 'ult' && kind !== 'ally' && R() > hitChance(st.hit, m.d.lv)) { float('Miss', cx(m), m.py * TS - 6, '#bdb6d0', 0.9); return; }
   const magic = kind === 'skill' ? !!SK[curSkill]?.mag : kind === 'basic' && (P.cls === 'mage' || P.cls === 'priest');
+  if ((kind === 'basic' || kind === 'skill') && pst.hitDown > 0 && R() < 0.2) { float('Miss', cx(m), m.py * TS - 6, '#bdb6d0', 0.9); return; }
+  const tctx = { kind, magic, elem, fromX, fromY };
+  { const tk = traitDmg(m, tctx); if (!tk) return; mult *= tk; }
   const dm = damageMult(P, st.mods, elem, m.night ? m.type + '_n' : m.type, m.d.lv, m.d.boss, magic);
   const cm = kind === 'skill' ? castMods : null;
   if (cm?.pierce) { const d0 = monDef(m.d.lv, m.d.boss); dm.mult *= defMod(d0 * (1 - cm.pierce)) / defMod(d0); }
@@ -916,7 +1044,7 @@ function dealDamage(m, mult, fromX = me.px, fromY = me.py, color, kind = 'skill'
   const dmg = Math.max(1, Math.round(base * mult * k * (0.85 + R() * 0.3) * (crit ? st.critDmg : 1)));
   if (st.leech && P.hp < st.hp && kind !== 'ally') P.hp = Math.min(st.hp, P.hp + Math.max(1, Math.round(dmg * st.leech)));
   if (kind !== 'ult') gainSoul(kind === 'skill' ? 1.2 : kind === 'ally' ? 0.5 : 1.6);
-  m.hp -= dmg; m.flash = 0.12; if (!m.d.boss) monProvoked(m);
+  m.hp -= dmg; m.flash = 0.12; if (!m.d.boss) { monProvoked(m); TR[m.type]?.hurt?.(m, tctx); }
   if (m.d.beh?.reflect && kind === 'basic' && C.range <= 1 && m.hp > 0) hurt(Math.max(1, dmg * m.d.beh.reflect), null);
   if (cm) { if (cm.freeze) m.frozen = Math.max(m.frozen, m.d.boss ? cm.freeze / 3 : cm.freeze); if (cm.stun) m.frozen = Math.max(m.frozen, m.d.boss ? cm.stun / 3 : cm.stun); if (cm.db) applyDebuff(m, cm.db); if (cm.healFrac) P.hp = Math.min(st.hp, P.hp + Math.round(dmg * cm.healFrac)); }
   if (kind === 'basic' && st.dot > 0) m.pois = { v: st.atk * st.dot, t: 5 };
@@ -938,6 +1066,7 @@ function hitArea(tx, ty, radius, mult, color, each, kind = 'skill') {
   for (const m of alive()) if (tdist(m, tx, ty) <= radius + (m.d.boss ? 0.8 : 0)) { dealDamage(m, mult, tx, ty, color, kind); each?.(m); }
 }
 function killMon(m) {
+  TR[m.type]?.death?.(m);
   sfx(m.d.boss ? 'boom' : 'kill');
   const wx = cx(m), wy = cy(m);
   m.dead = m.d.boss ? 30 : 2.5;
@@ -1091,7 +1220,7 @@ const onTiles = (m, tiles) => tiles.some(([x, y]) => (m.d.boss ? Math.abs(m.x - 
 function basicAttack(target) {
   const aspd = stats(P).aspd;
   sfx({ sword: 'swing', archer: 'arrow', mage: 'bolt', monk: 'swing', priest: 'bolt' }[P.cls] || 'swing');
-  me.cool = C.cool / aspd; me.atkT = me.atkDur = Math.max(0.16, Math.min(0.28, me.cool * 0.8));
+  me.cool = C.cool / aspd * (pst.aspdDown > 0 ? 1.15 : 1); me.atkT = me.atkDur = Math.max(0.16, Math.min(0.28, me.cool * 0.8));
   const [dx, dy] = DIRS[me.face];
   if (P.cls === 'sword') {
     addFx('slash', 0.18, { x: cx(me) + dx * 13, y: cy(me) + dy * 13 - 3, ang: faceAng(), color: '#dff6ff', size: 19 });
@@ -1132,6 +1261,7 @@ function castIdx(i) {
   if (!started || dialog || fishing) return;
   const s = skills[i];
   if (!s || s.t > 0 || cutinT > 0) return;
+  if (pst.silence > 0 || pst.sleep > 0) { floatT(pst.sleep > 0 ? '睡著了' : '沉默中', me.x, me.y - 0.9, '#d0a8ff', 0.8); return; }
   const n = skillNums(P, s.id), sk = n.s, st = stats(P);
   if (sk.need && res.n < sk.need) { floatT(`需要 ${sk.need} 層${res.name}`, me.x, me.y - 0.9, '#bdb6d0', 0.8); s.t = 0.4; return; }
   const cost = Math.round(n.mp * st.mpCost);
@@ -1330,6 +1460,7 @@ function grant(r) {
   sfx('reward');
   if (r.coins) P.coins += r.coins;
   if (r.stones) P.stones += r.stones;
+  if (r.title) { const m = ensureMeta(P); if (!m.titles.includes(r.title)) m.titles.push(r.title); m.title = r.title; }
   for (const [id, n] of Object.entries(r.items || {})) if (n > 0) addStack(P, id, n);
   if (r.exp) { const before = P.lv; if (gainExp(P, r.exp)) levelUp(before); }
   feed(`獲得：${rewardText(r)}`, '#ffd166'); bump('coinBox'); hud(); save();
@@ -1429,7 +1560,7 @@ function renderAdv() {
   } else if (advTab === 'ach') {
     const owned = ACHIEVEMENTS.filter((a) => m.ach[a.id]);
     note(`完成成就可以領魂石並獲得稱號，稱號會顯示在角色頭上。目前稱號：<b>${m.title || '無'}</b>`);
-    if (owned.length) { const t = document.createElement('div'); t.className = 'chests'; t.append(mkBtn('不顯示', !!m.title, () => { m.title = ''; save(); renderAdv(); })); for (const a of owned) t.append(mkBtn(a.title, m.title !== a.title, () => { m.title = a.title; save(); renderAdv(); })); out.push(t); }
+    if (owned.length || m.titles?.length) { const t = document.createElement('div'); t.className = 'chests'; t.append(mkBtn('不顯示', !!m.title, () => { m.title = ''; save(); renderAdv(); })); for (const tt of [...(m.titles || []), ...owned.map((a) => a.title)]) t.append(mkBtn(tt, m.title !== tt, () => { m.title = tt; save(); renderAdv(); })); out.push(t); }
     for (const a of ACHIEVEMENTS) { const [v, need] = achProgress(P, a), got = m.ach[a.id]; out.push(qRow(`<b>【${a.title}】</b>${a.text}<small class="muted">　魂石 ${a.stones}</small>`, v, need, mkBtn(got ? '已領' : v >= need ? '領取' : '未達成', !got && v >= need, () => { grant(claimAch(P, a.id)); renderAdv(); }))); }
   }
   box.replaceChildren(...out);
@@ -1761,6 +1892,7 @@ function autoThink(dt) {
   me.face = dirTo(nx, ny);
   const mate = allies.find((al) => al.x === nx && al.y === ny);
   if (mate) { if (mate.moving) return; Object.assign(mate, { fx: mate.x, fy: mate.y, x: me.x, y: me.y, moving: true, mt: 0 }); }
+  if (stuck()) return;
   Object.assign(me, { fx: me.x, fy: me.y, x: nx, y: ny, moving: true, mt: 0, dur: 0.14 });
 }
 function syncAuto() { $('autoBtn').classList.toggle('on', auto); $('autoBtn').innerHTML = auto ? '自動 <b>ON</b>' : '自動 <b>OFF</b>'; }
@@ -1918,10 +2050,10 @@ function update(dt) {
     if (Math.ceil(trial.t) !== before) $('quest').textContent = questText();
     if (trial.t <= 0) { const f = trial.f; trial.done = true; auto = false; syncAuto(); say('試煉之塔', [`時間到！第 ${f} 層挑戰失敗。`, '提升戰力、換個打法，再來挑戰吧。'], [[`再挑戰第 ${f} 層`, () => startTower(f)], ['回到村子', () => { loadMap(0, SPAWN); hud(); }]]); }
   }
-  if (me.moving && step(me, me.dur, dt)) { me.step ^= 1; me.dur = 0.14; dust(cx(me), me.py * TS + 16); checkGate(); checkChest(); if (grid[me.y]?.[me.x] === T.PORTAL && mapId !== 0) { loadMap(0, SPAWN); feed('回到守燈村', '#c084ff'); save(); return; } }
+  if (me.moving && step(me, me.dur * (pst.slow > 0 ? 1.6 : 1), dt)) { me.step ^= 1; me.dur = 0.14; dust(cx(me), me.py * TS + 16); checkGate(); checkChest(); if (grid[me.y]?.[me.x] === T.PORTAL && mapId !== 0) { loadMap(0, SPAWN); feed('回到守燈村', '#c084ff'); save(); return; } }
   if (held && auto) { auto = false; syncAuto(); }
   invertT = Math.max(0, invertT - dt);
-  if (!me.moving && started && held && !dialog && !fishing) {
+  if (!me.moving && started && held && !dialog && !fishing && !stuck()) {
     const dir = invertT > 0 ? ({ left: 'right', right: 'left' }[held] || held) : held;
     const [dx, dy] = DIRS[dir];
     me.face = dir;
@@ -1933,10 +2065,10 @@ function update(dt) {
   if (started && !held) autoThink(dt);
   me.atkT = Math.max(0, me.atkT - dt); me.hurtT = Math.max(0, me.hurtT - dt); me.cool = Math.max(0, me.cool - dt);
   me.inv = Math.max(0, me.inv - dt); me.dodgeT = Math.max(0, me.dodgeT - dt); catT = Math.max(0, catT - dt);
-  updateWarns(dt); updateEshots(dt);
+  updateWarns(dt); updateEshots(dt); updatePst(dt);
   { const fx2 = { up: 10, down: -12, left: 12, right: -12 }[me.face]; const tx = cx(me) + fx2, ty = cy(me) - 14 + Math.sin(anim * 3) * 2; soulPos.x += (tx - soulPos.x) * Math.min(1, dt * 6); soulPos.y += (ty - soulPos.y) * Math.min(1, dt * 6); }
   const ranged = C.range > 1;
-  if ((aHeld || autoHit) && me.cool <= 0 && !dialog && !fishing && (ranged || !me.moving) && started) basicAttack(autoTarget);
+  if ((aHeld || autoHit) && me.cool <= 0 && !dialog && !fishing && pst.sleep <= 0 && (ranged || !me.moving) && started) basicAttack(autoTarget);
   for (const s of skills) s.t = Math.max(0, s.t - dt);
   { const st = stats(P); P.mp = Math.min(st.mpMax, (P.mp ?? st.mpMax) + st.mpRegen * dt); }
   if (shadowT > 0) { shadowT -= dt; if (shadowT <= 0 && P.cls === 'scout') res.n = 0; }
@@ -1960,12 +2092,13 @@ function update(dt) {
     const B = m.d.beh || {};
     if (m.angryT > 0) m.angryT -= dt;
     m.chargeT = (m.chargeT || 0) - dt;
-    if (m.moving) { step(m, m.d.boss ? 0.5 : m.dash ? 0.12 : B.fast ? 0.24 : B.slow ? 0.5 : 0.35, dt) && (m.dash = m.dash > 1 ? m.dash - 1 : 0); continue; }
+    if (m.moving) { step(m, m.d.boss ? 0.5 : m.dash ? 0.12 : B.fast || m.hasteT > 0 ? 0.24 : B.slow ? 0.5 : 0.35, dt) && (m.dash = m.dash > 1 ? m.dash - 1 : 0); continue; }
+    if (started && !dialog && !m.d.boss && traitTick(m, dt)) continue;
     if (!started || dialog || m.frozen > 0 || m.d.still || m.hidden) continue;
     const tg = monTarget(m);
     const dx = tg.x - m.x, dy = tg.y - m.y, dist = Math.abs(dx) + Math.abs(dy);
     const angry = m.d.boss || m.d.elite || m.d.trial || B.aggro || m.angryT > 0 || !m.d.beh;
-    const fleeing = B.flee && m.hp < m.d.hp * 0.3;
+    const fleeing = (B.flee && m.hp < m.d.hp * 0.3) || m.retreatT > 0;
     if (!m.d.boss && angry && !fleeing && m.d.atk > 0 && tg === me) {
       if ((B.ranged || B.caster) && dist >= 2 && dist <= (B.caster ? 4 : 5) && m.cool <= 0) { monShoot(m, tg); m.cool = B.caster ? 2.6 : 2; continue; }
       if (B.charge && !B.root && m.chargeT <= 0 && dist >= 2 && dist <= 4 && (dx === 0 || dy === 0)) {
@@ -2065,6 +2198,7 @@ function render() {
   }
   ctx.save(); ctx.translate(-camX, -camY);
   for (const f of fx) if (f.kind === 'crack' || f.kind === 'target') drawFx(f);
+  drawZones();
   for (const w of warns) {
     if (w.t < 0 || w.fired) continue;
     const k = Math.min(1, w.t / w.life), X = w.x * TS + 8, Y = w.y * TS + 10;
@@ -2099,7 +2233,7 @@ function render() {
   ].sort((a, b) => a.y - b.y);
   ents.forEach((e) => e.f());
   for (const p of projs) drawProj(p);
-  drawEshots();
+  drawEshots(); drawPst();
   for (const f of fx) if (f.kind !== 'crack' && f.kind !== 'target') drawFx(f);
   if (fishing) {
     const bx = fishing.tx * TS + 6, by = fishing.ty * TS + 6 + (fishing.state === 'bite' ? Math.round(Math.sin(anim * 30)) : Math.round(Math.sin(anim * 3)));
@@ -2342,6 +2476,7 @@ function drawAlly(a) {
   ctx.fillStyle = '#1b1420'; ctx.fillRect(x + 1, y + 17, 14, 3); ctx.fillStyle = a.c.role === 'heal' ? '#7ad35a' : '#e8506a'; ctx.fillRect(x + 2, y + 18, Math.max(1, Math.round((a.hp / a.max) * 12)), 1);
 }
 function drawMon(m) {
+  if (m.lurk) { const X = Math.round(m.px * TS), Y = Math.round(m.py * TS); ctx.fillStyle = 'rgba(42,29,46,.45)'; ctx.beginPath(); ctx.ellipse(X + 8, Y + 13, 6, 2.5, 0, 0, 7); ctx.fill(); if (Math.sin(anim * 2 + m.x) > 0.8) { ctx.fillStyle = '#ffd166'; ctx.fillRect(X + 6, Y + 9, 1, 1); ctx.fillRect(X + 9, Y + 9, 1, 1); } return; }
   const x = Math.round(m.px * TS + m.kx), y = Math.round(m.py * TS + m.ky);
   if (m.d.decoy) { const hdn = asset('npc/' + m.npcId); if (hdn && charStyle === 'hd') { drawHD(hdn, { px: m.px, py: m.py, kx: m.kx, ky: m.ky, face: 'down', i: 3 }, 40, false); return; } if (!m.real) shadow(x, y); const pxn = asset('px/npc/' + m.npcId); if (pxn) { drawPxHero(pxn, { px: m.px + m.kx / TS, py: m.py + m.ky / TS, face: 'down' }, true); return; } const im = asset('npc/' + m.npcId); if (im) { const p = pixelize(im, PX_CHAR); ctx.drawImage(p, x + 8 - Math.round(p.width / 2), y + 17 - p.height); } else ctx.drawImage(avatar(m.look, 'down', 0), x - 4, y - 17, AW, AH); return; }
   const hdm = charStyle === 'hd' && asset('monster/' + (m.d.tpl === 'mirror' ? 'mirror_obj' : m.type));
@@ -2712,4 +2847,4 @@ document.fonts?.ready.then(render);
 requestAnimationFrame(frame);
 
 // 自動化測試用（網址加 ?debug 才開）
-if (location.search.includes('debug')) globalThis.__game = { showCutin, get allies() { return allies; }, buildAllies, get P() { return P; }, newDrop, get drops() { return drops; }, set dropsAdd(d) { drops.push(d); }, me, get grid() { return grid; }, loadMap, get mapId() { return mapId; }, get mons() { return mons; }, get fishing() { return fishing; }, get dialog() { return dialog; }, get drops() { return drops; }, get skills() { return skills; }, castIdx, startTower, get trial() { return trial; }, renderAdv, hud, audioLevel, currentSong, sfx, get chests() { return chests; }, say, renderPartyPanel, renderShop, useItem, addStack, get eshots() { return eshots; }, get warns() { return warns; } };
+if (location.search.includes('debug')) globalThis.__game = { showCutin, get allies() { return allies; }, buildAllies, get P() { return P; }, newDrop, get drops() { return drops; }, set dropsAdd(d) { drops.push(d); }, me, get grid() { return grid; }, loadMap, get mapId() { return mapId; }, get mons() { return mons; }, get fishing() { return fishing; }, get dialog() { return dialog; }, get drops() { return drops; }, get skills() { return skills; }, castIdx, startTower, get trial() { return trial; }, renderAdv, hud, audioLevel, currentSong, sfx, get chests() { return chests; }, say, renderPartyPanel, renderShop, useItem, addStack, get eshots() { return eshots; }, get warns() { return warns; }, pst, TR, killMon, hitPlayer, dealDamage, set mons(v) { mons = v; } };
