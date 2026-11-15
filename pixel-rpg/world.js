@@ -509,8 +509,8 @@ export function offlineReward(p, minutes, rand, cap = OFFLINE_MAX_MIN) {
   return { mins, kills, exp, coins, items, zone: zone.name };
 }
 
-export function newPlayer(cls = 'sword', name = '冒險者') {
-  const p = { v: 4, attrs: newAttrs(), autoAttr: true, job: { tier: 1, lv: 1, exp: 0, branch: '' }, sk: {}, bar: [], cls: CLASSES[cls] ? cls : 'sword', name: String(name).slice(0, 8) || '冒險者', lv: 1, exp: 0, hp: 0, coins: 0, potions: 3, sword: 0, gear: {}, fish: {}, kills: 0, quest: 0, ch: 1, step: 0, talents: {}, souls: {}, soul: '', stones: 0, pity: 0, seen: 0, x: SPAWN.x, y: SPAWN.y };
+export function newPlayer(cls = 'sword', name = '冒險者', body = 'male') {
+  const p = { body: body === 'female' ? 'female' : 'male', v: 4, attrs: newAttrs(), autoAttr: true, job: { tier: 1, lv: 1, exp: 0, branch: '' }, sk: {}, bar: [], cls: CLASSES[cls] ? cls : 'sword', name: String(name).slice(0, 8) || '冒險者', lv: 1, exp: 0, hp: 0, coins: 0, potions: 3, sword: 0, gear: {}, fish: {}, kills: 0, quest: 0, ch: 1, step: 0, talents: {}, souls: {}, soul: '', stones: 0, pity: 0, seen: 0, x: SPAWN.x, y: SPAWN.y };
   p.hp = stats(p).hp;
   return p;
 }

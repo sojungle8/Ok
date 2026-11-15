@@ -90,3 +90,13 @@ test('怪物行為照圖鑑：主動／被動、遠程、衝撞、群聚', async
   assert.ok(W.MONSTERS.slime.beh.link && W.MONSTERS.slime.beh.splashHeal, '露滴團群聚、濺水回血');
   assert.ok(W.NIGHT.slime.beh.rage, '深夜蝕化');
 });
+
+test('外觀：建立角色存男女，舊存檔沒有欄位就是男角', async () => {
+  const W = await import('../world.js');
+  assert.equal(W.newPlayer('mage', '小葵', 'female').body, 'female');
+  assert.equal(W.newPlayer('mage', '阿杰').body, 'male');
+  const old = W.newPlayer('archer', '舊存檔'); delete old.body;
+  assert.equal(W.loadPlayer(JSON.stringify(old)).body, 'male', '舊存檔沿用 {class}.png');
+  const f = W.newPlayer('scout', '影', 'female');
+  assert.equal(W.loadPlayer(JSON.stringify(f)).body, 'female', '讀檔保留女角');
+});

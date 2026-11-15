@@ -2547,8 +2547,10 @@ function recolor(src, pal) {
   for (let i = 0; i < a.length; i += 4) { if (!a[i + 3]) continue; const to = map.get((a[i] << 16) | (a[i + 1] << 8) | a[i + 2]); if (to !== undefined) { a[i] = to >> 16; a[i + 1] = (to >> 8) & 255; a[i + 2] = to & 255; } }
   g.putImageData(d, 0, 0); return c;
 }
-function heroSheet(cls, tier) {
-  const art = asset(sheetPath('hero', cls)), key = `hero/${cls}/${tier}/${art ? 1 : 0}`; // 正式圖載入後換掉暫用圖
+// 外觀：男角 sprite/hero/{cls}.png、女角 {cls}_female.png；舊存檔沒有這個欄位就是男角
+const heroSheetId = (cls, body) => (body === 'female' ? cls + '_female' : cls);
+function heroSheet(cls, tier, body = 'male') {
+  const art = asset(sheetPath('hero', heroSheetId(cls, body))), key = `hero/${heroSheetId(cls, body)}/${tier}/${art ? 1 : 0}`; // 正式圖載入後換掉暫用圖
   if (!sheetCache.has(key)) {
     const C0 = CLASSES[cls];
     sheetCache.set(key, recolor(art || genSheet('hero', heroLookFor(cls, C0)), paletteOf(cls, C0.outfit, tier)));
@@ -2583,7 +2585,7 @@ function charAnim(o, L, extra = {}) {
 }
 function drawHeroSprite() {
   if (artStyle === 'hd') return false;
-  const tier = Math.max(0, myLook?.armorTier ?? 0), img = heroSheet(P.cls, tier), L = layout('hero');
+  const tier = Math.max(0, myLook?.armorTier ?? 0), img = heroSheet(P.cls, tier, P.body), L = layout('hero');
   const [a, i] = charAnim(me, L, { sit: pst.sleep > 0 });
   if (myLook?.aura) { ctx.globalAlpha = 0.25 + Math.sin(anim * 4) * 0.08; ctx.fillStyle = '#ffd75e'; ctx.beginPath(); ctx.ellipse(me.px * TS + 8, me.py * TS + 15, 12, 4, 0, 0, 7); ctx.fill(); ctx.globalAlpha = 1; }
   if (me.inv > 0) ctx.globalAlpha = 0.6;
@@ -2927,7 +2929,14 @@ function frame(t) {
 }
 
 // ---------- 標題與選職業 ----------
-let pickCls = 'sword';
+let pickCls = 'sword', pickBody = 'male', previewT = null;
+// 選職業畫面的像素預覽：取動畫表裡某一格
+function spriteFrame(cls, tier, body, anim = 'idle', i = 0, z = 1) {
+  const L = layout('hero'), [cw, ch] = L.cell, img = heroSheet(cls, tier, body);
+  const c = document.createElement('canvas'); c.width = cw * z; c.height = (ch - 6) * z; c.className = 'pxprev';
+  const g = c.getContext('2d'); g.imageSmoothingEnabled = false; g.drawImage(img, (L.col[anim] + i) * cw, 0, cw, ch - 6, 0, 0, cw * z, (ch - 6) * z);
+  return c;
+}
 function start() {
   if (started) return;
   started = true;
@@ -2938,25 +2947,34 @@ function start() {
   if (P.ch === 1 && P.step === 0 && P.lv === 1) say('村長・歐文', [`歡迎來到守燈村，${C.name}${P.name}！`, '按住紅色「攻擊」鍵連續攻擊，旁邊三顆是職業專屬技能。', '懶得操作就按左上的「自動」，角色會自己去打怪！', '先來廣場北邊找我說話吧。']);
 }
 function buildClassGrid() {
+  const px = artStyle !== 'hd';
   $('classGrid').replaceChildren(...CLASS_IDS.map((id) => {
     const c = CLASSES[id];
     const b = document.createElement('button');
     b.type = 'button'; b.className = 'classcard'; b.dataset.cls = id; b.style.setProperty('--c', c.color);
     const art = document.createElement('div'); art.className = 'cart';
-    const base = lookOf({ cls: id, gear: {} }, CLASSES, rarityIdx);
-    const leg = lookOf({ cls: id, gear: { armor: { rarity: 'legend' }, weapon: { rarity: 'legend' }, helm: { rarity: 'legend' } } }, CLASSES, rarityIdx);
-    art.append(previewCanvas(base, 2), document.createTextNode('→'), previewCanvas(leg, 2));
+    if (px) art.append(spriteFrame(id, 0, pickBody), document.createTextNode('→'), spriteFrame(id, 4, pickBody));
+    else {
+      const base = lookOf({ cls: id, gear: {} }, CLASSES, rarityIdx);
+      const leg = lookOf({ cls: id, gear: { armor: { rarity: 'legend' }, weapon: { rarity: 'legend' }, helm: { rarity: 'legend' } } }, CLASSES, rarityIdx);
+      art.append(previewCanvas(base, 2), document.createTextNode('→'), previewCanvas(leg, 2));
+    }
     b.append(art);
-    b.insertAdjacentHTML('beforeend', `<b>${c.name}</b><span class="role">${c.role}</span><span class="cdesc">${c.desc}</span><span class="cskills">${c.skills.map((s) => s.name).join('・')}</span>${asset(`hero/${id}_common_front`) ? '' : '<span class="cskills">（精緻立繪製作中，暫用像素圖）</span>'}`);
+    b.insertAdjacentHTML('beforeend', `<b>${c.name}</b><span class="role">${c.role}</span><span class="cdesc">${c.desc}</span><span class="cskills">${c.skills.map((s) => s.name).join('・')}</span>`);
     b.addEventListener('click', () => { pickCls = id; document.querySelectorAll('.classcard').forEach((x) => x.classList.toggle('on', x === b)); });
     return b;
   }));
-  document.querySelector('.classcard')?.classList.add('on');
+  document.querySelectorAll('.classcard').forEach((x) => x.classList.toggle('on', x.dataset.cls === pickCls));
+  document.querySelectorAll('#bodyPick button').forEach((x) => x.classList.toggle('on', x.dataset.body === pickBody));
+  // 選中的職業播走路動畫，看得出動作
+  clearInterval(previewT);
+  if (px) { let f = 0; previewT = setInterval(() => { if ($('classPanel').hidden) return clearInterval(previewT); const card = document.querySelector('.classcard.on .cart canvas'); if (!card) return; f = (f + 1) % 8; const g = card.getContext('2d'), fr = spriteFrame(pickCls, 0, pickBody, 'walk', f); g.clearRect(0, 0, card.width, card.height); g.drawImage(fr, 0, 0); }, 110); }
 }
+document.querySelectorAll('#bodyPick button').forEach((b) => b.addEventListener('click', () => { pickBody = b.dataset.body; buildClassGrid(); }));
 $('newBtn').addEventListener('click', () => { buildClassGrid(); $('overwriteNote').hidden = !hasSave; $('title').hidden = true; $('classPanel').hidden = false; });
 $('classBack').addEventListener('click', () => { $('classPanel').hidden = true; $('title').hidden = false; });
 $('classGo').addEventListener('click', () => {
-  P = ensureParty(ensureInv(newPlayer(pickCls, $('nameInput').value.trim() || '冒險者'))); autoAllocate(P);
+  P = ensureParty(ensureInv(newPlayer(pickCls, $('nameInput').value.trim() || '冒險者', pickBody))); autoAllocate(P);
   soulPower = 0; loadMap(0);
   Object.assign(me, { x: P.x, y: P.y, px: P.x, py: P.y, fx: P.x, fy: P.y, moving: false, face: 'down' });
   drops = []; projs = []; pending = []; fx = [];
@@ -3005,4 +3023,4 @@ document.fonts?.ready.then(render);
 requestAnimationFrame(frame);
 
 // 自動化測試用（網址加 ?debug 才開）
-if (location.search.includes('debug')) globalThis.__game = { showCutin, get allies() { return allies; }, buildAllies, get P() { return P; }, newDrop, get drops() { return drops; }, set dropsAdd(d) { drops.push(d); }, me, get grid() { return grid; }, loadMap, get mapId() { return mapId; }, get mons() { return mons; }, get fishing() { return fishing; }, get dialog() { return dialog; }, get drops() { return drops; }, get skills() { return skills; }, castIdx, startTower, get trial() { return trial; }, renderAdv, hud, audioLevel, currentSong, sfx, get chests() { return chests; }, say, renderPartyPanel, renderShop, useItem, addStack, get eshots() { return eshots; }, get warns() { return warns; }, pst, TR, killMon, hitPlayer, dealDamage, set mons(v) { mons = v; }, setArt(v) { artStyle = v; applyArt(); }, asset, get anim() { return anim; }, toCss: (wx, wy) => [(wx - lastCam.x) * S / DPR, (wy - lastCam.y) * S / DPR], MONSTERS, ITEMS, CHAPTERS, newDropLoot: (id, x, y) => drops.push(newDrop('loot', x, y, { id, n: 1 })), renderBag: () => { if (typeof renderBag === 'function') renderBag(); }, skillsList: () => skills.map((k) => k.id), get lamps() { return lamps; }, inLight, get deathN() { return deathN; }, rollGear, SLOTS, R, stats: () => stats(P) };
+if (location.search.includes('debug')) globalThis.__game = { showCutin, get allies() { return allies; }, buildAllies, get P() { return P; }, newDrop, get drops() { return drops; }, set dropsAdd(d) { drops.push(d); }, me, get grid() { return grid; }, loadMap, get mapId() { return mapId; }, get mons() { return mons; }, get fishing() { return fishing; }, get dialog() { return dialog; }, get drops() { return drops; }, get skills() { return skills; }, castIdx, startTower, get trial() { return trial; }, renderAdv, hud, audioLevel, currentSong, sfx, get chests() { return chests; }, say, renderPartyPanel, renderShop, useItem, addStack, get eshots() { return eshots; }, get warns() { return warns; }, pst, TR, killMon, hitPlayer, dealDamage, set mons(v) { mons = v; }, heroSheet, setArt(v) { artStyle = v; applyArt(); }, asset, get anim() { return anim; }, toCss: (wx, wy) => [(wx - lastCam.x) * S / DPR, (wy - lastCam.y) * S / DPR], MONSTERS, ITEMS, CHAPTERS, newDropLoot: (id, x, y) => drops.push(newDrop('loot', x, y, { id, n: 1 })), renderBag: () => { if (typeof renderBag === 'function') renderBag(); }, skillsList: () => skills.map((k) => k.id), get lamps() { return lamps; }, inLight, get deathN() { return deathN; }, rollGear, SLOTS, R, stats: () => stats(P) };

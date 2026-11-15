@@ -370,3 +370,7 @@ button{font-family:inherit;color:inherit}
 .barbtn.on{background:#ffd16633}
 .tsub{margin:10px 0 4px;font-size:.85em;color:#ffd166}
 .bar span b{font-size:.9em;letter-spacing:-.02em}
+
+/* 選職業：像素預覽 */
+.cart canvas.pxprev { width: 48px; height: 68px; image-rendering: pixelated; }
+#bodyPick { margin-bottom: 8px; }
