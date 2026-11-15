@@ -55,7 +55,7 @@ const cv = $('cv');
 const ctx = cv.getContext('2d');
 addEventListener('resize', () => resize());
 // 地圖：0 = 守燈村與守燈草原；2～6 = 各章野外
-let nightMode = false, mapId = 0, grid = buildWorld(), mapC = null, BZ = BOSS_ZONE, FMIN = FIELD_MIN_X;
+let deathN = 0, nightMode = false, mapId = 0, grid = buildWorld(), mapC = null, BZ = BOSS_ZONE, FMIN = FIELD_MIN_X;
 const townNpcs = NPCS.map((n, i) => ({ ...n, face: n.id === 'fisher' ? 'right' : 'down', L: npcLook(n), seed: i }));
 let npcs = townNpcs;
 const mapCache = {};
@@ -186,7 +186,7 @@ function loadMap(id, at, night = false) {
   const c = CHAPTERS[Math.max(1, id) - 1];
   if (typeof buildAllies === 'function' && P) { allies = []; buildAllies(); }
   spawnRoster(id === 0 ? [] : [...c.mons, ...c.mons, c.boss]);
-  placeChests();
+  placeChests(); placeLamps();
 }
 // ---- 野外寶箱 ----
 let chests = [];
@@ -824,6 +824,67 @@ function hitPlayer(m, k = 1) {
   T0?.hit?.(m);
 }
 
+// ---------- 深夜：燈火 ----------
+// 深夜地圖一片黑，只有自己身邊和點亮的路燈看得見。站在路燈旁 2 秒就能點亮；燈光裡攻擊 +20%。
+// 深夜魔王會「吞光」把附近的燈吹熄；你不在燈光裡時，魔王只受一半傷害。
+let lamps = [];
+const LAMP_R = 4, SELF_R = 2.4, LIGHT_BONUS = 0.2;
+function placeLamps() {
+  lamps = [];
+  if (!nightMode) return;
+  const reach = reachable(grid, FIELD.spawn), seg = (W - 2 - FMIN) / 6;
+  for (let i = 0; i < 6; i++) {
+    const cand = [];
+    for (let y = 2; y < H - 2; y++) for (let x = Math.floor(FMIN + seg * i); x < Math.floor(FMIN + seg * (i + 1)); x++) if (walkable(grid, x, y) && reach.has(`${x},${y}`) && grid[y][x] !== T.PORTAL && !inBoss(x, y)) cand.push([x, y]);
+    if (cand.length) { const [x, y] = cand[Math.floor(R() * cand.length)]; lamps.push({ x, y, lit: i === 0, prog: 0 }); }
+  }
+}
+const inLight = () => lamps.some((l) => l.lit && Math.hypot(l.x - me.px, l.y - me.py) <= LAMP_R);
+function updateLamps(dt) {
+  if (!nightMode) return;
+  for (const l of lamps) {
+    if (l.lit) continue;
+    if (Math.abs(l.x - me.x) + Math.abs(l.y - me.y) <= 1 && !me.moving) {
+      l.prog += dt;
+      if (l.prog >= 2) { l.lit = true; l.prog = 0; sfx('reward'); burst(l.x * TS + 8, l.y * TS + 2, '#ffd166', 18, 90); addFx('pillar', 0.6, { x: l.x * TS + 8, y: l.y * TS + 8, color: '#ffd166' }); floatT('點亮了路燈', me.x, me.y - 0.8, '#ffd166', 0.9); }
+    } else l.prog = Math.max(0, l.prog - dt);
+  }
+  // 深夜魔王：吞光
+  const b = mons.find((m) => m.d.boss && m.night && m.dead <= 0 && m.engaged);
+  if (!b) return;
+  b.eatT = (b.eatT ?? 12) - dt;
+  if (b.eatT <= 0) {
+    b.eatT = 15;
+    let n = 0;
+    for (const l of lamps) if (l.lit && Math.hypot(l.x - b.px, l.y - b.py) <= 8) { l.lit = false; n++; burst(l.x * TS + 8, l.y * TS + 2, '#3b3350', 14, 70); }
+    banner(n ? `${b.d.name}吞掉了 ${n} 盞燈！` : `${b.d.name}想吞光，但附近沒有燈`); tintC = '#120c1c'; tintT = 0.5;
+  }
+}
+function drawLamps() {
+  for (const l of lamps) {
+    const X = l.x * TS, Y = l.y * TS;
+    ctx.fillStyle = '#2a1d2e'; ctx.fillRect(X + 7, Y - 6, 2, 20); ctx.fillRect(X + 4, Y + 13, 8, 2);
+    ctx.fillStyle = l.lit ? '#ffd166' : '#4b3a6b'; ctx.fillRect(X + 5, Y - 10, 6, 5);
+    ctx.fillStyle = '#2a1d2e'; ctx.fillRect(X + 4, Y - 11, 8, 1); ctx.fillRect(X + 4, Y - 5, 8, 1);
+    if (l.lit && R() < 0.15) parts.push({ x: X + 8, y: Y - 8, vx: (R() - 0.5) * 6, vy: -12, c: '#fff1a8', t: 0, g: 0, size: 1, life: 0.6 });
+    if (!l.lit && l.prog > 0) { ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(X + 8, Y - 8, 7, -Math.PI / 2, -Math.PI / 2 + (l.prog / 2) * Math.PI * 2); ctx.stroke(); }
+  }
+}
+let darkC = null;
+function drawNightDark(camX, camY) {
+  if (!darkC || darkC.width !== Math.ceil(VW) || darkC.height !== Math.ceil(VH)) { darkC = document.createElement('canvas'); darkC.width = Math.ceil(VW); darkC.height = Math.ceil(VH); }
+  const d = darkC.getContext('2d');
+  d.globalCompositeOperation = 'source-over'; d.clearRect(0, 0, darkC.width, darkC.height);
+  d.fillStyle = 'rgba(10,6,30,.82)'; d.fillRect(0, 0, darkC.width, darkC.height);
+  d.globalCompositeOperation = 'destination-out';
+  const hole = (wx, wy, r) => { const x = wx - camX, y = wy - camY, g = d.createRadialGradient(x, y, r * 0.35, x, y, r); g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(1, 'rgba(0,0,0,0)'); d.fillStyle = g; d.beginPath(); d.arc(x, y, r, 0, 7); d.fill(); };
+  hole(cx(me), cy(me), SELF_R * TS * (pst.blind > 0 ? 0.6 : 1));
+  for (const l of lamps) if (l.lit) hole(l.x * TS + 8, l.y * TS, LAMP_R * TS + Math.sin(anim * 3 + l.x) * 2);
+  for (const p of projs) hole(p.x, p.y, 10);
+  ctx.drawImage(darkC, 0, 0);
+  if (lamps.length) { ctx.font = 'bold 7px sans-serif'; ctx.textAlign = 'left'; ctx.fillStyle = '#ffd166'; ctx.fillText(`路燈 ${lamps.filter((l) => l.lit).length}/${lamps.length}${inLight() ? '・燈光中 攻擊+20%' : ''}`, 4, VH - 4); }
+}
+
 // ---------- 怪物專屬特性（照圖鑑「特性」欄）與玩家異常狀態 ----------
 const pst = { slow: 0, root: 0, sleep: 0, deep: 0, silence: 0, hitDown: 0, aspdDown: 0, blind: 0, weak: 0 };
 const PST_NAME = { slow: '減速', root: '定身', sleep: '睡著了', silence: '沉默', hitDown: '命中降低', aspdDown: '攻速降低', blind: '視野變小', weak: '詛咒' };
@@ -915,6 +976,7 @@ function traitDmg(m, c) {
   let k = TR[m.type]?.dmg?.(m, c) ?? 1;
   if (k && cultistNear(m)) k *= 0.8;
   if (k && pst.weak > 0) k *= 0.8;
+  if (k && nightMode) { const lit = inLight(); if (lit) k *= 1 + LIGHT_BONUS; else if (m.d.boss && m.night) { k *= 0.5; if (R() < 0.15) float('黑暗護身', cx(m), m.py * TS - 14, '#8f7ab8', 0.8); } }
   return k;
 }
 function traitTick(m, dt) {
@@ -990,6 +1052,7 @@ function hurt(raw, m) {
     banner('九命發動！'); burst(cx(me), cy(me), '#ffe066', 24, 120); hud(); return;
   }
   if (P.hp <= 0) {
+    deathN++;
     P.hp = stats(P).hp;
     for (const al of allies) { al.down = 0; al.hp = al.max; }
     if (mapId !== 0 && !trial) {
@@ -1219,12 +1282,19 @@ function frontTiles() {
 const onTiles = (m, tiles) => tiles.some(([x, y]) => (m.d.boss ? Math.abs(m.x - x) <= 1 && Math.abs(m.y - y) <= 1 : m.x === x && m.y === y));
 function basicAttack(target) {
   const aspd = stats(P).aspd;
-  sfx({ sword: 'swing', archer: 'arrow', mage: 'bolt', monk: 'swing', priest: 'bolt' }[P.cls] || 'swing');
+  sfx({ sword: 'swing', archer: 'arrow', mage: 'bolt', monk: 'swing', priest: 'bolt', scout: 'swing' }[P.cls] || 'swing');
   me.cool = C.cool / aspd * (pst.aspdDown > 0 ? 1.15 : 1); me.atkT = me.atkDur = Math.max(0.16, Math.min(0.28, me.cool * 0.8));
   const [dx, dy] = DIRS[me.face];
   if (P.cls === 'sword') {
     addFx('slash', 0.18, { x: cx(me) + dx * 13, y: cy(me) + dy * 13 - 3, ang: faceAng(), color: '#dff6ff', size: 19 });
     for (const m of alive()) if (onTiles(m, frontTiles())) dealDamage(m, 1, me.px, me.py, null, 'basic');
+  } else if (P.cls === 'scout') {
+    // 短刀：快速雙刺；在影裡時刀光變紫
+    const c = shadowT > 0 ? '#c9a7ff' : '#e8e4f0';
+    addFx('slash', 0.12, { x: cx(me) + dx * 12, y: cy(me) + dy * 12 - 3, ang: faceAng() + 0.5, color: c, size: 13 });
+    pending.push({ t: 0.06, fn: () => addFx('slash', 0.12, { x: cx(me) + dx * 12, y: cy(me) + dy * 12 - 3, ang: faceAng() - 0.5, color: c, size: 13 }) });
+    const t = [frontTiles()[0]];
+    for (const m of alive()) if (onTiles(m, t)) dealDamage(m, 1, me.px, me.py, null, 'basic');
   } else if (P.cls === 'monk') {
     const off = (R() - 0.5) * 8;
     addFx('punch', 0.12, { x: cx(me) + dx * 14 + (dy ? off : 0), y: cy(me) + dy * 14 - 3 + (dx ? off : 0), color: '#ffd8a8' });
@@ -1270,7 +1340,7 @@ function castIdx(i) {
   s.t = n.cd * (1 - st.cdr); curSkill = s.id;
   questDone(track(P, 'skill'));
   skillElem = sk.elem || (sk.shape === 'shot' && P.cls === 'priest' ? '聖' : '無'); skillElemT = 1.2;
-  sfx({ sword: 'slash', archer: 'arrow', mage: 'magic', monk: 'punch', priest: sk.kind === 'heal' ? 'potion' : 'magic' }[P.cls] || 'slash');
+  sfx({ sword: 'slash', archer: 'arrow', mage: 'magic', monk: 'punch', scout: 'slash', priest: sk.kind === 'heal' ? 'potion' : 'magic' }[P.cls] || 'slash');
   const echo = alive().find((m) => m.d.mech === 'echo' && tdist(m, me.px, me.py) <= 8);
   if (echo && lastSkill === s.id && sk.c) {
     floatT('回音反彈！', me.x, me.y - 1.2, '#b48cff', 1.3); ring(cx(echo), cy(echo), 40, '#b48cff', 0.4, 4);
@@ -2033,8 +2103,9 @@ function pickSong() {
   if (!started) return 'town';
   if (trial) return trial.f % 5 === 0 ? 'boss' : 'tower';
   const boss = mons.find((m) => m.d.boss && m.dead <= 0 && m.engaged && Math.abs(m.x - me.x) + Math.abs(m.y - me.y) <= 9);
-  if (boss) return 'boss';
+  if (boss) return nightMode ? 'nightBoss' : 'boss';
   if (mapId === 0) return 'town';
+  if (nightMode) return 'night';
   return 'field' + mapId;
 }
 function dust(wx, wy) {
@@ -2065,7 +2136,7 @@ function update(dt) {
   if (started && !held) autoThink(dt);
   me.atkT = Math.max(0, me.atkT - dt); me.hurtT = Math.max(0, me.hurtT - dt); me.cool = Math.max(0, me.cool - dt);
   me.inv = Math.max(0, me.inv - dt); me.dodgeT = Math.max(0, me.dodgeT - dt); catT = Math.max(0, catT - dt);
-  updateWarns(dt); updateEshots(dt); updatePst(dt);
+  updateWarns(dt); updateEshots(dt); updatePst(dt); updateLamps(dt);
   { const fx2 = { up: 10, down: -12, left: 12, right: -12 }[me.face]; const tx = cx(me) + fx2, ty = cy(me) - 14 + Math.sin(anim * 3) * 2; soulPos.x += (tx - soulPos.x) * Math.min(1, dt * 6); soulPos.y += (ty - soulPos.y) * Math.min(1, dt * 6); }
   const ranged = C.range > 1;
   if ((aHeld || autoHit) && me.cool <= 0 && !dialog && !fishing && pst.sleep <= 0 && (ranged || !me.moving) && started) basicAttack(autoTarget);
@@ -2198,7 +2269,7 @@ function render() {
   }
   ctx.save(); ctx.translate(-camX, -camY);
   for (const f of fx) if (f.kind === 'crack' || f.kind === 'target') drawFx(f);
-  drawZones();
+  drawZones(); drawLamps();
   for (const w of warns) {
     if (w.t < 0 || w.fired) continue;
     const k = Math.min(1, w.t / w.life), X = w.x * TS + 8, Y = w.y * TS + 10;
@@ -2251,7 +2322,7 @@ function render() {
   ctx.globalAlpha = 1;
   ctx.restore();
   if (flash > 0) { ctx.fillStyle = `rgba(255,248,231,${Math.min(0.6, flash * 3)})`; ctx.fillRect(0, 0, VW, VH); }
-  if (nightMode) { ctx.fillStyle = 'rgba(14,8,44,.42)'; ctx.fillRect(0, 0, VW, VH); }
+  if (nightMode) drawNightDark(camX, camY);
   if (tintT > 0) { ctx.globalAlpha = Math.min(0.22, tintT * 1.6); ctx.fillStyle = tintC; ctx.fillRect(0, 0, VW, VH); ctx.globalAlpha = 1; }
   // 高解析度文字層：名字、傷害數字
   ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -2789,7 +2860,7 @@ function buildClassGrid() {
     const leg = lookOf({ cls: id, gear: { armor: { rarity: 'legend' }, weapon: { rarity: 'legend' }, helm: { rarity: 'legend' } } }, CLASSES, rarityIdx);
     art.append(previewCanvas(base, 2), document.createTextNode('→'), previewCanvas(leg, 2));
     b.append(art);
-    b.insertAdjacentHTML('beforeend', `<b>${c.name}</b><span class="role">${c.role}</span><span class="cdesc">${c.desc}</span><span class="cskills">${c.skills.map((s) => s.name).join('・')}</span>`);
+    b.insertAdjacentHTML('beforeend', `<b>${c.name}</b><span class="role">${c.role}</span><span class="cdesc">${c.desc}</span><span class="cskills">${c.skills.map((s) => s.name).join('・')}</span>${asset(`hero/${id}_common_front`) ? '' : '<span class="cskills">（精緻立繪製作中，暫用像素圖）</span>'}`);
     b.addEventListener('click', () => { pickCls = id; document.querySelectorAll('.classcard').forEach((x) => x.classList.toggle('on', x === b)); });
     return b;
   }));
@@ -2847,4 +2918,4 @@ document.fonts?.ready.then(render);
 requestAnimationFrame(frame);
 
 // 自動化測試用（網址加 ?debug 才開）
-if (location.search.includes('debug')) globalThis.__game = { showCutin, get allies() { return allies; }, buildAllies, get P() { return P; }, newDrop, get drops() { return drops; }, set dropsAdd(d) { drops.push(d); }, me, get grid() { return grid; }, loadMap, get mapId() { return mapId; }, get mons() { return mons; }, get fishing() { return fishing; }, get dialog() { return dialog; }, get drops() { return drops; }, get skills() { return skills; }, castIdx, startTower, get trial() { return trial; }, renderAdv, hud, audioLevel, currentSong, sfx, get chests() { return chests; }, say, renderPartyPanel, renderShop, useItem, addStack, get eshots() { return eshots; }, get warns() { return warns; }, pst, TR, killMon, hitPlayer, dealDamage, set mons(v) { mons = v; } };
+if (location.search.includes('debug')) globalThis.__game = { showCutin, get allies() { return allies; }, buildAllies, get P() { return P; }, newDrop, get drops() { return drops; }, set dropsAdd(d) { drops.push(d); }, me, get grid() { return grid; }, loadMap, get mapId() { return mapId; }, get mons() { return mons; }, get fishing() { return fishing; }, get dialog() { return dialog; }, get drops() { return drops; }, get skills() { return skills; }, castIdx, startTower, get trial() { return trial; }, renderAdv, hud, audioLevel, currentSong, sfx, get chests() { return chests; }, say, renderPartyPanel, renderShop, useItem, addStack, get eshots() { return eshots; }, get warns() { return warns; }, pst, TR, killMon, hitPlayer, dealDamage, set mons(v) { mons = v; }, get lamps() { return lamps; }, inLight, get deathN() { return deathN; }, rollGear, SLOTS, R, stats: () => stats(P) };

@@ -70,6 +70,12 @@ function drawWeapon(P, px, L, dir, atk) {
   if (!w) return;
   const col = w.color, dk = mix(col, -0.45), hi = mix(col, 0.5);
   const side = dir === 'side';
+  if (w.type === 'dagger') {
+    // 雙短刀：比劍短一半
+    if (side) { if (atk) { P.r(14, 19, 7, 2, col, false); P.flush(); px(15, 19, 5, 1, hi); } else { P.r(12, 24, 2, 5, col, false); P.r(11, 23, 4, 1, dk, false); P.flush(); px(12, 25, 1, 3, hi); } }
+    else { const y0 = atk ? 8 : 14; P.r(20, y0, 2, 7, col, false); P.r(19, y0 + 7, 4, 1, dk, false); P.r(2, y0 + 1, 2, 6, col, false); P.r(1, y0 + 7, 4, 1, dk, false); P.flush(); px(20, y0 + 1, 1, 5, hi); }
+    return;
+  }
   if (w.type === 'sword') {
     if (side) {
       if (atk) { P.r(13, 19, 11, 2, col, false); P.r(12, 17, 2, 6, dk, false); P.flush(); px(15, 19, 8, 1, hi); }

@@ -106,6 +106,8 @@ const SONGS = {
   field5: { bpm: 116, scale: MAJ, key: 65, prog: [[0, 'M'], [4, 'm'], [9, 'm'], [7, 'M']], lead: 'triangle', drums: 'beat', bass: 'eighth', seed: 19, density: 0.55 },
   field6: { bpm: 108, scale: MIN, key: 56, prog: [[0, 'm'], [8, 'M'], [10, 'M'], [7, 'M']], lead: 'sawtooth', drums: 'beat', bass: 'eighth', seed: 23, density: 0.5 },
   boss: { bpm: 152, scale: MIN, key: 57, prog: [[0, 'm'], [8, 'M'], [10, 'M'], [7, 'M']], lead: 'sawtooth', drums: 'battle', bass: 'sixteenth', seed: 29, density: 0.7 },
+  night: { bpm: 84, scale: MIN, key: 55, prog: [[0, 'm'], [8, 'M'], [5, 'm'], [7, 'm']], lead: 'sine', drums: 'soft', bass: 'half', seed: 37, density: 0.35 },
+  nightBoss: { bpm: 140, scale: MIN, key: 53, prog: [[0, 'm'], [1, 'M'], [8, 'M'], [7, 'm']], lead: 'sawtooth', drums: 'battle', bass: 'sixteenth', seed: 41, density: 0.65 },
   tower: { bpm: 134, scale: MIN, key: 64, prog: [[0, 'm'], [8, 'M'], [10, 'M'], [11, 'M']], lead: 'square', drums: 'battle', bass: 'eighth', seed: 31, density: 0.65 },
 };
 const CH = { M: [0, 4, 7], m: [0, 3, 7] };

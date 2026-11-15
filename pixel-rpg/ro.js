@@ -15,7 +15,7 @@ export const attrSpent = (a) => ATTRS.reduce((s, k) => s + Math.max(0, (a?.[k] |
 export const attrFree = (p) => Math.max(0, attrPointsTotal(p.lv) + (p.job?.tier >= 3 ? 20 : 0) - attrSpent(p.attrs));
 export const newAttrs = () => Object.fromEntries(ATTRS.map((k) => [k, 1]));
 // 主要攻擊能力：近戰看力量、弓手看靈巧、法系看智力
-export const MAIN_ATTR = { sword: 'str', monk: 'str', archer: 'dex', mage: 'int', priest: 'int' };
+export const MAIN_ATTR = { sword: 'str', monk: 'str', archer: 'dex', mage: 'int', priest: 'int', scout: 'agi' };
 // 自動分配比例（舒壓：預設開啟，不用自己研究）
 export const AUTO_RATIO = {
   sword: { str: 5, vit: 3, dex: 1, agi: 1 },
@@ -23,6 +23,7 @@ export const AUTO_RATIO = {
   mage: { int: 5, dex: 3, vit: 1, agi: 1 },
   monk: { str: 4, agi: 4, luk: 1, vit: 1 },
   priest: { int: 4, vit: 3, dex: 2, agi: 1 },
+  scout: { agi: 4, str: 3, luk: 2, dex: 1 },
 };
 export function ensureAttrs(p) {
   if (!p.attrs || typeof p.attrs !== 'object') p.attrs = newAttrs();
