@@ -295,7 +295,7 @@ export const CLASSES = {
   },
   scout: {
     name: '斥候', color: '#8f7ab8', role: '近戰・暗殺', desc: '夜行者的傳承。躲進「影」裡，下一刀從背後刺出，傷害翻倍。',
-    hpMul: 1, atkMul: 0.85, cool: 0.18, range: 1, weapon: 'dagger', helm: 'hood', hair: '#3b3350',
+    hpMul: 1.15, atkMul: 0.85, cool: 0.18, range: 1, weapon: 'dagger', helm: 'hood', hair: '#3b3350',
     outfit: { main: '#4b3a6b', dark: '#22183a', trim: '#c9a7ff' },
     skills: [{ id: 'shadowStab', name: '影刺' }, { id: 'nightVeil', name: '夜幕' }, { id: 'hide', name: '潛影' }], mp: 0.8,
     names: { weapon: ['舊短刀', '雙短刀', '夜鋼短刃', '影牙雙刃', '星夜雙刃'], helm: ['布兜帽', '皮兜帽', '夜行兜帽', '影織兜帽', '星夜兜帽'] },

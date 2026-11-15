@@ -1912,6 +1912,8 @@ function autoThink(dt) {
   const st = stats(P);
   const ok = (m) => m.dead <= 0 && !m.shield && !m.hidden && !m.d.decoy && (m.d.trial || (m.d.boss ? P.lv >= m.d.lv - 3 : m.d.lv <= P.lv + 2));
   const targets = mons.filter(ok);
+  // 有經驗的怪（不低於自己 10 級）優先；太弱的只在擋路時順手打
+  const worth = targets.filter((m) => m.d.boss || m.d.trial || m.d.lv >= P.lv - 10), seek = worth.length ? worth : targets;
   autoCastT -= dt;
   const near = targets.filter((m) => tdist(m, me.px, me.py) <= (C.range > 1 ? 4.5 : 2.2));
   if (near.length && autoCastT <= 0) {
@@ -1933,8 +1935,9 @@ function autoThink(dt) {
     if (bi !== undefined) { if (C.range === 1) me.face = dirTo(near[0].x, near[0].y); castIdx(bi); autoCastT = 0.45; }
   }
   if (C.range > 1) {
-    const m = nearest(Math.min(4.5, C.range - 0.5));
-    if (m && ok(m)) { autoHit = true; autoTarget = m; return; }
+    const rr = Math.min(4.5, C.range - 0.5), w = seek.filter((x) => tdist(x, me.px, me.py) <= rr).sort((a, b) => tdist(a, me.px, me.py) - tdist(b, me.px, me.py))[0];
+    const m = w || nearest(rr);
+    if (m && ok(m) && (w || !worth.length || tdist(m, me.px, me.py) <= 2)) { autoHit = true; autoTarget = m; return; }
   } else {
     const adj = targets.find((m) => Math.abs(m.x - me.x) + Math.abs(m.y - me.y) === 1 || (m.d.boss && Math.max(Math.abs(m.x - me.x), Math.abs(m.y - me.y)) <= 1));
     if (adj) { me.face = dirTo(adj.x, adj.y); autoHit = true; return; }
@@ -1942,7 +1945,7 @@ function autoThink(dt) {
   const goal = new Set();
   if (!targets.length && mapId === 0) for (const y of GATE_Y) goal.add(`${W - 1},${y}`);
   const reach = C.range > 1 ? 3 : 1;
-  for (const m of targets) for (let ox = -reach; ox <= reach; ox++) for (let oy = -reach; oy <= reach; oy++) if (Math.abs(ox) + Math.abs(oy) === (C.range > 1 ? Math.min(3, Math.abs(ox) + Math.abs(oy)) : 1) && (ox || oy)) goal.add(`${m.x + ox},${m.y + oy}`);
+  for (const m of seek) for (let ox = -reach; ox <= reach; ox++) for (let oy = -reach; oy <= reach; oy++) if (Math.abs(ox) + Math.abs(oy) === (C.range > 1 ? Math.min(3, Math.abs(ox) + Math.abs(oy)) : 1) && (ox || oy)) goal.add(`${m.x + ox},${m.y + oy}`);
   const start = `${me.x},${me.y}`, prev = { [start]: null }, q = [[me.x, me.y]];
   let found = null;
   while (q.length && !found) {
