@@ -4,6 +4,7 @@ import {
   rollGear, rarityOf, rarityIdx, equipIfBetter, SLOTS, SLOT_NAME, DROP_RATE, CLASSES, CLASS_IDS,
   TALENTS, TALENT_MAX, TALENT_REQ, talentPoints, talentSpent, canLearn, learn, resetTalents,
   NIGHT, NIGHT_OPEN, NIGHT_LV, canNight, NAME_SHARD_RATE, NAME_BOX_RATE, NAME_SHARD_NEED, NAME_BOX_LV, openNameBox, nameBand,
+  behOf,
   SOULS, SOUL_IDS, SUMMON_COST, SUMMON_PITY, shardNeed, addShards, exchangeSoul, SOUL_OF_CH, SOUL_SOURCE, SOUL_RARITY, offlineReward, affixName, LV_CAP, capFor, CHAPTERS, FIELD, buildField,
 } from './world.js';
 import { soulSprite, soulBig } from './soul.js';
@@ -163,7 +164,7 @@ function placeMon(m) {
   if (m.base && !trial) m.d = applyDiff(!m.base.boss && P && P.lv >= 5 && R() < ELITE_RATE ? makeElite(m.base, R) : m.base, P || {});
   const t = spawnTile(m);
   if (!t) { m.dead = 1; return; }
-  Object.assign(m, { x: t.x, y: t.y, px: t.x, py: t.y, fx: t.x, fy: t.y, moving: false, hp: m.d.hp, dead: 0, cool: 1, think: R() * 1.5, flash: 0, kx: 0, ky: 0, spawnT: 0.4, frozen: 0, letter: 0, shield: false, phases: [], slamT: 3, spitT: 5, hidden: false, engaged: false, stolen: new Set(), rwT: 10, hist: [], histT: 0 });
+  Object.assign(m, { angryT: 0, chargeT: 3 + R() * 3, x: t.x, y: t.y, px: t.x, py: t.y, fx: t.x, fy: t.y, moving: false, hp: m.d.hp, dead: 0, cool: 1, think: R() * 1.5, flash: 0, kx: 0, ky: 0, spawnT: 0.4, frozen: 0, letter: 0, shield: false, phases: [], slamT: 3, spitT: 5, hidden: false, engaged: false, stolen: new Set(), rwT: 10, hist: [], histT: 0 });
 }
 function spawnRoster(list) { mons = []; for (const type of list) { const D = nightMode && NIGHT[type] ? NIGHT[type] : MONSTERS[type]; const m = { type, d: D, base: D, night: !!D.night, anim: R() * 2 }; mons.push(m); placeMon(m); } }
 function fieldNpc(id) {
@@ -177,7 +178,7 @@ function loadMap(id, at, night = false) {
   mapC = renderMapCanvas(id);
   BZ = FIELD.boss; FMIN = FIELD_MIN_X;
   npcs = id === 0 ? townNpcs : fieldNpc(id);
-  drops = []; projs = []; pending = []; fx = []; warns = []; fishing = null;
+  drops = []; projs = []; eshots = []; pending = []; fx = []; warns = []; fishing = null;
   const s0 = at && walkable(grid, at.x, at.y) ? at : id === 0 ? SPAWN : FIELD.spawn;
   Object.assign(me, { x: s0.x, y: s0.y, px: s0.x, py: s0.y, fx: s0.x, fy: s0.y, moving: false });
   soulPos.x = cx(me); soulPos.y = cy(me);
@@ -812,7 +813,42 @@ function smithMenu(nm, lines) {
 }
 
 // ---------- 傷害與掉落 ----------
-function hitPlayer(m) { hurt(m.d.atk * (1 - debOn(m, '攻擊降低')), m); }
+function hitPlayer(m, k = 1) {
+  const B = m.d.beh || {};
+  hurt(m.d.atk * k * (1 - debOn(m, '攻擊降低')) * (B.rage && m.hp < m.d.hp * 0.3 ? 1.3 : 1), m);
+  if ((B.burn || B.poison) && me.inv <= 0) for (let i = 1; i <= 3; i++) pending.push({ t: i, fn: () => { if (P.hp > 1) { const d = Math.max(1, Math.round(m.d.atk * 0.12)); P.hp = Math.max(1, P.hp - d); floatT(`-${d}`, me.x, me.y, B.burn ? '#ff9f40' : '#a66bd6', 0.7); hud(); } } });
+}
+// 怪物的遠程攻擊（遠程怪吐、射；法術怪施法）
+let eshots = [];
+function monShoot(m, tg) {
+  const B = m.d.beh, x = cx(m), y = cy(m) - 4, tx = cx(tg), ty = cy(tg) - 4, d = Math.hypot(tx - x, ty - y) || 1, sp = B.caster ? 70 : 95;
+  eshots.push({ x, y, vx: (tx - x) / d * sp, vy: (ty - y) / d * sp, t: 0, m, k: B.caster ? 1.3 : 1, c: ELEM_COLOR[profileOf(m.night ? m.type + '_n' : m.type).elem] || '#ffd166', big: B.caster });
+  m.swingAt = anim; m.faceL = tg.px < m.px;
+}
+function updateEshots(dt) {
+  eshots = eshots.filter((e) => {
+    e.t += dt; e.x += e.vx * dt; e.y += e.vy * dt;
+    if (R() < 0.5) parts.push({ x: e.x, y: e.y, vx: 0, vy: 0, c: e.c, t: 0, g: 0, size: 1, life: 0.25 });
+    if (Math.hypot(e.x - cx(me), e.y - (cy(me) - 4)) < 7) { if (e.m.dead <= 0) hitPlayer(e.m, e.k); burst(e.x, e.y, e.c, 6, 60); return false; }
+    const tx = Math.floor(e.x / TS), ty = Math.floor(e.y / TS);
+    if (e.t > 0.15 && !walkable(grid, tx, ty) && grid[ty]?.[tx] !== T.WATER) return false;
+    return e.t < 2.2;
+  });
+}
+function drawEshots() {
+  for (const e of eshots) { ctx.fillStyle = '#2a1d2e'; ctx.beginPath(); ctx.arc(e.x, e.y, e.big ? 4 : 3, 0, 7); ctx.fill(); ctx.fillStyle = e.c; ctx.beginPath(); ctx.arc(e.x, e.y, e.big ? 3 : 2, 0, 7); ctx.fill(); }
+}
+// 被打：被動怪生氣、群聚怪叫同伴、濺水幫同伴回血
+function monProvoked(m) {
+  const B = m.d.beh || {};
+  m.angryT = 10;
+  for (const o of mons) {
+    if (o === m || o.dead > 0 || o.d.boss) continue;
+    const d = Math.abs(o.x - m.x) + Math.abs(o.y - m.y);
+    if (B.link && o.type === m.type && d <= 5) o.angryT = 10;
+    if (B.splashHeal && d <= 2 && o.hp < o.d.hp) { o.hp = Math.min(o.d.hp, o.hp + Math.round(o.d.hp * 0.04)); if (R() < 0.3) float('+', cx(o), o.py * TS - 4, '#7fd8ff', 0.7); }
+  }
+}
 function hurt(raw, m) {
   if (me.inv > 0) { floatT('閃避！', me.x, me.y - 0.4, '#bdf1ff', 0.9); return; }
   if (m) {
@@ -880,7 +916,8 @@ function dealDamage(m, mult, fromX = me.px, fromY = me.py, color, kind = 'skill'
   const dmg = Math.max(1, Math.round(base * mult * k * (0.85 + R() * 0.3) * (crit ? st.critDmg : 1)));
   if (st.leech && P.hp < st.hp && kind !== 'ally') P.hp = Math.min(st.hp, P.hp + Math.max(1, Math.round(dmg * st.leech)));
   if (kind !== 'ult') gainSoul(kind === 'skill' ? 1.2 : kind === 'ally' ? 0.5 : 1.6);
-  m.hp -= dmg; m.flash = 0.12;
+  m.hp -= dmg; m.flash = 0.12; if (!m.d.boss) monProvoked(m);
+  if (m.d.beh?.reflect && kind === 'basic' && C.range <= 1 && m.hp > 0) hurt(Math.max(1, dmg * m.d.beh.reflect), null);
   if (cm) { if (cm.freeze) m.frozen = Math.max(m.frozen, m.d.boss ? cm.freeze / 3 : cm.freeze); if (cm.stun) m.frozen = Math.max(m.frozen, m.d.boss ? cm.stun / 3 : cm.stun); if (cm.db) applyDebuff(m, cm.db); if (cm.healFrac) P.hp = Math.min(st.hp, P.hp + Math.round(dmg * cm.healFrac)); }
   if (kind === 'basic' && st.dot > 0) m.pois = { v: st.atk * st.dot, t: 5 };
   if (kind === 'basic' && st.double > 0 && !m.dbl && R() < st.double) { m.dbl = true; pending.push({ t: 0.08, fn: () => { dealDamage(m, 1, fromX, fromY, color, 'basic'); m.dbl = false; } }); }
@@ -1896,7 +1933,7 @@ function update(dt) {
   if (started && !held) autoThink(dt);
   me.atkT = Math.max(0, me.atkT - dt); me.hurtT = Math.max(0, me.hurtT - dt); me.cool = Math.max(0, me.cool - dt);
   me.inv = Math.max(0, me.inv - dt); me.dodgeT = Math.max(0, me.dodgeT - dt); catT = Math.max(0, catT - dt);
-  updateWarns(dt);
+  updateWarns(dt); updateEshots(dt);
   { const fx2 = { up: 10, down: -12, left: 12, right: -12 }[me.face]; const tx = cx(me) + fx2, ty = cy(me) - 14 + Math.sin(anim * 3) * 2; soulPos.x += (tx - soulPos.x) * Math.min(1, dt * 6); soulPos.y += (ty - soulPos.y) * Math.min(1, dt * 6); }
   const ranged = C.range > 1;
   if ((aHeld || autoHit) && me.cool <= 0 && !dialog && !fishing && (ranged || !me.moving) && started) basicAttack(autoTarget);
@@ -1920,14 +1957,37 @@ function update(dt) {
     if (m.pois?.t > 0 && m.dead <= 0) { m.pois.t -= dt; m.poisAcc = (m.poisAcc || 0) + m.pois.v * dt; if (m.poisAcc >= 1) { const d = Math.floor(m.poisAcc); m.poisAcc -= d; m.hp -= d; if (R() < dt * 2) float(fmt(d), cx(m), m.py * TS - 4, '#a66bd6', 0.8); if (m.hp <= 0) killMon(m); } }
     m.flash = Math.max(0, m.flash - dt); m.cool -= dt; m.spawnT = Math.max(0, m.spawnT - dt); m.frozen = Math.max(0, m.frozen - dt);
     m.kx *= 0.8; m.ky *= 0.8;
-    if (m.moving) { step(m, m.d.boss ? 0.5 : 0.35, dt); continue; }
+    const B = m.d.beh || {};
+    if (m.angryT > 0) m.angryT -= dt;
+    m.chargeT = (m.chargeT || 0) - dt;
+    if (m.moving) { step(m, m.d.boss ? 0.5 : m.dash ? 0.12 : B.fast ? 0.24 : B.slow ? 0.5 : 0.35, dt) && (m.dash = m.dash > 1 ? m.dash - 1 : 0); continue; }
     if (!started || dialog || m.frozen > 0 || m.d.still || m.hidden) continue;
     const tg = monTarget(m);
     const dx = tg.x - m.x, dy = tg.y - m.y, dist = Math.abs(dx) + Math.abs(dy);
-    if (m.d.atk > 0 && (dist === 1 || (m.d.boss && Math.max(Math.abs(dx), Math.abs(dy)) <= 1)) && m.cool <= 0) { if (tg === me) hitPlayer(m); else allyHurt(tg, m.d.atk); m.cool = m.d.boss ? 1.2 : 1.5; m.swingAt = anim; m.faceL = tg.px < m.px; continue; }
+    const angry = m.d.boss || m.d.elite || m.d.trial || B.aggro || m.angryT > 0 || !m.d.beh;
+    const fleeing = B.flee && m.hp < m.d.hp * 0.3;
+    if (!m.d.boss && angry && !fleeing && m.d.atk > 0 && tg === me) {
+      if ((B.ranged || B.caster) && dist >= 2 && dist <= (B.caster ? 4 : 5) && m.cool <= 0) { monShoot(m, tg); m.cool = B.caster ? 2.6 : 2; continue; }
+      if (B.charge && !B.root && m.chargeT <= 0 && dist >= 2 && dist <= 4 && (dx === 0 || dy === 0)) {
+        m.chargeT = 7; m.cool = 1.2;
+        warns.push({ x: tg.px, y: tg.py, r: 1.1, t: 0, life: 0.9, dmg: Math.round(m.d.atk * 1.8), kind: 'slam' });
+        const sx = Math.sign(dx), sy = Math.sign(dy);
+        pending.push({ t: 0.7, fn: () => { if (m.dead > 0) return; let n = 0; while (n < dist - 1 && monCanGo(m, m.x + sx * (n + 1), m.y + sy * (n + 1))) n++; if (n) Object.assign(m, { fx: m.x, fy: m.y, x: m.x + sx * n, y: m.y + sy * n, moving: true, mt: 0, dash: 1 }); burst(cx(m), cy(m), '#e8d29a', 10, 80); } });
+        continue;
+      }
+    }
+    if (angry && !fleeing && m.d.atk > 0 && (dist === 1 || (m.d.boss && Math.max(Math.abs(dx), Math.abs(dy)) <= 1)) && m.cool <= 0) { if (tg === me) hitPlayer(m); else allyHurt(tg, m.d.atk); m.cool = m.d.boss ? 1.2 : 1.5; m.swingAt = anim; m.faceL = tg.px < m.px; continue; }
     m.think -= dt;
     if (m.think > 0) continue;
-    const chase = dist <= m.d.sight && dist > 1;
+    if (B.root) continue;
+    const keepAway = (B.ranged || B.caster) && dist <= 1 && angry;
+    if (fleeing || keepAway) {
+      m.think = 0.5;
+      const a = [[-Math.sign(dx), 0], [0, -Math.sign(dy)], [-Math.sign(dx) || 1, 0], [0, -Math.sign(dy) || 1]].filter(([x, y]) => x || y);
+      for (const [ox, oy] of a) if (monCanGo(m, m.x + ox, m.y + oy)) { Object.assign(m, { fx: m.x, fy: m.y, x: m.x + ox, y: m.y + oy, moving: true, mt: 0 }); break; }
+      continue;
+    }
+    const chase = angry && dist <= (m.angryT > 0 ? Math.max(8, m.d.sight) : m.d.sight) && dist > ((B.ranged || B.caster) ? 3 : 1);
     m.think = (chase ? 0.4 : 1 + R() * 1.6) * (m.d.boss ? 1.4 : 1);
     let opts = [];
     if (chase) {
@@ -2039,6 +2099,7 @@ function render() {
   ].sort((a, b) => a.y - b.y);
   ents.forEach((e) => e.f());
   for (const p of projs) drawProj(p);
+  drawEshots();
   for (const f of fx) if (f.kind !== 'crack' && f.kind !== 'target') drawFx(f);
   if (fishing) {
     const bx = fishing.tx * TS + 6, by = fishing.ty * TS + 6 + (fishing.state === 'bite' ? Math.round(Math.sin(anim * 30)) : Math.round(Math.sin(anim * 3)));
@@ -2651,4 +2712,4 @@ document.fonts?.ready.then(render);
 requestAnimationFrame(frame);
 
 // 自動化測試用（網址加 ?debug 才開）
-if (location.search.includes('debug')) globalThis.__game = { showCutin, get allies() { return allies; }, buildAllies, get P() { return P; }, newDrop, get drops() { return drops; }, set dropsAdd(d) { drops.push(d); }, me, get grid() { return grid; }, loadMap, get mapId() { return mapId; }, get mons() { return mons; }, get fishing() { return fishing; }, get dialog() { return dialog; }, get drops() { return drops; }, get skills() { return skills; }, castIdx, startTower, get trial() { return trial; }, renderAdv, hud, audioLevel, currentSong, sfx, get chests() { return chests; }, say, renderPartyPanel, renderShop, useItem, addStack };
+if (location.search.includes('debug')) globalThis.__game = { showCutin, get allies() { return allies; }, buildAllies, get P() { return P; }, newDrop, get drops() { return drops; }, set dropsAdd(d) { drops.push(d); }, me, get grid() { return grid; }, loadMap, get mapId() { return mapId; }, get mons() { return mons; }, get fishing() { return fishing; }, get dialog() { return dialog; }, get drops() { return drops; }, get skills() { return skills; }, castIdx, startTower, get trial() { return trial; }, renderAdv, hud, audioLevel, currentSong, sfx, get chests() { return chests; }, say, renderPartyPanel, renderShop, useItem, addStack, get eshots() { return eshots; }, get warns() { return warns; } };

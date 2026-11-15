@@ -80,3 +80,13 @@ test('深夜怪與封名匣', async () => {
   assert.equal(picks.length, 3);
   for (const g of picks) { assert.equal(g.lv, 130); assert.equal(g.affixes.length, 3); assert.ok(g.affixes.every((a) => a.tier >= 1 && a.tier <= 4)); assert.ok(g.locked); }
 });
+
+test('怪物行為照圖鑑：主動／被動、遠程、衝撞、群聚', async () => {
+  const W = await import('../world.js');
+  assert.equal(W.MONSTERS.rabbit.beh.aggro, false, '忘歸野兔被動');
+  assert.ok(W.MONSTERS.rabbit.beh.flee, '會逃跑');
+  assert.ok(W.MONSTERS.frog.beh.ranged, '啞蛙遠程');
+  assert.ok(W.MONSTERS.boar.beh.charge, '野豬衝撞');
+  assert.ok(W.MONSTERS.slime.beh.link && W.MONSTERS.slime.beh.splashHeal, '露滴團群聚、濺水回血');
+  assert.ok(W.NIGHT.slime.beh.rage, '深夜蝕化');
+});

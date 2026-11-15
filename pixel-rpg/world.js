@@ -142,17 +142,27 @@ Object.values(BESTIARY).filter((b) => !b.night && b.arch !== 'boss' && !MONSTERS
   MONSTERS[b.id] = mk(b.name, tplOf(b), { g: shade(g, k), G: shade(G, k), l, m }, b.lv, ZA);
 });
 for (const [id, m] of Object.entries(MONSTERS)) { const b = BESTIARY[id === 'valde' ? 'valde_f' : id]; if (b) m.mat = b.matA; }
+// 怪物行為：照圖鑑的類型（群聚／硬殼／敏捷／法術／遠程／巨大）與特性文字決定
+export function behOf(b) {
+  const t = b.trait || '', a = b.arch;
+  return {
+    aggro: /主動/.test(t), flee: /逃跑/.test(t), splashHeal: /同伴回血/.test(t), burn: /灼燒/.test(t), poison: /中毒/.test(t),
+    reflect: /反彈/.test(t) ? 0.1 : 0, root: /不會移動/.test(t), rage: /蝕化/.test(t),
+    ranged: a === 'ranged' || /遠程/.test(t), caster: a === 'caster', charge: a === 'big' || /衝撞/.test(t),
+    fast: a === 'agile', slow: a === 'tank', link: a === 'swarm' || /一起來|成群|一群/.test(t),
+  };
+}
 // 怪物數值改由圖鑑（design/monsters.py → bestiary.js）產生；這裡只保留美術模板與調色
 for (const [id, m] of Object.entries(MONSTERS)) {
   const b = BESTIARY[id === 'valde' ? 'valde_f' : id];
   if (!b) continue;
-  Object.assign(m, { name: id === 'valde' ? m.name : b.name, lv: b.lv, hp: b.hp, atk: b.atk, exp: b.exp, coin: [Math.max(1, Math.round(b.coin * 0.6)), Math.max(1, Math.round(b.coin * 1.4))], elem: b.elem, el: b.el, race: b.race, size: b.size, trait: b.trait });
+  Object.assign(m, { name: id === 'valde' ? m.name : b.name, lv: b.lv, hp: b.hp, atk: b.atk, exp: b.exp, coin: [Math.max(1, Math.round(b.coin * 0.6)), Math.max(1, Math.round(b.coin * 1.4))], elem: b.elem, el: b.el, race: b.race, size: b.size, trait: b.trait, arch: b.arch, beh: behOf(b) });
 }
 // 深夜版：同一隻怪的美術，數值換成圖鑑的「蝕・」夜間版本（Lv100～200）
 export const NIGHT = {};
 for (const [id, m] of Object.entries(MONSTERS)) {
   const b = BESTIARY[(id === 'valde' ? 'valde_f' : id) + '_n'];
-  if (b) NIGHT[id] = { ...m, name: b.name, lv: b.lv, hp: b.hp, atk: b.atk, exp: b.exp, coin: [Math.max(1, Math.round(b.coin * 0.6)), Math.max(1, Math.round(b.coin * 1.4))], elem: b.elem, el: b.el, race: b.race, size: b.size, trait: b.trait, night: true };
+  if (b) NIGHT[id] = { ...m, name: b.name, lv: b.lv, hp: b.hp, atk: b.atk, exp: b.exp, coin: [Math.max(1, Math.round(b.coin * 0.6)), Math.max(1, Math.round(b.coin * 1.4))], elem: b.elem, el: b.el, race: b.race, size: b.size, trait: b.trait, arch: b.arch, beh: behOf(b), night: true };
 }
 export const NIGHT_OPEN = 4, NIGHT_LV = 100; // 上線先開前四區；Lv100 且通關主線才能進
 export const canNight = (p) => p.lv >= NIGHT_LV && p.ch >= 7;
