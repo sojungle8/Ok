@@ -1,0 +1,35 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>逐格動畫預覽</title>
+<style>
+  body { background: #1b1420; color: #e8e4f0; font: 14px sans-serif; margin: 12px; }
+  canvas { image-rendering: pixelated; background: #3a5a3a; margin: 4px; }
+  .row { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; }
+</style>
+<p>上：動畫播放（8 方向）。下：整張圖（5 列 × 所有動作）。網址加 <code>?cls=mage&amp;anim=attack</code> 切換。</p>
+<div class="row" id="live"></div>
+<div id="sheet"></div>
+<script type="module">
+import { genSheet, heroLookFor } from '../pxgen.js';
+import { layout, DIR8, DRAWN, MIRROR } from '../spritesheet.js';
+import { CLASSES } from '../world.js';
+const q = new URLSearchParams(location.search), cls = q.get('cls') || 'sword', anim = q.get('anim') || 'walk', Z = +(q.get('z') || 3);
+const L = layout('hero'), sheet = genSheet('hero', heroLookFor(cls, CLASSES[cls]));
+const big = document.createElement('canvas'); big.width = sheet.width * 2; big.height = sheet.height * 2;
+const g = big.getContext('2d'); g.imageSmoothingEnabled = false; g.drawImage(sheet, 0, 0, big.width, big.height);
+document.getElementById('sheet').append(big);
+const cvs = DIR8.map((d) => { const c = document.createElement('canvas'); c.width = L.cell[0] * Z; c.height = L.cell[1] * Z; c.title = d; document.getElementById('live').append(c); return c; });
+let t = 0;
+function tick() {
+  t++;
+  const a = L.anims[anim], i = Math.floor(t / (60 / Math.max(a.fps, 10))) % a.n;
+  DIR8.forEach((d, k) => {
+    const c = cvs[k], x = c.getContext('2d'), src = MIRROR[d] || d, row = DRAWN.indexOf(src);
+    x.clearRect(0, 0, c.width, c.height); x.imageSmoothingEnabled = false; x.save();
+    if (MIRROR[d]) { x.translate(c.width, 0); x.scale(-1, 1); }
+    x.drawImage(sheet, (L.col[anim] + i) * L.cell[0], row * L.cell[1], L.cell[0], L.cell[1], 0, 0, c.width, c.height); x.restore();
+  });
+  requestAnimationFrame(tick);
+}
+tick();
+</script>

@@ -13,7 +13,8 @@ import { iconCanvas, gearIcon } from './icons.js';
 import { loadAssets, asset, tinted, loadState } from './assets.js';
 import { ensureMeta, refresh, track, claimQuest, claimChest, claimable, claimLogin, loginReward, questLabel, rewardText, CHESTS, codexBonus, codexStars, CODEX_TIERS, ACHIEVEMENTS, achProgress, achReady, claimAch, ELITE_AFFIX, ELITE_RATE, makeElite, DIFFS, diffOf, applyDiff, chestSpots, openChest, chestOpened, dayKey, quickIdleState, useQuickIdle, QUICK_IDLE_MIN, QUICK_COST, SHOP, buySku, canBuy, monthActive, monthDaysLeft, claimMonthDaily, monthClaimable, claimAll, MONTH_DAILY, BAG_PLUS_STEP, bagPlusNext, buyBagPlus, towerFloor, towerClear, LOGIN_CYCLE } from './meta.js';
 import { pixelize } from './pixelize.js';
-import { DIR8, DIR_VEC, dirOf } from './spritesheet.js';
+import { DIR8, DIR_VEC, dirOf, layout, DRAWN, MIRROR, sheetPath, paletteOf, monKind } from './spritesheet.js';
+import { genSheet, heroLookFor, npcLookFor } from './pxgen.js';
 import { ensureJob, gainJobExp, jobExpNeed, JOB_CAP, JOB_EXP_RATE, JOB2, ADVANCE_LV, ADVANCE_JOB, canAdvance, advanceJob, branchOf, jobTitle } from './progress.js';
 import { BY_ID, RES, BAR_SIZE, ensureTree, skillPoints, learnSkill, autoLearnSkills, resetTree, whyNot, lvOf, skillNums, barSkills, describeSkill, routesOf, SKILLS } from './skilltree.js';
 import { guardExp, effRatio, levelGapMult, newbieMult } from './balance.js';
@@ -1293,7 +1294,7 @@ const onTiles = (m, tiles) => tiles.some(([x, y]) => (m.d.boss ? Math.abs(m.x - 
 function basicAttack(target) {
   const aspd = stats(P).aspd;
   sfx({ sword: 'swing', archer: 'arrow', mage: 'bolt', monk: 'swing', priest: 'bolt', scout: 'swing' }[P.cls] || 'swing');
-  me.cool = C.cool / aspd * (pst.aspdDown > 0 ? 1.15 : 1); me.atkT = me.atkDur = Math.max(0.16, Math.min(0.28, me.cool * 0.8));
+  me.castT = 0; me.cool = C.cool / aspd * (pst.aspdDown > 0 ? 1.15 : 1); me.atkT = me.atkDur = Math.max(0.16, Math.min(0.28, me.cool * 0.8));
   const [dx, dy] = DIRS[me.face];
   if (P.cls === 'sword') {
     addFx('slash', 0.18, { x: cx(me) + dx * 13, y: cy(me) + dy * 13 - 3, ang: faceAng(), color: '#dff6ff', size: 19 });
@@ -1371,7 +1372,7 @@ function castIdx(i) {
   castMods = { pierce: sk.pierce || 0, crit: !!sk.crit || (sk.shadowX && shadowT > 0 && P.cls === 'scout' && sk.id === 'hide'), freeze: sk.freeze || 0, stun: sk.stun || 0, exec: n.exec, db: sk.kind === 'act' ? n.db : null, healFrac: sk.healFrac || 0, hits: 0 };
   addFx('circle', 0.55, { x: cx(me), y: cy(me), color: sk.need ? '#ffb35c' : C.color });
   tintC = sk.need ? '#ffb35c' : C.color; tintT = 0.12;
-  me.atkT = 0.2;
+  me.atkT = me.atkDur = 0.3; me.castT = sk.mag || sk.heal || sk.kind === 'heal' || P.cls === 'mage' || P.cls === 'priest' ? 0.3 : 0;
   // 增益、減益、治療
   if (n.buff && sk.buff[0] !== 'dmgPerStack') { addTB(n.buff[0], n.buff[1], n.buff[2]); banner(sk.name); }
   if (n.pb) { addTB(n.pb[0], n.pb[1], n.pb[2]); for (const a of allies) if (a.down <= 0) addFx('heal', 0.5, { x: cx(a), y: cy(a) }); banner(sk.name); }
@@ -2153,7 +2154,7 @@ function update(dt) {
     else if (walkable(grid, nx, ny) && !occupied(nx, ny)) Object.assign(me, { fx: me.x, fy: me.y, x: nx, y: ny, moving: true, mt: 0, dur });
   }
   if (started && !held) autoThink(dt);
-  me.atkT = Math.max(0, me.atkT - dt); me.hurtT = Math.max(0, me.hurtT - dt); me.cool = Math.max(0, me.cool - dt);
+  me.atkT = Math.max(0, me.atkT - dt); me.castT = Math.max(0, (me.castT || 0) - dt); me.hurtT = Math.max(0, me.hurtT - dt); me.cool = Math.max(0, me.cool - dt);
   me.inv = Math.max(0, me.inv - dt); me.dodgeT = Math.max(0, me.dodgeT - dt); catT = Math.max(0, catT - dt);
   updateWarns(dt); updateEshots(dt); updatePst(dt); updateLamps(dt);
   { const fx2 = { up: 10, down: -12, left: 12, right: -12 }[me.face]; const tx = cx(me) + fx2, ty = cy(me) - 14 + Math.sin(anim * 3) * 2; soulPos.x += (tx - soulPos.x) * Math.min(1, dt * 6); soulPos.y += (ty - soulPos.y) * Math.min(1, dt * 6); }
@@ -2380,6 +2381,7 @@ function render() {
 function shadow(x, y, w = 12) { ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.fillRect(x + 8 - w / 2, y + 14, w, 2); ctx.fillRect(x + 9 - w / 2, y + 16, w - 2, 1); }
 function drawNpc(n, x, y) {
   const nid = n.id === 'guide' ? 'guide' + n.ch : n.id, pxn = asset('px/npc/' + nid);
+  { const look = n.look || (n.id === 'guide' ? CHAPTERS[n.ch - 1]?.guide?.look : null) || NPCS.find((k) => k.id === n.id)?.look; const L = layout('npc'); n.seed ??= R() * 3; drawSheet({ px: x / TS, py: y / TS, seed: n.seed }, npcSheet(nid, look), 'npc', 'idle', Math.floor((anim + n.seed) * L.anims.idle.fps) % L.anims.idle.n, D8[n.face] || 's'); return; }
   const hd = asset('npc/' + nid);
   if (hd && charStyle === 'hd') { drawHD(hd, { px: x / TS, py: y / TS, face: n.face, i: n.seed || 0 }, 40, n.face === 'left'); return; }
   if (pxn) { drawPxHero(pxn, { px: x / TS, py: y / TS, face: n.face }, true); return; }
@@ -2526,7 +2528,63 @@ function walkPose(key, o, twoBeat) {
   return strip ? halfOf(strip, q === 0 ? 0 : 1) : asset(key + (q === 0 ? '_walk1' : '_walk2'));
 }
 const heroKey = (L, dir) => { const view = dir === 'up' ? 'back' : dir === 'left' || dir === 'right' ? 'side' : 'front'; const k = `hero/${L.cls}_${TIER[Math.max(0, L.armorTier ?? 0)]}_${view}`; return asset(k) ? k : `hero/${L.cls}_common_${view}`; };
+
+// ---------- 逐格像素動畫（類 RO）：正式美術 assets/sprite/... 優先，沒有就用 pxgen 暫用圖 ----------
+const sheetCache = new Map();
+function recolor(src, pal) {
+  const c = document.createElement('canvas'); c.width = src.width; c.height = src.height;
+  const g = c.getContext('2d'); g.drawImage(src, 0, 0);
+  if (!pal) return c;
+  const map = new Map(Object.entries(pal).map(([a, b]) => [parseInt(a.slice(1), 16), parseInt(b.slice(1), 16)]));
+  const d = g.getImageData(0, 0, c.width, c.height), a = d.data;
+  for (let i = 0; i < a.length; i += 4) { if (!a[i + 3]) continue; const to = map.get((a[i] << 16) | (a[i + 1] << 8) | a[i + 2]); if (to !== undefined) { a[i] = to >> 16; a[i + 1] = (to >> 8) & 255; a[i + 2] = to & 255; } }
+  g.putImageData(d, 0, 0); return c;
+}
+function heroSheet(cls, tier) {
+  const key = `hero/${cls}/${tier}`;
+  if (!sheetCache.has(key)) {
+    const C0 = CLASSES[cls], art = asset(sheetPath('hero', cls));
+    sheetCache.set(key, recolor(art || genSheet('hero', heroLookFor(cls, C0)), paletteOf(cls, C0.outfit, tier)));
+  }
+  return sheetCache.get(key);
+}
+function npcSheet(id, look) {
+  const key = 'npc/' + id;
+  if (!sheetCache.has(key)) { const art = asset(sheetPath('npc', id)); sheetCache.set(key, art || genSheet('npc', npcLookFor({ look }))); }
+  return sheetCache.get(key);
+}
+function monSheet(m) { const id = m.type, art = asset(sheetPath('mon', id)); return art ? { img: art, kind: monKind({ boss: m.d.boss, size: profileOf(m.type).size }) } : null; }
+// 畫一格：腳底對齊格子底、1 原生像素 = 0.5 遊戲像素（螢幕上永遠是整數倍）
+function drawSheet(o, img, kind, anim, i, dir8) {
+  const L = layout(kind), a = L.anims[anim] ? anim : 'idle', [cw, ch] = L.cell;
+  const src = MIRROR[dir8] || dir8 || 's', row = Math.max(0, DRAWN.indexOf(src));
+  const fi = Math.max(0, Math.min(L.anims[a].n - 1, i | 0));
+  const fx = Math.round((o.px * TS + 8 + (o.kx || 0)) * 2) / 2, fy = Math.round((o.py * TS + 16 + (o.ky || 0)) * 2) / 2;
+  shadow(Math.round(o.px * TS), Math.round(o.py * TS), kind === 'boss' ? 26 : 12);
+  ctx.save(); ctx.imageSmoothingEnabled = false; ctx.translate(fx, fy - L.foot / 2);
+  if (MIRROR[dir8]) ctx.scale(-1, 1);
+  ctx.drawImage(img, (L.col[a] + fi) * cw, row * ch, cw, ch, -cw / 4, 0, cw / 2, ch / 2);
+  ctx.restore();
+}
+// 動作狀態：走路的格數跟著實際走的距離（走 2 格剛好 8 格），腳步不會滑
+function charAnim(o, L, extra = {}) {
+  if (extra.sit && L.anims.sit) return ['sit', 0];
+  if (o.atkT > 0 && L.anims.attack) { const k = 1 - o.atkT / (o.atkDur || 0.2); return [o.castT > 0 && L.anims.cast ? 'cast' : 'attack', Math.floor(k * L.anims[o.castT > 0 && L.anims.cast ? 'cast' : 'attack'].n)]; }
+  if (o.hurtT > 0 && L.anims.hurt) return ['hurt', o.hurtT > 0.2 ? 0 : 1];
+  if (o.moving) { const d = (o.walkD || 0) + (o.mt || 0) * Math.hypot(o.x - o.fx, o.y - o.fy); return ['walk', Math.floor(d * 4) % L.anims.walk.n]; }
+  return ['idle', Math.floor((anim + (o.seed || 0)) * L.anims.idle.fps) % L.anims.idle.n];
+}
+function drawHeroSprite() {
+  const tier = Math.max(0, myLook?.armorTier ?? 0), img = heroSheet(P.cls, tier), L = layout('hero');
+  const [a, i] = charAnim(me, L, { sit: pst.sleep > 0 });
+  if (myLook?.aura) { ctx.globalAlpha = 0.25 + Math.sin(anim * 4) * 0.08; ctx.fillStyle = '#ffd75e'; ctx.beginPath(); ctx.ellipse(me.px * TS + 8, me.py * TS + 15, 12, 4, 0, 0, 7); ctx.fill(); ctx.globalAlpha = 1; }
+  if (me.inv > 0) ctx.globalAlpha = 0.6;
+  drawSheet(me, img, 'hero', a, i, me.dir8 || D8[me.face]);
+  ctx.globalAlpha = 1;
+  return true;
+}
 function drawMe() {
+  if (drawHeroSprite()) return;
   const x = Math.round(me.px * TS), y = Math.round(me.py * TS);
   const frame = animFrame(me, me.atkDur || 0.18);
   if (charStyle === 'hd') { const im = heroImg(myLook, me.face), ai = me.atkT > 0 ? heroImg(myLook, me.face, true) : null, pose = (ai && ai !== im ? ai : null) || (im && walkPose(heroKey(myLook, me.face), me)); if (im) { if (me.hurtT > 0 && Math.floor(me.hurtT * 20) % 2) { shadow(x, y); return; } if (me.inv > 0) ctx.globalAlpha = 0.6; drawHD(pose || im, me, 40, me.face === 'left', null, pose ? im : null); ctx.globalAlpha = 1; return; } }
@@ -2567,6 +2625,7 @@ function drawAlly(a) {
   ctx.fillStyle = '#1b1420'; ctx.fillRect(x + 1, y + 17, 14, 3); ctx.fillStyle = a.c.role === 'heal' ? '#7ad35a' : '#e8506a'; ctx.fillRect(x + 2, y + 18, Math.max(1, Math.round((a.hp / a.max) * 12)), 1);
 }
 function drawMon(m) {
+  { const ms = !m.lurk && monSheet(m); if (ms) { const L = layout(ms.kind), atk = m.swingAt && anim - m.swingAt < 0.4; const [a, i] = m.dead > 0 ? ['die', Math.min(L.anims.die.n - 1, Math.floor((m.d.boss ? 30 : 2.5) - m.dead) * 4)] : atk ? ['attack', Math.floor((anim - m.swingAt) / 0.4 * L.anims.attack.n)] : m.flash > 0 ? ['hurt', 0] : m.moving ? ['walk', Math.floor((m.mt || 0) * L.anims.walk.n)] : ['idle', Math.floor(m.anim * L.anims.idle.fps) % L.anims.idle.n]; drawSheet(m, ms.img, ms.kind, a, i, m.dir8 || (m.faceL ? 'w' : 's')); return; } }
   if (m.lurk) { const X = Math.round(m.px * TS), Y = Math.round(m.py * TS); ctx.fillStyle = 'rgba(42,29,46,.45)'; ctx.beginPath(); ctx.ellipse(X + 8, Y + 13, 6, 2.5, 0, 0, 7); ctx.fill(); if (Math.sin(anim * 2 + m.x) > 0.8) { ctx.fillStyle = '#ffd166'; ctx.fillRect(X + 6, Y + 9, 1, 1); ctx.fillRect(X + 9, Y + 9, 1, 1); } return; }
   const x = Math.round(m.px * TS + m.kx), y = Math.round(m.py * TS + m.ky);
   if (m.d.decoy) { const hdn = asset('npc/' + m.npcId); if (hdn && charStyle === 'hd') { drawHD(hdn, { px: m.px, py: m.py, kx: m.kx, ky: m.ky, face: 'down', i: 3 }, 40, false); return; } if (!m.real) shadow(x, y); const pxn = asset('px/npc/' + m.npcId); if (pxn) { drawPxHero(pxn, { px: m.px + m.kx / TS, py: m.py + m.ky / TS, face: 'down' }, true); return; } const im = asset('npc/' + m.npcId); if (im) { const p = pixelize(im, PX_CHAR); ctx.drawImage(p, x + 8 - Math.round(p.width / 2), y + 17 - p.height); } else ctx.drawImage(avatar(m.look, 'down', 0), x - 4, y - 17, AW, AH); return; }
