@@ -9,8 +9,8 @@ test('怪潮：越後面越多、越快、越硬', () => {
   const a = S.wave(0), b = S.wave(450), c = S.wave(S.RUN_LEN);
   assert.ok(a.cap < b.cap && b.cap < c.cap);
   assert.ok(a.every > b.every && b.every > c.every);
-  assert.ok(a.hpMul < c.hpMul && c.hpMul <= 2.5);
-  assert.equal(S.wavePool(1, 0).length, 5, '前段只出前 5 種');
+  assert.ok(a.hpMul < 0.5 && a.hpMul < c.hpMul && c.hpMul <= 2.5, '開場單隻很弱');
+  assert.equal(S.wavePool(1, 0).length, 3, '開場只出最弱 3 種');
   assert.equal(S.wavePool(1, S.RUN_LEN - 1).length, 13, '後段全部 13 種');
 });
 

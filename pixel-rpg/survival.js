@@ -13,21 +13,22 @@ export const RUN_SKILL_MAX = 5, RUN_STAT_MAX = 5, RUN_SKILL_SLOTS = 6, RUN_STAT_
 export function wave(t) {
   const k = Math.min(1, t / RUN_LEN);
   return {
-    cap: Math.round(18 + 62 * k),                    // 同時在場上限 18 → 80
+    cap: Math.round(15 + 55 * k),                    // 同時在場上限 15 → 70
     every: Math.max(0.35, 1.5 - 1.15 * k),           // 每隔幾秒出一批
     pack: 2 + Math.floor(k * 4),                      // 一批幾隻 2 → 6
-    hpMul: 1 + 1.4 * k * k,                           // 血量倍率 1 → 2.4（後段才明顯變硬）
-    atkMul: 1 + 0.6 * k,
+    // 倖存者類：一群一起上，所以單隻比野外弱；開場一兩下就倒，後段才硬（平衡試玩：Lv1 開場 10 秒內就被圍死）
+    hpMul: 0.3 + 1.5 * k * k,                         // 血量倍率 0.3 → 1.8
+    atkMul: 0.35 + 0.5 * k,                           // 攻擊倍率 0.35 → 0.85
   };
 }
-// 該時間會出現哪些怪：前段只出該區前 5 種，中段加入中間 4 種，後段全部
+// 該時間會出現哪些怪（依等級由低到高）：開場 3 種、前段 5 種、中段 9 種、後段全部
 export function wavePool(ch, t) {
   const mons = CHAPTERS[ch - 1].mons, k = t / RUN_LEN;
-  return mons.slice(0, k < 0.33 ? 5 : k < 0.66 ? 9 : mons.length);
+  return mons.slice(0, k < 0.12 ? 3 : k < 0.33 ? 5 : k < 0.66 ? 9 : mons.length);
 }
 
 // ---- 局內等級 ----
-export const runExpNeed = (lv) => Math.round(6 + lv * 5 + lv * lv * 0.9);
+export const runExpNeed = (lv) => Math.round(4 + lv * 3 + lv * lv * 0.6);
 export const gemValue = (d) => (d.boss ? 60 : d.elite ? 12 : 1 + Math.floor((d.lv || 1) / 40));
 
 // ---- 升級卡 ----
