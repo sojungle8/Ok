@@ -15,7 +15,7 @@ import { ensureMeta, refresh, track, claimQuest, claimChest, claimable, claimLog
 import { pixelize } from './pixelize.js';
 import { DIR8, DIR_VEC, dirOf, layout, DRAWN, MIRROR, sheetPath, paletteOf, monKind } from './spritesheet.js';
 import { genSheet, heroLookFor, npcLookFor } from './pxgen.js';
-import { STAGES, STAGE_PART, stageById, stageLock, maxDiff, diffMods, gateOf, waveSize, gearChance, stageReward, clearStage, ensureExped, WAVES, GEAR_CAP, DIFF_MAX } from './expedition.js';
+import { STAGES, stageById, stageLock, maxDiff, diffMods, gateOf, ensureExped, clearStage, stageReward, gearChance, GEAR_CAP, DIFF_MAX, RUN_LEN, ELITE_AT, BOSS_AT, ITEM_SLOTS, CHEST_EVERY, wave, wavePool, newRun, gainRunExp, runExpNeed, gemValue, rollCards, applyCard, cardText, runSkillMult, runCdMult, runMods, skillSlots, RUN_ITEMS, rollItems, chestCost, BLESS } from './expedition.js';
 import { ensureJob, gainJobExp, jobExpNeed, JOB_CAP, JOB_EXP_RATE, JOB2, ADVANCE_LV, ADVANCE_JOB, canAdvance, advanceJob, branchOf, jobTitle } from './progress.js';
 import { BY_ID, RES, BAR_SIZE, ensureTree, skillPoints, learnSkill, autoLearnSkills, resetTree, whyNot, lvOf, skillNums, barSkills, describeSkill, routesOf, SKILLS } from './skilltree.js';
 import { guardExp, effRatio, levelGapMult, newbieMult } from './balance.js';
@@ -96,7 +96,7 @@ const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 let C = CLASSES[P.cls], skills = [], myLook = null;
 let mons = [], floats = [], parts = [], drops = [], fx = [], projs = [], pending = [];
 let held8 = null, timeK = 1;
-let run = null, cardOpen = false; // 遠征（主玩法）：進行中的關卡
+let run = null, cardOpen = false; // 遠征（主玩法）：進行中的一局
 let dialog = null, fishing = null, started = false, held = null, aHeld = false, auto = false, autoHit = false, autoCastT = 0;
 let anim = 0, regenT = 0, saveT = 0, shake = 0, freeze = 0, flash = 0, combo = 0, comboT = 0, auraT = 0;
 let allies = [], atkOverride = 0, partyT = 0;
@@ -389,7 +389,7 @@ function questText() {
   return dpre + questText0();
 }
 function questText0() {
-  if (run) return `${run.st.name}・難度 ${run.diff}｜第 ${run.wave}/${WAVES} 波`;
+  if (run) return `遠征・${run.st.name}・難度 ${run.diff}`;
   if (trial) return `試煉之塔 第 ${trial.f} 層｜剩 ${mons.filter((m) => m.dead <= 0).length} 隻｜${trial.done ? '通過！' : `⏱ ${Math.max(0, Math.ceil(trial.t))} 秒`}`;
   const c = CHAPTERS[P.ch - 1];
   if (!c) return '全章節完成｜自由冒險：收集卡片、精煉、刷傳說裝備';
@@ -842,29 +842,38 @@ function hitPlayer(m, k = 1) {
 }
 
 // ================= 遠征（主玩法）=================
-// 選關卡 → 一波波怪潮（最後一波是小王或地區魔王）→ 結算。刷裝備、練等、爬刷關難度。
-// 普攻與技能欄的技能自動施放（關卡內不耗魔力），玩家只管走位；也可以開自動模式掛著。
-let expSel = '1-1', expDiff = 1;
+// 選地圖 → 一局 15 分鐘：局內從 Lv1 開始，撿經驗寶石升級三選一（新技能／強化／加護），花金幣開寶箱拿本局道具；
+// 第 5、10 分鐘小王，第 13 分鐘地區魔王，打倒就通關。普攻與技能自動施放，玩家只管走位。
+let expSel = '1', expDiff = 1;
 function startRun(id, diff = 1) {
   const st = stageById(id); if (!st) return;
   if (dialog) { dialog = null; showDialog(); }
   $('expPanel').hidden = true;
   loadMap(st.ch, { x: Math.floor(W / 2), y: Math.floor(H / 2) });
-  run = { st, diff, mods: diffMods(diff), t: 0, wave: 0, waveLeft: 0, kills: 0, gear: 0, over: false, cleared: false };
+  run = newRun(P, st, diff); cardOpen = false;
   mons = []; npcs = []; chests = [];
-  setupClass(); const sst = stats(P); P.hp = sst.hp; P.mp = sst.mpMax;
+  P.runMods = runMods(run); setupRunSkills();
+  const sst = stats(P); P.hp = sst.hp; P.mp = sst.mpMax;
   auto = false; syncAuto();
   ensureExped(P).runs++;
   banner(`${st.name}　難度 ${diff}`);
-  feed(`${WAVES} 波怪潮，最後一波是${st.mvp ? `地區魔王「${MONSTERS[st.mvp].name}」` : '小王'}。普攻和技能會自動放，你只管走位！`, '#ffd166');
-  nextWave(); hud(); updateRunHud();
+  feed('開場 30 秒怪比較少，先撿寶石升級拿技能。第 13 分鐘地區魔王登場，打倒就通關！', '#ffd166');
+  $('advPanel').hidden = true; hud(); updateRunHud();
 }
-// 生怪：畫面外一圈（7～10 格）找空地
+function setupRunSkills() {
+  const ids = Object.keys(run.skills), old = Object.fromEntries(skills.map((x) => [x.id, x.t]));
+  skills = ids.map((id) => ({ id, name: SK[id].name, cd: SK[id].cd || 1, t: old[id] || 0 }));
+  for (let i = 0; i < BAR_SIZE; i++) {
+    const b = $(`sk${i}Btn`), sk = skills[i]; b.hidden = !sk; if (!sk) continue;
+    b.querySelector('span').textContent = `${sk.name}${run.bless[sk.id] ? '★' : ''} ${run.skills[sk.id]}`;
+  }
+  applyUiArt();
+}
 function runSpawnOne(type, extra = {}) {
-  const base = MONSTERS[type], md = run.mods;
-  const d = { ...base, hp: Math.round(base.hp * md.hp * (extra.hpK || 1)), atk: Math.round(base.atk * md.atk), exp: Math.round(base.exp * md.exp), sight: 30, trial: true, runMon: true, ...extra.d };
-  for (let k = 0; k < 40; k++) {
-    const a = R() * Math.PI * 2, r = 7 + R() * 3, x = Math.round(me.x + Math.cos(a) * r), y = Math.round(me.y + Math.sin(a) * r * 0.8);
+  const base = MONSTERS[type], wv = wave(run.t), md = run.mods;
+  const d = { ...base, hp: Math.round(base.hp * wv.hpMul * md.hp * (extra.hpK || 1)), atk: Math.round(base.atk * wv.atkMul * md.atk), exp: Math.round(base.exp * md.exp), sight: 30, trial: true, runMon: true, ...extra.d };
+  for (let k = 0; k < 30; k++) {
+    const a = R() * Math.PI * 2, r = 8 + R() * 3, x = Math.round(me.x + Math.cos(a) * r), y = Math.round(me.y + Math.sin(a) * r * 0.8);
     if (x < 1 || y < 1 || x >= W - 1 || y >= H - 1 || !walkable(grid, x, y) || occupied(x, y) || grid[y][x] === T.PORTAL) continue;
     const m = { type, d, base: null, anim: R() * 2 };
     Object.assign(m, { x, y, px: x, py: y, fx: x, fy: y, moving: false, hp: d.hp, dead: 0, cool: 1, think: R(), flash: 0, kx: 0, ky: 0, spawnT: 0.4, frozen: 0, letter: 0, shield: false, phases: [], slamT: 4, spitT: 6, hidden: false, engaged: true, stolen: new Set(), rwT: 10, hist: [], histT: 0, angryT: 999, retreatT: 0, hasteT: 0, pauseT: 0, fuse: 0, revived: 0, lurk: false, home: { x, y }, chargeT: 3 + R() * 3 });
@@ -872,79 +881,135 @@ function runSpawnOne(type, extra = {}) {
   }
   return null;
 }
-function nextWave() {
-  run.wave++;
-  const st = run.st, last = run.wave === WAVES, n = waveSize(st, run.wave);
-  run.toSpawn = n; run.spawnT = 0; // 分批出：每 1.2 秒 3 隻
-  run.waveLeft = n;
-  if (last) {
-    const boss = st.mvp ? runSpawnOne(st.mvp, { d: { boss: true, sight: 30 } }) : runSpawnOne(st.mini, { hpK: 8, d: { elite: 'giant', name: `小王・${MONSTERS[st.mini].name}`, exp: MONSTERS[st.mini].exp * 15 * run.mods.exp } });
-    if (boss) { run.bossRef = boss; run.waveLeft++; banner(st.mvp ? `${boss.d.name}　登場！` : `${boss.d.name}出現了！`); if (st.mvp) { shake = 0.5; sfx('boss'); } }
-  } else banner(`第 ${run.wave} / ${WAVES} 波`);
-  updateRunHud();
-}
+let runSpawnT = 0;
 function updateRun(dt) {
   if (run?.over && run.leave) { run.leaveT -= dt; if (run.leaveT <= 0) { const f = run.leave; run.leave = null; f(); } return; }
-  if (!run || run.over) return;
+  if (!run || run.over || cardOpen) return;
   run.t += dt;
-  if (run.toSpawn > 0 && (run.spawnT -= dt) <= 0) { run.spawnT = 1.2; for (let i = 0; i < 3 && run.toSpawn > 0; i++, run.toSpawn--) if (!runSpawnOne(run.st.mons[Math.floor(R() * run.st.mons.length)])) run.waveLeft--; }
+  const wv = wave(run.t), st = run.st, alive0 = mons.filter((m) => m.dead <= 0).length;
+  runSpawnT -= dt;
+  if (runSpawnT <= 0 && run.t < BOSS_AT + 60) {
+    runSpawnT = wv.every;
+    const pool = wavePool(st, run.t);
+    for (let i = 0; i < wv.pack && alive0 + i < wv.cap * run.mods.count; i++) runSpawnOne(pool[Math.floor(R() * pool.length)]);
+  }
+  for (const at of ELITE_AT) if (run.t >= at && !run.eliteDone.includes(at)) {
+    run.eliteDone.push(at);
+    const pool = wavePool(st, run.t), id = pool[pool.length - 1];
+    const m = runSpawnOne(id, { hpK: 10, d: { elite: 'giant', name: `小王・${MONSTERS[id].name}`, exp: MONSTERS[id].exp * 15 } });
+    if (m) banner(`小王「${m.d.name}」出現了！`);
+  }
+  if (run.t >= BOSS_AT && !run.bossOut) {
+    run.bossOut = true;
+    const base = MONSTERS[st.mvp], m = runSpawnOne(st.mvp, { d: { hp: Math.round(base.hp * 0.25 * run.mods.hp), boss: true, sight: 30 } });
+    if (m) { run.bossRef = m; banner(`${m.d.name}　登場！`); shake = 0.5; sfx('boss'); }
+  }
+  // 局內寶箱
+  run.chestT -= dt;
+  if (run.chestT <= 0 && !run.chest) { run.chestT = CHEST_EVERY; spawnRunChest(); }
+  if (run.chest) { run.chest.life -= dt; if (run.chest.life <= 0) run.chest = null; else if (Math.max(Math.abs(run.chest.x - me.x), Math.abs(run.chest.y - me.y)) <= 1) openRunChest(); }
   if (mons.length > 140) mons = mons.filter((m) => m.dead <= 0 || (m.deadAt != null && anim - m.deadAt < 1));
-  // 自動普攻（射程內最近的）＋自動施放技能欄（冷卻好、附近有怪；關卡內不耗魔力）
+  // 自動普攻＋自動施放（局內不耗魔力）；連燈加護多放一次
   if (!dialog && pst.sleep <= 0) {
     const tgt = nearest(Math.max(1.6, C.range + 0.5));
     if (tgt && me.cool <= 0) { faceToward(tgt); face8(me, Math.sign(tgt.x - me.x), Math.sign(tgt.y - me.y)); basicAttack(tgt); }
-    if (alive().some((m) => tdist(m, me.px, me.py) <= 5)) skills.forEach((x, i) => { if (x.t <= 0 && cutinT <= 0) { P.mp = stats(P).mpMax; castIdx(i); } });
+    if (alive().some((m) => tdist(m, me.px, me.py) <= 5)) skills.forEach((x, i) => {
+      if (x.t > 0 || cutinT > 0) return;
+      P.mp = stats(P).mpMax; castIdx(i);
+      if (run.bless[x.id] === 'twin') pending.push({ t: 0.25, fn: () => { if (!run || run.over) return; const keep = x.t; x.t = 0; P.mp = stats(P).mpMax; castIdx(i); x.t = keep; } });
+    });
   }
   if (run.bossDown && (run.bossDownT -= dt) <= 0) endRun(true);
+  if (run.t >= RUN_LEN && !run.over) endRun(false, true);
   if (run.t % 1 < dt) updateRunHud();
 }
-// 打倒一隻：算波數、掉裝備（難度越高掉越多、越容易傳說；一場最多 100 件）
+function spawnRunChest() {
+  for (let k = 0; k < 30; k++) {
+    const a = R() * Math.PI * 2, r = 4 + R() * 3, x = Math.round(me.x + Math.cos(a) * r), y = Math.round(me.y + Math.sin(a) * r * 0.8);
+    if (x < 1 || y < 1 || x >= W - 1 || y >= H - 1 || !walkable(grid, x, y) || occupied(x, y)) continue;
+    run.chest = { x, y, life: 45, cost: chestCost(run.st, run.chests) };
+    feed(`附近出現寶箱！走過去花 ${fmt(run.chest.cost)} 金幣打開`, '#ffd166'); return;
+  }
+}
+function openRunChest() {
+  const c = run.chest; if (!c || cardOpen) return;
+  if (run.items.length >= ITEM_SLOTS) { run.chest = null; P.coins += c.cost; floatT('道具欄滿了，換成金幣', me.x, me.y - 0.8, '#ffd166', 1); return; }
+  if (P.coins < c.cost) { if (!c.warned) { c.warned = 1; floatT(`金幣不夠（要 ${fmt(c.cost)}）`, me.x, me.y - 0.8, '#ff8fa0', 1); } return; }
+  P.coins -= c.cost; run.chest = null; run.chests++;
+  const ids = rollItems(run, R); if (!ids.length) return;
+  showPick('打開寶箱！選一件本局道具', ids.map((id) => ({ kind: 'item', id })));
+}
+// 三選一畫面（升級卡、寶箱道具共用）
+function showPick(title, cs) {
+  cardOpen = true; sfx('levelup');
+  $('runCardsTitle').textContent = title;
+  $('runCardList').replaceChildren(...cs.map((c) => {
+    const t = c.kind === 'item' ? { title: RUN_ITEMS[c.id].name, sub: '本局道具', desc: RUN_ITEMS[c.id].desc } : cardText(c);
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'runcard rc-' + c.kind;
+    const icon = (c.kind === 'skill' || c.kind === 'bless') && asset('ui/skill_' + c.id);
+    b.innerHTML = `${icon ? `<img src="${icon.src}" alt="">` : '<i></i>'}<span><small>${t.sub}</small><b>${t.title}</b><em>${t.desc}</em></span>`;
+    b.addEventListener('click', () => {
+      if (c.kind === 'item') run.items.push(c.id); else { applyCard(run, c); run.pending--; if (c.kind === 'heal') P.hp = stats(P).hp; }
+      P.runMods = runMods(run); setupRunSkills(); hud();
+      cardOpen = false; $('runCards').hidden = true; updateRunHud();
+      if (run.pending > 0) setTimeout(openCards, 120);
+    });
+    return b;
+  }));
+  $('runCards').hidden = false;
+}
+function openCards() {
+  if (!run || cardOpen || run.pending <= 0 || run.over) return;
+  P.hp = Math.min(stats(P).hp, P.hp + stats(P).hp * 0.2); // 升級回 20% 血
+  showPick(`升到 Lv ${run.lv - run.pending + 1}！選一張`, rollCards(run, P, R));
+}
 function runKill(m) {
   if (!run || !m.d.runMon || run.over) return;
-  run.kills++; run.waveLeft--;
+  run.kills++;
+  { const g = newDrop('gem', cx(m), cy(m), gemValue(m.d, run.t)); g.vx *= 0.15; g.vy *= 0.15; g.vz *= 0.5; drops.push(g); }
   if (!m.d.boss && !m.d.elite && run.gear < GEAR_CAP && R() < gearChance(run.diff)) {
     const it = rollGear(R, Math.max(1, m.d.lv), false, P.cls, run.mods.luck);
-    if (!P.autoSell.equip[it.rarity]) { drops.push(newDrop('gear', cx(m), cy(m), it)); run.gear++; } else P.coins += gearSell(it); // 撿取篩選擋掉的直接換錢
+    if (!P.autoSell.equip[it.rarity]) { drops.push(newDrop('gear', cx(m), cy(m), it)); run.gear++; } else P.coins += gearSell(it);
   }
-  if (m === run.bossRef) { run.bossDown = true; run.bossDownT = 1.2; for (let i = 0; i < (run.st.mvp ? 4 : 2); i++) drops.push(newDrop('gear', cx(m), cy(m), rollGear(R, m.d.lv, true, P.cls, run.mods.luck))); return; }
-  if (run.waveLeft <= 0 && run.wave < WAVES) setTimeout(() => run && !run.over && nextWave(), 900);
-  updateRunHud();
+  if (m.d.elite) for (let i = 0; i < 2; i++) drops.push(newDrop('gear', cx(m), cy(m), rollGear(R, m.d.lv, R() < 0.5, P.cls, run.mods.luck)));
+  if (m === run.bossRef) { run.bossDown = true; run.bossDownT = 1.2; for (let i = 0; i < 4; i++) drops.push(newDrop('gear', cx(m), cy(m), rollGear(R, m.d.lv, true, P.cls, run.mods.luck))); }
 }
-function collectGem() {}
+function collectGem(v) { if (!run) return; if (gainRunExp(run, v)) { P.runMods = runMods(run); openCards(); } updateRunHud(); }
 function updateRunHud() {
   const el = $('runHud'); el.hidden = !run;
-  const q = document.querySelector('.quest'); if (q) q.hidden = !!run; // 關卡內用狀態列取代任務列
+  const q = document.querySelector('.quest'); if (q) q.hidden = !!run;
   if (!run) return;
-  const mm = Math.floor(run.t / 60), ss = String(Math.floor(run.t % 60)).padStart(2, '0');
-  $('runTime').textContent = `${run.st.name}`;
-  $('runLv').textContent = `第 ${run.wave}/${WAVES} 波・難度 ${run.diff}`;
-  $('runKills').textContent = `擊殺 ${run.kills}・裝備 ${run.gear}/${GEAR_CAP}・${mm}:${ss}`;
-  $('runExp').style.width = `${Math.min(100, ((run.wave - 1 + (run.waveLeft <= 0 ? 1 : 0)) / WAVES) * 100)}%`;
+  const left = Math.max(0, RUN_LEN - run.t), mm = Math.floor(left / 60), ss = String(Math.floor(left % 60)).padStart(2, '0');
+  $('runTime').textContent = `${mm}:${ss}`;
+  $('runLv').textContent = `局內 Lv ${run.lv}`;
+  $('runKills').textContent = `擊殺 ${run.kills}・裝備 ${run.gear}・道具 ${run.items.length}/${ITEM_SLOTS}`;
+  $('runExp').style.width = `${Math.min(100, (run.exp / runExpNeed(run.lv)) * 100)}%`;
 }
-function endRun(cleared) {
+function endRun(cleared, timeUp = false) {
   if (!run || run.over) return;
-  run.over = true; run.cleared = cleared;
-  const st = run.st, d = run.diff, first = cleared ? clearStage(P, st, d) : false, r = stageReward(P, st, d, cleared, first);
+  run.over = true; run.cleared = cleared; cardOpen = false; $('runCards').hidden = true;
+  const st = run.st, d = run.diff, first = cleared ? clearStage(P, st, d) : false, r = stageReward(P, run);
   P.coins += r.coins;
   for (let i = 0; i < r.gear; i++) pickupGear(P, rollGear(R, st.lvHi, true, P.cls, run.mods.luck));
   const sid = SOUL_OF_CH[Math.min(6, st.ch)]; if (r.shards && sid) addShards(P, sid, r.shards);
-  if (cleared && st.mvp && st.ch === Math.min(6, P.ch - 1) && P.step === 2) P.step = 3;
+  if (cleared && st.ch === Math.min(6, P.ch - 1) && P.step === 2) P.step = 3;
   const min = Math.floor(run.t / 60), sec = Math.floor(run.t % 60);
-  const lines = [cleared ? `通關！${st.name}（難度 ${d}）${first ? '・首次通關' : ''}` : '倒下了……燈火把你送回了守燈村。撿到的東西都還在。',
-    `用時 ${min} 分 ${sec} 秒・擊殺 ${run.kills}・撿到裝備 ${run.gear} 件`,
+  const lines = [cleared ? `通關！打倒了${MONSTERS[st.mvp].name}（${st.name}・難度 ${d}）${first ? '・首次通關' : ''}` : timeUp ? '時間到，長夜吞沒了這片土地……' : '倒下了……燈火把你送回了守燈村。撿到的裝備都還在。',
+    `存活 ${min} 分 ${sec} 秒・局內 Lv ${run.lv}・擊殺 ${run.kills}・撿到裝備 ${run.gear} 件`,
     `結算：金幣 ${fmt(r.coins)}${r.gear ? `、獎勵裝備 ${r.gear} 件` : ''}${r.shards && sid ? `、${SOULS[sid].name}碎片 ×${r.shards}` : ''}`,
-    ...(cleared && d < DIFF_MAX && maxDiff(P, st) > d ? [`這關的刷關難度 ${d + 1} 開放了。`] : [])];
+    ...(cleared && d < DIFF_MAX && maxDiff(P, st) > d ? [`這張地圖的刷關難度 ${d + 1} 開放了。`] : [])];
   const again = st.id;
-  run.leaveT = 1; run.leave = () => { leaveRun(); say('遠征', lines, [['再打一次', () => startRun(again, d)], ...(cleared && maxDiff(P, st) > d ? [[`挑戰難度 ${d + 1}`, () => startRun(again, d + 1)]] : []), ['選別的關卡', openExped], ['回守燈村', null]]); };
+  run.leaveT = 1; run.leave = () => { leaveRun(); say('遠征', lines, [['再打一次', () => startRun(again, d)], ...(cleared && maxDiff(P, st) > d ? [[`挑戰難度 ${d + 1}`, () => startRun(again, d + 1)]] : []), ['選別的地圖', openExped], ['回守燈村', null]]); };
   questDone(track(P, 'tower')); save();
 }
-$('expClose').addEventListener('click', () => { $('expPanel').hidden = true; });
-$('expDiff').addEventListener('input', (e) => { expDiff = +e.target.value; renderExped(); });
-$('expGo').addEventListener('click', () => { if (!stageLock(P, stageById(expSel))) startRun(expSel, expDiff); });
-$('expEquip').addEventListener('click', () => { const n = equipBest(); feed(n ? `換上了 ${n} 件更好的裝備` : '身上已經是最好的了', '#7fd8ff'); setupClass(); hud(); save(); renderExped(); });
-$('expSell').addEventListener('click', () => { $('expPanel').hidden = true; bagSel = null; renderBag(); $('bagPanel').hidden = false; });
-function leaveRun() { run = null; setupClass(); loadMap(0, SPAWN); P.hp = stats(P).hp; updateRunHud(); hud(); save(); }
-// 一鍵穿裝：每個部位換上裝備分數最高的
+function leaveRun() { run = null; delete P.runMods; cardOpen = false; $('runCards').hidden = true; setupClass(); loadMap(0, SPAWN); P.hp = stats(P).hp; updateRunHud(); hud(); save(); }
+function drawRunChest() {
+  const c = run?.chest; if (!c) return;
+  const X = c.x * TS, Y = c.y * TS;
+  ctx.globalAlpha = 0.4 + Math.sin(anim * 5) * 0.2; ctx.fillStyle = '#ffd166'; ctx.beginPath(); ctx.ellipse(X + 8, Y + 13, 10, 4, 0, 0, 7); ctx.fill(); ctx.globalAlpha = 1;
+  ctx.fillStyle = '#2a1d2e'; ctx.fillRect(X + 1, Y + 4, 14, 10); ctx.fillStyle = '#8a5cff'; ctx.fillRect(X + 2, Y + 7, 12, 6); ctx.fillStyle = '#c9a7ff'; ctx.fillRect(X + 2, Y + 5, 12, 2); ctx.fillStyle = '#ffd166'; ctx.fillRect(X + 7, Y + 6, 2, 4);
+}
+// 一鍵穿裝：每個部位換上最強的
 function equipBest() {
   let n = 0;
   for (const slot of SLOTS) {
@@ -956,7 +1021,7 @@ function equipBest() {
 // ---- 遠征面板 ----
 function openExped() {
   if (dialog) { dialog = null; showDialog(); }
-  const st0 = stageById(expSel); if (st0 && stageLock(P, st0)) expSel = STAGES.find((s) => !stageLock(P, s))?.id || '1-1';
+  const st0 = stageById(expSel); if (st0 && stageLock(P, st0)) expSel = [...STAGES].reverse().find((s) => !stageLock(P, s))?.id || '1';
   renderExped(); $('expPanel').hidden = false;
 }
 function renderExped() {
@@ -965,16 +1030,16 @@ function renderExped() {
   $('expList').replaceChildren(...STAGES.map((st) => {
     const lock = stageLock(P, st), b = document.createElement('button'); b.type = 'button';
     b.className = `expstage${st.id === expSel ? ' on' : ''}${lock ? ' locked' : ''}${e.cleared[st.id] ? ' done' : ''}`;
-    b.innerHTML = `<b>${st.name}</b><span>Lv ${st.lvLo}～${st.lvHi}${st.mvp ? `・魔王 ${MONSTERS[st.mvp].name}` : ''}</span><em>${lock || (e.cleared[st.id] ? `已通關・最高難度 ${e.cleared[st.id]}` : '可挑戰')}</em>`;
-    b.addEventListener('click', () => { expSel = st.id; expDiff = Math.min(expDiff, maxDiff(P, st)); renderExped(); });
+    b.innerHTML = `<b>${st.name}</b><span>Lv ${st.lvLo}～${st.lvHi}・魔王 ${MONSTERS[st.mvp].name}</span><em>${lock || (e.cleared[st.id] ? `已通關・最高難度 ${e.cleared[st.id]}` : '可挑戰')}</em>`;
+    b.addEventListener('click', () => { expSel = st.id; renderExped(); });
     return b;
   }));
   const st = stageById(expSel), lock = stageLock(P, st), md = maxDiff(P, st);
   expDiff = Math.max(1, Math.min(expDiff, md));
   const m = diffMods(expDiff);
   $('expDiff').max = md; $('expDiff').value = expDiff;
-  $('expInfo').innerHTML = `<b>${st.name}</b>　刷關難度 <b>${expDiff}</b> / ${md}<br>怪物血量 ×${m.hp.toFixed(1)}・傷害 ×${m.atk.toFixed(2)}・裝備掉落 ×${m.drop.toFixed(2)}・稀有以上 ×${m.luck.toFixed(1)}<br>裝備門檻 ${gateOf(st)}・會撿：${['common', 'good', 'rare', 'epic', 'legend'].filter((r) => !P.autoSell.equip[r]).map((r) => rarityOf(r).name).join('、') || '全部不撿'}`;
-  $('expGo').disabled = !!lock; $('expGo').textContent = lock ? lock : '出發！';
+  $('expInfo').innerHTML = `<b>${st.name}</b>　刷關難度 <b>${expDiff}</b> / ${md}<br>怪物血量 ×${m.hp.toFixed(1)}・傷害 ×${m.atk.toFixed(2)}・數量 ×${m.count.toFixed(2)}・裝備掉落 ×${m.drop.toFixed(2)}・稀有以上 ×${m.luck.toFixed(1)}<br>技能欄 ${skillSlots(P)} 格・裝備門檻 ${gateOf(st)}・會撿：${['common', 'good', 'rare', 'epic', 'legend'].filter((r) => !P.autoSell.equip[r]).map((r) => rarityOf(r).name).join('、') || '全部不撿'}`;
+  $('expGo').disabled = !!lock; $('expGo').textContent = lock || '出發！';
 }
 
 // ---------- 深夜：燈火 ----------
@@ -1495,7 +1560,7 @@ function castIdx(i) {
   const cost = Math.round(n.mp * st.mpCost);
   if ((P.mp ?? st.mpMax) < cost) { floatT('魔力不夠', me.x, me.y - 0.9, '#7fb4ff', 0.8); s.t = 0.4; return; }
   P.mp = (P.mp ?? st.mpMax) - cost;
-  s.t = n.cd * (1 - st.cdr); curSkill = s.id;
+  s.t = n.cd * (1 - st.cdr) * (run ? runCdMult(run, s.id) : 1); curSkill = s.id;
   questDone(track(P, 'skill'));
   skillElem = sk.elem || (sk.shape === 'shot' && P.cls === 'priest' ? '聖' : '無'); skillElemT = 1.2;
   sfx({ sword: 'slash', archer: 'arrow', mage: 'magic', monk: 'punch', scout: 'slash', priest: sk.kind === 'heal' ? 'potion' : 'magic' }[P.cls] || 'slash');
@@ -1506,7 +1571,7 @@ function castIdx(i) {
   }
   lastSkill = s.id;
   // 專屬機制：先算消耗與加成
-  let mult = n.mult;
+  let mult = n.mult * (run ? runSkillMult(run, s.id) : 1);
   if (sk.use1 && res.n >= 1) { mult *= 1 + sk.use1 / 100; res.n--; }
   if (sk.need && sk.use !== undefined) { mult *= 1 + (sk.use / 100) * res.n; if (sk.buff?.[0] === 'dmgPerStack') addTB('dmgPerStack', n.buff[1] * res.n, n.buff[2]); res.n = 0; }
   if (sk.useCandle) mult *= 1 + (sk.useCandle / 100) * res.n;
@@ -2281,7 +2346,7 @@ function dust(wx, wy) {
   for (let i = 0; i < 3; i++) parts.push({ x: wx + (R() - 0.5) * 8, y: wy, vx: (R() - 0.5) * 18, vy: -8 - R() * 10, c: R() < 0.5 ? '#e8dcc0' : '#cbb994', t: 0, g: 20, size: 1, life: 0.35 });
 }
 function update(dt) {
-  if (cardOpen) return; // 選升級卡時世界暫停
+  if (cardOpen) return; // 選卡、選寶箱道具時世界暫停
   updateRun(dt);
   anim += dt; gateMsgT -= dt; skillElemT -= dt;
   playSong(pickSong());
@@ -2291,7 +2356,7 @@ function update(dt) {
     if (Math.ceil(trial.t) !== before) $('quest').textContent = questText();
     if (trial.t <= 0) { const f = trial.f; trial.done = true; auto = false; syncAuto(); say('試煉之塔', [`時間到！第 ${f} 層挑戰失敗。`, '提升戰力、換個打法，再來挑戰吧。'], [[`再挑戰第 ${f} 層`, () => startTower(f)], ['回到村子', () => { loadMap(0, SPAWN); hud(); }]]); }
   }
-  if (me.moving && step(me, me.dur * (pst.slow > 0 ? 1.6 : 1) / (1 + (0) / 100), dt)) { me.step ^= 1; me.walkD = (me.walkD || 0) + Math.hypot(me.x - me.fx, me.y - me.fy); me.dur = 0.14; dust(cx(me), me.py * TS + 16); checkGate(); checkChest(); if (grid[me.y]?.[me.x] === T.PORTAL && mapId !== 0) { loadMap(0, SPAWN); feed('回到守燈村', '#c084ff'); save(); return; } }
+  if (me.moving && step(me, me.dur * (pst.slow > 0 ? 1.6 : 1) / (1 + (P.runMods?.move || 0) / 100), dt)) { me.step ^= 1; me.walkD = (me.walkD || 0) + Math.hypot(me.x - me.fx, me.y - me.fy); me.dur = 0.14; dust(cx(me), me.py * TS + 16); checkGate(); checkChest(); if (grid[me.y]?.[me.x] === T.PORTAL && mapId !== 0) { loadMap(0, SPAWN); feed('回到守燈村', '#c084ff'); save(); return; } }
   if (held && auto) { auto = false; syncAuto(); }
   invertT = Math.max(0, invertT - dt);
   if (!me.moving && started && held && !dialog && !fishing && !stuck()) {
@@ -2385,7 +2450,7 @@ function update(dt) {
     const lift = P.soul === 'magnet' ? 0.5 : DROP_LIFT;
     if (d.t < lift) { d.x += d.vx * dt; d.y += d.vy * dt; d.vz -= 320 * dt; d.z = Math.max(0, d.z + d.vz * dt); if (d.z === 0) d.vz = Math.abs(d.vz) * 0.4; return true; }
     const ax = px - d.x, ay = py - d.y, dist = Math.hypot(ax, ay);
-    if (d.kind === 'gem' && !d.pull) { if (dist > 56 * (1 + 0 / 100)) return true; d.pull = true; d.t = lift; }
+    if (d.kind === 'gem' && !d.pull) { if (dist > 56 * (1 + (P.runMods?.pickup || 0) / 100)) return true; d.pull = true; d.t = lift; }
     if (dist < 6 || (d.t > 3 && d.kind !== 'gem')) { collect(d); return false; }
     const sp = 80 + (d.t - lift) * 400;
     d.x += (ax / dist) * sp * dt; d.y += (ay / dist) * sp * dt; d.z = Math.max(0, d.z - dt * 30);
@@ -2446,7 +2511,7 @@ function render() {
   }
   ctx.save(); ctx.translate(-camX, -camY);
   for (const f of fx) if (f.kind === 'crack' || f.kind === 'target') drawFx(f);
-  drawZones(); drawLamps();
+  drawZones(); drawLamps(); drawRunChest();
   for (const w of warns) {
     if (w.t < 0 || w.fired) continue;
     const k = Math.min(1, w.t / w.life), X = w.x * TS + 8, Y = w.y * TS + 10;
@@ -3204,4 +3269,4 @@ document.fonts?.ready.then(render);
 requestAnimationFrame(frame);
 
 // 自動化測試用（網址加 ?debug 才開）
-if (location.search.includes('debug')) globalThis.__game = { showCutin, get allies() { return allies; }, buildAllies, get P() { return P; }, newDrop, get drops() { return drops; }, set dropsAdd(d) { drops.push(d); }, me, get grid() { return grid; }, loadMap, get mapId() { return mapId; }, get mons() { return mons; }, get fishing() { return fishing; }, get dialog() { return dialog; }, get drops() { return drops; }, get skills() { return skills; }, castIdx, startTower, get trial() { return trial; }, renderAdv, hud, audioLevel, currentSong, sfx, get chests() { return chests; }, say, renderPartyPanel, renderShop, useItem, addStack, get eshots() { return eshots; }, get warns() { return warns; }, pst, TR, killMon, hitPlayer, dealDamage, set mons(v) { mons = v; }, startRun, get run() { return run; }, endRun, openExped, equipBest, STAGES, get pendingN() { return pending.length; }, set timeK(v) { timeK = Math.max(1, Math.min(12, v | 0)); }, get cutinT() { return cutinT; }, monAnim, layout, monSheet, heroSheet, setArt(v) { artStyle = v; applyArt(); }, asset, get anim() { return anim; }, toCss: (wx, wy) => [(wx - lastCam.x) * S / DPR, (wy - lastCam.y) * S / DPR], MONSTERS, ITEMS, CHAPTERS, newDropLoot: (id, x, y) => drops.push(newDrop('loot', x, y, { id, n: 1 })), renderBag: () => { if (typeof renderBag === 'function') renderBag(); }, skillsList: () => skills.map((k) => k.id), get lamps() { return lamps; }, inLight, get deathN() { return deathN; }, rollGear, SLOTS, R, stats: () => stats(P) };
+if (location.search.includes('debug')) globalThis.__game = { showCutin, get allies() { return allies; }, buildAllies, get P() { return P; }, newDrop, get drops() { return drops; }, set dropsAdd(d) { drops.push(d); }, me, get grid() { return grid; }, loadMap, get mapId() { return mapId; }, get mons() { return mons; }, get fishing() { return fishing; }, get dialog() { return dialog; }, get drops() { return drops; }, get skills() { return skills; }, castIdx, startTower, get trial() { return trial; }, renderAdv, hud, audioLevel, currentSong, sfx, get chests() { return chests; }, say, renderPartyPanel, renderShop, useItem, addStack, get eshots() { return eshots; }, get warns() { return warns; }, pst, TR, killMon, hitPlayer, dealDamage, set mons(v) { mons = v; }, startRun, get run() { return run; }, endRun, openExped, equipBest, STAGES, openCards, get cardOpen() { return cardOpen; }, get pendingN() { return pending.length; }, set timeK(v) { timeK = Math.max(1, Math.min(12, v | 0)); }, get cutinT() { return cutinT; }, monAnim, layout, monSheet, heroSheet, setArt(v) { artStyle = v; applyArt(); }, asset, get anim() { return anim; }, toCss: (wx, wy) => [(wx - lastCam.x) * S / DPR, (wy - lastCam.y) * S / DPR], MONSTERS, ITEMS, CHAPTERS, newDropLoot: (id, x, y) => drops.push(newDrop('loot', x, y, { id, n: 1 })), renderBag: () => { if (typeof renderBag === 'function') renderBag(); }, skillsList: () => skills.map((k) => k.id), get lamps() { return lamps; }, inLight, get deathN() { return deathN; }, rollGear, SLOTS, R, stats: () => stats(P) };
