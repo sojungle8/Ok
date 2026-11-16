@@ -12,6 +12,8 @@ MAX_W, MAX_H = 4096, 2048
 
 man = json.load(open(os.path.join(ROOT, 'manifest.json'), encoding='utf-8'))
 files = [f for f in man['files'] if not f.startswith(SKIP_DIRS) and not os.path.basename(f).startswith('_') and not f.endswith('_preview.png')]
+# 畫風已定案以逐格像素為主：精緻立繪的走路兩格圖只在「立繪」模式用，發佈版不放（立繪模式改用程式擺動），省下 90 個檔案
+files = [f for f in files if not (f.startswith('hero/') and f.endswith('_walk.png'))]
 size = {f: Image.open(os.path.join(ROOT, f)).size for f in files}
 groups = {
     'icon': [f for f in files if f.startswith('icon/') and size[f] == (128, 128)],

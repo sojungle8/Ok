@@ -278,18 +278,18 @@ function bossThink(m, dt) {
   if (firstLook) m.engaged = true;
   if (mech === 'split') for (const th of [0.75, 0.5, 0.25]) if (ratio <= th && !m.phases.includes(th)) {
     m.phases.push(th); spawnMinions(m, 3); m.shield = true;
-    banner('露滴王分裂了！'); feed('打倒<b>小露滴王</b>才能打破護盾', '#ff8a3d'); shake = 0.3;
+    m.castAt = anim; banner('露滴王分裂了！'); feed('打倒<b>小露滴王</b>才能打破護盾', '#ff8a3d'); shake = 0.3;
   }
   if (mech === 'mirror') for (const th of [1, 0.5]) if ((th === 1 ? firstLook : ratio <= th) && !m.phases.includes(th)) {
     m.phases.push(th); spawnMinions(m, 3, MIRROR_OBJ(m), { spread: true }); m.shield = true;
-    banner('魔鏡出現了！'); feed('魔鏡還在時：<b>左右操作顛倒</b>、夫人無敵。先打破魔鏡！', '#c084ff');
+    m.castAt = anim; banner('魔鏡出現了！'); feed('魔鏡還在時：<b>左右操作顛倒</b>、夫人無敵。先打破魔鏡！', '#c084ff');
   }
   if (mech === 'faceless') for (const th of [1, 0.66, 0.33]) if ((th === 1 ? firstLook : ratio <= th) && !m.phases.includes(th)) {
     m.phases.push(th); m.hidden = true; m.shield = true;
     const ds = spawnMinions(m, 5, DECOY, { spread: true });
     const real = ds[Math.floor(R() * ds.length)];
     ds.forEach((x, i) => { const n = NPCS[i % NPCS.length]; x.look = npcLook(n); x.npcId = n.id; x.real = x === real; });
-    banner('千面商人消失了！'); feed('五個路人裡只有一個是本尊——<b>他沒有影子</b>', '#f6c945');
+    m.castAt = anim; banner('千面商人消失了！'); feed('五個路人裡只有一個是本尊——<b>他沒有影子</b>', '#f6c945');
   }
   if ((mech === 'split' || mech === 'mirror') && m.shield && !mons.some((x) => x.minion && x.dead <= 0 && !x.d.decoy)) { m.shield = false; floatT('護盾破了！', m.x, m.y - 1.2, '#ffd166', 1.2); burst(cx(m), cy(m), '#bdf1ff', 24, 120); }
   invertT = mech === 'mirror' && mons.some((x) => x.minion && x.dead <= 0) && d <= 9 ? 0.3 : invertT;
@@ -305,14 +305,14 @@ function bossThink(m, dt) {
         if (past.hp > m.hp) { floatT(`+${fmt(past.hp - m.hp)}`, m.x, m.y - 1, '#7fd8ff', 1.2); m.hp = past.hp; }
         if (walkable(grid, past.x, past.y) && !occupied(past.x, past.y)) Object.assign(me, { x: past.x, y: past.y, px: past.x, py: past.y, moving: false });
       }
-      addFx('clock', 0.9, { x: cx(m), y: cy(m) }); flash = 0.15; banner('時間倒轉！');
+      addFx('clock', 0.9, { x: cx(m), y: cy(m) }); flash = 0.15; banner('時間倒轉！'); m.castAt = anim;
     }
   }
   if (d > 7 || m.hidden) return;
   m.slamT -= dt; m.spitT -= dt;
-  if (d <= 4 && m.slamT <= 0) { m.slamT = 6; warns.push({ x: m.px, y: m.py, r: 2.2, t: 0, life: 1.1, dmg: Math.round(m.d.atk * 2.2), kind: 'slam' }); }
+  if (d <= 4 && m.slamT <= 0) { m.slamT = 6; m.castAt = anim; warns.push({ x: m.px, y: m.py, r: 2.2, t: 0, life: 1.1, dmg: Math.round(m.d.atk * 2.2), kind: 'slam' }); }
   if (m.spitT <= 0) {
-    m.spitT = 8.5;
+    m.spitT = 8.5; m.castAt = anim;
     for (let i = 0; i < 3; i++) warns.push({ x: me.px + (i ? (R() - 0.5) * 3 : 0), y: me.py + (i ? (R() - 0.5) * 3 : 0), r: 1, t: -i * 0.15, life: 1.1, dmg: Math.round(m.d.atk * 1.5), kind: 'spit' });
   }
 }
@@ -865,7 +865,7 @@ function updateLamps(dt) {
   if (!b) return;
   b.eatT = (b.eatT ?? 12) - dt;
   if (b.eatT <= 0) {
-    b.eatT = 15;
+    b.eatT = 15; b.castAt = anim;
     let n = 0;
     for (const l of lamps) if (l.lit && Math.hypot(l.x - b.px, l.y - b.py) <= 8) { l.lit = false; n++; burst(l.x * TS + 8, l.y * TS + 2, '#3b3350', 14, 70); }
     banner(n ? `${b.d.name}吞掉了 ${n} 盞燈！` : `${b.d.name}想吞光，但附近沒有燈`); tintC = '#120c1c'; tintT = 0.5;
@@ -1118,7 +1118,7 @@ function dealDamage(m, mult, fromX = me.px, fromY = me.py, color, kind = 'skill'
   const dmg = Math.max(1, Math.round(base * mult * k * (0.85 + R() * 0.3) * (crit ? st.critDmg : 1)));
   if (st.leech && P.hp < st.hp && kind !== 'ally') P.hp = Math.min(st.hp, P.hp + Math.max(1, Math.round(dmg * st.leech)));
   if (kind !== 'ult') gainSoul(kind === 'skill' ? 1.2 : kind === 'ally' ? 0.5 : 1.6);
-  m.hp -= dmg; m.flash = 0.12; if (!m.d.boss) { monProvoked(m); TR[m.type]?.hurt?.(m, tctx); }
+  m.hp -= dmg; m.flash = 0.12; m.hurtAt = anim; if (!m.d.boss) { monProvoked(m); TR[m.type]?.hurt?.(m, tctx); }
   if (m.d.beh?.reflect && kind === 'basic' && C.range <= 1 && m.hp > 0) hurt(Math.max(1, dmg * m.d.beh.reflect), null);
   if (cm) { if (cm.freeze) m.frozen = Math.max(m.frozen, m.d.boss ? cm.freeze / 3 : cm.freeze); if (cm.stun) m.frozen = Math.max(m.frozen, m.d.boss ? cm.stun / 3 : cm.stun); if (cm.db) applyDebuff(m, cm.db); if (cm.healFrac) P.hp = Math.min(st.hp, P.hp + Math.round(dmg * cm.healFrac)); }
   if (kind === 'basic' && st.dot > 0) m.pois = { v: st.atk * st.dot, t: 5 };
@@ -1140,6 +1140,7 @@ function hitArea(tx, ty, radius, mult, color, each, kind = 'skill') {
   for (const m of alive()) if (tdist(m, tx, ty) <= radius + (m.d.boss ? 0.8 : 0)) { dealDamage(m, mult, tx, ty, color, kind); each?.(m); }
 }
 function killMon(m) {
+  m.deadAt = anim;
   TR[m.type]?.death?.(m);
   sfx(m.d.boss ? 'boom' : 'kill');
   const wx = cx(m), wy = cy(m);
@@ -2188,7 +2189,7 @@ function update(dt) {
     const B = m.d.beh || {};
     if (m.angryT > 0) m.angryT -= dt;
     m.chargeT = (m.chargeT || 0) - dt;
-    if (m.moving) { step(m, (m.d.boss ? 0.5 : m.dash ? 0.12 : B.fast || m.hasteT > 0 ? 0.24 : B.slow ? 0.5 : 0.35) * (m.x !== m.fx && m.y !== m.fy && !m.dash ? 1.4 : 1), dt) && (m.dash = m.dash > 1 ? m.dash - 1 : 0); continue; }
+    if (m.moving) { step(m, (m.d.boss ? 0.5 : m.dash ? 0.12 : B.fast || m.hasteT > 0 ? 0.24 : B.slow ? 0.5 : 0.35) * (m.x !== m.fx && m.y !== m.fy && !m.dash ? 1.4 : 1), dt) && ((m.walkD = (m.walkD || 0) + Math.hypot(m.x - m.fx, m.y - m.fy)), true) && (m.dash = m.dash > 1 ? m.dash - 1 : 0); continue; }
     if (started && !dialog && !m.d.boss && traitTick(m, dt)) continue;
     if (!started || dialog || m.frozen > 0 || m.d.still || m.hidden) continue;
     const tg = monTarget(m);
@@ -2326,6 +2327,7 @@ function render() {
   const ents = [
     ...npcs.map((n) => ({ y: n.y, f: () => drawNpc(n, n.x * TS, n.y * TS - (Math.floor(anim * 1.6 + n.seed) % 2)) })),
     ...alive().map((m) => ({ y: m.py, f: () => drawMon(m) })),
+    ...mons.filter((m) => m.dead > 0 && m.deadAt != null && anim - m.deadAt < MON_T.die && !m.hidden && monSheet(m)).map((m) => ({ y: m.py, f: () => drawMon(m) })),
     { y: me.py + 0.01, f: drawMe },
     ...allies.map((a) => ({ y: a.py + 0.005, f: () => drawAlly(a) })),
     ...(P.soul && started ? [{ y: (soulPos.y + 14 - 8) / TS + 0.02, f: () => { ctx.globalAlpha = 0.9; const sh = asset('soul_art/' + P.soul); if (sh) { ctx.imageSmoothingEnabled = true; ctx.drawImage(sh, soulPos.x - 14, soulPos.y - 26 + Math.sin(anim * 3), 28, 28); ctx.imageSmoothingEnabled = false; } else ctx.drawImage(soulSprite(P.soul, Math.floor(anim * 2) % 2), Math.round(soulPos.x - 12), Math.round(soulPos.y - 22)); ctx.globalAlpha = 1; } }] : []),
@@ -2562,15 +2564,21 @@ function npcSheet(id, look) {
   if (!sheetCache.has(key)) { sheetCache.set(key, art || genSheet('npc', npcLookFor({ look }))); }
   return sheetCache.get(key);
 }
-function monSheet(m) { const id = m.type, art = asset(sheetPath('mon', id)); return art ? { img: art, kind: monKind({ boss: m.d.boss, size: profileOf(m.type).size }) } : null; }
+function monSheet(m) {
+  if (m.d.decoy || m.d.tpl === 'mirror') return null; // 魔鏡、千面商人的假路人另外畫
+  const art = asset(sheetPath('mon', m.type)); if (!art) return null;
+  const isBossSheet = !!MONSTERS[m.type]?.boss; // 圖的格子大小由這張圖本身決定（小露滴王也用魔王的圖）
+  return { img: art, kind: isBossSheet ? 'boss' : monKind({ boss: false, size: profileOf(m.type).size }), scale: isBossSheet && !m.d.boss ? 0.4 : 1 };
+}
 // 畫一格：腳底對齊格子底、1 原生像素 = 0.5 遊戲像素（螢幕上永遠是整數倍）
-function drawSheet(o, img, kind, anim, i, dir8) {
+function drawSheet(o, img, kind, anim, i, dir8, scale = 1) {
   const L = layout(kind), a = L.anims[anim] ? anim : 'idle', [cw, ch] = L.cell;
   const src = MIRROR[dir8] || dir8 || 's', row = Math.max(0, DRAWN.indexOf(src));
   const fi = Math.max(0, Math.min(L.anims[a].n - 1, i | 0));
   const fx = Math.round((o.px * TS + 8 + (o.kx || 0)) * 2) / 2, fy = Math.round((o.py * TS + 16 + (o.ky || 0)) * 2) / 2;
-  shadow(Math.round(o.px * TS), Math.round(o.py * TS), kind === 'boss' ? 26 : 12);
+  shadow(Math.round(o.px * TS), Math.round(o.py * TS), kind === 'boss' && scale === 1 ? 26 : 12);
   ctx.save(); ctx.imageSmoothingEnabled = false; ctx.translate(fx, fy - L.foot / 2);
+  if (scale !== 1) { ctx.translate(0, L.foot / 2); ctx.scale(scale, scale); ctx.translate(0, -L.foot / 2); }
   if (MIRROR[dir8]) ctx.scale(-1, 1);
   ctx.drawImage(img, (L.col[a] + fi) * cw, row * ch, cw, ch, -cw / 4, 0, cw / 2, ch / 2);
   ctx.restore();
@@ -2634,8 +2642,31 @@ function drawAlly(a) {
   else drawPerson(avatar(a.c.look, a.face, frame), x, y);
   ctx.fillStyle = '#1b1420'; ctx.fillRect(x + 1, y + 17, 14, 3); ctx.fillStyle = a.c.role === 'heal' ? '#7ad35a' : '#e8506a'; ctx.fillRect(x + 2, y + 18, Math.max(1, Math.round((a.hp / a.max) * 12)), 1);
 }
+// 怪物逐格動畫：死亡 > 施法（魔王）> 攻擊 > 受傷 > 走路 > 待機
+const MON_T = { die: 0.5, cast: 0.6, attack: 0.4, hurt: 0.25 };
+function monAnim(m, L) {
+  const since = (t) => (t == null ? Infinity : anim - t), fr = (name, t) => Math.min(L.anims[name].n - 1, Math.floor((t / MON_T[name]) * L.anims[name].n));
+  if (m.dead > 0) return ['die', fr('die', since(m.deadAt))];
+  if (L.anims.cast && since(m.castAt) < MON_T.cast) return ['cast', fr('cast', since(m.castAt))];
+  if (since(m.swingAt) < MON_T.attack) return ['attack', fr('attack', since(m.swingAt))];
+  if (since(m.hurtAt) < MON_T.hurt) return ['hurt', fr('hurt', since(m.hurtAt))];
+  if (m.moving) { const d = (m.walkD || 0) + (m.mt || 0) * Math.hypot(m.x - m.fx, m.y - m.fy); return ['walk', Math.floor(d * L.anims.walk.n / 2) % L.anims.walk.n]; }
+  return ['idle', Math.floor(m.anim * L.anims.idle.fps) % L.anims.idle.n];
+}
+// 逐格像素怪物＋精英光圈、受擊閃光、冰凍、護盾、血條
+function drawMonSprite(m, ms) {
+  const L = layout(ms.kind), [a, i] = monAnim(m, L), dir = m.dir8 || (m.faceL ? 'w' : 's');
+  const sc = ms.scale * (m.d.elite === 'giant' ? 1.3 : 1) * (m.spawnT > 0 ? Math.max(0.2, 1 - m.spawnT * 2) : 1), hh = (L.height / 2) * sc;
+  const x = Math.round(m.px * TS + m.kx), y = Math.round(m.py * TS + m.ky), big = m.d.boss;
+  if (m.d.elite && m.dead <= 0) { ctx.globalAlpha = 0.35 + Math.sin(anim * 6) * 0.15; ctx.fillStyle = ELITE_AFFIX[m.d.elite].color; ctx.beginPath(); ctx.ellipse(x + 8, y + 15, Math.max(9, hh * 0.45), 5, 0, 0, 7); ctx.fill(); ctx.globalAlpha = 1; }
+  drawSheet(m, ms.img, ms.kind, a, i, dir, sc);
+  if (m.flash > 0) { ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.6; drawSheet(m, ms.img, ms.kind, a, i, dir, sc); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; }
+  if (m.frozen > 0) { ctx.fillStyle = 'rgba(150,220,255,.35)'; ctx.fillRect(x + 8 - hh * 0.4, y + 16 - hh, hh * 0.8, hh); }
+  if (m.shield) { ctx.strokeStyle = 'rgba(189,241,255,.9)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(x + 8, y + 16 - hh / 2, hh * 0.6, 0, 7); ctx.stroke(); }
+  if (m.dead <= 0 && m.hp < m.d.hp && !big) { ctx.fillStyle = '#2a1d2e'; ctx.fillRect(x + 1, y + 18, 14, 4); ctx.fillStyle = '#e8506a'; ctx.fillRect(x + 2, y + 19, Math.max(1, Math.round(12 * Math.max(0, m.hp) / m.d.hp)), 2); }
+}
 function drawMon(m) {
-  { const ms = !m.lurk && monSheet(m); if (ms) { const L = layout(ms.kind), atk = m.swingAt && anim - m.swingAt < 0.4; const [a, i] = m.dead > 0 ? ['die', Math.min(L.anims.die.n - 1, Math.floor((m.d.boss ? 30 : 2.5) - m.dead) * 4)] : atk ? ['attack', Math.floor((anim - m.swingAt) / 0.4 * L.anims.attack.n)] : m.flash > 0 ? ['hurt', 0] : m.moving ? ['walk', Math.floor((m.mt || 0) * L.anims.walk.n)] : ['idle', Math.floor(m.anim * L.anims.idle.fps) % L.anims.idle.n]; drawSheet(m, ms.img, ms.kind, a, i, m.dir8 || (m.faceL ? 'w' : 's')); return; } }
+  { const ms = !m.lurk && monSheet(m); if (ms) { drawMonSprite(m, ms); return; } }
   if (m.lurk) { const X = Math.round(m.px * TS), Y = Math.round(m.py * TS); ctx.fillStyle = 'rgba(42,29,46,.45)'; ctx.beginPath(); ctx.ellipse(X + 8, Y + 13, 6, 2.5, 0, 0, 7); ctx.fill(); if (Math.sin(anim * 2 + m.x) > 0.8) { ctx.fillStyle = '#ffd166'; ctx.fillRect(X + 6, Y + 9, 1, 1); ctx.fillRect(X + 9, Y + 9, 1, 1); } return; }
   const x = Math.round(m.px * TS + m.kx), y = Math.round(m.py * TS + m.ky);
   if (m.d.decoy) { const hdn = asset('npc/' + m.npcId); if (hdn && charStyle === 'hd') { drawHD(hdn, { px: m.px, py: m.py, kx: m.kx, ky: m.ky, face: 'down', i: 3 }, 40, false); return; } if (!m.real) shadow(x, y); const pxn = asset('px/npc/' + m.npcId); if (pxn) { drawPxHero(pxn, { px: m.px + m.kx / TS, py: m.py + m.ky / TS, face: 'down' }, true); return; } const im = asset('npc/' + m.npcId); if (im) { const p = pixelize(im, PX_CHAR); ctx.drawImage(p, x + 8 - Math.round(p.width / 2), y + 17 - p.height); } else ctx.drawImage(avatar(m.look, 'down', 0), x - 4, y - 17, AW, AH); return; }
@@ -3023,4 +3054,4 @@ document.fonts?.ready.then(render);
 requestAnimationFrame(frame);
 
 // 自動化測試用（網址加 ?debug 才開）
-if (location.search.includes('debug')) globalThis.__game = { showCutin, get allies() { return allies; }, buildAllies, get P() { return P; }, newDrop, get drops() { return drops; }, set dropsAdd(d) { drops.push(d); }, me, get grid() { return grid; }, loadMap, get mapId() { return mapId; }, get mons() { return mons; }, get fishing() { return fishing; }, get dialog() { return dialog; }, get drops() { return drops; }, get skills() { return skills; }, castIdx, startTower, get trial() { return trial; }, renderAdv, hud, audioLevel, currentSong, sfx, get chests() { return chests; }, say, renderPartyPanel, renderShop, useItem, addStack, get eshots() { return eshots; }, get warns() { return warns; }, pst, TR, killMon, hitPlayer, dealDamage, set mons(v) { mons = v; }, heroSheet, setArt(v) { artStyle = v; applyArt(); }, asset, get anim() { return anim; }, toCss: (wx, wy) => [(wx - lastCam.x) * S / DPR, (wy - lastCam.y) * S / DPR], MONSTERS, ITEMS, CHAPTERS, newDropLoot: (id, x, y) => drops.push(newDrop('loot', x, y, { id, n: 1 })), renderBag: () => { if (typeof renderBag === 'function') renderBag(); }, skillsList: () => skills.map((k) => k.id), get lamps() { return lamps; }, inLight, get deathN() { return deathN; }, rollGear, SLOTS, R, stats: () => stats(P) };
+if (location.search.includes('debug')) globalThis.__game = { showCutin, get allies() { return allies; }, buildAllies, get P() { return P; }, newDrop, get drops() { return drops; }, set dropsAdd(d) { drops.push(d); }, me, get grid() { return grid; }, loadMap, get mapId() { return mapId; }, get mons() { return mons; }, get fishing() { return fishing; }, get dialog() { return dialog; }, get drops() { return drops; }, get skills() { return skills; }, castIdx, startTower, get trial() { return trial; }, renderAdv, hud, audioLevel, currentSong, sfx, get chests() { return chests; }, say, renderPartyPanel, renderShop, useItem, addStack, get eshots() { return eshots; }, get warns() { return warns; }, pst, TR, killMon, hitPlayer, dealDamage, set mons(v) { mons = v; }, monAnim, layout, monSheet, heroSheet, setArt(v) { artStyle = v; applyArt(); }, asset, get anim() { return anim; }, toCss: (wx, wy) => [(wx - lastCam.x) * S / DPR, (wy - lastCam.y) * S / DPR], MONSTERS, ITEMS, CHAPTERS, newDropLoot: (id, x, y) => drops.push(newDrop('loot', x, y, { id, n: 1 })), renderBag: () => { if (typeof renderBag === 'function') renderBag(); }, skillsList: () => skills.map((k) => k.id), get lamps() { return lamps; }, inLight, get deathN() { return deathN; }, rollGear, SLOTS, R, stats: () => stats(P) };
