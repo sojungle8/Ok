@@ -1507,6 +1507,11 @@ function basicAttack(target) {
   const aspd = stats(P).aspd;
   sfx({ sword: 'swing', archer: 'arrow', mage: 'bolt', monk: 'swing', priest: 'bolt', scout: 'swing' }[P.cls] || 'swing');
   me.castT = 0; me.cool = C.cool / aspd * (pst.aspdDown > 0 ? 1.15 : 1); me.atkT = me.atkDur = Math.max(0.16, Math.min(0.28, me.cool * 0.8));
+  // 命中時點：等攻擊動作揮到第 3 格中間（共 6 格）才出傷害與刀光，畫面和數字對得上
+  const hitAt = me.atkDur * (2.5 / 6), face0 = me.face, dir0 = me.dir8;
+  pending.push({ t: hitAt, fn: () => { if (!started) return; const f1 = me.face, d1 = me.dir8; me.face = face0; me.dir8 = dir0; basicHit(target); me.face = f1; me.dir8 = d1; } });
+}
+function basicHit(target) {
   const [dx, dy] = DIRS[me.face];
   if (P.cls === 'sword') {
     addFx('slash', 0.18, { x: cx(me) + dx * 13, y: cy(me) + dy * 13 - 3, ang: faceAng(), color: '#dff6ff', size: 19 });
