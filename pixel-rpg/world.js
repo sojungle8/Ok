@@ -440,12 +440,14 @@ export const AFFIXES = [
 ];
 export const affixName = (id) => AFFIXES.find((a) => a.id === id)?.name || id;
 
-export function rollGear(rand, mlv, boss = false, cls = 'sword') {
+// luck：刷關難度越高，稀有以上的機率越高（權重 × luck）
+export function rollGear(rand, mlv, boss = false, cls = 'sword', luck = 1) {
   const slot = SLOTS[Math.floor(rand() * SLOTS.length)];
-  const pool = boss ? RARITY.slice(2) : RARITY;
+  const pool = (boss ? RARITY.slice(2) : RARITY).map((r) => ({ ...r, w: r.w * (rarityIdx(r.id) >= 2 ? luck : 1) }));
   let t = rand() * pool.reduce((a, r) => a + r.w, 0);
   let rar = pool[0];
   for (const r of pool) { t -= r.w; if (t < 0) { rar = r; break; } }
+  rar = RARITY.find((r) => r.id === rar.id);
   const g = GEAR[slot];
   const names = g.names || (CLASSES[cls] || CLASSES.sword).names[slot];
   const tier = rarityIdx(rar.id);
@@ -458,6 +460,9 @@ export function rollGear(rand, mlv, boss = false, cls = 'sword') {
   const slots = [rand() < 0.2 ? 1 : 0, rand() < 0.5 ? 1 : 0, 1, rand() < 0.5 ? 2 : 1, 2][tier];
   return { slot, rarity: rar.id, name: names[tier], stat: g.stat, val: Math.max(1, Math.round(g.v * (g.stat === 'atk' ? gearScaleAtk(mlv) : gearScaleHp(mlv)) * rar.mult)), lv: mlv, affixes, slots, refine: 0, cards: [] };
 }
+// 某等級、某品質的標準裝備數值（給裝備分數門檻用）
+export const stdItemVal = (slot, lv, rarity = 'good') => { const g = GEAR[slot]; return Math.max(1, Math.round(g.v * (g.stat === 'atk' ? gearScaleAtk(lv) : gearScaleHp(lv)) * rarityOf(rarity).mult)); };
+export const gearScore = (p) => Math.round(Object.values(p.gear || {}).reduce((a, it) => a + (it ? itemPower(it) : 0), 0));
 export const itemPower = (it) => it.val * (1 + 0.08 * (it.refine || 0)) * (1 + 0.12 * (it.affixes?.length || 0) + 0.15 * (it.cards?.length || 0));
 export const rarityOf = (id) => RARITY.find((r) => r.id === id) || RARITY[0];
 export const sellValue = (it) => Math.max(1, Math.round(it.val * 1.5));

@@ -376,8 +376,8 @@ button{font-family:inherit;color:inherit}
 #bodyPick { margin-bottom: 8px; }
 
 /* 長夜求生 */
-.runhud { position: absolute; top: calc(env(safe-area-inset-top) + 150px); left: 50%; transform: translateX(-50%); display: flex; gap: 10px; align-items: center; background: rgba(27,20,32,.78); border: 1px solid #4b3a6b; border-radius: 10px; padding: 4px 12px; color: #fff1c4; font-size: calc(var(--fs, 14px) * .9); z-index: 6; pointer-events: none; flex-wrap: wrap; justify-content: center; width: min(320px, 86vw); }
-.runhud b { font-size: 1.25em; color: #ffd166; font-variant-numeric: tabular-nums; }
+.runhud { position: absolute; top: calc(env(safe-area-inset-top) + 118px); left: 50%; transform: translateX(-50%); display: flex; gap: 10px; align-items: center; background: rgba(27,20,32,.78); border: 1px solid #4b3a6b; border-radius: 10px; padding: 3px 10px; color: #fff1c4; font-size: calc(var(--fs, 14px) * .72); gap: 2px 8px; z-index: 6; pointer-events: none; flex-wrap: wrap; justify-content: center; width: min(320px, 86vw); }
+.runhud b { font-size: 1.05em; color: #ffd166; font-variant-numeric: tabular-nums; }
 .runexp { flex-basis: 100%; height: 5px; background: #2a1d2e; border-radius: 3px; overflow: hidden; }
 .runexp i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #7fd8ff, #c084ff); }
 .runcards { z-index: 30; }
@@ -387,3 +387,12 @@ button{font-family:inherit;color:inherit}
 .runcard img, .runcard i { width: 48px !important; height: 48px !important; max-width: none; border-radius: 10px; flex: none; background: #4b3a6b; }
 .runcard span { display: flex !important; position: static; flex: 1; min-width: 0; flex-direction: column; gap: 2px; }
 .runcard small { color: #c9a7ff; } .runcard em { font-style: normal; color: #e8e4f0; font-size: .9em; }
+
+/* 遠征 */
+.exppanel { max-height: 86vh; display: flex; flex-direction: column; }
+.explist { overflow: auto; display: grid; gap: 6px; max-height: 42vh; margin-bottom: 8px; }
+.expstage { display: grid; text-align: left; gap: 1px; padding: 8px 10px; border-radius: 10px; border: 2px solid #4b3a6b; background: #2a1d3a; color: #fff1c4; cursor: pointer; }
+.expstage span { font-size: .85em; color: #c9b8e8; } .expstage em { font-style: normal; font-size: .85em; color: #7ad35a; }
+.expstage.locked { opacity: .55; } .expstage.locked em { color: #ff8fa0; }
+.expstage.done { border-color: #7ad35a; } .expstage.on { border-color: #ffd166; box-shadow: 0 0 10px rgba(255,209,102,.4); }
+.expsel input[type=range] { width: 100%; }

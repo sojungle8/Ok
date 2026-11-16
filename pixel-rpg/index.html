@@ -149,7 +149,16 @@
     <p class="tip">五大職業・專屬技能・換裝外觀・自動狩獵<br>鍵盤：方向鍵移動、空白鍵攻擊、Q／E／F 技能、C 閃避、V 魂像大招、X 藥水、R 自動</p>
   </div>
   <div id="runHud" class="runhud" hidden><b id="runTime">15:00</b><span id="runLv">Lv 1</span><span id="runKills">擊殺 0</span><div class="runexp"><i id="runExp"></i></div></div>
-  <div id="runCards" class="panel runcards" hidden><h3 id="runCardsTitle">升級！選一張</h3><div id="runCardList"></div></div>
+  <div id="expPanel" class="panel exppanel" hidden>
+    <h3>遠征 <small id="expGs" class="muted"></small></h3>
+    <div id="expList" class="explist"></div>
+    <div class="expsel"><p id="expInfo" class="small"></p>
+      <label class="small">刷關難度 <input id="expDiff" type="range" min="1" max="1" value="1"></label>
+      <p class="small muted">撿取篩選＝背包的「自動販賣設定」：勾選要自動賣掉的品質，關卡裡就不會撿，直接換成金幣。</p>
+      <div class="crow"><button id="expSell" class="ghostbtn" type="button">撿取篩選</button><button id="expEquip" class="ghostbtn" type="button">一鍵穿裝</button><button id="expGo" class="startbtn" type="button">出發！</button></div>
+    </div>
+    <button id="expClose" class="ghostbtn" type="button">關閉</button>
+  </div>
   <div id="classPanel" class="panel classpanel" hidden>
     <h3>選擇職業</h3>
     <div id="bodyPick" class="btabs"><button type="button" data-body="male" class="on">男角</button><button type="button" data-body="female">女角</button></div>

@@ -1,7 +1,7 @@
 import {
   W, H, T, TOWN_EDGE, FIELD_MIN_X, BOSS_ZONE, HOUSES, NPCS, SIGN, SPAWN, INN_SPOT, buildWorld, walkable, GATE_Y, FOUNTAIN_AT, reachable,
   MONSTERS, expNeed, stats, swordCost, POTION_PRICE, POTION_HEAL_PCT, FISH, rollFish, gainExp, newPlayer, loadPlayer,
-  rollGear, rarityOf, rarityIdx, equipIfBetter, SLOTS, SLOT_NAME, DROP_RATE, CLASSES, CLASS_IDS,
+  rollGear, rarityOf, rarityIdx, equipIfBetter, gearScore, itemPower, SLOTS, SLOT_NAME, DROP_RATE, CLASSES, CLASS_IDS,
   TALENTS, TALENT_MAX, TALENT_REQ, talentPoints, talentSpent, canLearn, learn, resetTalents,
   NIGHT, NIGHT_OPEN, NIGHT_LV, canNight, NAME_SHARD_RATE, NAME_BOX_RATE, NAME_SHARD_NEED, NAME_BOX_LV, openNameBox, nameBand,
   behOf,
@@ -15,7 +15,7 @@ import { ensureMeta, refresh, track, claimQuest, claimChest, claimable, claimLog
 import { pixelize } from './pixelize.js';
 import { DIR8, DIR_VEC, dirOf, layout, DRAWN, MIRROR, sheetPath, paletteOf, monKind } from './spritesheet.js';
 import { genSheet, heroLookFor, npcLookFor } from './pxgen.js';
-import { RUN_LEN, ELITE_AT, BOSS_AT, wave, wavePool, newRun, runMods, runSkillMult, runCdMult, rollCards, applyCard, gainRunExp, runExpNeed, gemValue, runRewards, cardText } from './survival.js';
+import { STAGES, STAGE_PART, stageById, stageLock, maxDiff, diffMods, gateOf, waveSize, gearChance, stageReward, clearStage, ensureExped, WAVES, GEAR_CAP, DIFF_MAX } from './expedition.js';
 import { ensureJob, gainJobExp, jobExpNeed, JOB_CAP, JOB_EXP_RATE, JOB2, ADVANCE_LV, ADVANCE_JOB, canAdvance, advanceJob, branchOf, jobTitle } from './progress.js';
 import { BY_ID, RES, BAR_SIZE, ensureTree, skillPoints, learnSkill, autoLearnSkills, resetTree, whyNot, lvOf, skillNums, barSkills, describeSkill, routesOf, SKILLS } from './skilltree.js';
 import { guardExp, effRatio, levelGapMult, newbieMult } from './balance.js';
@@ -96,7 +96,7 @@ const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 let C = CLASSES[P.cls], skills = [], myLook = null;
 let mons = [], floats = [], parts = [], drops = [], fx = [], projs = [], pending = [];
 let held8 = null, timeK = 1;
-let run = null, runSpawnT = 0, cardOpen = false; // 長夜求生（主玩法）
+let run = null, cardOpen = false; // 遠征（主玩法）：進行中的關卡
 let dialog = null, fishing = null, started = false, held = null, aHeld = false, auto = false, autoHit = false, autoCastT = 0;
 let anim = 0, regenT = 0, saveT = 0, shake = 0, freeze = 0, flash = 0, combo = 0, comboT = 0, auraT = 0;
 let allies = [], atkOverride = 0, partyT = 0;
@@ -389,7 +389,7 @@ function questText() {
   return dpre + questText0();
 }
 function questText0() {
-  if (run) return `長夜求生・${CHAPTERS[run.ch - 1].name}${run.night ? '（深夜）' : ''}｜${run.bossOut ? '打倒魔王就通關！' : `第 ${Math.floor(BOSS_AT / 60)} 分鐘魔王登場`}`;
+  if (run) return `${run.st.name}・難度 ${run.diff}｜第 ${run.wave}/${WAVES} 波`;
   if (trial) return `試煉之塔 第 ${trial.f} 層｜剩 ${mons.filter((m) => m.dead <= 0).length} 隻｜${trial.done ? '通過！' : `⏱ ${Math.max(0, Math.ceil(trial.t))} 秒`}`;
   const c = CHAPTERS[P.ch - 1];
   if (!c) return '全章節完成｜自由冒險：收集卡片、精煉、刷傳說裝備';
@@ -760,9 +760,8 @@ function talk(n) {
     {
       const opts = CHAPTERS.filter((c) => c.n <= Math.min(6, P.ch)).map((c) => [`第 ${c.n} 章・${c.name}（Lv ${MONSTERS[c.mons[0]].lv}～）`, () => { loadMap(c.n); feed(`來到了「${c.name}」`, '#c084ff'); hud(); save(); }]);
       const nopts = canNight(P) ? CHAPTERS.slice(0, NIGHT_OPEN).map((c) => [`深夜・${c.name}（Lv ${NIGHT[c.mons[0]].lv}～）`, () => { loadMap(c.n, null, true); banner(`深夜・${c.name}`); feed('長夜吞掉的名字，在這裡的怪物身上', '#9a7cff'); hud(); save(); }]) : [];
-      const runOpts = CHAPTERS.filter((c) => c.n <= Math.min(6, P.ch)).map((c) => [`★ 長夜求生・${c.name}`, () => startRun(c.n)]);
-      const runNight = canNight(P) ? CHAPTERS.slice(0, NIGHT_OPEN).map((c) => [`★ 深夜求生・${c.name}`, () => startRun(c.n, true)]) : [];
-      say(nm, [canNight(P) ? '你也想去看看夜晚的另一面嗎？深夜的怪物身上，偶爾會掉出被吞掉的名字。' : '要去哪裡呢？也可以從東門一路走過去。回來時踩上傳送陣，或往西走回來都行。'], [...runOpts, ...runNight, ...opts.map(([t, f]) => [`自由練功：${t}`, f]), ...nopts, ...(P.ch >= 2 ? [[`試煉之塔（最高第 ${ensureMeta(P).tower.best} 層）`, () => startTower(P.meta.tower.best + 1)]] : []), ['留在村子', null]]);
+      const runOpts = [['★ 遠征：選關卡出發', openExped]];
+      say(nm, [canNight(P) ? '你也想去看看夜晚的另一面嗎？深夜的怪物身上，偶爾會掉出被吞掉的名字。' : '要去哪裡呢？也可以從東門一路走過去。回來時踩上傳送陣，或往西走回來都行。'], [...runOpts, ...opts.map(([t, f]) => [`自由練功：${t}`, f]), ...nopts, ...(P.ch >= 2 ? [[`試煉之塔（最高第 ${ensureMeta(P).tower.best} 層）`, () => startTower(P.meta.tower.best + 1)]] : []), ['留在村子', null]]);
     }
   } else if (n.id === 'guide') {
     const c = CHAPTERS[n.ch - 1], here = P.ch === n.ch;
@@ -842,141 +841,140 @@ function hitPlayer(m, k = 1) {
   T0?.hit?.(m);
 }
 
-// ================= 長夜求生（主玩法）=================
-// 一局 15 分鐘：怪物從畫面外湧來，普攻與技能自動施放，玩家只管走位；撿經驗結晶升級、三選一。
-function startRun(ch, night = false) {
+// ================= 遠征（主玩法）=================
+// 選關卡 → 一波波怪潮（最後一波是小王或地區魔王）→ 結算。刷裝備、練等、爬刷關難度。
+// 普攻與技能欄的技能自動施放（關卡內不耗魔力），玩家只管走位；也可以開自動模式掛著。
+let expSel = '1-1', expDiff = 1;
+function startRun(id, diff = 1) {
+  const st = stageById(id); if (!st) return;
   if (dialog) { dialog = null; showDialog(); }
-  loadMap(ch, { x: Math.floor(W / 2), y: Math.floor(H / 2) }, night);
-  run = newRun(P, ch, night); runSpawnT = 0; cardOpen = false;
-  mons = []; npcs = []; chests = []; lamps.length && lamps.forEach((l) => (l.lit = true));
-  P.runMods = runMods(run); setupRunSkills();
-  const st = stats(P); P.hp = st.hp; P.mp = st.mpMax;
+  $('expPanel').hidden = true;
+  loadMap(st.ch, { x: Math.floor(W / 2), y: Math.floor(H / 2) });
+  run = { st, diff, mods: diffMods(diff), t: 0, wave: 0, waveLeft: 0, kills: 0, gear: 0, over: false, cleared: false };
+  mons = []; npcs = []; chests = [];
+  setupClass(); const sst = stats(P); P.hp = sst.hp; P.mp = sst.mpMax;
   auto = false; syncAuto();
-  banner(`${night ? '深夜・' : ''}長夜求生　${CHAPTERS[ch - 1].name}`);
-  feed('撐過怪潮、打倒第 13 分鐘出現的魔王就通關。普攻和技能會自動放，你只管走位！', '#ffd166');
-  $('advPanel').hidden = true; hud(); updateRunHud();
+  ensureExped(P).runs++;
+  banner(`${st.name}　難度 ${diff}`);
+  feed(`${WAVES} 波怪潮，最後一波是${st.mvp ? `地區魔王「${MONSTERS[st.mvp].name}」` : '小王'}。普攻和技能會自動放，你只管走位！`, '#ffd166');
+  nextWave(); hud(); updateRunHud();
 }
-function setupRunSkills() {
-  const ids = Object.keys(run.skills), old = Object.fromEntries(skills.map((x) => [x.id, x.t]));
-  skills = ids.map((id) => ({ id, name: SK[id].name, cd: SK[id].cd || 1, t: old[id] || 0 }));
-  for (let i = 0; i < BAR_SIZE; i++) {
-    const b = $(`sk${i}Btn`), sk = skills[i]; b.hidden = !sk; if (!sk) continue;
-    b.querySelector('span').textContent = `${sk.name}${run.awake[sk.id] ? '★' : ''} ${run.skills[sk.id]}`;
-  }
-  applyUiArt();
-}
-// 生怪：畫面外一圈（8～11 格）找空地
+// 生怪：畫面外一圈（7～10 格）找空地
 function runSpawnOne(type, extra = {}) {
-  const base = (run.night && NIGHT[type]) || MONSTERS[type], wv = wave(run.t);
-  const d = { ...base, hp: Math.round(base.hp * wv.hpMul * (extra.hpK || 1)), atk: Math.round(base.atk * wv.atkMul), sight: 30, trial: true, runMon: true, ...extra.d };
-  for (let k = 0; k < 30; k++) {
-    const a = R() * Math.PI * 2, r = 8 + R() * 3, x = Math.round(me.x + Math.cos(a) * r), y = Math.round(me.y + Math.sin(a) * r * 0.8);
+  const base = MONSTERS[type], md = run.mods;
+  const d = { ...base, hp: Math.round(base.hp * md.hp * (extra.hpK || 1)), atk: Math.round(base.atk * md.atk), exp: Math.round(base.exp * md.exp), sight: 30, trial: true, runMon: true, ...extra.d };
+  for (let k = 0; k < 40; k++) {
+    const a = R() * Math.PI * 2, r = 7 + R() * 3, x = Math.round(me.x + Math.cos(a) * r), y = Math.round(me.y + Math.sin(a) * r * 0.8);
     if (x < 1 || y < 1 || x >= W - 1 || y >= H - 1 || !walkable(grid, x, y) || occupied(x, y) || grid[y][x] === T.PORTAL) continue;
-    const m = { type, d, base: null, night: run.night, anim: R() * 2 };
+    const m = { type, d, base: null, anim: R() * 2 };
     Object.assign(m, { x, y, px: x, py: y, fx: x, fy: y, moving: false, hp: d.hp, dead: 0, cool: 1, think: R(), flash: 0, kx: 0, ky: 0, spawnT: 0.4, frozen: 0, letter: 0, shield: false, phases: [], slamT: 4, spitT: 6, hidden: false, engaged: true, stolen: new Set(), rwT: 10, hist: [], histT: 0, angryT: 999, retreatT: 0, hasteT: 0, pauseT: 0, fuse: 0, revived: 0, lurk: false, home: { x, y }, chargeT: 3 + R() * 3 });
     mons.push(m); return m;
   }
   return null;
 }
+function nextWave() {
+  run.wave++;
+  const st = run.st, last = run.wave === WAVES, n = waveSize(st, run.wave);
+  run.toSpawn = n; run.spawnT = 0; // 分批出：每 1.2 秒 3 隻
+  run.waveLeft = n;
+  if (last) {
+    const boss = st.mvp ? runSpawnOne(st.mvp, { d: { boss: true, sight: 30 } }) : runSpawnOne(st.mini, { hpK: 8, d: { elite: 'giant', name: `小王・${MONSTERS[st.mini].name}`, exp: MONSTERS[st.mini].exp * 15 * run.mods.exp } });
+    if (boss) { run.bossRef = boss; run.waveLeft++; banner(st.mvp ? `${boss.d.name}　登場！` : `${boss.d.name}出現了！`); if (st.mvp) { shake = 0.5; sfx('boss'); } }
+  } else banner(`第 ${run.wave} / ${WAVES} 波`);
+  updateRunHud();
+}
 function updateRun(dt) {
   if (run?.over && run.leave) { run.leaveT -= dt; if (run.leaveT <= 0) { const f = run.leave; run.leave = null; f(); } return; }
-  if (!run || run.over || cardOpen) return;
+  if (!run || run.over) return;
   run.t += dt;
-  const wv = wave(run.t), alive0 = mons.filter((m) => m.dead <= 0).length;
-  runSpawnT -= dt;
-  if (runSpawnT <= 0 && run.t < BOSS_AT + 30) {
-    runSpawnT = wv.every;
-    const pool = wavePool(run.ch, run.t);
-    for (let i = 0; i < wv.pack && alive0 + i < wv.cap; i++) runSpawnOne(pool[Math.floor(R() * pool.length)]);
-  }
-  for (const at of ELITE_AT) if (run.t >= at && !run.eliteDone.includes(at)) {
-    run.eliteDone.push(at);
-    const pool = wavePool(run.ch, run.t), base = MONSTERS[pool[pool.length - 1]];
-    const m = runSpawnOne(pool[pool.length - 1], { hpK: 6, d: makeElite(base, R) });
-    if (m) { m.d = { ...m.d, hp: Math.round(m.d.hp * wv.hpMul * 2), sight: 30, trial: true, runMon: true }; m.hp = m.d.hp; banner(`精英「${m.d.name}」出現了！`); }
-  }
-  if (run.t >= BOSS_AT && !run.bossOut) {
-    run.bossOut = true;
-    const id = CHAPTERS[run.ch - 1].boss, base = (run.night && NIGHT[id]) || MONSTERS[id];
-    const m = runSpawnOne(id, { d: { ...base, hp: Math.round(base.hp * 0.25), boss: true, sight: 30 } }); // 魔王血量：建議等級約 1 分半打倒
-    if (m) { m.boss = true; banner(`${m.d.name}　登場！`); shake = 0.5; sfx('boss'); run.bossRef = m; }
-  }
-  // 清掉死了一陣子的怪，避免越積越多
-  if (mons.length > 120) mons = mons.filter((m) => m.dead <= 0 || (m.deadAt != null && anim - m.deadAt < 1));
-  // 自動普攻（射程內最近的）＋自動施放技能（冷卻好、附近有怪；局內不耗魔力）
+  if (run.toSpawn > 0 && (run.spawnT -= dt) <= 0) { run.spawnT = 1.2; for (let i = 0; i < 3 && run.toSpawn > 0; i++, run.toSpawn--) if (!runSpawnOne(run.st.mons[Math.floor(R() * run.st.mons.length)])) run.waveLeft--; }
+  if (mons.length > 140) mons = mons.filter((m) => m.dead <= 0 || (m.deadAt != null && anim - m.deadAt < 1));
+  // 自動普攻（射程內最近的）＋自動施放技能欄（冷卻好、附近有怪；關卡內不耗魔力）
   if (!dialog && pst.sleep <= 0) {
     const tgt = nearest(Math.max(1.6, C.range + 0.5));
     if (tgt && me.cool <= 0) { faceToward(tgt); face8(me, Math.sign(tgt.x - me.x), Math.sign(tgt.y - me.y)); basicAttack(tgt); }
-    const near = alive().some((m) => tdist(m, me.px, me.py) <= 5);
-    if (near) skills.forEach((x, i) => { if (x.t <= 0 && cutinT <= 0) { P.mp = stats(P).mpMax; castIdx(i); } });
+    if (alive().some((m) => tdist(m, me.px, me.py) <= 5)) skills.forEach((x, i) => { if (x.t <= 0 && cutinT <= 0) { P.mp = stats(P).mpMax; castIdx(i); } });
   }
   if (run.bossDown && (run.bossDownT -= dt) <= 0) endRun(true);
-  if (run.t >= RUN_LEN && !run.over) endRun(false, true);
   if (run.t % 1 < dt) updateRunHud();
 }
+// 打倒一隻：算波數、掉裝備（難度越高掉越多、越容易傳說；一場最多 100 件）
 function runKill(m) {
-  if (!run || !m.d.runMon) return;
-  run.kills++;
-  { const g = newDrop('gem', cx(m), cy(m), gemValue(m.d, run.t)); g.vx *= 0.15; g.vy *= 0.15; g.vz *= 0.5; drops.push(g); } // 結晶落在怪物倒下的地方
-  if (m === run.bossRef || (m.d.boss && !m.minion)) { run.bossDown = true; run.bossDownT = 1.2; }
-}
-function collectGem(v) {
-  if (!run) return;
-  if (gainRunExp(run, v)) openCards();
+  if (!run || !m.d.runMon || run.over) return;
+  run.kills++; run.waveLeft--;
+  if (!m.d.boss && !m.d.elite && run.gear < GEAR_CAP && R() < gearChance(run.diff)) {
+    const it = rollGear(R, Math.max(1, m.d.lv), false, P.cls, run.mods.luck);
+    if (!P.autoSell.equip[it.rarity]) { drops.push(newDrop('gear', cx(m), cy(m), it)); run.gear++; } else P.coins += gearSell(it); // 撿取篩選擋掉的直接換錢
+  }
+  if (m === run.bossRef) { run.bossDown = true; run.bossDownT = 1.2; for (let i = 0; i < (run.st.mvp ? 4 : 2); i++) drops.push(newDrop('gear', cx(m), cy(m), rollGear(R, m.d.lv, true, P.cls, run.mods.luck))); return; }
+  if (run.waveLeft <= 0 && run.wave < WAVES) setTimeout(() => run && !run.over && nextWave(), 900);
   updateRunHud();
 }
-function openCards() {
-  if (!run || cardOpen || run.pending <= 0 || run.over) return;
-  cardOpen = true;
-  const cs = rollCards(run, P, R);
-  sfx('levelup');
-  $('runCardsTitle').textContent = `升到 Lv ${run.lv - run.pending + 1}！選一張`;
-  $('runCardList').replaceChildren(...cs.map((c) => {
-    const t = cardText(c), b = document.createElement('button'); b.type = 'button'; b.className = 'runcard rc-' + c.kind;
-    const icon = (c.kind === 'skill' || c.kind === 'awake') && asset('ui/skill_' + c.id);
-    b.innerHTML = `${icon ? `<img src="${icon.src}" alt="">` : '<i></i>'}<span><small>${t.sub}</small><b>${t.title}</b><em>${t.desc}</em></span>`;
-    b.addEventListener('click', () => {
-      applyCard(run, c); run.pending--;
-      if (c.kind === 'heal') P.hp = stats(P).hp;
-      P.runMods = runMods(run); setupRunSkills(); hud();
-      cardOpen = false; $('runCards').hidden = true;
-      if (run.pending > 0) setTimeout(openCards, 120);
-    });
-    return b;
-  }));
-  $('runCards').hidden = false;
-}
+function collectGem() {}
 function updateRunHud() {
   const el = $('runHud'); el.hidden = !run;
-  const q = document.querySelector('.quest'); if (q) q.hidden = !!run; // 局內用計時列取代任務列
+  const q = document.querySelector('.quest'); if (q) q.hidden = !!run; // 關卡內用狀態列取代任務列
   if (!run) return;
-  const left = Math.max(0, RUN_LEN - run.t), mm = Math.floor(left / 60), ss = String(Math.floor(left % 60)).padStart(2, '0');
-  $('runTime').textContent = `${mm}:${ss}`;
-  $('runLv').textContent = `Lv ${run.lv}`;
-  $('runKills').textContent = `擊殺 ${run.kills}`;
-  $('runExp').style.width = `${Math.min(100, (run.exp / runExpNeed(run.lv)) * 100)}%`;
+  const mm = Math.floor(run.t / 60), ss = String(Math.floor(run.t % 60)).padStart(2, '0');
+  $('runTime').textContent = `${run.st.name}`;
+  $('runLv').textContent = `第 ${run.wave}/${WAVES} 波・難度 ${run.diff}`;
+  $('runKills').textContent = `擊殺 ${run.kills}・裝備 ${run.gear}/${GEAR_CAP}・${mm}:${ss}`;
+  $('runExp').style.width = `${Math.min(100, ((run.wave - 1 + (run.waveLeft <= 0 ? 1 : 0)) / WAVES) * 100)}%`;
 }
-function endRun(cleared, survived = false) {
+function endRun(cleared) {
   if (!run || run.over) return;
-  run.over = true; run.cleared = cleared; cardOpen = false; $('runCards').hidden = true;
-  const r = runRewards(run, P), ch = run.ch;
+  run.over = true; run.cleared = cleared;
+  const st = run.st, d = run.diff, first = cleared ? clearStage(P, st, d) : false, r = stageReward(P, st, d, cleared, first);
   P.coins += r.coins;
-  for (let i = 0; i < r.gear; i++) pickupGear(P, rollGear(R, r.lv, i === 0 && cleared, P.cls));
-  const sid = SOUL_OF_CH[Math.min(6, ch)]; if (r.shards && sid) addShards(P, sid, r.shards);
-  // 劇情：打倒本章魔王就算過關，回村找人回報
-  if (cleared && !run.night && ch === Math.min(6, P.ch) && P.step === 2) P.step = 3;
+  for (let i = 0; i < r.gear; i++) pickupGear(P, rollGear(R, st.lvHi, true, P.cls, run.mods.luck));
+  const sid = SOUL_OF_CH[Math.min(6, st.ch)]; if (r.shards && sid) addShards(P, sid, r.shards);
+  if (cleared && st.mvp && st.ch === Math.min(6, P.ch - 1) && P.step === 2) P.step = 3;
   const min = Math.floor(run.t / 60), sec = Math.floor(run.t % 60);
-  const lines = [cleared ? `通關！打倒了${CHAPTERS[ch - 1].name}的魔王。` : survived ? '撐過了 15 分鐘，但魔王還在……' : '倒下了……燈火把你送回了守燈村。',
-    `存活 ${min} 分 ${sec} 秒・局內 Lv ${run.lv}・擊殺 ${run.kills}`,
-    `獲得：金幣 ${fmt(r.coins)}${r.gear ? `、裝備 ${r.gear} 件` : ''}${r.shards && sid ? `、${SOULS[sid].name}碎片 ×${r.shards}` : ''}`];
-  const again = run.ch, night = run.night;
-  // 不能在 pending 裡再塞 pending（會在 filter 時被丟掉），改用倒數
-  run.leaveT = 0.8; run.leave = () => { leaveRun(); say('長夜求生', lines, [['再挑戰一次', () => startRun(again, night)], ['回守燈村', null]]); };
+  const lines = [cleared ? `通關！${st.name}（難度 ${d}）${first ? '・首次通關' : ''}` : '倒下了……燈火把你送回了守燈村。撿到的東西都還在。',
+    `用時 ${min} 分 ${sec} 秒・擊殺 ${run.kills}・撿到裝備 ${run.gear} 件`,
+    `結算：金幣 ${fmt(r.coins)}${r.gear ? `、獎勵裝備 ${r.gear} 件` : ''}${r.shards && sid ? `、${SOULS[sid].name}碎片 ×${r.shards}` : ''}`,
+    ...(cleared && d < DIFF_MAX && maxDiff(P, st) > d ? [`這關的刷關難度 ${d + 1} 開放了。`] : [])];
+  const again = st.id;
+  run.leaveT = 1; run.leave = () => { leaveRun(); say('遠征', lines, [['再打一次', () => startRun(again, d)], ...(cleared && maxDiff(P, st) > d ? [[`挑戰難度 ${d + 1}`, () => startRun(again, d + 1)]] : []), ['選別的關卡', openExped], ['回守燈村', null]]); };
   questDone(track(P, 'tower')); save();
 }
-function leaveRun() {
-  run = null; delete P.runMods; cardOpen = false; $('runCards').hidden = true;
-  setupClass(); loadMap(0, SPAWN); P.hp = stats(P).hp; updateRunHud(); hud(); save();
+$('expClose').addEventListener('click', () => { $('expPanel').hidden = true; });
+$('expDiff').addEventListener('input', (e) => { expDiff = +e.target.value; renderExped(); });
+$('expGo').addEventListener('click', () => { if (!stageLock(P, stageById(expSel))) startRun(expSel, expDiff); });
+$('expEquip').addEventListener('click', () => { const n = equipBest(); feed(n ? `換上了 ${n} 件更好的裝備` : '身上已經是最好的了', '#7fd8ff'); setupClass(); hud(); save(); renderExped(); });
+$('expSell').addEventListener('click', () => { $('expPanel').hidden = true; bagSel = null; renderBag(); $('bagPanel').hidden = false; });
+function leaveRun() { run = null; setupClass(); loadMap(0, SPAWN); P.hp = stats(P).hp; updateRunHud(); hud(); save(); }
+// 一鍵穿裝：每個部位換上裝備分數最高的
+function equipBest() {
+  let n = 0;
+  for (const slot of SLOTS) {
+    const best = P.bag.gear.filter((it) => it.slot === slot).sort((a, b) => itemPower(b) - itemPower(a))[0];
+    if (best && (!P.gear[slot] || itemPower(best) > itemPower(P.gear[slot]))) { equipFromBag(P, best.uid); n++; }
+  }
+  return n;
+}
+// ---- 遠征面板 ----
+function openExped() {
+  if (dialog) { dialog = null; showDialog(); }
+  const st0 = stageById(expSel); if (st0 && stageLock(P, st0)) expSel = STAGES.find((s) => !stageLock(P, s))?.id || '1-1';
+  renderExped(); $('expPanel').hidden = false;
+}
+function renderExped() {
+  const e = ensureExped(P), gs = gearScore(P);
+  $('expGs').textContent = `裝備分數 ${fmt(gs)}`;
+  $('expList').replaceChildren(...STAGES.map((st) => {
+    const lock = stageLock(P, st), b = document.createElement('button'); b.type = 'button';
+    b.className = `expstage${st.id === expSel ? ' on' : ''}${lock ? ' locked' : ''}${e.cleared[st.id] ? ' done' : ''}`;
+    b.innerHTML = `<b>${st.name}</b><span>Lv ${st.lvLo}～${st.lvHi}${st.mvp ? `・魔王 ${MONSTERS[st.mvp].name}` : ''}</span><em>${lock || (e.cleared[st.id] ? `已通關・最高難度 ${e.cleared[st.id]}` : '可挑戰')}</em>`;
+    b.addEventListener('click', () => { expSel = st.id; expDiff = Math.min(expDiff, maxDiff(P, st)); renderExped(); });
+    return b;
+  }));
+  const st = stageById(expSel), lock = stageLock(P, st), md = maxDiff(P, st);
+  expDiff = Math.max(1, Math.min(expDiff, md));
+  const m = diffMods(expDiff);
+  $('expDiff').max = md; $('expDiff').value = expDiff;
+  $('expInfo').innerHTML = `<b>${st.name}</b>　刷關難度 <b>${expDiff}</b> / ${md}<br>怪物血量 ×${m.hp.toFixed(1)}・傷害 ×${m.atk.toFixed(2)}・裝備掉落 ×${m.drop.toFixed(2)}・稀有以上 ×${m.luck.toFixed(1)}<br>裝備門檻 ${gateOf(st)}・會撿：${['common', 'good', 'rare', 'epic', 'legend'].filter((r) => !P.autoSell.equip[r]).map((r) => rarityOf(r).name).join('、') || '全部不撿'}`;
+  $('expGo').disabled = !!lock; $('expGo').textContent = lock ? lock : '出發！';
 }
 
 // ---------- 深夜：燈火 ----------
@@ -1497,7 +1495,7 @@ function castIdx(i) {
   const cost = Math.round(n.mp * st.mpCost);
   if ((P.mp ?? st.mpMax) < cost) { floatT('魔力不夠', me.x, me.y - 0.9, '#7fb4ff', 0.8); s.t = 0.4; return; }
   P.mp = (P.mp ?? st.mpMax) - cost;
-  s.t = n.cd * (1 - st.cdr) * (run ? runCdMult(run, s.id) : 1); curSkill = s.id;
+  s.t = n.cd * (1 - st.cdr); curSkill = s.id;
   questDone(track(P, 'skill'));
   skillElem = sk.elem || (sk.shape === 'shot' && P.cls === 'priest' ? '聖' : '無'); skillElemT = 1.2;
   sfx({ sword: 'slash', archer: 'arrow', mage: 'magic', monk: 'punch', scout: 'slash', priest: sk.kind === 'heal' ? 'potion' : 'magic' }[P.cls] || 'slash');
@@ -1508,7 +1506,7 @@ function castIdx(i) {
   }
   lastSkill = s.id;
   // 專屬機制：先算消耗與加成
-  let mult = n.mult * (run ? runSkillMult(run, s.id) : 1);
+  let mult = n.mult;
   if (sk.use1 && res.n >= 1) { mult *= 1 + sk.use1 / 100; res.n--; }
   if (sk.need && sk.use !== undefined) { mult *= 1 + (sk.use / 100) * res.n; if (sk.buff?.[0] === 'dmgPerStack') addTB('dmgPerStack', n.buff[1] * res.n, n.buff[2]); res.n = 0; }
   if (sk.useCandle) mult *= 1 + (sk.useCandle / 100) * res.n;
@@ -2293,7 +2291,7 @@ function update(dt) {
     if (Math.ceil(trial.t) !== before) $('quest').textContent = questText();
     if (trial.t <= 0) { const f = trial.f; trial.done = true; auto = false; syncAuto(); say('試煉之塔', [`時間到！第 ${f} 層挑戰失敗。`, '提升戰力、換個打法，再來挑戰吧。'], [[`再挑戰第 ${f} 層`, () => startTower(f)], ['回到村子', () => { loadMap(0, SPAWN); hud(); }]]); }
   }
-  if (me.moving && step(me, me.dur * (pst.slow > 0 ? 1.6 : 1) / (1 + (P.runMods?.move || 0) / 100), dt)) { me.step ^= 1; me.walkD = (me.walkD || 0) + Math.hypot(me.x - me.fx, me.y - me.fy); me.dur = 0.14; dust(cx(me), me.py * TS + 16); checkGate(); checkChest(); if (grid[me.y]?.[me.x] === T.PORTAL && mapId !== 0) { loadMap(0, SPAWN); feed('回到守燈村', '#c084ff'); save(); return; } }
+  if (me.moving && step(me, me.dur * (pst.slow > 0 ? 1.6 : 1) / (1 + (0) / 100), dt)) { me.step ^= 1; me.walkD = (me.walkD || 0) + Math.hypot(me.x - me.fx, me.y - me.fy); me.dur = 0.14; dust(cx(me), me.py * TS + 16); checkGate(); checkChest(); if (grid[me.y]?.[me.x] === T.PORTAL && mapId !== 0) { loadMap(0, SPAWN); feed('回到守燈村', '#c084ff'); save(); return; } }
   if (held && auto) { auto = false; syncAuto(); }
   invertT = Math.max(0, invertT - dt);
   if (!me.moving && started && held && !dialog && !fishing && !stuck()) {
@@ -2387,7 +2385,7 @@ function update(dt) {
     const lift = P.soul === 'magnet' ? 0.5 : DROP_LIFT;
     if (d.t < lift) { d.x += d.vx * dt; d.y += d.vy * dt; d.vz -= 320 * dt; d.z = Math.max(0, d.z + d.vz * dt); if (d.z === 0) d.vz = Math.abs(d.vz) * 0.4; return true; }
     const ax = px - d.x, ay = py - d.y, dist = Math.hypot(ax, ay);
-    if (d.kind === 'gem' && !d.pull) { if (dist > 56 * (1 + (P.runMods?.pickup || 0) / 100)) return true; d.pull = true; d.t = lift; }
+    if (d.kind === 'gem' && !d.pull) { if (dist > 56 * (1 + 0 / 100)) return true; d.pull = true; d.t = lift; }
     if (dist < 6 || (d.t > 3 && d.kind !== 'gem')) { collect(d); return false; }
     const sp = 80 + (d.t - lift) * 400;
     d.x += (ax / dist) * sp * dt; d.y += (ay / dist) * sp * dt; d.z = Math.max(0, d.z - dt * 30);
@@ -3206,4 +3204,4 @@ document.fonts?.ready.then(render);
 requestAnimationFrame(frame);
 
 // 自動化測試用（網址加 ?debug 才開）
-if (location.search.includes('debug')) globalThis.__game = { showCutin, get allies() { return allies; }, buildAllies, get P() { return P; }, newDrop, get drops() { return drops; }, set dropsAdd(d) { drops.push(d); }, me, get grid() { return grid; }, loadMap, get mapId() { return mapId; }, get mons() { return mons; }, get fishing() { return fishing; }, get dialog() { return dialog; }, get drops() { return drops; }, get skills() { return skills; }, castIdx, startTower, get trial() { return trial; }, renderAdv, hud, audioLevel, currentSong, sfx, get chests() { return chests; }, say, renderPartyPanel, renderShop, useItem, addStack, get eshots() { return eshots; }, get warns() { return warns; }, pst, TR, killMon, hitPlayer, dealDamage, set mons(v) { mons = v; }, startRun, get run() { return run; }, openCards, endRun, get pendingN() { return pending.length; }, set timeK(v) { timeK = Math.max(1, Math.min(12, v | 0)); }, get cutinT() { return cutinT; }, monAnim, layout, monSheet, heroSheet, setArt(v) { artStyle = v; applyArt(); }, asset, get anim() { return anim; }, toCss: (wx, wy) => [(wx - lastCam.x) * S / DPR, (wy - lastCam.y) * S / DPR], MONSTERS, ITEMS, CHAPTERS, newDropLoot: (id, x, y) => drops.push(newDrop('loot', x, y, { id, n: 1 })), renderBag: () => { if (typeof renderBag === 'function') renderBag(); }, skillsList: () => skills.map((k) => k.id), get lamps() { return lamps; }, inLight, get deathN() { return deathN; }, rollGear, SLOTS, R, stats: () => stats(P) };
+if (location.search.includes('debug')) globalThis.__game = { showCutin, get allies() { return allies; }, buildAllies, get P() { return P; }, newDrop, get drops() { return drops; }, set dropsAdd(d) { drops.push(d); }, me, get grid() { return grid; }, loadMap, get mapId() { return mapId; }, get mons() { return mons; }, get fishing() { return fishing; }, get dialog() { return dialog; }, get drops() { return drops; }, get skills() { return skills; }, castIdx, startTower, get trial() { return trial; }, renderAdv, hud, audioLevel, currentSong, sfx, get chests() { return chests; }, say, renderPartyPanel, renderShop, useItem, addStack, get eshots() { return eshots; }, get warns() { return warns; }, pst, TR, killMon, hitPlayer, dealDamage, set mons(v) { mons = v; }, startRun, get run() { return run; }, endRun, openExped, equipBest, STAGES, get pendingN() { return pending.length; }, set timeK(v) { timeK = Math.max(1, Math.min(12, v | 0)); }, get cutinT() { return cutinT; }, monAnim, layout, monSheet, heroSheet, setArt(v) { artStyle = v; applyArt(); }, asset, get anim() { return anim; }, toCss: (wx, wy) => [(wx - lastCam.x) * S / DPR, (wy - lastCam.y) * S / DPR], MONSTERS, ITEMS, CHAPTERS, newDropLoot: (id, x, y) => drops.push(newDrop('loot', x, y, { id, n: 1 })), renderBag: () => { if (typeof renderBag === 'function') renderBag(); }, skillsList: () => skills.map((k) => k.id), get lamps() { return lamps; }, inLight, get deathN() { return deathN; }, rollGear, SLOTS, R, stats: () => stats(P) };
