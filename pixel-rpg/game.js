@@ -853,7 +853,7 @@ function startRun(ch, night = false) {
   const st = stats(P); P.hp = st.hp; P.mp = st.mpMax;
   auto = false; syncAuto();
   banner(`${night ? '深夜・' : ''}長夜求生　${CHAPTERS[ch - 1].name}`);
-  feed('撐過 15 分鐘、打倒第 14 分鐘出現的魔王就通關。普攻和技能會自動放，你只管走位！', '#ffd166');
+  feed('撐過怪潮、打倒第 13 分鐘出現的魔王就通關。普攻和技能會自動放，你只管走位！', '#ffd166');
   $('advPanel').hidden = true; hud(); updateRunHud();
 }
 function setupRunSkills() {
@@ -898,7 +898,7 @@ function updateRun(dt) {
   if (run.t >= BOSS_AT && !run.bossOut) {
     run.bossOut = true;
     const id = CHAPTERS[run.ch - 1].boss, base = (run.night && NIGHT[id]) || MONSTERS[id];
-    const m = runSpawnOne(id, { d: { ...base, hp: Math.round(base.hp * 0.6), boss: true, sight: 30 } });
+    const m = runSpawnOne(id, { d: { ...base, hp: Math.round(base.hp * 0.25), boss: true, sight: 30 } }); // 魔王血量：建議等級約 1 分半打倒
     if (m) { m.boss = true; banner(`${m.d.name}　登場！`); shake = 0.5; sfx('boss'); run.bossRef = m; }
   }
   // 清掉死了一陣子的怪，避免越積越多
@@ -917,7 +917,7 @@ function updateRun(dt) {
 function runKill(m) {
   if (!run || !m.d.runMon) return;
   run.kills++;
-  { const g = newDrop('gem', cx(m), cy(m), gemValue(m.d)); g.vx *= 0.15; g.vy *= 0.15; g.vz *= 0.5; drops.push(g); } // 結晶落在怪物倒下的地方
+  { const g = newDrop('gem', cx(m), cy(m), gemValue(m.d, run.t)); g.vx *= 0.15; g.vy *= 0.15; g.vz *= 0.5; drops.push(g); } // 結晶落在怪物倒下的地方
   if (m === run.bossRef || (m.d.boss && !m.minion)) { run.bossDown = true; run.bossDownT = 1.2; }
 }
 function collectGem(v) {

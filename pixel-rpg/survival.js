@@ -6,19 +6,19 @@ import { ACTIVE_KINDS, STARTER } from './skilltree.js';
 
 export const RUN_LEN = 900;             // 一局 15 分鐘
 export const ELITE_AT = [300, 600];     // 第 5、10 分鐘：精英怪
-export const BOSS_AT = 840;             // 第 14 分鐘：地區魔王登場，打倒就通關
+export const BOSS_AT = 780;             // 第 13 分鐘：地區魔王登場，打倒就通關（留 2 分鐘打）
 export const RUN_SKILL_MAX = 5, RUN_STAT_MAX = 5, RUN_SKILL_SLOTS = 6, RUN_STAT_SLOTS = 6;
 
 // ---- 怪潮：時間越久，同時在場越多、出得越快、越硬 ----
 export function wave(t) {
   const k = Math.min(1, t / RUN_LEN);
   return {
-    cap: Math.round(15 + 55 * k),                    // 同時在場上限 15 → 70
+    cap: Math.round(15 + 45 * k),                    // 同時在場上限 15 → 60
     every: Math.max(0.35, 1.5 - 1.15 * k),           // 每隔幾秒出一批
     pack: 2 + Math.floor(k * 4),                      // 一批幾隻 2 → 6
     // 倖存者類：一群一起上，所以單隻比野外弱；開場一兩下就倒，後段才硬（平衡試玩：Lv1 開場 10 秒內就被圍死）
-    hpMul: 0.3 + 1.5 * k * k,                         // 血量倍率 0.3 → 1.8
-    atkMul: 0.35 + 0.5 * k,                           // 攻擊倍率 0.35 → 0.85
+    hpMul: 0.3 + 1.2 * k * k,                         // 血量倍率 0.3 → 1.5
+    atkMul: 0.35 + 0.35 * k,                          // 攻擊倍率 0.35 → 0.7（建議等級穿基準裝要撐得住）
   };
 }
 // 該時間會出現哪些怪（依等級由低到高）：開場 3 種、前段 5 種、中段 9 種、後段全部
@@ -29,7 +29,8 @@ export function wavePool(ch, t) {
 
 // ---- 局內等級 ----
 export const runExpNeed = (lv) => Math.round(4 + lv * 3 + lv * lv * 0.6);
-export const gemValue = (d) => (d.boss ? 60 : d.elite ? 12 : 1 + Math.floor((d.lv || 1) / 40));
+// 後段結晶較值錢（每 5 分鐘多 1 倍），讓升級跟得上怪潮
+export const gemValue = (d, t = 0) => Math.round((d.boss ? 60 : d.elite ? 12 : 1 + Math.floor((d.lv || 1) / 40)) * (1 + t / 300));
 
 // ---- 升級卡 ----
 // 能力卡（每張最多 5 級）
