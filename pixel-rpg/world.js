@@ -388,6 +388,8 @@ export function stats(p) {
   const now = Date.now(), tb = (k) => (p.tb?.[k] && p.tb[k].until > now ? p.tb[k].v : 0);
   aff.atkPct += (tb('dmg') + tb('能力') + tb('屬性') * 0.5 + tb('dmgPerStack')) * 100; aff.crit += tb('crit') * 100;
   aff.aspd += (tb('aspd') + tb('攻速')) * 100; aff.dr += (tb('dr') + tb('減傷') + tb('防禦') / 4 + tb('屬性減傷') / 4) * 100;
+  const rm = p.runMods || {}; // 長夜求生：局內升級卡的加成（不存檔）
+  aff.atkPct += rm.atkPct || 0; aff.hpPct += rm.hpPct || 0; aff.aspd += rm.aspd || 0; aff.crit += rm.crit || 0; aff.skill += rm.skill || 0;
   aff.atkPct += ab.atkPct + cp('atkPct'); aff.hpPct += ab.hpPct + cp('hpPct'); aff.crit += ab.crit + cp('crit'); aff.aspd += ab.aspd + cp('aspd');
   aff.skill += ab.skill + cp('skill'); aff.soul += ab.soul; aff.dr += ab.dr + ab.buffDr + cp('dr');
   atk *= 1 + 0.02 * tv('might') + (soul === 'magnet' ? 0.08 : 0) + aff.atkPct / 100 + (p.cb?.atkPct || 0) / 100;
@@ -395,7 +397,7 @@ export function stats(p) {
   const crit = Math.min(0.75, 0.1 + 0.012 * tv('precision') + aff.crit / 100 + (soul === 'post' ? 0.08 : 0));
   const critDmg = 2 + 0.06 * tv('ferocity') + ab.critDmg / 100 + (jb.critDmg || 0) / 100;
   const aspd = 1 + 0.02 * tv('haste') + aff.aspd / 100;
-  const cdr = Math.min(0.5, 0.02 * tv('focus') + (soul === 'gear' ? 0.12 : 0) + cp('cdr') / 100 + (jb.cdr || 0) / 100);
+  const cdr = Math.min(0.6, (rm.cdr || 0) / 100 + 0.02 * tv('focus') + (soul === 'gear' ? 0.12 : 0) + cp('cdr') / 100 + (jb.cdr || 0) / 100);
   const mpMax = Math.round((20 + p.lv * 4) * (c.mp || 1) * (1 + (ab.attrs?.int || 0) / 100));
   atk = Math.round(atk); hp = Math.round(hp);
   const dps = (atk * aspd / c.cool) * (1 + crit * (critDmg - 1));
@@ -404,7 +406,7 @@ export function stats(p) {
     mpMax, mpRegen: mpMax * (0.01 + (ab.attrs?.int || 0) * 0.0005), mpCost: 1 - Math.min(0.5, tb('耗魔')), heal: 1 + (jb.heal || 0) / 100, boss: (jb.boss || 0) / 100,
     double: (jb.double || 0) / 100, shadowStab: jb.shadowStab || 0, debuffDur: jb.debuffDur || 0, proc: (jb.proc || 0) / 100, dot: (jb.dot || 0) / 100, flee2: jb.flee || 0, hit2: jb.hit || 0, range: jb.range || 0,
     skill: 1 + aff.skill / 100, leech: aff.leech / 100, soulGain: 1 + 0.06 * tv('resonance') + aff.soul / 100 + (soul === 'bird' ? 0.2 : 0),
-    dr: Math.min(0.6, 0.02 * tv('iron') + aff.dr / 100 + (c.range <= 1 ? MELEE_DR : 0)), regen: 0.0012 * tv('recover'), potion: 0.5 + 0.04 * tv('recover'),
+    dr: Math.min(0.6, 0.02 * tv('iron') + aff.dr / 100 + (c.range <= 1 ? MELEE_DR : 0)), regen: 0.0012 * tv('recover') + (rm.regen || 0), potion: 0.5 + 0.04 * tv('recover'),
     cp: Math.round(dps * 3 + hp * 3 + p.lv * 20 + (soul ? 150 * (p.souls[soul] || 1) : 0)),
   };
 }

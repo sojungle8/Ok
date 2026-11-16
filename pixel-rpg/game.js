@@ -87,7 +87,7 @@ ensureInv(P); ensureParty(P);
 
 ensureMeta(P); P.cb = codexBonus(P); ensureAttrs(P); ensureJob(P); if (P.autoAttr) autoAllocate(P);
 const me = { x: P.x, y: P.y, px: P.x, py: P.y, fx: P.x, fy: P.y, face: 'down', moving: false, mt: 0, dur: 0.14, step: 0, atkT: 0, hurtT: 0, cool: 0, inv: 0, dodgeT: 0 };
-function save() { P.x = me.x; P.y = me.y; P.map = mapId; P.seen = Date.now(); hasSave = true; try { localStorage.setItem(KEY, JSON.stringify(P)); } catch { /* 無痕模式不存 */ } }
+function save() { P.x = me.x; P.y = me.y; P.map = mapId; P.seen = Date.now(); hasSave = true; try { localStorage.setItem(KEY, JSON.stringify(P, (k, v) => (k === 'runMods' ? undefined : v))); } catch { /* 無痕模式不存 */ } }
 
 const R = Math.random;
 const SK = BY_ID, skPoints = skillPoints, learnSk = learnSkill, autoLearnSk = autoLearnSkills, skDesc = describeSkill, ALL_SKILLS = SKILLS;
