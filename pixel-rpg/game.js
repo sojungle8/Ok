@@ -2169,6 +2169,7 @@ function autoThink(dt) {
   if (!targets.length && mapId === 0) for (const y of GATE_Y) goal.add(`${W - 1},${y}`);
   const reach = C.range > 1 ? 3 : 1;
   if (run) for (const d of drops) if (d.kind === 'gem') goal.add(`${Math.floor(d.x / TS)},${Math.floor(d.y / TS)}`); // 局內：自動模式也會去撿結晶
+  if (run?.chest && P.coins >= run.chest.cost && run.items.length < ITEM_SLOTS) goal.add(`${run.chest.x},${run.chest.y}`); // 金幣夠就去開寶箱
   for (const m of seek) for (let ox = -reach; ox <= reach; ox++) for (let oy = -reach; oy <= reach; oy++) if (Math.abs(ox) + Math.abs(oy) === (C.range > 1 ? Math.min(3, Math.abs(ox) + Math.abs(oy)) : 1) && (ox || oy)) goal.add(`${m.x + ox},${m.y + oy}`);
   const start = `${me.x},${me.y}`, prev = { [start]: null }, q = [[me.x, me.y]];
   let found = null;
