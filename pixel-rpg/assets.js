@@ -6,12 +6,22 @@ const LATE = ['soul_art/', 'portrait/', 'char/', 'gear/', 'icon/', 'vfx/'];
 export const loadState = { done: 0, total: 0, core: false };
 export function loadAssets(base = 'assets/', onCore) {
   let ver = {};
-  const one = (f) => new Promise((res) => {
+  const one = (f, retry = true) => new Promise((res) => {
     const im = new Image();
     im.onload = () => { imgs.set(f.replace(/\.png$/, ''), im); loadState.done++; res(); };
-    im.onerror = () => { loadState.done++; res(); };
+    im.onerror = () => {
+      if (retry) { setTimeout(() => res(one(f, false)), 150); return; }
+      loadState.done++; res();
+    };
     im.src = base + f + (ver[f] ? `?v=${ver[f]}` : '');
   });
+  // Large unpacked libraries can exhaust Chrome's pending-request queue on reload.
+  async function loadGroup(files) {
+    let index = 0;
+    await Promise.all(Array.from({ length: Math.min(12, files.length) }, async () => {
+      while (index < files.length) await one(files[index++]);
+    }));
+  }
   ready = fetch(base + 'manifest.json', { cache: 'no-cache' })
     .then((r) => (r.ok ? r.json() : { files: [] }))
     .then(async (m) => {
@@ -22,10 +32,10 @@ export function loadAssets(base = 'assets/', onCore) {
       loadState.total = files.length;
       // 發佈版：小圖拼成合併圖（tools/pack_publish.py），這裡切回一張一張
       const atlasDone = m.atlas ? loadAtlas(base, m.atlas) : Promise.resolve();
-      await Promise.all(core.map(one));
+      await loadGroup(core);
       await atlasDone;
       loadState.core = true; onCore?.();
-      await Promise.all(late.map(one));
+      await loadGroup(late);
     })
     .catch(() => {})
     .finally(() => { if (!loadState.core) { loadState.core = true; onCore?.(); } });

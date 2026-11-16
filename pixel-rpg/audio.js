@@ -2,7 +2,7 @@
 let meter = null;
 // 測試用：目前輸出音量（0～1）
 export function audioLevel() { if (!meter) return -1; const a = new Float32Array(meter.fftSize); meter.getFloatTimeDomainData(a); return Math.sqrt(a.reduce((x, v) => x + v * v, 0) / a.length); }
-let ac = null, master, bgmBus, sfxBus, verb, noiseBuf;
+let ac = null, master, bgmBus, sfxBus, musicVerb, effectVerb, noiseBuf;
 export const audioOpt = { bgm: 0.55, sfx: 0.8 };
 try { Object.assign(audioOpt, JSON.parse(localStorage.getItem('glimmer-audio') || '{}')); } catch { /* 忽略 */ }
 export function saveAudioOpt() { try { localStorage.setItem('glimmer-audio', JSON.stringify(audioOpt)); } catch { /* 忽略 */ } applyVol(); }
@@ -23,10 +23,11 @@ export function initAudio() {
   meter = ac.createAnalyser(); meter.fftSize = 2048; comp.connect(meter);
   bgmBus = ac.createGain(); sfxBus = ac.createGain(); bgmBus.connect(master); sfxBus.connect(master);
   // 簡單殘響：讓音樂比較有空間感
-  verb = ac.createConvolver();
+
   const len = ac.sampleRate * 1.6, ir = ac.createBuffer(2, len, ac.sampleRate);
   for (let c = 0; c < 2; c++) { const d = ir.getChannelData(c); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3); }
-  verb.buffer = ir; const vg = ac.createGain(); vg.gain.value = 0.22; verb.connect(vg); vg.connect(master);
+  const room = bus => { const v = ac.createConvolver(), g = ac.createGain(); v.buffer = ir; g.gain.value = .30; v.connect(g); g.connect(bus); return v; };
+  musicVerb = room(bgmBus); effectVerb = room(sfxBus);
   noiseBuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate);
   const nd = noiseBuf.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
   applyVol();
@@ -36,15 +37,29 @@ export function initAudio() {
 
 // ---- 基本樂器 ----
 const hz = (n) => 440 * Math.pow(2, (n - 69) / 12);
+// Harmonic spectra for a reed, gut strings, glass mallet and bowed viola.
+const instruments = {
+  reed: [1,.12,.39,.07,.17,.04,.06], lute: [1,.53,.31,.18,.11,.06,.03],
+  glass: [1,.08,.28,.03,.02,.09], viola: [1,.68,.42,.24,.31,.14,.09,.06],
+};
+const waves = new Map();
+function voice(o, name) {
+  if (!instruments[name]) { o.type = name; return; }
+  if (!waves.has(name)) {
+    const harmonics = Float32Array.from([0,...instruments[name]]);
+    waves.set(name, ac.createPeriodicWave(new Float32Array(harmonics.length), harmonics));
+  }
+  o.setPeriodicWave(waves.get(name));
+}
 function tone(dest, f, t, dur, { type = 'triangle', vol = 0.3, a = 0.005, r = 0.08, f2, wet = 0, cutoff } = {}) {
   const o = ac.createOscillator(), g = ac.createGain();
-  o.type = type; o.frequency.setValueAtTime(f, t);
+  voice(o, type); o.frequency.setValueAtTime(f, t);
   if (f2) o.frequency.exponentialRampToValueAtTime(Math.max(20, f2), t + dur);
   g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + a);
   g.gain.setValueAtTime(vol, t + Math.max(a, dur - r)); g.gain.exponentialRampToValueAtTime(0.0001, t + dur + r);
   let node = o;
   if (cutoff) { const fl = ac.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.value = cutoff; o.connect(fl); node = fl; }
-  node.connect(g); g.connect(dest); if (wet) { const w = ac.createGain(); w.gain.value = wet; g.connect(w); w.connect(verb); }
+  node.connect(g); g.connect(dest); if (wet) { const w = ac.createGain(); w.gain.value = wet; g.connect(w); w.connect(dest === sfxBus ? effectVerb : musicVerb); }
   o.start(t); o.stop(t + dur + r + 0.05);
 }
 function noise(dest, t, dur, { vol = 0.3, type = 'bandpass', f = 1200, f2, q = 1, a = 0.002, wet = 0 } = {}) {
@@ -52,7 +67,7 @@ function noise(dest, t, dur, { vol = 0.3, type = 'bandpass', f = 1200, f2, q = 1
   s.buffer = noiseBuf; fl.type = type; fl.frequency.setValueAtTime(f, t); fl.Q.value = q;
   if (f2) fl.frequency.exponentialRampToValueAtTime(f2, t + dur);
   g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  s.connect(fl); fl.connect(g); g.connect(dest); if (wet) { const w = ac.createGain(); w.gain.value = wet; g.connect(w); w.connect(verb); }
+  s.connect(fl); fl.connect(g); g.connect(dest); if (wet) { const w = ac.createGain(); w.gain.value = wet; g.connect(w); w.connect(dest === sfxBus ? effectVerb : musicVerb); }
   s.start(t, Math.random() * 0.5); s.stop(t + dur + 0.05);
 }
 
@@ -86,12 +101,40 @@ const SFX = {
   splash: (t) => noise(sfxBus, t, 0.3, { vol: 0.25, f: 800, f2: 2500, q: 0.6 }),
   boom: (t) => { tone(sfxBus, 90, t, 0.35, { type: 'sine', vol: 0.5, f2: 30 }); noise(sfxBus, t, 0.4, { vol: 0.3, type: 'lowpass', f: 1500, f2: 100 }); },
 };
+const materialFamilies = {
+  steel: ['swing','hit','crit','slash','arrow','refineOk'],
+  wood: ['kill','punch','hurt','dodge','refineFail','boom','boss'],
+  glass: ['coin','pickup','ui','reward','levelup','quest','clear'],
+  breath: ['magic','bolt','ult','cutin','potion','splash'],
+};
+function accent(name,t) {
+  for (const [family,names] of Object.entries(materialFamilies)) {
+    const i=names.indexOf(name); if(i<0) continue;
+    if(family==='steel') {
+      const f=[1160,680,1030,780,1420,1650][i];
+      [1,1.57,2.41].forEach((k,j)=>tone(sfxBus,f*k,t+j*.003,.04+.06/(1+j),{type:'sine',vol:.075/(1+j),r:.06}));
+    } else if(family==='wood') {
+      const f=[180,132,155,245,210,88,76][i];
+      tone(sfxBus,f*2.4,t,.04,{type:'lute',f2:f,vol:.13,r:.03});
+      noise(sfxBus,t+.012,.055,{type:'bandpass',f:f*5,q:1.8,vol:.11});
+    } else if(family==='glass') {
+      const f=hz([91,83,88,86,81,78,85][i]);
+      tone(sfxBus,f,t,.028,{type:'glass',vol:.12,r:.09});
+      if(name!=='ui') tone(sfxBus,f*1.5,t+.038,.045,{type:'sine',vol:.07,r:.16});
+    } else {
+      const f=[740,1060,310,480,620,350][i];
+      noise(sfxBus,t,.15,{f:f*3,f2:f,q:2.6,vol:.15,a:.015});
+      tone(sfxBus,f,t+.02,.1,{type:'glass',f2:f*1.49,vol:.065,r:.12});
+    }
+    break;
+  }
+}
 const GAP = { hit: 0.045, crit: 0.06, swing: 0.06, coin: 0.05, kill: 0.04, hurt: 0.12, pickup: 0.06, ui: 0.05 };
 export function sfx(name) {
   if (!ac || ac.state !== 'running' || !SFX[name] || audioOpt.sfx <= 0) return;
   const t = ac.currentTime;
   if (last[name] && t - last[name] < (GAP[name] ?? 0.03)) return;
-  last[name] = t; SFX[name](t + 0.005);
+  last[name] = t; accent(name,t+.005); SFX[name](t + 0.005);
 }
 
 // ---- 背景音樂：小型編曲器（16 分音符一步，一小節 16 步）----
@@ -111,31 +154,37 @@ const SONGS = {
   tower: { bpm: 134, scale: MIN, key: 64, prog: [[0, 'm'], [8, 'M'], [10, 'M'], [11, 'M']], lead: 'square', drums: 'battle', bass: 'eighth', seed: 31, density: 0.65 },
 };
 const CH = { M: [0, 4, 7], m: [0, 3, 7] };
-function rnd(seed) { let s = seed * 9301 + 49297; return () => ((s = (s * 9301 + 49297) % 233280) / 233280); }
-// 產生 8 小節旋律（A A' B A''），每步是 MIDI 音或 null
-function compose(song) {
-  const r = rnd(song.seed), scale = (deg) => song.key + 12 + song.scale[((deg % 7) + 7) % 7] + 12 * Math.floor(deg / 7);
-  const bar = (chord, varied) => {
-    const out = Array(16).fill(null);
-    const tones = CH[chord[1]].map((x) => song.key + 12 + chord[0] + x);
-    let deg = Math.floor(r() * 5);
-    for (let s = 0; s < 16; s += 2) {
-      const strong = s % 4 === 0;
-      if (!strong && r() > song.density) continue;
-      if (strong) { const tn = tones[Math.floor(r() * 3)]; out[s] = tn + (tn < song.key + 12 ? 12 : 0); deg = song.scale.indexOf((out[s] - song.key) % 12); if (deg < 0) deg = 0; }
-      else { deg += r() < 0.5 ? 1 : -1; out[s] = scale(deg); }
-      if (varied && r() < 0.25 && s < 15) out[s + 1] = scale(deg + 1);
-    }
+// Four-bar themes in scale degrees. A dot is a rest; each token is an eighth.
+const themes = {
+  town: ['2 . 4 5 4 . 2 1','0 . 2 . 4 3 2 .','1 2 4 . 6 . 5 3','2 . 1 . 0 . . .'],
+  field1: ['0 2 4 . 5 4 2 1','2 . 6 5 4 . 2 .','4 5 7 . 6 4 2 .','3 . 1 2 0 . . 1'],
+  field2: ['4 . 2 1 0 . -2 .','1 2 3 . 2 . 0 .','5 . 4 2 1 . 3 2','0 . -1 . 0 . . .'],
+  field3: ['0 . 0 4 3 . 1 2','4 4 . 6 5 3 . 2','1 . 1 5 4 . 2 3','2 1 . 4 0 . . .'],
+  field4: ['6 . . 4 3 . 1 .','2 . 4 . 1 . . .','5 . . 3 2 . 0 1','2 . -1 . 0 . . .'],
+  field5: ['4 2 . 1 2 4 . 5','6 . 5 4 2 . 3 .','5 3 . 2 4 6 . 7','4 . 2 1 0 . . .'],
+  field6: ['0 . -1 0 2 . 3 .','4 . 3 1 2 . 0 .','5 4 . 2 3 . 1 .','-1 . 1 . 0 . . .'],
+  boss: ['0 0 4 . 3 2 1 .','-1 -1 3 . 2 1 0 1','2 2 6 . 5 4 3 2','4 3 1 -1 0 . 0 .'],
+  night: ['2 . . 1 4 . . 2','0 . -1 . 1 . . .','3 . . 2 5 . 3 .','1 . -1 . 0 . . .'],
+  nightBoss: ['0 -1 0 . 4 3 2 .','1 0 1 . 5 . 4 2','3 2 3 . 6 5 4 .','2 1 -1 . 0 . 0 .'],
+  tower: ['0 2 3 4 . 2 0 .','1 3 4 5 . 3 1 .','2 4 5 6 . 4 2 1','4 . 3 1 0 . . .'],
+};
+const leads = {town:'reed',field1:'reed',field2:'lute',field3:'glass',field4:'glass',field5:'lute',field6:'viola',boss:'viola',night:'glass',nightBoss:'viola',tower:'reed'};
+function compose(song,name) {
+  return Array.from({length:16},(_,bar)=>{
+    const out=Array(16).fill(null), phrase=themes[name][bar%4].split(' ');
+    phrase.forEach((token,i)=>{
+      if(token==='.') return;
+      const degree=Number(token)+(bar>=8 && bar<12 ? (i<4?2:1) : 0);
+      out[i*2]=song.key+12+song.scale[(degree%7+7)%7]+12*Math.floor(degree/7);
+    });
     return out;
-  };
-  const A = song.prog.map((c) => bar(c, false)), A2 = A.map((b, i) => (i === 3 ? bar(song.prog[3], true) : b)), B = song.prog.map((c) => bar(c, true));
-  return [...A, ...A2, ...B, ...A];
+  });
 }
 let cur = null, nextT = 0, step = 0, total = 0, melody = null, songGain = null;
 export function playSong(name) {
   if (!ac || !SONGS[name] || cur === name) return;
   if (songGain) { const g = songGain; g.gain.setTargetAtTime(0.0001, ac.currentTime, 0.4); setTimeout(() => g.disconnect(), 2500); }
-  cur = name; melody = compose(SONGS[name]); step = 0; total = 0; nextT = ac.currentTime + 0.15;
+  cur = name; melody = compose(SONGS[name],name); step = 0; total = 0; nextT = ac.currentTime + 0.15;
   songGain = ac.createGain(); songGain.gain.setValueAtTime(0.0001, ac.currentTime); songGain.gain.setTargetAtTime(1, ac.currentTime, 0.6); songGain.connect(bgmBus);
 }
 export const currentSong = () => cur;
@@ -154,11 +203,18 @@ function playStep(song, st, t, sp) {
   // 低音
   const bassHit = song.bass === 'half' ? s % 8 === 0 : song.bass === 'eighth' ? s % 2 === 0 : true;
   if (bassHit) tone(d, hz(root + (song.bass === 'sixteenth' && s % 4 === 2 ? 12 : 0)), t, sp * (song.bass === 'half' ? 7 : 1.6), { type: song.bass === 'sixteenth' ? 'sawtooth' : 'triangle', vol: song.bass === 'sixteenth' ? 0.09 : 0.2, cutoff: 700 });
-  // 琶音（輕快歌曲才有）
-  if (song.drums !== 'soft' && s % 2 === 1) tone(d, hz(song.key + 12 + chord[0] + tones[(s >> 1) % 3]), t, sp * 0.9, { type: 'triangle', vol: 0.035, wet: 0.3 });
-  // 旋律（第 2 輪起才進來，前 4 小節當前奏）
-  const n = melody[barI % melody.length]?.[s];
-  if (n != null && total >= 64) tone(d, hz(n), t, sp * 1.8, { type: song.lead, vol: song.lead === 'square' || song.lead === 'sawtooth' ? 0.045 : 0.1, cutoff: song.lead === 'sawtooth' ? 2200 : undefined, wet: 0.35 });
+  // Staggered plucked strings carry the harmony under the winds.
+  if ([0,3,6,10,14].includes(s)) {
+    const j=[0,3,6,10,14].indexOf(s), pitch=song.key+chord[0]+tones[[0,2,1,2,1][j]];
+    tone(d,hz(pitch),t,sp*.55,{type:'lute',vol:.11,r:.18,wet:.15});
+  }
+  const line=melody[barI], n=line[s];
+  if(n!=null) {
+    let len=1; while(s+len<16 && line[s+len]==null) len++;
+    const v=leads[cur];
+    tone(d,hz(n),t,sp*Math.min(5,len)*.87,{type:v,vol:v==='viola'?.085:.125,
+      a:v==='viola'?.035:.011,r:v==='glass'?.18:.09,wet:.22});
+  }
   // 鼓
   const dr = song.drums;
   if (dr === 'soft') { if (s % 4 === 2) noise(d, t, 0.05, { vol: 0.04, type: 'highpass', f: 6000 }); return; }
