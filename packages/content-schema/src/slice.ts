@@ -91,14 +91,19 @@ export type SliceSeed = z.infer<typeof sliceSeedSchema>;
  * hypothesis with a reason; reports/vertical-slice-acceptance.md records the measured effect.
  */
 export const SLICE_TUNING = {
-  /** T-01: sustain. Without regen the seed's chip damage killed every bot build by 4:50. */
-  levelUpHealPermille: 150,
+  /**
+   * T-01: sustain. Without regen the seed's chip damage killed every bot build by 4:50.
+   * 15% left guardian/weapon at 4–6/10 wins per input device; 30% gives ≥ 7/10 for every build and device.
+   */
+  levelUpHealPermille: 300,
   /** T-02: keystone drafts at these run levels (the Vocal reward adds one more offer). */
   keystoneOfferLevels: [6, 12],
   /** T-03: contact damage per enemy at most once per second (seed gives per-touch damage only). */
   contactIntervalTicks: 60,
   /** T-04: 0.2 s grace after any contact hit so a swarm cannot stack every frame. */
   contactGraceTicks: 12,
+  /** T-09: readability: at most 6 ranged enemies (nearest first) fire at once; 6–8 min losses were volley stacks. */
+  maxRangedShooters: 6,
   /** T-05: Poporing's identity is the poison pool; it was also the top contact-damage killer in every losing run. */
   monsterOverrides: { "monster.poporing": { hp: 75, contactDamage: 7 } } as Record<string, { hp?: number; contactDamage?: number }>,
   /**
@@ -355,6 +360,7 @@ export function compileSliceContent(raw: unknown): RunContent {
       levelUpHealPermille: SLICE_TUNING.levelUpHealPermille,
       contactIntervalTicks: SLICE_TUNING.contactIntervalTicks,
       contactGraceTicks: SLICE_TUNING.contactGraceTicks,
+      maxRangedShooters: SLICE_TUNING.maxRangedShooters,
     },
     bossSpawnTick,
     enrageTick: seed.rules.bossEnrageTick,

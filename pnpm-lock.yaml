@@ -23,6 +23,9 @@ importers:
       '@ro-survivor/core-sim':
         specifier: workspace:*
         version: link:packages/core-sim
+      '@ro-survivor/input':
+        specifier: workspace:*
+        version: link:packages/input
       '@ro-survivor/persistence':
         specifier: workspace:*
         version: link:packages/persistence
@@ -116,6 +119,8 @@ importers:
       '@ro-survivor/testkit':
         specifier: workspace:*
         version: link:../testkit
+
+  packages/input: {}
 
   packages/persistence:
     devDependencies:

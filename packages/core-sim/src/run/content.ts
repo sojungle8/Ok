@@ -190,6 +190,8 @@ export interface RunContent {
     /** Ticks between contact hits from the same enemy, and player hit-grace after any contact hit. */
     contactIntervalTicks: number;
     contactGraceTicks: number;
+    /** At most this many ranged enemies may fire (the nearest to the player). */
+    maxRangedShooters: number;
   };
   bossSpawnTick: number;
   enrageTick: number;

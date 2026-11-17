@@ -28,7 +28,8 @@
     "assets:audit-whitelist": "node tools/assets/audit-whitelist.ts",
     "assets:extract": "node tools/assets/extract.ts",
     "dev:fan-local": "node tools/dev/fan-local.ts",
-    "assets:synthetic-demo": "node tools/assets/synthetic-demo.ts"
+    "assets:synthetic-demo": "node tools/assets/synthetic-demo.ts",
+    "slice:acceptance": "node tools/slice/acceptance.ts"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
@@ -36,6 +37,7 @@
     "@ro-survivor/asset-gateway": "workspace:*",
     "@ro-survivor/content-schema": "workspace:*",
     "@ro-survivor/core-sim": "workspace:*",
+    "@ro-survivor/input": "workspace:*",
     "@ro-survivor/persistence": "workspace:*",
     "@ro-survivor/ro-format-runtime": "workspace:*",
     "@ro-survivor/testkit": "workspace:*",

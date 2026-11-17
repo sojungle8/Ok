@@ -79,7 +79,7 @@ export interface Orb { id: number; x: number; y: number; value: number }
 export interface SlotState { id: string; rank: number; readyAt: number }
 
 export interface RunEvent {
-  type: "hit" | "player-hit" | "telegraph" | "kill" | "level-up" | "skill" | "spawn" | "boss-spawn" | "enrage" | "boss-warning";
+  type: "hit" | "player-hit" | "telegraph" | "projectile" | "kill" | "level-up" | "skill" | "spawn" | "boss-spawn" | "enrage" | "boss-warning";
   tick: number;
   source?: string;
   geomId?: string;
@@ -467,6 +467,15 @@ function moveEnemy(grid: RunGrid | null | undefined, e: Enemy, dx: number, dy: n
 
 function updateEnemies(c: RunContent, st: RunState, grid: RunGrid | null | undefined): void {
   const p = st.player;
+  // Ranged volley cap: only the nearest N ranged enemies may fire this tick.
+  const shooters = new Set(
+    st.enemies
+      .filter((e) => c.monsters[e.type]?.projectile)
+      .map((e) => ({ id: e.id, d: (e.x - p.x) ** 2 + (e.y - p.y) ** 2 }))
+      .sort((a, b) => a.d - b.d || a.id - b.id)
+      .slice(0, c.progression.maxRangedShooters)
+      .map((x) => x.id),
+  );
   for (const e of st.enemies) {
     const def = c.monsters[e.type] as MonsterDef;
     if (st.runTick < e.stunUntil) continue;
@@ -495,8 +504,10 @@ function updateEnemies(c: RunContent, st: RunState, grid: RunGrid | null | undef
       }
     }
     if (def.projectile) {
-      if (dist < def.projectile.rangeMm && st.runTick >= e.projectileReadyAt) {
-        st.projectiles.push({ id: st.nextId++, ownerId: e.id, source: e.type, geomId: `${e.type}:projectile:${st.nextId}`, x: e.x, y: e.y, vx: Math.trunc((ux * def.projectile.speedMmPerTick) / TRIG_SCALE), vy: Math.trunc((uy * def.projectile.speedMmPerTick) / TRIG_SCALE), radius: 250, damage: def.projectile.damage, activeAt: st.runTick, until: st.runTick + 180 });
+      if (dist < def.projectile.rangeMm && st.runTick >= e.projectileReadyAt && shooters.has(e.id)) {
+        const geomId = `${e.type}:projectile:${st.nextId}`;
+        st.projectiles.push({ id: st.nextId++, ownerId: e.id, source: e.type, geomId, x: e.x, y: e.y, vx: Math.trunc((ux * def.projectile.speedMmPerTick) / TRIG_SCALE), vy: Math.trunc((uy * def.projectile.speedMmPerTick) / TRIG_SCALE), radius: 250, damage: def.projectile.damage, activeAt: st.runTick, until: st.runTick + 180 });
+        st.events.push({ type: "projectile", tick: st.runTick, source: e.type, geomId });
         e.projectileReadyAt = st.runTick + def.projectile.cooldownTicks;
       }
       if (dist < 5000) continue; // ranged units keep their distance

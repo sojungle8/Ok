@@ -63,8 +63,7 @@ describe("run simulation: rules", () => {
   it("every telegraph / projectile hit references a geometry ID that was announced", () => {
     const announced = new Set<string>();
     const st = playRun(4, "guardian", undefined, (s) => {
-      for (const e of s.events) if (e.type === "telegraph" && e.geomId) announced.add(e.geomId);
-      for (const p of s.projectiles) announced.add(p.geomId);
+      for (const e of s.events) if ((e.type === "telegraph" || e.type === "projectile") && e.geomId) announced.add(e.geomId);
     });
     expect(st.stats.telegraphHits.length).toBeGreaterThan(0);
     for (const h of st.stats.telegraphHits) expect(announced.has(h.geomId)).toBe(true);
