@@ -1,8 +1,31 @@
 # STATUS
 
-Current phase: **Phase 1 — 素材與渲染技術尖峰: cloud spike done; real-asset gates DEFERRED_LOCAL (Phase 1 not complete)**.
+Current phase: **Phase 2 — 劍士單人垂直切片: headless game + automated acceptance done; formal-screen play and human/device checks DEFERRED_LOCAL (Phase 2 not complete)**.
+Phase 1 real-asset gates are still DEFERRED_LOCAL (and Phase 2 was started on explicit user instruction before them).
+Pending input: Codex canonical whitelist v2 (174 rows) and `CLAUDE-PHASE1-ORIGINAL-ASSETS.md` were announced but not received in this session.
+
+## Phase 2 (cloud) — summary
+
+Evidence: `reports/vertical-slice-acceptance.md` (headless, `pnpm slice:acceptance`), `reports/phase2/flow-results.json` (browser, test-fixture build).
+
+| Gate (04 Phase 2) | Status |
+| --- | --- |
+| New player gets area clear within 60 s | Bot proxy CLOUD_PASS (first draft ≤ 2070 ticks, always offers Magnum Break / Shield Wave) · human test DEFERRED_LOCAL |
+| Three builds clear standard difficulty with fixed test equipment | Bot CLOUD_PASS: ≥ 7/10 seeds per build on keyboard / touch / gamepad quantisation (D-027) · human DEFERRED_LOCAL |
+| 10 fixed seeds: no crash, no unreachable spawn, no telegraph misalignment | CLOUD_PASS (90 runs; walled-grid spawn check; every hit carries an announced geometry ID) |
+| Same hash at 15 / 30 / 60 FPS | CLOUD_PASS (10 seeds, 60 s) |
+| Settlement closed 20 times mid-way: no duplicate items / XP | CLOUD_PASS (unit, fault injection) + browser: one settlement, reload does not duplicate |
+| A full run with touch only / gamepad only | Simulation CLOUD_PASS via device quantisation; browser: drafts by key / touch tap / gamepad A pass · real devices DEFERRED_LOCAL |
+| Audio buses, voice limits, boss warning priority | Rules CLOUD_PASS (unit) · playback blocked by missing audio rows (GAP-004) |
+| Formal screen (real RO assets) | Blocked until GAP-002 / D-025 confirmation (D-022) |
+
+Balance tuning T-01…T-09 is layered on the seed (D-024); see the acceptance report.
+
+---
+
+# Phase 1 (cloud spike)
+
 Phase 0: **conditional acceptance** (deferred regressions listed below; Windows `autocrlf=true` re-run pending).
-Phase 2 has **not** started.
 
 ## Phase 1 (cloud) — summary
 

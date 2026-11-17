@@ -53,6 +53,11 @@ export function App() {
   const stick = useRef<HTMLDivElement>(null);
   const flowRef = useRef(flow);
   flowRef.current = flow;
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
+  const inRunScreen = flow.screen === "running" || flow.screen === "draft-paused" || flow.screen === "boss-intro" || flow.screen === "victory" || flow.screen === "defeat";
+  // The run lives as long as the flow stays inside one run; phase changes must not restart it.
+  const runKey = inRunScreen && "runSeed" in flow ? `${flow.stage}:${flow.runSeed}` : null;
   const send = useCallback((e: FlowEvent) => setFlow((s) => flowTransition(s, e)), []);
   window.__flow = () => flowRef.current.screen;
   window.__run = () => session.current?.state ?? null;
@@ -91,15 +96,17 @@ export function App() {
 
   // Running: create renderer + session once the canvas exists.
   useEffect(() => {
-    if (flow.screen !== "running" || session.current || !assets || !canvas.current || !("runSeed" in flow)) return;
-    const r = new RunRenderer(canvas.current, content, assets.player, assets.enemies, settings);
+    const f = flowRef.current;
+    if (runKey === null || session.current || !assets || !canvas.current || !("runSeed" in f)) return;
+    const runSeed = f.runSeed;
+    const r = new RunRenderer(canvas.current, content, assets.player, assets.enemies, settingsRef.current);
     r.setGround(assets.ground);
     renderer.current = r;
     const resize = (): void => r.resize(canvas.current?.clientWidth ?? 1, canvas.current?.clientHeight ?? 1);
     resize();
     window.addEventListener("resize", resize);
     const plan: BuildPlan = autoplay ?? "guardian";
-    const s = new RunSession(content, flow.runSeed, r, {
+    const s = new RunSession(content, runSeed, r, {
       onFrame: (state) => {
         setSt({ ...state });
         const screen = flowRef.current.screen;
@@ -108,7 +115,7 @@ export function App() {
       },
       onEnd: (state) => {
         void (async () => {
-          const result = s.result({ profileId: PROFILE, runId: `run-${flow.runSeed}-${Date.now()}`, buildId: __BUILD_ID__ });
+          const result = s.result({ profileId: PROFILE, runId: `run-${runSeed}-${Date.now()}`, buildId: __BUILD_ID__ });
           let applied = false;
           let character: CharacterRecord | null = null;
           if (db.current) {
@@ -170,7 +177,7 @@ export function App() {
       document.removeEventListener("visibilitychange", vis);
       window.removeEventListener("gamepaddisconnected", padOff);
     };
-  }, [flow, assets, settings, send]);
+  }, [runKey, assets, send]);
 
   useEffect(() => {
     renderer.current?.setDebugOverlay(debug);
@@ -182,7 +189,7 @@ export function App() {
     if (renderer.current) renderer.current.settings = s;
   };
 
-  const inRun = flow.screen === "running" || flow.screen === "draft-paused" || flow.screen === "boss-intro" || flow.screen === "victory" || flow.screen === "defeat";
+  const inRun = inRunScreen;
   return (
     <main class={`app screen-${flow.screen}`} data-screen={flow.screen}>
       {inRun ? <canvas ref={canvas} class="world" data-testid="world" /> : null}

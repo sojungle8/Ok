@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — Phase 2 vertical slice (2026-11-17)
+
+- Seed compiler + integer runtime content (`73a33f9`); run simulation, drafts, bosses, bot, tuning layer (`d4e6687`).
+- Flow state machine, run results, transactional settlement (`4e63988`); input adapters, automated acceptance (`30dae38`).
+- Client game flow, run renderer, settlement UI, mixer rules (`6f310d9`); fix: the run no longer restarts on phase
+  changes; compact in-run header; browser flow e2e (`reports/phase2/`).
+
 ## Unreleased — Phase 1 cloud spike (2026-11-17)
 
 - Clean-room RO format parsers + synthetic writers (`704e75e`).

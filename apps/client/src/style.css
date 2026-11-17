@@ -96,3 +96,10 @@ button:focus-visible, .card.focused { outline: 3px solid var(--accent); outline-
 .modal .card .num { font-weight: 700; color: var(--accent); }
 .modal .card ul { margin: 0; padding-left: 18px; font-size: 13px; }
 .modal .row { display: flex; gap: 10px; }
+/* In-run header: compact so it never covers the HP / XP bars (full mobile layouts are Phase 3). */
+.screen-running .hud, .screen-draft-paused .hud, .screen-boss-intro .hud, .screen-victory .hud, .screen-defeat .hud { top: auto; bottom: max(12px, env(safe-area-inset-bottom)); left: auto; right: max(12px, env(safe-area-inset-right)); max-width: 300px; padding: 6px 10px; font-size: 11px; opacity: 0.85; }
+@media (max-width: 640px) {
+  .screen-running .hud h1, .screen-running .hud .tag, .screen-running .hud dl,
+  .screen-draft-paused .hud h1, .screen-draft-paused .hud .tag, .screen-draft-paused .hud dl,
+  .screen-boss-intro .hud h1, .screen-boss-intro .hud .tag, .screen-boss-intro .hud dl { display: none; }
+}

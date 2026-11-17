@@ -1,0 +1,47 @@
+{
+  "autoplay": {
+    "flowSeen": [
+      "running",
+      "results"
+    ],
+    "outcome": "defeat",
+    "applied": true,
+    "settledText": "已結算（本機 IndexedDB）",
+    "before": {
+      "runResults": 1,
+      "pendingResults": 0,
+      "inventory": 0
+    },
+    "after": {
+      "runResults": 1,
+      "pendingResults": 0,
+      "inventory": 0
+    },
+    "errors": [],
+    "pass": true
+  },
+  "manual": {
+    "picks": [
+      {
+        "method": "key",
+        "applied": true
+      },
+      {
+        "method": "touch",
+        "applied": true
+      },
+      {
+        "method": "gamepad",
+        "applied": true
+      }
+    ],
+    "errors": [],
+    "pass": true
+  },
+  "keyboard": {
+    "x0": 32500,
+    "x1": 36532,
+    "errors": [],
+    "pass": true
+  }
+}
