@@ -17,8 +17,8 @@ const csv = readFileSync(new URL("../../../docs/product-plan/handoff/fan-local-a
 describe("fan-local whitelist (handoff CSV, no GRF needed)", () => {
   const list = AssetWhitelist.fromCsv(csv);
 
-  it("has 48 unique asset ids", () => {
-    expect(list.size).toBe(48);
+  it("has 174 unique asset ids (canonical v2)", () => {
+    expect(list.size).toBe(174);
   });
 
   it("every CP949 raw hex and request URI round-trips to the canonical path", () => {

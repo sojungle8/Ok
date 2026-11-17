@@ -5,7 +5,7 @@ import { IndexedDbBackend, idempotencyKey, recordPending, settle, settleAllPendi
 import seedJson from "../../../docs/product-plan/handoff/vertical-slice-content-seed.json?raw";
 import { connectFormalGateway, FIXTURE_BUILD, type GatewayConnection } from "./gateway.ts";
 import { loadFormalAssets, type LoadedAssets } from "./game/assets.ts";
-import { MissingAssetsError, type MissingAsset } from "./game/requirements.ts";
+import { FormalRendererPendingError, MissingAssetsError, type MissingAsset } from "./game/requirements.ts";
 import { RunRenderer } from "./game/runRenderer.ts";
 import { RunSession } from "./game/session.ts";
 import { DraftModal } from "./screens/Draft.tsx";
@@ -89,7 +89,11 @@ export function App() {
         setAssets(await loadFormalAssets(conn.client, conn.health.fixture === true));
         send({ type: "loaded" });
       } catch (err) {
-        setBlocked(err instanceof MissingAssetsError ? { reason: "缺少必要的 RO 素材，正式畫面停止（不以任何替代圖取代）。", missing: err.missing } : { reason: String(err), missing: [] });
+        setBlocked(
+          err instanceof MissingAssetsError ? { reason: "缺少必要的 RO 素材，正式畫面停止（不以任何替代圖取代）。", missing: err.missing }
+          : err instanceof FormalRendererPendingError ? { reason: `所有必要素材均已就緒，但正式原始素材 renderer 尚未完成：${err.pending.join("、")}。正式畫面不以自繪地面或影子替代。`, missing: [] }
+          : { reason: String(err), missing: [] },
+        );
       }
     })();
   }, [flow.screen, conn, send]);

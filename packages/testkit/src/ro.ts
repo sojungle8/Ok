@@ -148,20 +148,21 @@ export function writeGnd(width: number, height: number, textures: Uint8Array[], 
   return w.done();
 }
 
-/** RSW 2.1 with the given model objects (and one sound, one light, one effect). */
-export function writeRsw(opts: { gnd: string; gat: string; models: { name: string; file: Uint8Array }[] }): Uint8Array {
+/** RSW 2.1 with the given model objects, sounds (default one), one light and one effect. */
+export function writeRsw(opts: { gnd: string; gat: string; models: { name: string; file: Uint8Array }[]; sounds?: Uint8Array[]; waterType?: number }): Uint8Array {
   const w = new Writer().ascii("GRSW").u8(2).u8(1);
   w.fixed(ascii(""), 40).fixed(ascii(opts.gnd), 40).fixed(ascii(opts.gat), 40).fixed(ascii(""), 40);
-  w.f32(0).i32(0).f32(1).f32(2).f32(50).i32(3);
+  w.f32(0).i32(opts.waterType ?? 0).f32(1).f32(2).f32(50).i32(3);
   w.i32(45).i32(45).f32(1).f32(1).f32(1).f32(0.3).f32(0.3).f32(0.3).f32(0.5);
   w.i32(-500).i32(500).i32(-500).i32(500);
-  w.i32(opts.models.length + 3);
+  const sounds = opts.sounds ?? [ascii("ambient.wav")];
+  w.i32(opts.models.length + 2 + sounds.length);
   for (const m of opts.models) {
     w.i32(1).fixed(ascii(m.name), 40).i32(0).f32(1).i32(0).fixed(m.file, 80).fixed(ascii(""), 80);
     w.f32(1).f32(2).f32(3).f32(0).f32(90).f32(0).f32(1).f32(1).f32(1);
   }
   w.i32(2).fixed(ascii("light01"), 80).f32(0).f32(0).f32(0).f32(1).f32(1).f32(1).f32(10);
-  w.i32(3).fixed(ascii("sound01"), 80).fixed(ascii("ambient.wav"), 80).f32(0).f32(0).f32(0).f32(1).i32(1).i32(1).f32(10).f32(4);
+  sounds.forEach((snd, i) => w.i32(3).fixed(ascii(`sound${i}`), 80).fixed(snd, 80).f32(i).f32(0).f32(i).f32(1).i32(1).i32(1).f32(10).f32(4));
   w.i32(4).fixed(ascii("effect01"), 80).f32(0).f32(0).f32(0).i32(1).f32(0).f32(0).f32(0).f32(0).f32(0);
   return w.done();
 }
@@ -185,4 +186,40 @@ export function writeGrf(entries: { rawName: Uint8Array; data: Uint8Array; flags
   for (const b of blobs) out.bytes(b);
   out.u32(tablePacked.length).u32(tableBytes.length).bytes(tablePacked);
   return out.done();
+}
+
+/** 24-bit bottom-up BMP; `pixel(x, y)` returns [r, g, b] (magenta = RO colour key). */
+export function writeBmp24(width: number, height: number, pixel: (x: number, y: number) => [number, number, number]): Uint8Array {
+  const row = (width * 3 + 3) & ~3;
+  const size = 54 + row * height;
+  const w = new Writer().ascii("BM").u32(size).u32(0).u32(54).u32(40).i32(width).i32(height).u16(1).u16(24).u32(0).u32(row * height).i32(2835).i32(2835).u32(0).u32(0);
+  for (let y = height - 1; y >= 0; y -= 1) {
+    for (let x = 0; x < width; x += 1) {
+      const [r, g, b] = pixel(x, y);
+      w.u8(b).u8(g).u8(r);
+    }
+    for (let p = width * 3; p < row; p += 1) w.u8(0);
+  }
+  return w.done();
+}
+
+/** Minimal PCM WAV (mono 8-bit) of synthetic samples. */
+export function writeWav(samples: Uint8Array, rate = 11025): Uint8Array {
+  return new Writer().ascii("RIFF").u32(36 + samples.length).ascii("WAVE").ascii("fmt ").u32(16).u16(1).u16(1).u32(rate).u32(rate).u16(1).u16(8).ascii("data").u32(samples.length).bytes(samples).done();
+}
+
+/** Bytes that only carry a format signature + synthetic payload (for formats parsed in later commits). */
+export function writeSignatureBlob(signature: readonly number[], length: number, seed: number): Uint8Array {
+  const out = new Uint8Array(Math.max(length, signature.length));
+  out.set(signature, 0);
+  let x = seed >>> 0 || 1;
+  for (let i = signature.length; i < out.length; i += 1) {
+    x ^= x << 13;
+    x >>>= 0;
+    x ^= x >>> 17;
+    x ^= x << 5;
+    x >>>= 0;
+    out[i] = x & 0xff;
+  }
+  return out;
 }

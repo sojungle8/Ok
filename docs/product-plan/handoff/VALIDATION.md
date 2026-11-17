@@ -6,9 +6,9 @@
 
 - JSON 解析：PASS。
 - CSV 解析：PASS。
-- 素材列：48；`asset_id` 48 個且唯一。
-- 每筆 `data.grf` 的 CP949 raw hex → canonical path round trip：47 筆適用列全部 PASS（另 1 筆 `bgm.prt_fild08` 為 filesystem BGM，沒有 raw hex，不適用；2026-11-17 Claude 依 Issue #2 校正）。
-- 每筆 normalized request URI → canonical path round trip：48 筆全部 PASS。
+- 素材列：174；`asset_id` 174 個且唯一（canonical v2，Codex 2026-11-17 重新發行並授權更新 hash）。
+- 每筆 `data.grf` 的 CP949 raw hex → canonical path round trip：173 筆適用列全部 PASS（另 1 筆 `bgm.prt_fild08` 為 filesystem BGM，沒有 raw hex，不適用）。
+- 每筆 normalized request URI → canonical path round trip：174 筆全部 PASS。
 - 內容 seed：8 skills、4 passives、3 keystones、10 normal、2 elite、1 miniboss、1 MVP。
 - 關卡 timeline 的 entity／pool reference：PASS。
 - reference ledger：20 rows，ID 唯一。
@@ -22,7 +22,7 @@
 
 | 檔案 | SHA-256 |
 | --- | --- |
-| `fan-local-asset-whitelist.csv` | `6FF5FA4D6C8052B4AD0FF00EF0F727ECEA0954431D27E71A5343B76BD1568B7A` |
+| `fan-local-asset-whitelist.csv` | `16A6A34F5756E09CBEBCEE15284065361845F7DBFFE5958A648F99E89E27E5FF` |
 | `vertical-slice-content-seed.json` | `564F580207054898876A549B6BF67CA904A366E10D491949D0CFFC576BDF6EEC` |
 | `reference-snapshot-2026-11-17.json` | `65B8764394D20FEEDE5406BA6108D237155D238E1FA0C4387B30F5E2E80D4096` |
 | `../reference-ledger.csv` | `B22FD4AD7F2605AF3F72E82B660323748AA9E031C4C7BF57ACF5FA43BBFC8077` |

@@ -3,16 +3,32 @@ import { parseCsvRecords } from "./csv.ts";
 import { bytesToHex, decodeCp949, encodeCp949, hexToBytes } from "./cp949.ts";
 import { canonicalPathToRequestUri, requestUriToCanonicalPath } from "./uri.ts";
 
+/** Canonical-path key: separators normalised to "\\", ASCII letters lower-cased (RO archive lookups ignore ASCII case). */
+export function canonicalKey(path: string): string {
+  return path.replaceAll("/", "\\").replace(/[A-Z]/gu, (ch) => ch.toLowerCase());
+}
+
 export class AssetWhitelist {
   readonly #rows: ReadonlyMap<string, WhitelistRow>;
+  readonly #byPath: ReadonlyMap<string, string>;
 
   constructor(rows: readonly WhitelistRow[]) {
     const map = new Map<string, WhitelistRow>();
+    const byPath = new Map<string, string>();
     for (const row of rows) {
       if (map.has(row.asset_id)) throw new Error(`duplicate asset_id ${row.asset_id}`);
+      const key = `${row.source_container}|${canonicalKey(row.canonical_cp949_path)}`;
+      if (byPath.has(key)) throw new Error(`duplicate canonical path ${row.canonical_cp949_path}`);
       map.set(row.asset_id, row);
+      byPath.set(key, row.asset_id);
     }
     this.#rows = map;
+    this.#byPath = byPath;
+  }
+
+  /** Asset ID of a canonical archive path (e.g. "data\\texture\\워터\\water100.jpg"), or null. */
+  idForCanonicalPath(path: string, container = "data.grf"): string | null {
+    return this.#byPath.get(`${container}|${canonicalKey(path)}`) ?? null;
   }
 
   static fromCsv(text: string): AssetWhitelist {

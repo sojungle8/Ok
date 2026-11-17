@@ -1,4 +1,5 @@
 import { join } from "node:path";
+import { AssetWhitelist, resolveMapClosure } from "@ro-survivor/asset-contracts";
 import type { WhitelistRow } from "@ro-survivor/content-schema";
 import type { AssetReader } from "@ro-survivor/asset-gateway";
 import { DERIVED_MARKER } from "../lib/png.ts";
@@ -11,7 +12,11 @@ export interface ExtractManifest {
   sources: Record<string, string>;
   outputs: { file: string; sha256: string; bytes: number; from: { assetId: string; entrySha256: string; rawHex: string }[] }[];
   sprites: { id: string; composedFrames: number; uniqueImages: number; mirrorDeduped: number; fallbacks: string[] }[];
-  map: { flood: { walkable: number; reachableFromSpawn: number; ratio: number }; dependencies: { textures: number; models: number; sounds: number } } | null;
+  map: {
+    flood: { walkable: number; reachableFromSpawn: number; ratio: number };
+    dependencies: { textures: number; models: number; sounds: number; waterType: number | null };
+    closure: { resolvedIds: number; missing: { assetId: string | null; container: string; canonicalPath: string; reason: string }[] };
+  } | null;
 }
 
 /**
@@ -58,9 +63,19 @@ export function runExtraction(rows: readonly WhitelistRow[], reader: AssetReader
     manifest.outputs.push({ ...writeOutput(outDir, "map.prt_fild08.gat.json", JSON.stringify(m.metadata)), from });
     manifest.outputs.push({ ...writeOutput(outDir, "map.prt_fild08.gat.png", m.walkPng), from });
     manifest.outputs.push({ ...writeOutput(join(outDir, "reports"), "prt_fild08-dependencies.json", JSON.stringify(m.metadata.dependencies, null, 2)), from });
+    // RSM texture references are resolved once the GRSM parser lands (Commit B).
+    const closure = resolveMapClosure(new AssetWhitelist(rows), {
+      groundTextures: m.metadata.dependencies.textures,
+      models: m.metadata.dependencies.models,
+      modelTextures: [],
+      sounds: m.metadata.dependencies.sounds,
+      waterType: m.metadata.dependencies.waterType,
+    });
+    manifest.outputs.push({ ...writeOutput(join(outDir, "reports"), "prt_fild08-closure.json", JSON.stringify(closure, null, 2)), from });
     manifest.map = {
       flood: m.metadata.flood,
-      dependencies: { textures: m.metadata.dependencies.textures.length, models: m.metadata.dependencies.models.length, sounds: m.metadata.dependencies.sounds.length },
+      dependencies: { textures: m.metadata.dependencies.textures.length, models: m.metadata.dependencies.models.length, sounds: m.metadata.dependencies.sounds.length, waterType: m.metadata.dependencies.waterType },
+      closure: { resolvedIds: closure.ids.length, missing: closure.missing },
     };
   }
   writeOutput(outDir, "manifest.json", JSON.stringify(manifest, null, 2));

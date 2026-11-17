@@ -9,7 +9,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { encodeCp949, hexToBytes } from "@ro-survivor/asset-contracts";
 import type { SourceLockLocal, WhitelistRow } from "@ro-survivor/content-schema";
-import { syntheticBytes, syntheticPalette, writeAct, writeGat, writeGnd, writeGrf, writeRsw, writeSpr, type SyntheticActAction } from "@ro-survivor/testkit";
+import { syntheticBytes, syntheticPalette, writeAct, writeBmp24, writeGat, writeGnd, writeGrf, writeRsw, writeSignatureBlob, writeSpr, writeWav, type SyntheticActAction } from "@ro-survivor/testkit";
 
 const sha = (b: Uint8Array): string => createHash("sha256").update(b).digest("hex").toUpperCase();
 
@@ -147,8 +147,24 @@ export function buildSyntheticSources(dir: string, realRows: readonly WhitelistR
   for (let y = 44; y < 56; y += 1) for (let x = 44; x < 56; x += 1) types[y * W + x] = y === 44 || y === 55 || x === 44 || x === 55 ? 1 : 3;
   for (let x = 10; x < 30; x += 1) types[20 * W + x] = 1;
   content.set("map.prt_fild08.gat", writeGat(W, W, types, (x, y) => -Math.sin(x / 9) * 2 - Math.cos(y / 7) * 2));
-  content.set("map.prt_fild08.gnd", writeGnd(32, 32, [encodeCp949("synthetic\\grass.bmp"), encodeCp949("synthetic\\road.bmp")], (x, y) => -Math.sin(x / 4.5) * 4 - Math.cos(y / 3.5) * 4));
-  content.set("map.prt_fild08.rsw", writeRsw({ gnd: "prt_fild08.gnd", gat: "prt_fild08.gat", models: [{ name: "tree", file: encodeCp949("synthetic\\tree01.rsm") }, { name: "rock", file: encodeCp949("synthetic\\rock01.rsm") }] }));
+  // Map closure: GND / RSW reference the real whitelisted names so dependency resolution runs end to end.
+  const rel = (prefix: string) => (r: WhitelistRow) => encodeCp949(r.canonical_cp949_path.slice(prefix.length));
+  const cat = (c: string) => realRows.filter((r) => r.category === c);
+  content.set("map.prt_fild08.gnd", writeGnd(32, 32, cat("map_ground_texture").map(rel("data\\texture\\")), (x, y) => -Math.sin(x / 4.5) * 4 - Math.cos(y / 3.5) * 4));
+  content.set("map.prt_fild08.rsw", writeRsw({
+    gnd: "prt_fild08.gnd", gat: "prt_fild08.gat", waterType: 1,
+    models: cat("map_model").map((r, i) => ({ name: `model${i}`, file: rel("data\\model\\")(r) })),
+    sounds: cat("map_ambient_sound").map(rel("data\\wav\\")),
+  }));
+  cat("map_ground_texture").concat(cat("map_model_texture")).forEach((r, i) => content.set(r.asset_id, writeBmp24(8, 8, (x, y) => ((x + y + i) % 5 === 0 ? [255, 0, 255] : [(x * 31 + i * 7) & 255, (y * 29 + i * 3) & 255, (i * 41) & 255]))));
+  cat("map_water_texture").forEach((r, i) => content.set(r.asset_id, writeSignatureBlob([0xff, 0xd8, 0xff, 0xe0], 64, 300 + i)));
+  cat("map_model").forEach((r, i) => content.set(r.asset_id, writeSignatureBlob([0x47, 0x52, 0x53, 0x4d, 1, 4], 96, 400 + i)));
+  cat("map_ambient_sound").forEach((r, i) => content.set(r.asset_id, writeWav(syntheticBytes(500 + i, 256))));
+  // Official-shadow stand-in: one action, one frame, translucent ellipse (alpha 128 in the ACT colour).
+  const shadowIdx = new Uint8Array(16 * 8).map((_, k) => (((k % 16) - 7.5) ** 2 / 64 + (Math.floor(k / 16) - 3.5) ** 2 / 16 <= 1 ? 1 : 0));
+  content.set("common.shadow.spr", writeSpr({ indexed: [{ width: 16, height: 8, indices: shadowIdx }], palette: syntheticPalette(9) }));
+  content.set("common.shadow.act", writeAct({ version: "2.1", actions: [{ frames: [{ layers: [{ x: 0, y: 0, sprIndex: 0, color: [255, 255, 255, 128] }] }] }] }));
+  actVersion.set("common.shadow.act", "2.1");
 
   const rows: WhitelistRow[] = [];
   const grfEntries: { rawName: Uint8Array; data: Uint8Array }[] = [];

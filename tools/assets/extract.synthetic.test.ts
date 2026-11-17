@@ -29,10 +29,10 @@ function setup() {
 }
 
 describe("assets:audit-whitelist (synthetic sources)", () => {
-  it("all 48 whitelisted IDs resolve by raw hex and parse", () => {
+  it("all 174 whitelisted IDs (canonical v2) resolve by raw hex and parse", () => {
     const { rows, reader } = setup();
     const audit = auditWhitelist(rows, reader);
-    expect(audit).toHaveLength(48);
+    expect(audit).toHaveLength(174);
     expect(audit.filter((r) => r.status !== "PASS")).toEqual([]);
   });
 
@@ -76,7 +76,10 @@ describe("assets:extract (synthetic sources)", () => {
     const unflipped = new Set(player.frames.filter((f) => !f.flipX).map((f) => `${f.x},${f.y}`));
     expect(player.frames.filter((f) => f.flipX).every((f) => unflipped.has(`${f.x},${f.y}`))).toBe(true);
     expect(m.map?.flood.reachableFromSpawn).toBeLessThan(m.map?.flood.walkable ?? 0);
-    expect(JSON.parse(readFileSync(join(out, "reports", "prt_fild08-dependencies.json"), "utf8"))).toMatchObject({ models: ["synthetic\\rock01.rsm", "synthetic\\tree01.rsm"] });
+    const deps = JSON.parse(readFileSync(join(out, "reports", "prt_fild08-dependencies.json"), "utf8")) as { models: string[]; textures: string[]; sounds: string[]; waterType: number };
+    expect([deps.models.length, deps.textures.length, deps.sounds.length, deps.waterType]).toEqual([23, 21, 4, 1]);
+    // GND textures, RSW models, RSW sounds and the 32 water frames all resolve to whitelisted IDs.
+    expect(m.map?.closure).toEqual({ resolvedIds: 21 + 23 + 4 + 32, missing: [] });
   });
 
   it("is deterministic: two runs produce identical output hashes", () => {

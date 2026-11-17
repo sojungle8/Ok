@@ -149,7 +149,7 @@ describe("GAT / GND / RSW (synthetic)", () => {
     const rsw = parseRsw(writeRsw({ gnd: "synthetic.gnd", gat: "synthetic.gat", models: [{ name: "tree", file: encodeCp949("내부소품\\나무01.rsm") }, { name: "tree2", file: encodeCp949("내부소품\\나무01.rsm") }] }));
     expect([rsw.version, rsw.gndFile, rsw.gatFile]).toEqual(["2.1", "synthetic.gnd", "synthetic.gat"]);
     expect(rsw.counts).toEqual({ models: 2, lights: 1, sounds: 1, effects: 1 });
-    expect(mapDependencies(rsw, ["a.bmp", "a.bmp"])).toEqual({ gnd: "synthetic.gnd", gat: "synthetic.gat", textures: ["a.bmp"], models: ["내부소품\\나무01.rsm"], sounds: ["ambient.wav"] });
+    expect(mapDependencies(rsw, ["a.bmp", "a.bmp"])).toEqual({ gnd: "synthetic.gnd", gat: "synthetic.gat", textures: ["a.bmp"], models: ["내부소품\\나무01.rsm"], sounds: ["ambient.wav"], waterType: 0 });
   });
 });
 

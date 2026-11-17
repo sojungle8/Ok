@@ -1,8 +1,8 @@
 import type { WalkGrid } from "@ro-survivor/core-sim";
-import { HttpAssetGatewayClient } from "@ro-survivor/asset-contracts";
+import { formalRequiredIds, missingFromWhitelist, resolveMapClosure, type HttpAssetGatewayClient } from "@ro-survivor/asset-contracts";
 import { whitelist } from "../gateway.ts";
 import type { GroundData } from "./renderer.ts";
-import { dependencyPath, FORMAL_SCENE, formalSourceIds, MissingAssetsError, missingWhitelisted, type MissingAsset } from "./requirements.ts";
+import { FORMAL_SCENE, FormalRendererPendingError, MissingAssetsError, missingWhitelisted, type MissingAsset } from "./requirements.ts";
 import { sheetFromDerived, type SheetData, type SpriteSheet } from "./sprites.ts";
 
 export interface LoadedAssets {
@@ -19,32 +19,44 @@ export interface LoadedAssets {
 interface MapMeta {
   gat: GroundData;
   spawn: { x: number; y: number };
-  dependencies: { textures: string[]; models: string[]; sounds: string[] };
+  dependencies: { textures: string[]; models: string[]; sounds: string[]; waterType?: number | null };
 }
 
 /**
- * Load the formal arena from the user's RO client via the local gateway. Any missing piece throws
- * MissingAssetsError listing canonical paths; nothing is substituted. `fixtureMode` (automated
- * tests only) tolerates map textures/models that synthetic fixtures cannot provide.
+ * Formal stages the client cannot render yet. Until CLAUDE-PHASE1-ORIGINAL-ASSETS.md Commit C lands, a
+ * formal run stops here even with every source present (no engine-drawn ground / ellipse shadow).
+ */
+export const FORMAL_RENDERER_PENDING: readonly string[] = [
+  "GND textured ground + embedded lightmap",
+  "RSM 1.4 props (23 models / 570 placements)",
+  "water (32 official JPG frames)",
+  "four-layer swordsman composition",
+  "official shadow.spr/act",
+  "BGM 12 + RSW ambient WAV",
+];
+
+/**
+ * Load the formal arena from the user's RO client via the local gateway, fail-closed:
+ * 1. every formal asset ID must be whitelisted; 2. every source must exist with the whitelisted size;
+ * 3. derived atlases / map data must exist; 4. every GND / RSW reference must resolve to a whitelisted
+ * ID (only genuinely unresolvable references are reported). `fixtureMode` (automated tests only)
+ * skips the source and closure checks that synthetic fixtures cannot satisfy.
  */
 export async function loadFormalAssets(gateway: HttpAssetGatewayClient, fixtureMode: boolean): Promise<LoadedAssets> {
-  const missing: MissingAsset[] = [];
-  // 1. Source entries must exist in the user's GRF (the gateway verifies size/hash against the
-  //    whitelist). Synthetic fixtures have other sizes, so test-fixture builds skip this step.
-  for (const id of fixtureMode ? [] : formalSourceIds()) {
-    if (!whitelist.has(id)) {
-      missing.push(missingWhitelisted(whitelist, id, "not in fan-local whitelist"));
-      continue;
-    }
-    try {
-      await gateway.getBinary(id);
-    } catch (err) {
-      missing.push(missingWhitelisted(whitelist, id, `source unavailable: ${err instanceof Error ? err.message : String(err)}`));
-    }
-  }
+  const required = formalRequiredIds(whitelist);
+  const missing: MissingAsset[] = missingFromWhitelist(whitelist, required).map((m) => ({ ...m }));
   if (missing.length > 0) throw new MissingAssetsError(missing);
+  if (!fixtureMode) {
+    for (const id of required) {
+      try {
+        await gateway.checkSource(id);
+      } catch (err) {
+        missing.push(missingWhitelisted(whitelist, id, `source unavailable: ${err instanceof Error ? err.message : String(err)}`));
+      }
+    }
+    if (missing.length > 0) throw new MissingAssetsError(missing);
+  }
 
-  // 2. Derived atlases/metadata produced from those sources by `pnpm assets:extract --profile fan-local`.
   const derived = async <T>(fn: () => Promise<T>, ids: string[]): Promise<T | null> => {
     try {
       return await fn();
@@ -62,16 +74,14 @@ export async function loadFormalAssets(gateway: HttpAssetGatewayClient, fixtureM
   }
   const map = await derived(() => gateway.getJson<MapMeta>("map.prt_fild08.gat"), ["map.prt_fild08.gat"]);
 
-  // 3. Map visuals: every GND texture and RSW model must be available. They are not whitelisted
-  //    yet (GAP-002), so they are reported by canonical path instead of being replaced.
-  const mapDeps: MissingAsset[] = map
-    ? [
-        ...map.dependencies.textures.map((t) => ({ assetId: null, canonicalPath: dependencyPath("texture", t), container: "data.grf", reason: "GND texture not whitelisted (GAP-002)" })),
-        ...map.dependencies.models.map((m) => ({ assetId: null, canonicalPath: dependencyPath("model", m), container: "data.grf", reason: "RSW model not whitelisted (GAP-002)" })),
-      ]
-    : [];
-  if (!fixtureMode) missing.push(...mapDeps);
+  // Map closure: canonical path -> asset ID; only references without a whitelist row are missing.
+  const closure = map
+    ? resolveMapClosure(whitelist, { groundTextures: map.dependencies.textures, models: map.dependencies.models, modelTextures: [], sounds: map.dependencies.sounds, waterType: map.dependencies.waterType ?? null })
+    : { ids: [], missing: [] };
+  const closureMissing: MissingAsset[] = closure.missing.map((m) => ({ ...m }));
+  if (!fixtureMode) missing.push(...closureMissing);
   if (missing.length > 0 || !player || Object.keys(enemies).length !== FORMAL_SCENE.enemies.length || !map) throw new MissingAssetsError(missing);
+  if (!fixtureMode) throw new FormalRendererPendingError([...FORMAL_RENDERER_PENDING]);
 
   const walkable = new Uint8Array(map.gat.width * map.gat.height);
   for (let i = 0; i < walkable.length; i += 1) {
@@ -84,6 +94,6 @@ export async function loadFormalAssets(gateway: HttpAssetGatewayClient, fixtureM
     ground: map.gat,
     grid: { width: map.gat.width, height: map.gat.height, cellMm: 1000, walkable },
     start: { x: map.spawn.x * 1000 + 500, y: map.spawn.y * 1000 + 500 },
-    tolerated: fixtureMode ? mapDeps : [],
+    tolerated: closureMissing,
   };
 }

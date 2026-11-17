@@ -139,6 +139,23 @@ export class HttpAssetGatewayClient implements AssetGateway {
     return body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength) as ArrayBuffer;
   }
 
+  /** Verify a source entry without downloading it (HEAD): status, size == whitelist bytes, source hash. */
+  async checkSource(assetId: string, signal?: AbortSignal): Promise<void> {
+    const row = this.#whitelist.get(assetId);
+    const timeout = AbortSignal.timeout(this.#timeoutMs);
+    const combined = signal ? AbortSignal.any([signal, timeout]) : timeout;
+    let res: Response;
+    try {
+      res = await this.#fetch(new URL(`/v1/assets/${encodeURIComponent(assetId)}`, this.#base).toString(), { signal: combined, method: "HEAD" });
+    } catch (err) {
+      throw new GatewayError(timeout.aborted ? "timeout" : "offline", `${assetId}: ${String(err)}`);
+    }
+    if (!res.ok) throw new GatewayError(`http-${res.status}`, `${assetId}: gateway returned ${res.status}`);
+    const len = Number(res.headers.get("content-length") ?? "-1");
+    if (len !== row.bytes) throw new GatewayError("size-mismatch", `${assetId}: ${len} bytes, whitelist says ${row.bytes}`);
+    if (!/^[0-9A-F]{64}$/u.test(res.headers.get("x-ro-source-sha256") ?? "")) throw new GatewayError("no-source-hash", `${assetId}: missing x-ro-source-sha256`);
+  }
+
   /** Derived metadata JSON produced by `assets:extract` for a whitelisted asset. */
   async getJson<T>(assetId: string, signal?: AbortSignal): Promise<T> {
     this.#whitelist.get(assetId);

@@ -8,7 +8,7 @@ export interface AuditRow {
   checks: string[];
 }
 
-const MAGIC: Record<string, string> = { spr: "SP", act: "AC", gat: "GRAT", gnd: "GRGN", rsw: "GRSW" };
+const MAGIC: Record<string, string> = { spr: "SP", act: "AC", gat: "GRAT", gnd: "GRGN", rsw: "GRSW", rsm: "GRSM", bmp: "BM", wav: "RIFF" };
 
 /**
  * Audit every whitelist row against the verified sources: raw-hex lookup, bytes, SHA-256 when
@@ -43,7 +43,8 @@ export function auditWhitelist(rows: readonly WhitelistRow[], reader: AssetReade
         if (row.act_version !== "" && a.version !== row.act_version) fail(`ACT version ${a.version} != whitelist ${row.act_version}`);
         else if (row.act_actions !== "" && a.actions.length !== Number(row.act_actions)) fail(`ACT actions ${a.actions.length} != whitelist ${row.act_actions}`);
         else checks.push(`PASS ACT ${a.version}: ${a.actions.length} actions, ${a.sounds.length} sounds`);
-        if (a.actions.length % 8 !== 0) fail(`ACT action count ${a.actions.length} is not a multiple of 8 directions`);
+        const directional = row.category.startsWith("player_") || row.category.startsWith("monster_");
+        if (directional && a.actions.length % 8 !== 0) fail(`ACT action count ${a.actions.length} is not a multiple of 8 directions`);
       } else if (ext === "pal") {
         parsePalette(bytes);
         checks.push("PASS PAL 1024 bytes");
@@ -56,6 +57,12 @@ export function auditWhitelist(rows: readonly WhitelistRow[], reader: AssetReade
       } else if (ext === "rsw") {
         const r = parseRsw(bytes);
         checks.push(`PASS RSW ${r.version}: gnd=${r.gndFile} gat=${r.gatFile} models=${r.counts.models}`);
+      } else if (ext === "jpg" || ext === "jpeg") {
+        if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) checks.push("PASS JPEG SOI");
+        else fail("JPEG SOI marker missing");
+      } else if (ext === "wav") {
+        if (String.fromCharCode(...bytes.subarray(8, 12)) === "WAVE") checks.push("PASS WAV RIFF/WAVE");
+        else fail("WAV header not recognised");
       } else if (ext === "mp3") {
         const id3 = bytes[0] === 0x49 && bytes[1] === 0x44 && bytes[2] === 0x33;
         const sync = bytes[0] === 0xff && ((bytes[1] ?? 0) & 0xe0) === 0xe0;

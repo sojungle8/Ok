@@ -39,13 +39,15 @@ export function validateHandoff(root: string): HandoffCheck[] {
   let whitelist: AssetWhitelist | null = null;
   try {
     whitelist = AssetWhitelist.fromCsv(read(root, `${PLAN}/handoff/fan-local-asset-whitelist.csv`));
-    push("whitelist:rows", whitelist.size === 48, `${whitelist.size} unique asset_id rows (expected 48)`);
+    push("whitelist:rows", whitelist.size === 174, `${whitelist.size} unique asset_id rows (expected 174, canonical v2)`);
     const issues = checkWhitelistRoundTrips(whitelist);
     const grfRows = whitelist.rows().filter((r) => r.raw_name_hex !== "").length;
-    push("whitelist:cp949-hex-roundtrip", !issues.some((i) => i.check === "cp949-hex"), `${grfRows} GRF rows; issues=${JSON.stringify(issues.filter((i) => i.check === "cp949-hex"))}`);
+    push("whitelist:cp949-hex-roundtrip", grfRows === 173 && !issues.some((i) => i.check === "cp949-hex"), `${grfRows} GRF rows (expected 173 + 1 filesystem BGM); issues=${JSON.stringify(issues.filter((i) => i.check === "cp949-hex"))}`);
     push("whitelist:uri-roundtrip", !issues.some((i) => i.check === "request-uri"), `${whitelist.size} rows; issues=${JSON.stringify(issues.filter((i) => i.check === "request-uri"))}`);
-    const maps = whitelist.rows().filter((r) => r.category.startsWith("map_"));
-    push("whitelist:map-hashes", maps.length === 3 && maps.every((m) => m.sha256.length === 64), `${maps.length} map rows carry SHA-256`);
+    const core = whitelist.rows().filter((r) => r.category === "map_world" || r.category === "map_ground" || r.category === "map_collision");
+    push("whitelist:map-hashes", core.length === 3 && core.every((m) => m.sha256.length === 64), `${core.length} core map rows carry SHA-256`);
+    const closure = whitelist.rows().filter((r) => r.category.startsWith("map_") && !core.includes(r));
+    push("whitelist:closure-hashes", closure.length === 124 && closure.every((m) => m.sha256.length === 64), `${closure.length} map closure rows (21 GND + 23 RSM + 44 RSM textures + 32 water + 4 WAV) carry SHA-256`);
   } catch (err) {
     push("whitelist:parse", false, String(err));
   }

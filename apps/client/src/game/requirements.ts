@@ -1,4 +1,4 @@
-import type { AssetWhitelist } from "@ro-survivor/asset-contracts";
+import { FORMAL_MAP_CORE, FORMAL_MONSTERS, FORMAL_PLAYER_LAYERS, FORMAL_PLAYER_PALETTES, type AssetWhitelist } from "@ro-survivor/asset-contracts";
 
 /**
  * Formal-screen rule: only original RO client assets (SPR, ACT, maps, audio) from the user's own
@@ -6,10 +6,10 @@ import type { AssetWhitelist } from "@ro-survivor/asset-contracts";
  * and are reported by canonical path.
  */
 export const FORMAL_SCENE = {
-  player: { layers: ["player.swordsman.male.body", "player.hair01.male", "player.swordsman.male.sword", "player.swordsman.male.guard"], palettes: ["palette.body.swordsman.male", "palette.hair01.male"] },
+  player: { layers: [...FORMAL_PLAYER_LAYERS], palettes: [...FORMAL_PLAYER_PALETTES] },
   /** Every monster sprite the vertical-slice stage can spawn (normal, elite, Vocal, Mastering). */
-  enemies: ["monster.1002", "monster.1113", "monster.1007", "monster.1063", "monster.1011", "monster.1010", "monster.1052", "monster.1020", "monster.1167", "monster.1031", "monster.1088", "monster.1090"],
-  map: ["map.prt_fild08.rsw", "map.prt_fild08.gnd", "map.prt_fild08.gat"],
+  enemies: [...FORMAL_MONSTERS],
+  map: [...FORMAL_MAP_CORE],
 } as const;
 
 export interface MissingAsset {
@@ -34,17 +34,17 @@ export function missingWhitelisted(whitelist: AssetWhitelist, assetId: string, r
   return { assetId, canonicalPath: row?.canonical_cp949_path ?? "(not in whitelist)", container: row?.source_container ?? "data.grf", reason };
 }
 
-/** Canonical archive path of a map dependency referenced by GND (textures) or RSW (models). */
-export function dependencyPath(kind: "texture" | "model", name: string): string {
-  return `data\\${kind}\\${name}`;
+/**
+ * Raised when every required source is present but a formal renderer stage is not implemented yet
+ * (original GND / RSM / water / shadow / audio — CLAUDE-PHASE1-ORIGINAL-ASSETS.md Commits B–C).
+ * The formal screen never falls back to an engine-drawn ground or ellipse shadow.
+ */
+export class FormalRendererPendingError extends Error {
+  readonly pending: string[];
+  constructor(pending: string[]) {
+    super(`formal renderer stages not implemented: ${pending.join(", ")}`);
+    this.name = "FormalRendererPendingError";
+    this.pending = pending;
+  }
 }
 
-/** All whitelisted source IDs the formal arena needs (SPR/ACT pairs, palettes, map files). */
-export function formalSourceIds(): string[] {
-  return [
-    ...FORMAL_SCENE.player.layers.flatMap((l) => [`${l}.spr`, `${l}.act`]),
-    ...FORMAL_SCENE.player.palettes,
-    ...FORMAL_SCENE.enemies.flatMap((m) => [`${m}.spr`, `${m}.act`]),
-    ...FORMAL_SCENE.map,
-  ];
-}
