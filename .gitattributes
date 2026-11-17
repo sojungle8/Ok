@@ -1,0 +1,6 @@
+# Hash-locked handoff files (docs/product-plan/handoff/VALIDATION.md). Stored and checked out
+# with LF only, byte-for-byte; never convert line endings.
+/docs/product-plan/handoff/fan-local-asset-whitelist.csv text eol=lf
+/docs/product-plan/handoff/vertical-slice-content-seed.json text eol=lf
+/docs/product-plan/handoff/reference-snapshot-2026-11-17.json text eol=lf
+/docs/product-plan/reference-ledger.csv text eol=lf

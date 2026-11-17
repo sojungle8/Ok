@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { AssetWhitelist, checkWhitelistRoundTrips, parseCsvRecords } from "@ro-survivor/asset-contracts";
@@ -98,17 +99,38 @@ export function validateHandoff(root: string): HandoffCheck[] {
   const unbalanced = mdFiles.filter((f) => (read(root, `${PLAN}/${f}`).match(/^```/gmu)?.length ?? 0) % 2 !== 0);
   push("markdown:fences", unbalanced.length === 0, `${mdFiles.length} files; unbalanced=${JSON.stringify(unbalanced)}`);
 
-  // Delivered hashes from VALIDATION.md vs files in this checkout
+  // Delivered hashes from VALIDATION.md vs the working-tree bytes AND the Git blob bytes
+  // (index), so line-ending conversion can never hide a mismatch.
   const validation = read(root, `${PLAN}/handoff/VALIDATION.md`);
   const rows = [...validation.matchAll(/^\| `([^`]+)` \| `([0-9A-F]{64})` \|$/gmu)];
+  push("delivered-hash:table", rows.length === 4, `${rows.length} hash rows found in VALIDATION.md (expected 4)`);
   for (const m of rows) {
-    const rel = (m[1] as string).startsWith("../") ? `${PLAN}/${(m[1] as string).slice(3)}` : `${PLAN}/handoff/${m[1] as string}`;
-    const actual = sha256Text(readFileSync(join(root, rel)));
+    const name = m[1] as string;
+    const expected = m[2] as string;
+    const rel = name.startsWith("../") ? `${PLAN}/${name.slice(3)}` : `${PLAN}/handoff/${name}`;
+    const worktree = sha256Text(readFileSync(join(root, rel)));
     checks.push({
-      id: `delivered-hash:${m[1] as string}`,
-      status: actual === m[2] ? "PASS" : "DRIFT",
-      detail: `VALIDATION.md=${m[2] as string} checkout=${actual}`,
+      id: `delivered-hash:worktree:${name}`,
+      status: worktree === expected ? "PASS" : "DRIFT",
+      detail: `VALIDATION.md=${expected} worktree=${worktree}`,
+    });
+    let blob: string;
+    try {
+      blob = sha256Text(execFileSync("git", ["-C", root, "cat-file", "blob", `:${rel}`], { stdio: ["ignore", "pipe", "pipe"] }));
+    } catch (err) {
+      checks.push({ id: `delivered-hash:blob:${name}`, status: "FAIL", detail: `cannot read Git index blob: ${String(err).split("\n")[0] ?? ""}` });
+      continue;
+    }
+    checks.push({
+      id: `delivered-hash:blob:${name}`,
+      status: blob === expected ? "PASS" : "DRIFT",
+      detail: `VALIDATION.md=${expected} git-blob=${blob}`,
     });
   }
   return checks;
+}
+
+/** Fail closed: anything other than PASS (FAIL or DRIFT) makes the command exit 1. */
+export function exitCodeFor(checks: readonly HandoffCheck[]): 0 | 1 {
+  return checks.length > 0 && checks.every((c) => c.status === "PASS") ? 0 : 1;
 }

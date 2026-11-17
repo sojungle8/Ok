@@ -47,4 +47,3 @@
 "map.prt_fild08.gnd","map_ground","data.grf","data\prt_fild08.gnd","/data/prt_fild08.gnd","646174615C7072745F66696C6430382E676E64","5272734","9e5bdbc8c0a1ce1f2c1e98b928535745eedd80c72f363206d6963d817f858dc6","201","prt_fild08","1.7","","true","false","GRGN; 200x200 ground tiles"
 "map.prt_fild08.gat","map_collision","data.grf","data\prt_fild08.gat","/data/prt_fild08.gat","646174615C7072745F66696C6430382E676174","3200014","bb7908930002a276e59efd0dbc2c46efa15f05a01e6573ee7b78d9a2b1b4a0f0","201","prt_fild08","1.2","","true","false","GRAT; 400x400 collision cells"
 "bgm.prt_fild08","bgm","filesystem:BGM","BGM\12.mp3","/BGM/12.mp3","","1476608","814A8484603741406BDB5AD0F16F4B9D4BCA6218F8C23D88CBF6983E6C6DA58E","12","Streamside","","","true","false","SoundTeMP; mp3nametable maps prt_fild08.rsw to bgm\\12.mp3"
-
