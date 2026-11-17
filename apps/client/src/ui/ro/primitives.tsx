@@ -91,9 +91,12 @@ export function planThreeSlice(left: VerifiedRaster, mid: VerifiedRaster, right:
   if (new Set([l.assetId, m.assetId, r.assetId]).size !== 3) throw contractError("threeSlice", "left / mid / right must be three distinct assets");
   const parts = [l, m, r].map((x) => x.entry.slice);
   const expected = ["left", "mid", "right"] as const;
-  parts.forEach((sl, i) => {
-    if (!sl || sl.part !== expected[i]) throw contractError("threeSlice", `${[l, m, r][i]?.assetId ?? "?"} is not a declared ${expected[i] ?? "?"} slice`);
-  });
+  const pieces = [l, m, r];
+  // indexed (numeric key the formal guard can prove), same checks as before
+  for (let i = 0; i < 3; i += 1) {
+    const sl = parts[i];
+    if (!sl || sl.part !== expected[i]) throw contractError("threeSlice", `${pieces[i]?.assetId ?? "?"} is not a declared ${expected[i] ?? "?"} slice`);
+  }
   if (new Set(parts.map((x) => x?.group)).size !== 1) throw contractError("threeSlice", "slice parts belong to different groups");
   const midWidth = width - (l.width + r.width) * s;
   if (!Number.isInteger(width) || midWidth < 0) throw contractError("width", `width ${width} is smaller than both caps (${(l.width + r.width) * s})`);
