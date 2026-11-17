@@ -15,7 +15,7 @@ export interface TempGitRepo {
 export function createTempGitRepo(prefix = "ro-survivor-test-"): TempGitRepo {
   const root = mkdtempSync(join(tmpdir(), prefix));
   const git = (...args: string[]): string =>
-    execFileSync("git", ["-C", root, "-c", "user.name=test", "-c", "user.email=test@example.invalid", "-c", "commit.gpgsign=false", ...args], {
+    execFileSync("git", ["-C", root, "-c", "core.autocrlf=false", "-c", "user.name=test", "-c", "user.email=test@example.invalid", "-c", "commit.gpgsign=false", ...args], {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
     });
@@ -34,12 +34,13 @@ export function createTempGitRepo(prefix = "ro-survivor-test-"): TempGitRepo {
       git("commit", "-q", "--allow-empty", "-m", message);
     },
     dispose() {
-      rmSync(root, { recursive: true, force: true });
+      // Retries cover Windows EPERM/EBUSY while git child processes release their handles.
+      rmSync(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     },
   };
 }
 
 export function createTempDir(prefix = "ro-survivor-tmp-"): { root: string; dispose(): void } {
   const root = mkdtempSync(join(tmpdir(), prefix));
-  return { root, dispose: () => rmSync(root, { recursive: true, force: true }) };
+  return { root, dispose: () => rmSync(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }) };
 }

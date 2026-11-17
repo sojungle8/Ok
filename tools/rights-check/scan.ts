@@ -80,27 +80,39 @@ function batchCheck(root: string, oids: readonly string[]): Map<string, BlobInfo
   return out;
 }
 
-/** Read up to `limit` leading bytes of a blob by streaming `git cat-file blob` and stopping early. */
+/**
+ * Read up to `limit` leading bytes of a blob by streaming `git cat-file blob` and stopping early.
+ * The child is never signalled (Windows can raise EPERM when killing an exiting process): we stop
+ * reading and destroy our end of the pipe, so git exits on its own; late errors are ignored.
+ */
 function readBlobPrefix(root: string, oid: string, limit: number): Promise<Buffer> {
   return new Promise((resolvePromise, reject) => {
-    const child = spawn("git", ["-C", root, "cat-file", "blob", oid], { stdio: ["ignore", "pipe", "ignore"] });
+    const child = spawn("git", ["-C", root, "cat-file", "blob", oid], { stdio: ["ignore", "pipe", "ignore"], windowsHide: true });
     const chunks: Buffer[] = [];
     let total = 0;
     let done = false;
     const finish = (): void => {
       if (done) return;
       done = true;
-      child.kill();
+      child.stdout.removeAllListeners("data");
+      child.stdout.destroy();
       resolvePromise(Buffer.concat(chunks).subarray(0, limit));
     };
     child.stdout.on("data", (chunk: Buffer) => {
+      if (done) return;
       chunks.push(chunk);
       total += chunk.length;
       if (total >= limit) finish();
     });
     child.stdout.on("end", finish);
+    child.stdout.on("error", () => {
+      if (!done) finish();
+    });
     child.on("error", (err) => {
-      if (!done) reject(err);
+      if (!done) {
+        done = true;
+        reject(err);
+      }
     });
   });
 }
