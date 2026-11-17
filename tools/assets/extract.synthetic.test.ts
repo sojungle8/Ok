@@ -79,7 +79,8 @@ describe("assets:extract (synthetic sources)", () => {
     const deps = JSON.parse(readFileSync(join(out, "reports", "prt_fild08-dependencies.json"), "utf8")) as { models: string[]; textures: string[]; sounds: string[]; waterType: number };
     expect([deps.models.length, deps.textures.length, deps.sounds.length, deps.waterType]).toEqual([23, 21, 4, 1]);
     // GND textures, RSW models, RSW sounds and the 32 water frames all resolve to whitelisted IDs.
-    expect(m.map?.closure).toEqual({ resolvedIds: 21 + 23 + 4 + 32, missing: [] });
+    // Commit B: the closure now includes the 44 RSM texture references parsed from the GRSM models.
+    expect(m.map?.closure).toEqual({ resolvedIds: 21 + 23 + 44 + 4 + 32, missing: [] });
   });
 
   it("is deterministic: two runs produce identical output hashes", () => {

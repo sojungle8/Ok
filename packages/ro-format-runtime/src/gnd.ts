@@ -21,7 +21,11 @@ export interface Gnd {
   height: number;
   zoom: number;
   textures: string[];
-  lightmap: { count: number; perCell: [number, number, number] };
+  /**
+   * Embedded lightmaps: `count` blocks of perCell[0]×perCell[1] brightness bytes followed by
+   * perCell[0]×perCell[1]×3 RGB colour bytes (`data` holds all blocks back to back).
+   */
+  lightmap: { count: number; perCell: [number, number, number]; data: Uint8Array };
   surfaces: GndSurface[];
   cubes: GndCube[];
 }
@@ -49,7 +53,7 @@ export function parseGnd(bytes: Uint8Array): Gnd {
   const perCell: [number, number, number] = [r.i32(), r.i32(), r.i32()];
   const lmBytes = perCell[0] * perCell[1] * perCell[2] * 4;
   if (lightmapCount < 0 || lmBytes <= 0 || lmBytes > 4096) throw new FormatError("GND", `bad lightmap header ${lightmapCount} ${perCell.join("x")}`);
-  r.skip(lightmapCount * lmBytes);
+  const lightmapData = r.take(lightmapCount * lmBytes).slice();
   const surfaceCount = r.i32();
   if (surfaceCount < 0 || surfaceCount > 4_000_000) throw new FormatError("GND", `bad surface count ${surfaceCount}`);
   const surfaces: GndSurface[] = [];
@@ -62,13 +66,19 @@ export function parseGnd(bytes: Uint8Array): Gnd {
     const g = r.u8();
     const rr = r.u8();
     const a = r.u8();
+    if (textureId >= textureCount) throw new FormatError("GND", `surface ${i}: texture ${textureId} outside ${textureCount}`);
+    if (lightmapId >= lightmapCount) throw new FormatError("GND", `surface ${i}: lightmap ${lightmapId} outside ${lightmapCount}`);
     surfaces.push({ u, v, textureId, lightmapId, color: [rr, g, b, a] });
   }
   const cubes: GndCube[] = [];
   for (let i = 0; i < width * height; i += 1) {
     const heights: [number, number, number, number] = [r.f32(), r.f32(), r.f32(), r.f32()];
-    cubes.push({ heights, tileUp: r.i32(), tileFront: r.i32(), tileRight: r.i32() });
+    const cube = { heights, tileUp: r.i32(), tileFront: r.i32(), tileRight: r.i32() };
+    for (const t of [cube.tileUp, cube.tileFront, cube.tileRight]) {
+      if (t < -1 || t >= surfaceCount) throw new FormatError("GND", `cube ${i}: surface ${t} outside ${surfaceCount}`);
+    }
+    cubes.push(cube);
   }
   if (r.remaining !== 0) throw new FormatError("GND", `${r.remaining} trailing bytes after parse`);
-  return { version, width, height, zoom, textures, lightmap: { count: lightmapCount, perCell }, surfaces, cubes };
+  return { version, width, height, zoom, textures, lightmap: { count: lightmapCount, perCell, data: lightmapData }, surfaces, cubes };
 }

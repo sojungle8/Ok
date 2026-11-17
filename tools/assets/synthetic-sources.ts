@@ -9,7 +9,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { declaredUiDimensions, encodeCp949, hexToBytes } from "@ro-survivor/asset-contracts";
 import type { SourceLockLocal, WhitelistRow } from "@ro-survivor/content-schema";
-import { syntheticBytes, syntheticPalette, writeAct, writeBmp24, writeGat, writeGnd, writeGrf, writeRsw, writeSignatureBlob, writeSpr, writeWav, type SyntheticActAction } from "@ro-survivor/testkit";
+import { syntheticBytes, syntheticPalette, writeAct, writeBmp24, writeBmp8, writeGat, writeGnd, writeGrf, writeJpegHeader, writeRsm, writeRsw, writeSpr, writeWav, type SyntheticActAction } from "@ro-survivor/testkit";
 
 import { systemManifestSha256 } from "./verify-sources-lib.ts";
 
@@ -152,15 +152,34 @@ export function buildSyntheticSources(dir: string, realRows: readonly WhitelistR
   // Map closure: GND / RSW reference the real whitelisted names so dependency resolution runs end to end.
   const rel = (prefix: string) => (r: WhitelistRow) => encodeCp949(r.canonical_cp949_path.slice(prefix.length));
   const cat = (c: string) => realRows.filter((r) => r.category === c);
-  content.set("map.prt_fild08.gnd", writeGnd(32, 32, cat("map_ground_texture").map(rel("data\\texture\\")), (x, y) => -Math.sin(x / 4.5) * 4 - Math.cos(y / 3.5) * 4));
+  content.set("map.prt_fild08.gnd", writeGnd(32, 32, cat("map_ground_texture").map(rel("data\\texture\\")), (x, y) => -Math.sin(x / 4.5) * 4 - Math.cos(y / 3.5) * 4, { lightmaps: 16 }));
+  // GRSM 1.4 models: each references two model textures (all 44 covered) by their real relative names.
+  const modelTex = cat("map_model_texture").map(rel("data\\texture\\"));
+  cat("map_model").forEach((r, i) => {
+    const texIdx = [(i * 2) % modelTex.length, (i * 2 + 1) % modelTex.length];
+    content.set(r.asset_id, writeRsm({
+      textures: texIdx.map((t) => modelTex[t] as Uint8Array),
+      nodes: [
+        { name: `root${i}`, textures: [0, 1], vertices: [[0, 0, 0], [4, 0, 0], [0, -6, 0], [4, -6, 0]], tvertices: [[0, 0], [1, 0], [0, 1], [1, 1]], faces: [{ v: [0, 1, 2], t: [0, 1, 2], texture: 0 }, { v: [1, 3, 2], t: [1, 3, 2], texture: 1 }] },
+        { name: `child${i}`, parent: `root${i}`, textures: [1], vertices: [[0, -6, 0], [2, -8, 0], [4, -6, 0]], tvertices: [[0, 0], [0.5, 1], [1, 0]], faces: [{ v: [0, 1, 2], t: [0, 1, 2], texture: 0 }], position: [0, -1, 0] },
+      ],
+    }));
+  });
+  // RSW: three placements per unique model, water type 1 at a level that floods the low cells.
   content.set("map.prt_fild08.rsw", writeRsw({
-    gnd: "prt_fild08.gnd", gat: "prt_fild08.gat", waterType: 1,
-    models: cat("map_model").map((r, i) => ({ name: `model${i}`, file: rel("data\\model\\")(r) })),
+    gnd: "prt_fild08.gnd", gat: "prt_fild08.gat", waterType: 1, waterLevel: 2,
+    models: cat("map_model").flatMap((r, i) => [0, 1, 2].map((k) => ({
+      name: `model${i}_${k}`, file: rel("data\\model\\")(r), position: [(i * 7 + k * 31) % 300 - 150, -(k + 1), (i * 13 + k * 17) % 300 - 150] as [number, number, number],
+      rotation: [0, (i * 45 + k * 90) % 360, 0] as [number, number, number], scale: [1, 1 + k * 0.25, 1] as [number, number, number],
+    }))),
     sounds: cat("map_ambient_sound").map(rel("data\\wav\\")),
   }));
-  cat("map_ground_texture").concat(cat("map_model_texture")).forEach((r, i) => content.set(r.asset_id, writeBmp24(8, 8, (x, y) => ((x + y + i) % 5 === 0 ? [255, 0, 255] : [(x * 31 + i * 7) & 255, (y * 29 + i * 3) & 255, (i * 41) & 255]))));
-  cat("map_water_texture").forEach((r, i) => content.set(r.asset_id, writeSignatureBlob([0xff, 0xd8, 0xff, 0xe0], 64, 300 + i)));
-  cat("map_model").forEach((r, i) => content.set(r.asset_id, writeSignatureBlob([0x47, 0x52, 0x53, 0x4d, 1, 4], 96, 400 + i)));
+  // Ground BMPs alternate 8-bit paletted (index 0 = magenta key) and 24-bit; model BMPs are 24-bit.
+  cat("map_ground_texture").forEach((r, i) => content.set(r.asset_id, i % 2 === 0
+    ? writeBmp8(16, 16, (x, y) => ((x + y + i) % 7 === 0 ? 0 : 1 + ((x * 5 + y * 3 + i) % 200)))
+    : writeBmp24(8, 8, (x, y) => [(x * 31 + i * 7) & 255, (y * 29 + i * 3) & 255, (i * 41) & 255])));
+  cat("map_model_texture").forEach((r, i) => content.set(r.asset_id, writeBmp24(8, 8, (x, y) => ((x + y + i) % 5 === 0 ? [255, 0, 255] : [(x * 31 + i * 7) & 255, (y * 29 + i * 3) & 255, (i * 41) & 255]))));
+  cat("map_water_texture").forEach((r, i) => content.set(r.asset_id, writeJpegHeader(128, 128, 300 + i)));
   cat("map_ambient_sound").forEach((r, i) => content.set(r.asset_id, writeWav(syntheticBytes(500 + i, 256))));
   // Official-shadow stand-in: one action, one frame, translucent ellipse (alpha 128 in the ACT colour).
   const shadowIdx = new Uint8Array(16 * 8).map((_, k) => (((k % 16) - 7.5) ** 2 / 64 + (Math.floor(k / 16) - 3.5) ** 2 / 16 <= 1 ? 1 : 0));

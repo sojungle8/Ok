@@ -9,6 +9,18 @@ export interface RswModel {
   scale: [number, number, number];
 }
 
+export interface RswSound {
+  name: string;
+  file: string;
+  position: [number, number, number];
+  volume: number;
+  width: number;
+  height: number;
+  range: number;
+  /** Seconds between plays (RSW ≥ 2.0), null otherwise. */
+  cycle: number | null;
+}
+
 export interface Rsw {
   version: string;
   iniFile: string;
@@ -20,6 +32,9 @@ export interface Rsw {
   soundFiles: string[];
   /** Water type (RSW ≥ 1.8), or null when the version has no water type. */
   waterType: number | null;
+  /** Water parameters (RSW ≥ 1.3); fields the version lacks are null. */
+  water: { level: number; type: number | null; waveHeight: number | null; waveSpeed: number | null; wavePitch: number | null; animSpeed: number | null } | null;
+  sounds: RswSound[];
 }
 
 function ver(major: number, minor: number): number {
@@ -42,13 +57,17 @@ export function parseRsw(bytes: Uint8Array): Rsw {
   const gndFile = r.cstring(40);
   const gatFile = v >= 104 ? r.cstring(40) : "";
   const srcFile = r.cstring(40);
-  if (v >= 103) r.skip(4); // water level
+  let water: Rsw["water"] = null;
+  if (v >= 103) water = { level: r.f32(), type: null, waveHeight: null, waveSpeed: null, wavePitch: null, animSpeed: null };
   let waterType: number | null = null;
-  if (v >= 108) {
+  if (v >= 108 && water) {
     waterType = r.i32();
-    r.skip(12); // wave height, speed, pitch
+    water.type = waterType;
+    water.waveHeight = r.f32();
+    water.waveSpeed = r.f32();
+    water.wavePitch = r.f32();
   }
-  if (v >= 109) r.skip(4); // water anim speed
+  if (v >= 109 && water) water.animSpeed = r.i32();
   if (v >= 105) r.skip(8 + 12 + 12); // light longitude/latitude, diffuse, ambient
   if (v >= 107) r.skip(4); // shadow opacity
   if (v >= 106) r.skip(16); // ground bounds
@@ -56,6 +75,7 @@ export function parseRsw(bytes: Uint8Array): Rsw {
   if (objectCount < 0 || objectCount > 200_000) throw new FormatError("RSW", `bad object count ${objectCount}`);
   const models: RswModel[] = [];
   const soundFiles: string[] = [];
+  const sounds: RswSound[] = [];
   const counts = { models: 0, lights: 0, sounds: 0, effects: 0 };
   for (let i = 0; i < objectCount; i += 1) {
     const type = r.i32();
@@ -76,10 +96,16 @@ export function parseRsw(bytes: Uint8Array): Rsw {
       r.skip(80 + 12 + 12 + 4);
       counts.lights += 1;
     } else if (type === 3) {
-      r.skip(80);
-      soundFiles.push(r.cstring(80));
-      r.skip(12 + 4 + 4 + 4 + 4);
-      if (v >= 200) r.skip(4);
+      const name = r.cstring(80);
+      const file = r.cstring(80);
+      const position = [r.f32(), r.f32(), r.f32()] as [number, number, number];
+      const volume = r.f32();
+      const width = r.i32();
+      const height = r.i32();
+      const range = r.f32();
+      const cycle = v >= 200 ? r.f32() : null;
+      soundFiles.push(file);
+      sounds.push({ name, file, position, volume, width, height, range, cycle });
       counts.sounds += 1;
     } else if (type === 4) {
       r.skip(80 + 12 + 4 + 4 + 16);
@@ -88,7 +114,7 @@ export function parseRsw(bytes: Uint8Array): Rsw {
       throw new FormatError("RSW", `unknown object type ${type} at index ${i} (offset ${r.offset - 4})`);
     }
   }
-  return { version, iniFile, gndFile, gatFile, srcFile, models, counts, soundFiles, waterType };
+  return { version, iniFile, gndFile, gatFile, srcFile, models, counts, soundFiles, waterType, water, sounds };
 }
 
 /** Dependency closure report: what a map needs beyond the whitelisted RSW/GND/GAT. */

@@ -7,6 +7,11 @@
 - UI-A: canonical v3 whitelist (282 rows = v2 + 108 RO UI rows), exact `filesystem:System` font allowlist, UI asset
   manifest schema + local generator, reference profile `KRO2021_CLASSIC_V0_FAN` (DISCOVERED), reference metrics
   (DEFERRED_LOCAL), profile compatibility tests, core UI asset gate in the formal loader (D-028…D-030).
+- Commit B: local extraction and derived scene contract (converter v2). Adds clean-room BMP, JPEG-header, GRSM 1.1–1.5
+  and WAV-header readers, and parses GND 1.7 lightmaps and RSW water/sound records. Writes lossless texture PNGs, a
+  lightmap atlas, model JSON, placements, water frames by ID, the official shadow with ACT alpha kept, and audio by ID.
+  Fails closed on any missing or malformed dependency. Formal renderer still pending
+  (`reports/phase1/COMMIT-B-DERIVED-CONTRACT.md`).
 
 ## Unreleased — Phase 2 vertical slice (2026-11-17)
 

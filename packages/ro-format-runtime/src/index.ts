@@ -6,3 +6,7 @@ export * from "./gat.ts";
 export * from "./gnd.ts";
 export * from "./rsw.ts";
 export * from "./compose.ts";
+export * from "./bmp.ts";
+export * from "./jpeg.ts";
+export * from "./rsm.ts";
+export * from "./wav.ts";

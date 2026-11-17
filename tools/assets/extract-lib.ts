@@ -8,7 +8,8 @@ import {
 } from "@ro-survivor/ro-format-runtime";
 import { DERIVED_MARKER, encodePng } from "../lib/png.ts";
 
-export const CONVERTER_VERSION = 1;
+import { CONVERTER_VERSION } from "@ro-survivor/asset-gateway";
+export { CONVERTER_VERSION };
 const sha = (b: Uint8Array): string => createHash("sha256").update(b).digest("hex").toUpperCase();
 
 /** Gameplay animation slots; each maps to an ACT action group, or falls back explicitly. */
