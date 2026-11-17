@@ -1,6 +1,7 @@
 # STATUS
 
 Current phase: **Phase 1 — 素材與渲染技術尖峰: cloud spike done; real-asset gates DEFERRED_LOCAL (Phase 1 not complete)**.
+Phase 0: **conditional acceptance** (deferred regressions listed below; Windows `autocrlf=true` re-run pending).
 Phase 2 has **not** started.
 
 ## Phase 1 (cloud) — summary
@@ -23,9 +24,20 @@ Test counts at commit `151c3d9` (Actions run #7 <https://github.com/sojungle8/Ok
 
 ---
 
-# Phase 0 (closed in the cloud)
+# Phase 0 — conditional acceptance (Codex)
 
-Phase 0 cloud gates CLOUD_PASS; local gates DEFERRED_LOCAL (Codex reported local evidence in Issue #2).
+Codex accepted Phase 0 **conditionally** so Phase 1 could proceed. Phase 0 is **not** declared
+unconditionally accepted. The deferred regressions below must be closed, and `pnpm ci:local` re-run in a
+fresh Windows clone with `core.autocrlf=true`, before Windows delivery, a formal merge or a release.
+
+| Deferred Phase 0 regression | State |
+| --- | --- |
+| CRLF checkout breaks the CP949 generator byte-exact test | Fixed in `113ca25` (`.gitattributes eol=lf` for the generated table; Actions run #9 success). Reproduced and verified with a fresh `core.autocrlf=true` clone on Linux: `pnpm ci:local` passes. **Windows clone re-run pending** |
+| rights:check child process may raise `EPERM` on Windows | Defensive fix in `113ca25` (no child signal; pipe destroyed; temp-dir cleanup retries). Not reproducible on Linux: **Windows re-run pending** |
+| `RESEARCH-GAPS.md` stale wording | Rewritten in `c9f5606` (GAP-001 row no longer describes DRIFT as non-failing) |
+| History object count misreported | Corrected: `b6d70c2..a600c32` = 45 objects (run #5), `b6d70c2..3157380` = **60** (final Phase 0 commit). The count grows with every commit; it is a per-HEAD figure, not a constant |
+
+Phase 0 cloud gates CLOUD_PASS; Codex reported the local evidence (GRF hashes, old trees unchanged, WebKit smoke) in Issue #2.
 
 Environment of record (cloud): Linux container, Node 24.21.0 (`.nvmrc`), pnpm 10.28.0,
 Chromium 153 (preinstalled Playwright). No GRF / RO client / old RO trees available.

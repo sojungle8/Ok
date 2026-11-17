@@ -17,3 +17,4 @@
 | R-13 | Cloud FPS numbers (SwiftShader) are mistaken for device performance. | False acceptance. | The report labels every number as cloud; device gates stay DEFERRED_LOCAL. |
 | R-14 | prt_fild08 renders without textures and models until GAP-002 is closed. | Visual review limited to heights and walkability. | Dependency report produced locally; the whitelist is extended by Codex. |
 | R-15 | Full 400×400 GAT ground mesh (~320k triangles) may be heavy on phones. | Mobile FPS. | Planned: GND 200×200 grid or chunked LOD (render-spike report). |
+| R-16 | Windows-only failures (CRLF checkouts, process signalling, file locks) not visible on Linux CI. | Local delivery breaks on the user's machine. | `.gitattributes` for byte-compared files; tests run in a `core.autocrlf=true` clone; a Windows clone re-run of `pnpm ci:local` is required before delivery or merge (Codex condition). |
