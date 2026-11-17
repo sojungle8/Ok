@@ -1,0 +1,14 @@
+{
+  "name": "@ro-survivor/asset-gateway",
+  "version": "0.0.0",
+  "private": true,
+  "license": "GPL-3.0-only",
+  "type": "module",
+  "description": "Local, loopback-only RO asset gateway. Phase 0: configuration contract only; the server is Phase 1.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json && tsc -p test/tsconfig.json"
+  }
+}

@@ -1,0 +1,18 @@
+PASS  json:handoff/reference-snapshot-2026-11-17.json: parses
+PASS  json:handoff/vertical-slice-content-seed.json: parses
+PASS  whitelist:rows: 48 unique asset_id rows (expected 48)
+PASS  whitelist:cp949-hex-roundtrip: 47 GRF rows; issues=[]
+PASS  whitelist:uri-roundtrip: 48 rows; issues=[]
+PASS  whitelist:map-hashes: 3 map rows carry SHA-256
+PASS  seed:counts: skills=8 passives=4 keystones=3 normal=10 elite=2 miniboss=1 mvp=1
+PASS  seed:timeline-refs: 25 references; missing=[]
+PASS  seed:asset-refs-in-whitelist: 18 refs; unresolved=[]
+PASS  ledger:rows: 20 rows, 20 unique ids
+PASS  public-client:fingerprints: 8 rows; all uppercase SHA-256 and retained_in_project=false
+PASS  markdown:fences: 14 files; unbalanced=[]
+DRIFT delivered-hash:fan-local-asset-whitelist.csv: VALIDATION.md=6FF5FA4D6C8052B4AD0FF00EF0F727ECEA0954431D27E71A5343B76BD1568B7A checkout=A1C9A37BFC5194C98BA7644950244858B0F249DB03488BC175261E455A238978
+DRIFT delivered-hash:vertical-slice-content-seed.json: VALIDATION.md=564F580207054898876A549B6BF67CA904A366E10D491949D0CFFC576BDF6EEC checkout=F2C0DA9F1099D1B2E77B135F92EC1365DEB8E571C8049CA392A09E90981C4E83
+DRIFT delivered-hash:reference-snapshot-2026-11-17.json: VALIDATION.md=65B8764394D20FEEDE5406BA6108D237155D238E1FA0C4387B30F5E2E80D4096 checkout=D61B10D4AFE32CFC5342861EC939F9EB7349E494E5A5B3C06F2FB8AD8FF8505C
+DRIFT delivered-hash:../reference-ledger.csv: VALIDATION.md=B22FD4AD7F2605AF3F72E82B660323748AA9E031C4C7BF57ACF5FA43BBFC8077 checkout=C9CED17570BCD7D9504B6C2F8F6D73C6AD9A2FDA4A0434D05EE7CEBD450C05E1
+NOTE: 4 delivered hash(es) differ from VALIDATION.md; content checks above were re-run on the checkout (see RISKS.md R-07).
+assets:validate-handoff CLOUD_PASS (content checks)

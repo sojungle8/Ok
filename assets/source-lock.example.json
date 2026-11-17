@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "lockId": "kro2021-2026-11-17",
+  "pathEncoding": "cp949",
+  "sources": {
+    "data.grf": {
+      "envVar": "RO_ASSET_SOURCE_DATA_GRF",
+      "bytes": 2966717458,
+      "sha256": "FA3B7BBDBD650C3468ECA5E978A44E7A848D533F2735E6F5AF2B668E1D1DC3B6"
+    },
+    "rdata.grf": {
+      "envVar": "RO_ASSET_SOURCE_RDATA_GRF",
+      "bytes": 306697843,
+      "sha256": "FA6367B8ABC5D1297DE742A127CFF4E1DA626AB3D6B1B0A81BA563CB3CB5124E"
+    },
+    "bgm": {
+      "envVar": "RO_ASSET_BGM_DIR",
+      "expectedFileCount": 185,
+      "pinnedFiles": {
+        "12.mp3": {
+          "bytes": 1476608,
+          "sha256": "814A8484603741406BDB5AD0F16F4B9D4BCA6218F8C23D88CBF6983E6C6DA58E"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,130 @@
+import { readFileSync } from "node:fs";
+import { describe, expect, it } from "vitest";
+import {
+  AssetWhitelist,
+  bytesToHex,
+  canonicalPathToRequestUri,
+  checkWhitelistRoundTrips,
+  decodeCp949,
+  encodeCp949,
+  isPlaceholderBinary,
+  parseCsv,
+  PlaceholderAssetGateway,
+  requestUriToCanonicalPath,
+  resolveBuildProfile,
+  UnknownAssetError,
+} from "../src/index.ts";
+
+const csv = readFileSync(new URL("../../../docs/product-plan/handoff/fan-local-asset-whitelist.csv", import.meta.url), "utf8");
+
+describe("fan-local whitelist (handoff CSV, no GRF needed)", () => {
+  const list = AssetWhitelist.fromCsv(csv);
+
+  it("has 48 unique asset ids", () => {
+    expect(list.size).toBe(48);
+  });
+
+  it("every CP949 raw hex and request URI round-trips to the canonical path", () => {
+    expect(checkWhitelistRoundTrips(list)).toEqual([]);
+  });
+
+  it("keeps the documented naming traps (chocho, wilow)", () => {
+    expect(list.get("monster.1011.spr").canonical_cp949_path).toBe("data\\sprite\\몬스터\\chocho.spr");
+    expect(list.get("monster.1010.act").canonical_cp949_path).toBe("data\\sprite\\몬스터\\wilow.act");
+  });
+
+  it("covers ACT 2.4 and 2.5", () => {
+    const versions = new Set(list.rows().map((r) => r.act_version).filter((v) => v !== ""));
+    expect(versions).toContain("2.4");
+    expect(versions).toContain("2.5");
+  });
+});
+
+describe("CP949 codec (synthetic strings)", () => {
+  it("encodes Hangul to the documented bytes", () => {
+    expect(bytesToHex(encodeCp949("몬스터"))).toBe("B8F3BDBAC5CD");
+    expect(decodeCp949(Uint8Array.from([0xb8, 0xf3, 0xbd, 0xba, 0xc5, 0xcd]))).toBe("몬스터");
+  });
+  it("maps UHC extension syllables (known Windows-949 code points)", () => {
+    expect(bytesToHex(encodeCp949("갂"))).toBe("8141");
+    expect(bytesToHex(encodeCp949("똠"))).toBe("8C63");
+    expect(bytesToHex(encodeCp949("힝"))).toBe("C8FE");
+    expect(bytesToHex(encodeCp949("힣"))).toBe("C652");
+    const text = "똠방각하";
+    expect(decodeCp949(encodeCp949(text))).toBe(text);
+  });
+  it("round-trips all 11,172 precomposed Hangul syllables", () => {
+    let all = "";
+    for (let cp = 0xac00; cp <= 0xd7a3; cp += 1) all += String.fromCharCode(cp);
+    const bytes = encodeCp949(all);
+    expect(bytes.length).toBe(11172 * 2);
+    expect(decodeCp949(bytes)).toBe(all);
+  });
+  it("decodes strictly (no silent byte loss)", () => {
+    expect(() => decodeCp949(Uint8Array.from([0x8c]))).toThrow(/invalid/u);
+    expect(() => decodeCp949(Uint8Array.from([0xc6, 0x53]))).toThrow(/unmapped/u);
+    expect(() => decodeCp949(Uint8Array.from([0x80, 0x41]))).toThrow(/invalid/u);
+  });
+  it("refuses unencodable characters", () => {
+    expect(() => encodeCp949("😀")).toThrow(/not encodable/u);
+  });
+});
+
+describe("request URI normalization", () => {
+  it("round-trips and rejects traversal", () => {
+    const uri = canonicalPathToRequestUri("data\\sprite\\몬스터\\poring.spr");
+    expect(uri).toBe("/data/sprite/%EB%AA%AC%EC%8A%A4%ED%84%B0/poring.spr");
+    expect(requestUriToCanonicalPath(uri)).toBe("data\\sprite\\몬스터\\poring.spr");
+    expect(() => requestUriToCanonicalPath("/data/../secret")).toThrow();
+    expect(() => requestUriToCanonicalPath("/data/%2E%2E/x")).toThrow();
+    expect(() => requestUriToCanonicalPath("/data/a%5Cb")).toThrow();
+    expect(() => canonicalPathToRequestUri("data\\..\\x")).toThrow();
+  });
+});
+
+describe("PlaceholderAssetGateway", () => {
+  const gw = new PlaceholderAssetGateway({ whitelist: AssetWhitelist.fromCsv(csv), buildId: "test-build" });
+
+  it("works without network and reports placeholder mode", async () => {
+    expect(gw.mode()).toBe("placeholder");
+    await expect(gw.health()).resolves.toEqual({
+      ok: true,
+      mode: "placeholder",
+      buildId: "test-build",
+      sourceHashes: { "data.grf": null, "rdata.grf": null, bgm: null },
+    });
+    await expect(gw.getSourceHash("data.grf")).resolves.toBeNull();
+  });
+
+  it("serves only whitelisted ids and marks results as not real material", async () => {
+    const bin = await gw.getBinary("monster.1002.spr");
+    expect(isPlaceholderBinary(bin)).toBe(true);
+    await expect(gw.getJson("monster.1002.act")).resolves.toMatchObject({ placeholder: true, realMaterial: false });
+    await expect(gw.resolvePath("map.prt_fild08.gat")).resolves.toBe("placeholder://map.prt_fild08.gat");
+    await expect(gw.getBinary("monster.9999.spr")).rejects.toBeInstanceOf(UnknownAssetError);
+  });
+
+  it("honours AbortSignal", async () => {
+    const ac = new AbortController();
+    ac.abort(new Error("cancelled"));
+    await expect(gw.getBinary("monster.1002.spr", ac.signal)).rejects.toThrow("cancelled");
+  });
+});
+
+describe("build profile guard", () => {
+  it("defaults to fan-local and blocks fan-public without approval", () => {
+    expect(resolveBuildProfile({ profile: undefined })).toBe("fan-local");
+    expect(resolveBuildProfile({ profile: "original-fallback" })).toBe("original-fallback");
+    expect(() => resolveBuildProfile({ profile: "fan-public" })).toThrow(/approval/u);
+    expect(() => resolveBuildProfile({ profile: "fan-public", publicApprovalRecord: "approved-by: x" })).toThrow();
+    expect(resolveBuildProfile({ profile: "fan-public", publicApprovalRecord: "approved-by: owner\napproved-at: 2027-01-01" })).toBe("fan-public");
+    expect(() => resolveBuildProfile({ profile: "nope" })).toThrow(/unknown/u);
+  });
+});
+
+describe("csv parser", () => {
+  it("handles quotes, escaped quotes and CRLF", () => {
+    expect(parseCsv('a,"b,c","d""e"\r\n1,2,3\n')).toEqual([["a", "b,c", 'd"e'], ["1", "2", "3"]]);
+    expect(() => parseCsv('"open')).toThrow(/unterminated/u);
+  });
+});

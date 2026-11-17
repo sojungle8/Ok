@@ -1,0 +1,10 @@
+{
+  "distDirs": [
+    "apps/client/dist"
+  ],
+  "localAssetDirs": [
+    ".local-assets"
+  ],
+  "maxUnknownBinaryBytes": 524288,
+  "allowLargeBinaries": []
+}

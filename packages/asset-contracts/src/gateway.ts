@@ -1,0 +1,20 @@
+import type { SourceId } from "@ro-survivor/content-schema";
+
+export type AssetSourceMode = "placeholder" | "fan-local";
+
+export interface AssetGatewayHealth {
+  ok: boolean;
+  mode: AssetSourceMode;
+  buildId: string;
+  sourceHashes: Record<string, string | null>;
+}
+
+/** Contract from docs/product-plan/09-GITHUB-CLOUD-WORKFLOW.md. */
+export interface AssetGateway {
+  mode(): AssetSourceMode;
+  getBinary(assetId: string, signal?: AbortSignal): Promise<ArrayBuffer>;
+  getJson<T>(assetId: string, signal?: AbortSignal): Promise<T>;
+  resolvePath(assetId: string): Promise<string>;
+  getSourceHash(sourceId: SourceId): Promise<string | null>;
+  health(): Promise<AssetGatewayHealth>;
+}
