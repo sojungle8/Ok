@@ -12,10 +12,13 @@
   },
   "dependencies": {
     "@ro-survivor/asset-contracts": "workspace:*",
-    "preact": "10.29.8"
+    "preact": "10.29.8",
+    "@ro-survivor/core-sim": "workspace:*",
+    "three": "0.186.1"
   },
   "devDependencies": {
     "@preact/preset-vite": "2.10.6",
-    "vite": "8.3.8"
+    "vite": "8.3.8",
+    "@types/three": "0.186.0"
   }
 }

@@ -35,7 +35,9 @@ const server = createServer(async (req, res) => {
 });
 await new Promise((r) => server.listen(0, "127.0.0.1", r));
 const url = `http://127.0.0.1:${server.address().port}/`;
-const outDir = join(root, "reports/phase0");
+const outDir = join(root, process.env.SMOKE_OUT ?? "reports/phase1");
+const expectMode = process.env.SMOKE_EXPECT_MODE ?? "placeholder";
+const tag = process.env.SMOKE_TAG ?? "";
 mkdirSync(outDir, { recursive: true });
 
 const results = [];
@@ -53,12 +55,15 @@ for (const name of ["chromium", "webkit"]) {
       const errors = [];
       page.on("pageerror", (e) => errors.push(String(e)));
       await page.goto(url);
-      await page.getByTestId("gateway-status").filter({ hasText: "mode=placeholder" }).waitFor({ timeout: 10_000 });
+      await page.getByTestId("gateway-status").filter({ hasText: `mode=${expectMode}` }).waitFor({ timeout: 15_000 });
+      await page.getByTestId("sim-stats").filter({ hasText: "FPS" }).waitFor({ timeout: 15_000 });
+      if (process.env.SMOKE_DEBUG_OVERLAY) await page.keyboard.press("KeyG");
+      await page.waitForTimeout(1500);
       const buildId = (await page.getByTestId("build-id").innerText()).trim();
       const profile = (await page.getByTestId("build-profile").innerText()).trim();
       const name = (await page.getByTestId("project-name").innerText()).trim();
       const ok = name === "RO Survivor Fan Game" && profile === "fan-local" && /\+[0-9a-f]{12}\.\d{8}$|^ci-/.test(buildId) && errors.length === 0;
-      const shot = join(outDir, `smoke-${name === "" ? "x" : browserName(browser)}-${viewport.tag}.png`);
+      const shot = join(outDir, `smoke${tag}-${browserName(browser)}-${viewport.tag}.png`);
       await page.screenshot({ path: shot, fullPage: true });
       results.push({ browser: `${browserName(browser)} ${browser.version()}`, viewport: viewport.tag, status: ok ? "PASS" : "FAIL", buildId, profile, errors, screenshot: shot.slice(root.length + 1) });
       await page.close();

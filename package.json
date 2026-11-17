@@ -27,7 +27,9 @@
     "gateway": "node apps/asset-gateway/src/main.ts",
     "assets:audit-whitelist": "node tools/assets/audit-whitelist.ts",
     "assets:extract": "node tools/assets/extract.ts",
-    "dev:fan-local": "node tools/dev/fan-local.ts"
+    "dev:fan-local": "node tools/dev/fan-local.ts",
+    "assets:synthetic-demo": "node tools/assets/synthetic-demo.ts",
+    "e2e:bench": "node tools/e2e/bench.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

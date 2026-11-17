@@ -17,7 +17,8 @@ if (existsSync(envFile)) {
     if (m && env[m[1] as string] === undefined) env[m[1] as string] = (m[2] as string).replace(/^(['"])(.*)\1$/u, "$2");
   }
 }
-const lockPath = join(root, "assets/source-lock.local.json");
+// Explicit overrides (used by the synthetic demo); default is the verified real lock.
+const lockPath = env.RO_GATEWAY_LOCK_FILE ? resolve(root, env.RO_GATEWAY_LOCK_FILE) : join(root, "assets/source-lock.local.json");
 if (!existsSync(lockPath)) {
   console.error("gateway: assets/source-lock.local.json missing — run `pnpm assets:verify-sources` first (DEFERRED_LOCAL in the cloud).");
   process.exit(2);
@@ -31,7 +32,7 @@ try {
 } catch {
   /* keep default */
 }
-const derived = derivedDirFor(root, lock.sources["data.grf"].sha256);
+const derived = env.RO_GATEWAY_DERIVED_DIR ? resolve(root, env.RO_GATEWAY_DERIVED_DIR) : derivedDirFor(root, lock.sources["data.grf"].sha256);
 const gw = await startGateway({ config, whitelist, lock, buildId, derivedDir: existsSync(derived) ? derived : null });
 console.log(`gateway: listening on ${gw.url} (converter v${CONVERTER_VERSION}, derived ${existsSync(derived) ? `${readdirSync(derived).length} files` : "none — run pnpm assets:extract --profile fan-local"})`);
 const stop = (): void => {

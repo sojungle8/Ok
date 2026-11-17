@@ -1,14 +1,20 @@
-import { AssetWhitelist, PlaceholderAssetGateway, type AssetGateway } from "@ro-survivor/asset-contracts";
+import { AssetWhitelist, connectAssetGateway, HttpAssetGatewayClient, PlaceholderAssetGateway, type AssetGateway } from "@ro-survivor/asset-contracts";
 import whitelistCsv from "../../../docs/product-plan/handoff/fan-local-asset-whitelist.csv?raw";
 
+export const whitelist = AssetWhitelist.fromCsv(whitelistCsv);
+
 /**
- * Phase 0: there is no network gateway client yet, so the app always starts on the
- * placeholder gateway and reports that the fan-local asset gateway is not connected.
+ * Use the local fan-local gateway when VITE_ASSET_GATEWAY_URL is set (pnpm dev:fan-local);
+ * otherwise, or when it is offline, the placeholder gateway with a visible reason.
  */
-export function createStartupGateway(buildId: string): PlaceholderAssetGateway & AssetGateway {
-  return new PlaceholderAssetGateway({
-    whitelist: AssetWhitelist.fromCsv(whitelistCsv),
-    buildId,
-    reason: "asset gateway 尚未連線（Phase 0 未實作本機 gateway；使用 placeholder）",
-  });
+export async function createStartupGateway(buildId: string): Promise<AssetGateway & { reason?: string }> {
+  const url = (import.meta.env.VITE_ASSET_GATEWAY_URL as string | undefined) ?? "";
+  if (url === "") {
+    return new PlaceholderAssetGateway({ whitelist, buildId, reason: "asset gateway 尚未連線（未設定 VITE_ASSET_GATEWAY_URL；本機請用 pnpm dev:fan-local）" });
+  }
+  return connectAssetGateway({ baseUrl: url, whitelist, buildId });
+}
+
+export function isHttpGateway(g: AssetGateway): g is HttpAssetGatewayClient {
+  return g instanceof HttpAssetGatewayClient;
 }
