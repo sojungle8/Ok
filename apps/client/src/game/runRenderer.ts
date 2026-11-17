@@ -1,12 +1,15 @@
 import * as THREE from "three";
 import type { RunContent, RunState } from "@ro-survivor/core-sim";
 import { telegraphColors, type Settings } from "../settings.ts";
-import { BillboardBatch, type GroundData } from "./renderer.ts";
+import type { OfficialShadowLayer } from "./formal/world.ts";
+import { BillboardBatch } from "./renderer.ts";
 import type { SpriteSheet } from "./sprites.ts";
+import type { WorldLayer } from "./terrain.ts";
 
 /**
- * Renders a RunState read-only. Actors use RO sprite sheets only (D-022). Telegraphs, hazard and XP
- * markers are gameplay UI overlays drawn from the same geometry objects the simulation hits with.
+ * Renders a RunState read-only. Actors use RO sprite sheets only (D-022). The world (formal: original
+ * GND / RSM / water; fixture: test-only shading) is injected and lives in its own module. Telegraphs,
+ * hazard and XP markers are gameplay overlays drawn from the geometry the simulation hits with (D-025).
  */
 export class RunRenderer {
   readonly renderer: THREE.WebGLRenderer;
@@ -16,17 +19,18 @@ export class RunRenderer {
   readonly #batches = new Map<string, BillboardBatch>();
   readonly #telegraphs = new Map<number, THREE.Mesh>();
   readonly #markers: THREE.InstancedMesh;
-  #ground: THREE.Mesh | null = null;
-  #overlay: THREE.Mesh | null = null;
-  #heightAt: (x: number, y: number) => number = () => 0;
+  readonly world: WorldLayer;
+  readonly shadow: OfficialShadowLayer | null;
   #cam = { x: 0, y: 0, ready: false };
   readonly content: RunContent;
   settings: Settings;
   textureBytes = 0;
 
-  constructor(canvas: HTMLCanvasElement, content: RunContent, player: SpriteSheet, enemies: Record<string, SpriteSheet>, settings: Settings) {
+  constructor(canvas: HTMLCanvasElement, content: RunContent, player: SpriteSheet, enemies: Record<string, SpriteSheet>, settings: Settings, world: WorldLayer, shadow: OfficialShadowLayer | null) {
     this.content = content;
     this.settings = settings;
+    this.world = world;
+    this.shadow = shadow;
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: "high-performance" });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.setClearColor(0x1d1b18);
@@ -43,39 +47,12 @@ export class RunRenderer {
     this.#markers = new THREE.InstancedMesh(new THREE.CircleGeometry(1, 10).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false }), 1200);
     this.#markers.renderOrder = 3;
     this.#markers.frustumCulled = false;
-    this.scene.add(this.#player.mesh, this.#markers);
-  }
-
-  setGround(data: GroundData): void {
-    const w = data.width;
-    const h = data.height;
-    const heightAt = (cx: number, cy: number): number => -(data.cellHeights[Math.max(0, Math.min(h - 1, cy)) * w + Math.max(0, Math.min(w - 1, cx))] ?? 0) * 0.2;
-    this.#heightAt = (xm, ym) => heightAt(Math.floor(xm), Math.floor(ym));
-    const geo = new THREE.PlaneGeometry(w, h, w, h).rotateX(-Math.PI / 2);
-    const pos = geo.getAttribute("position") as THREE.BufferAttribute;
-    const overlay = new Float32Array(pos.count * 3);
-    const base = new Float32Array(pos.count * 3);
-    for (let i = 0; i < pos.count; i += 1) {
-      const vx = pos.getX(i) + w / 2;
-      const vz = pos.getZ(i) + h / 2;
-      const cx = Math.min(w - 1, Math.floor(vx));
-      const cy = Math.min(h - 1, Math.floor(h - vz));
-      pos.setXYZ(i, vx, heightAt(cx, cy), -(h - vz));
-      const t = data.types.charCodeAt(cy * w + cx) - 48;
-      overlay.set(t === 0 || t === 3 ? [0.2, 0.75, 0.3] : [0.85, 0.15, 0.15], i * 3);
-      base.set([0.32, 0.45, 0.28], i * 3);
-    }
-    geo.setAttribute("color", new THREE.BufferAttribute(base, 3));
-    this.#ground = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true }));
-    const og = geo.clone();
-    og.setAttribute("color", new THREE.BufferAttribute(overlay, 3));
-    this.#overlay = new THREE.Mesh(og, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.45, depthWrite: false }));
-    this.#overlay.visible = false;
-    this.scene.add(this.#ground, this.#overlay);
+    this.scene.add(world.object, this.#player.mesh, this.#markers);
+    if (shadow) this.scene.add(shadow.mesh);
   }
 
   setDebugOverlay(on: boolean): void {
-    if (this.#overlay) this.#overlay.visible = on;
+    this.world.setDebugOverlay(on);
   }
 
   resize(width: number, height: number): void {
@@ -123,7 +100,7 @@ export class RunRenderer {
     if (!this.#cam.ready) this.#cam = { x: px, y: pz, ready: true };
     this.#cam.x += (px - this.#cam.x) * 0.15;
     this.#cam.y += (pz - this.#cam.y) * 0.15;
-    const py = this.#heightAt(px, p.y / 1000);
+    const py = this.world.heightAt(px, p.y / 1000);
     this.camera.position.set(this.#cam.x, py + 30, this.#cam.y + 30);
     this.camera.lookAt(this.#cam.x, py, this.#cam.y);
     this.camera.updateMatrixWorld();
@@ -145,9 +122,15 @@ export class RunRenderer {
       if (!b) continue;
       const i = counts.get(ref) ?? 0;
       counts.set(ref, i + 1);
-      b.set(i, e.x / 1000, this.#heightAt(e.x / 1000, e.y / 1000), -e.y / 1000, st.runTick < e.stunUntil ? "hit" : "walk", dir(e.fx, e.fy), timeMs + e.id * 37);
+      b.set(i, e.x / 1000, this.world.heightAt(e.x / 1000, e.y / 1000), -e.y / 1000, st.runTick < e.stunUntil ? "hit" : "walk", dir(e.fx, e.fy), timeMs + e.id * 37);
     }
     for (const [ref, b] of this.#batches) b.commit(counts.get(ref) ?? 0, right, up);
+    if (this.shadow) {
+      const feet: number[] = [px, py, pz];
+      for (const e of st.enemies) feet.push(e.x / 1000, this.world.heightAt(e.x / 1000, e.y / 1000), -e.y / 1000);
+      this.shadow.set(feet);
+    }
+    this.world.update(timeMs);
     // Telegraphs: opacity ramps toward the hit tick; never reduced by effect settings.
     const live = new Set<number>();
     for (const t of st.telegraphs) {
@@ -156,7 +139,7 @@ export class RunRenderer {
       const span = Math.max(1, t.hitTick - t.startTick);
       const k = Math.min(1, Math.max(0, (st.runTick - t.startTick) / span));
       (m.material as THREE.MeshBasicMaterial).opacity = 0.25 + 0.55 * k;
-      m.position.set(t.placed.ox / 1000, this.#heightAt(t.placed.ox / 1000, t.placed.oy / 1000) + 0.05, -t.placed.oy / 1000);
+      m.position.set(t.placed.ox / 1000, this.world.heightAt(t.placed.ox / 1000, t.placed.oy / 1000) + 0.05, -t.placed.oy / 1000);
     }
     for (const [id, m] of this.#telegraphs) {
       if (live.has(id)) continue;
@@ -172,7 +155,7 @@ export class RunRenderer {
     let n = 0;
     const put = (x: number, y: number, r: number, c: number): void => {
       if (n >= 1200) return;
-      mtx.makeScale(r, 1, r).setPosition(x / 1000, this.#heightAt(x / 1000, y / 1000) + 0.06, -y / 1000);
+      mtx.makeScale(r, 1, r).setPosition(x / 1000, this.world.heightAt(x / 1000, y / 1000) + 0.06, -y / 1000);
       this.#markers.setMatrixAt(n, mtx);
       this.#markers.setColorAt(n, col.setHex(c));
       n += 1;
@@ -188,6 +171,7 @@ export class RunRenderer {
   }
 
   dispose(): void {
+    this.world.dispose();
     this.renderer.dispose();
   }
 }

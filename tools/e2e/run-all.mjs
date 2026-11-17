@@ -6,7 +6,7 @@
 //   D. bench on the test-fixture build
 // Synthetic fixtures are only ever served to the separate test build in apps/client/dist-test.
 import { spawn, execFileSync } from "node:child_process";
-import { writeFileSync } from "node:fs";
+import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 const root = resolve(import.meta.dirname, "../..");
@@ -35,14 +35,22 @@ await new Promise((ok, fail) => {
 const summary = {};
 try {
   const gwUrl = `http://127.0.0.1:${port}`;
-  run("pnpm", ["--filter", "@ro-survivor/client", "build"], { VITE_ASSET_GATEWAY_URL: "", VITE_ALLOW_SYNTHETIC: "" });
+  // Formal builds ignore VITE_ALLOW_SYNTHETIC (set here on purpose); only --mode fixture builds dist-test.
+  run("pnpm", ["--filter", "@ro-survivor/client", "build"], { VITE_ASSET_GATEWAY_URL: "", VITE_ALLOW_SYNTHETIC: "1" });
   const a = capture(["tools/e2e/smoke.mjs"], { SMOKE_EXPECT: "blocked", SMOKE_TAG: "-A-formal-no-gateway", SMOKE_REASON: "未設定 asset gateway" });
-  run("pnpm", ["--filter", "@ro-survivor/client", "exec", "vite", "build", "--outDir", "dist-formal-gw"], { VITE_ASSET_GATEWAY_URL: gwUrl, VITE_ALLOW_SYNTHETIC: "" });
+  run("pnpm", ["--filter", "@ro-survivor/client", "exec", "vite", "build", "--outDir", "dist-formal-gw"], { VITE_ASSET_GATEWAY_URL: gwUrl, VITE_ALLOW_SYNTHETIC: "1" });
   const b = capture(["tools/e2e/smoke.mjs"], { SMOKE_DIST: "apps/client/dist-formal-gw", SMOKE_EXPECT: "blocked", SMOKE_TAG: "-B-formal-refuses-fixture", SMOKE_REASON: "synthetic fixture" });
-  run("pnpm", ["--filter", "@ro-survivor/client", "exec", "vite", "build", "--outDir", "dist-test"], { VITE_ASSET_GATEWAY_URL: gwUrl, VITE_ALLOW_SYNTHETIC: "1" });
+  run("pnpm", ["--filter", "@ro-survivor/client", "build:test-fixture"], { VITE_ASSET_GATEWAY_URL: gwUrl });
   const c = capture(["tools/e2e/flow.mjs"], { FLOW_DIST: "apps/client/dist-test" });
   const d = process.env.SKIP_BENCH ? { code: 0, out: "skipped" } : capture(["tools/e2e/bench.mjs"], { BENCH_DIST: "apps/client/dist-test" });
-  Object.assign(summary, { A: a, B: b, C: c, D: { code: d.code } });
+  // E. formal / fixture graph separation in the built bundles: the fixture-only module (marker) must be
+  //    absent from both formal bundles and present in the test-fixture bundle.
+  const MARKER = "RO-SURVIVOR-FIXTURE-ONLY-MODULE";
+  const bundleHas = (dir) => readdirSync(join(root, dir, "assets")).some((f) => f.endsWith(".js") && readFileSync(join(root, dir, "assets", f), "utf8").includes(MARKER));
+  const sep = { dist: bundleHas("apps/client/dist"), "dist-formal-gw": bundleHas("apps/client/dist-formal-gw"), "dist-test": bundleHas("apps/client/dist-test") };
+  console.log(`bundle fixture marker: ${JSON.stringify(sep)}`);
+  const e = { code: !sep.dist && !sep["dist-formal-gw"] && sep["dist-test"] ? 0 : 1 };
+  Object.assign(summary, { A: a, B: b, C: c, D: { code: d.code }, E: e });
   for (const [k, v] of Object.entries({ A: a, B: b })) writeFileSync(join(root, `reports/phase1/smoke-${k}.json`), v.out.slice(v.out.indexOf("[")));
 } finally {
   gw.kill();

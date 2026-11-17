@@ -2,11 +2,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { HttpAssetGatewayClient } from "@ro-survivor/asset-contracts";
 import { whitelist } from "../src/gateway.ts";
 import { loadFormalAssets } from "../src/game/assets.ts";
-import { FormalRendererPendingError, MissingAssetsError } from "../src/game/requirements.ts";
+import { MissingAssetsError } from "../src/game/requirements.ts";
 
 const SRC = "A".repeat(64);
 const health = { ok: true, mode: "fan-local", buildId: "t", sourceHashes: { "data.grf": SRC, "rdata.grf": "B".repeat(64), bgm: "C".repeat(64) }, fixture: false };
 const sheet = { atlas: { width: 1, height: 1 }, slots: {}, frames: [] };
+const layer = (spr: string, palette: string | null) => ({ spr: `${spr}.spr`, act: `${spr}.act`, palette });
+/** Extractor v2 player atlas: all four layer sets, original palettes, per-direction draw order. */
+const playerSheet = {
+  ...sheet,
+  layers: [layer("player.swordsman.male.body", "palette.body.swordsman.male"), layer("player.hair01.male", "palette.hair01.male"), layer("player.swordsman.male.sword", null), layer("player.swordsman.male.guard", null)],
+  layerOrder: Array.from({ length: 8 }, (_, d) => (d >= 3 && d <= 5 ? [2, 3, 0, 1] : [0, 1, 2, 3])),
+};
 const strip = (category: string, prefix: string) =>
   whitelist.rows().filter((r) => r.category === category).map((r) => r.canonical_cp949_path.slice(prefix.length));
 /** The real prt_fild08 references (names taken from the v2 whitelist rows), plus optional extras. */
@@ -24,7 +31,7 @@ function mapMeta(extra: { textures?: string[]; models?: string[] } = {}) {
 }
 
 /** A formal (non-fixture) gateway double: serves whitelist-sized bytes except for `missingIds`. */
-function gatewayDouble(missingIds: string[], meta = mapMeta()) {
+function gatewayDouble(missingIds: string[], meta = mapMeta(), player: object = playerSheet) {
   const fetchImpl = (url: string): Promise<Response> => {
     const path = new URL(url).pathname;
     if (path === "/health") return Promise.resolve(Response.json(health));
@@ -36,6 +43,8 @@ function gatewayDouble(missingIds: string[], meta = mapMeta()) {
     }
     if (path.endsWith(".png")) return Promise.resolve(new Response(new Uint8Array([1]), { headers: { "content-type": "image/png" } }));
     if (path.endsWith("map.prt_fild08.gat.json")) return Promise.resolve(Response.json(meta));
+    if (path.endsWith("player.swordsman.male.body.act.json")) return Promise.resolve(Response.json(player));
+    if (path.endsWith("map.prt_fild08.rsw.json")) return Promise.resolve(new Response(JSON.stringify({ error: "http-404" }), { status: 404 }));
     return Promise.resolve(Response.json(sheet));
   };
   return new HttpAssetGatewayClient({ baseUrl: "http://127.0.0.1:4178", whitelist, fetch: fetchImpl });
@@ -55,10 +64,20 @@ describe("formal screen: only original RO assets, missing ones stop the game", (
     ]);
   });
 
-  it("v2 whitelist resolves the whole closure; the formal run then stops at the pending renderer, not with a substitute", async () => {
+  it("v3 whitelist resolves the whole closure; the formal run then requires the derived scene contract (no substitute)", async () => {
     const err = await loadFormalAssets(gatewayDouble([]), false).catch((e: unknown) => e);
-    expect(err).toBeInstanceOf(FormalRendererPendingError);
-    expect((err as FormalRendererPendingError).pending.length).toBeGreaterThan(0);
+    expect(err).toBeInstanceOf(MissingAssetsError);
+    expect((err as MissingAssetsError).missing).toEqual([
+      expect.objectContaining({ assetId: "map.prt_fild08.rsw", canonicalPath: "data\\prt_fild08.rsw", reason: expect.stringContaining("derived scene unavailable") as unknown }),
+    ]);
+  });
+
+  it("a body-only player atlas is never drawn: hair, sword and guard layers are reported", async () => {
+    const err = await loadFormalAssets(gatewayDouble([], mapMeta(), sheet), false).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(MissingAssetsError);
+    expect((err as MissingAssetsError).missing.map((m) => m.assetId)).toEqual([
+      "player.swordsman.male.body.spr", "player.hair01.male.spr", "player.swordsman.male.sword.spr", "player.swordsman.male.guard.spr", "player.swordsman.male.body.act",
+    ]);
   });
 
   it.each(["map.prt_fild08.ground_texture.001", "common.shadow.act", "bgm.prt_fild08", "ui.cursor.act", "ui.hud.basic.background", "ui.font.scdream4"])(

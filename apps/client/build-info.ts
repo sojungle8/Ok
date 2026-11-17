@@ -23,3 +23,13 @@ export function computeBuildInfo(repoRoot: string, env: Record<string, string | 
   });
   return { buildId, profile };
 }
+
+/**
+ * Client build kind. Only the explicit test-fixture build (`vite build --mode fixture`, script
+ * `build:test-fixture`) may accept synthetic gateways, and it always writes to `dist-test`. Every
+ * other mode is formal: environment variables such as VITE_ALLOW_SYNTHETIC are ignored.
+ */
+export function resolveClientBuild(mode: string): { fixture: boolean; outDir: "dist" | "dist-test" } {
+  const fixture = mode === "fixture";
+  return { fixture, outDir: fixture ? "dist-test" : "dist" };
+}

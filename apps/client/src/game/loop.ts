@@ -1,5 +1,5 @@
 import { arenaHash, createArena, FixedStepClock, stepArena, toRenderSnapshot, type ArenaState, type InputCommand, type WalkGrid } from "@ro-survivor/core-sim";
-import type { ArenaRenderer } from "./renderer.ts";
+import type { ArenaRenderer } from "./fixture/benchRenderer.ts";
 import type { InputState } from "./input.ts";
 
 export interface LoopStats {

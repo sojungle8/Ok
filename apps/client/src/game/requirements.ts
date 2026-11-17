@@ -33,18 +33,3 @@ export function missingWhitelisted(whitelist: AssetWhitelist, assetId: string, r
   const row = whitelist.has(assetId) ? whitelist.get(assetId) : null;
   return { assetId, canonicalPath: row?.canonical_cp949_path ?? "(not in whitelist)", container: row?.source_container ?? "data.grf", reason };
 }
-
-/**
- * Raised when every required source is present but a formal renderer stage is not implemented yet
- * (original GND / RSM / water / shadow / audio — CLAUDE-PHASE1-ORIGINAL-ASSETS.md Commits B–C).
- * The formal screen never falls back to an engine-drawn ground or ellipse shadow.
- */
-export class FormalRendererPendingError extends Error {
-  readonly pending: string[];
-  constructor(pending: string[]) {
-    super(`formal renderer stages not implemented: ${pending.join(", ")}`);
-    this.name = "FormalRendererPendingError";
-    this.pending = pending;
-  }
-}
-

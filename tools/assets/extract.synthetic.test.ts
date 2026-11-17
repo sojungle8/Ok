@@ -9,7 +9,7 @@ import { decodeOwnPng } from "../lib/png.ts";
 import { scanRepository } from "../rights-check/scan.ts";
 import { auditWhitelist } from "./audit-whitelist-lib.ts";
 import { runExtraction } from "./extract-run.ts";
-import type { SpriteMetadata } from "./extract-lib.ts";
+import { layerDrawOrder, type SpriteMetadata } from "./extract-lib.ts";
 import { buildSyntheticSources } from "./synthetic-sources.ts";
 
 const repoRoot = resolve(import.meta.dirname, "../..");
@@ -72,6 +72,14 @@ describe("assets:extract (synthetic sources)", () => {
     const player = JSON.parse(readFileSync(join(out, "player.swordsman.male.body.act.json"), "utf8")) as SpriteMetadata;
     expect(player.slots.cast).toMatchObject({ sourceAction: "cast", fallback: false });
     expect(player.sounds.length).toBeGreaterThan(0);
+    // Commit C: four layer sets with their original palettes, weapon/shield behind the body when facing away.
+    expect(player.layers.map((l) => [l.spr, l.palette])).toEqual([
+      ["player.swordsman.male.body.spr", "palette.body.swordsman.male"], ["player.hair01.male.spr", "palette.hair01.male"],
+      ["player.swordsman.male.sword.spr", null], ["player.swordsman.male.guard.spr", null],
+    ]);
+    expect(player.layerOrder[0]).toEqual([0, 1, 2, 3]);
+    expect(player.layerOrder[4]).toEqual([2, 3, 0, 1]);
+    expect(layerDrawOrder("monster", 1, 4)).toEqual([0]);
     // Mirrored directions add no pixels: every flipX frame shares its rectangle with an unflipped one.
     const unflipped = new Set(player.frames.filter((f) => !f.flipX).map((f) => `${f.x},${f.y}`));
     expect(player.frames.filter((f) => f.flipX).every((f) => unflipped.has(`${f.x},${f.y}`))).toBe(true);

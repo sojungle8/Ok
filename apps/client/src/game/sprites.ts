@@ -17,6 +17,10 @@ export interface SheetData {
   atlas: { width: number; height: number };
   slots: Record<Slot, { directions: { frames: number[]; delayMs: number }[] }>;
   frames: SheetFrame[];
+  /** Layer sets composed into the atlas (body first) and their palettes (extractor v2). */
+  layers?: { spr: string; act: string; palette: string | null }[] | undefined;
+  /** Per direction: draw order (indices into `layers`), back to front. */
+  layerOrder?: number[][] | undefined;
 }
 
 export interface SpriteSheet {

@@ -143,7 +143,7 @@ function extractInto(rows: readonly WhitelistRow[], reader: AssetReader, outDir:
       return { sprite: parseAs(l.spr, () => parseSpriteWithPalette(spr.bytes, pal?.bytes ?? null)), act: parseAs(l.act, () => parseAct(act.bytes)) };
     });
     const first = group.layers[0];
-    const { metadata, png, composed } = parseAs(first?.act ?? group.id, () => buildSpriteAtlas(group.id, group.kind, layers, group.layers.map((l) => l.spr)));
+    const { metadata, png, composed } = parseAs(first?.act ?? group.id, () => buildSpriteAtlas(group.id, group.kind, layers, group.layers.map((l) => l.spr), group.layers.map((l) => ({ spr: l.spr, act: l.act, palette: l.palette && byId.has(l.palette) ? l.palette : null }))));
     manifest.outputs.push({ ...writeOutput(outDir, `${first?.spr as string}.png`, png), from });
     manifest.outputs.push({ ...writeOutput(outDir, `${first?.act as string}.json`, JSON.stringify(metadata)), from });
     manifest.outputs.push({ ...writeOutput(outDir, `contact-sheets/${group.id}.png`, buildContactSheet(metadata, composed)), from });

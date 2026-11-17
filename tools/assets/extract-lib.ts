@@ -45,6 +45,10 @@ export interface SpriteMetadata {
   frames: AtlasFrameRef[];
   sounds: { slot: AnimationSlot; direction: number; frame: number; sound: string }[];
   stats: { composedFrames: number; uniqueImages: number; mirrorDeduped: number; exactDeduped: number; rotatedLayers: number };
+  /** Layer sets composed into this atlas (body first) with the palette applied to each. */
+  layers: { spr: string; act: string; palette: string | null }[];
+  /** Per direction: indices into `layers` in draw order (back to front). */
+  layerOrder: number[][];
 }
 
 function mirrorRgba(f: ComposedFrame): Uint8Array {
@@ -78,6 +82,19 @@ function pack(sizes: { w: number; h: number }[], maxWidth = 2048): { positions: 
   return { positions, width: Math.max(1, width), height: Math.max(1, y + shelf) };
 }
 
+/**
+ * Draw order of the player's layer sets for one direction (RO directions 0 S … 4 N … 7 SE).
+ * Layers are given as body, hair, weapon, shield. Facing away (3 NW, 4 N, 5 NE) the weapon and
+ * shield are drawn behind the body; otherwise body, hair, then weapon and shield in front. The rule
+ * must be confirmed against the user's client (DEFERRED_LOCAL); monsters have one layer.
+ */
+export function layerDrawOrder(kind: "player" | "monster", layerCount: number, direction: number): number[] {
+  const all = Array.from({ length: layerCount }, (_, i) => i);
+  if (kind !== "player" || layerCount < 3) return all;
+  const back = direction === 3 || direction === 4 || direction === 5;
+  return back ? [...all.slice(2), 0, 1] : all;
+}
+
 export interface LayerSet {
   sprite: Sprite;
   act: Act;
@@ -88,7 +105,13 @@ export interface LayerSet {
  * (hair, weapon, shield) use the same action/frame index. Missing overlay frames are an error
  * naming the asset, never a silent misalignment.
  */
-export function buildSpriteAtlas(assetId: string, kind: "player" | "monster", layers: LayerSet[], layerIds: string[]): { metadata: SpriteMetadata; png: Buffer; composed: Map<string, ComposedFrame> } {
+export function buildSpriteAtlas(
+  assetId: string,
+  kind: "player" | "monster",
+  layers: LayerSet[],
+  layerIds: string[],
+  layerRefs: { spr: string; act: string; palette: string | null }[] = layerIds.map((spr) => ({ spr, act: spr.replace(/\.spr$/u, ".act"), palette: null })),
+): { metadata: SpriteMetadata; png: Buffer; composed: Map<string, ComposedFrame> } {
   const base = layers[0];
   if (!base) throw new Error(`${assetId}: no layers`);
   const groups = (kind === "player" ? PLAYER_ACTIONS : MONSTER_ACTIONS) as readonly string[];
@@ -114,7 +137,8 @@ export function buildSpriteAtlas(assetId: string, kind: "player" | "monster", la
       if (!action) throw new Error(`${assetId}: missing action ${ai}`);
       const refs: number[] = [];
       action.frames.forEach((_, fi) => {
-        const sources = layers.map((l, li) => {
+        const sources = layerDrawOrder(kind, layers.length, dir).map((li) => {
+          const l = layers[li] as LayerSet;
           const a = l.act.actions[ai];
           const frame = a?.frames[fi] ?? a?.frames[a.frames.length - 1];
           if (!frame) throw new Error(`${layerIds[li] ?? assetId}: overlay has no frame for action ${ai} frame ${fi}`);
@@ -172,6 +196,7 @@ export function buildSpriteAtlas(assetId: string, kind: "player" | "monster", la
     metadata: {
       rights: DERIVED_MARKER, assetId, converterVersion: CONVERTER_VERSION, kind, actVersion: base.act.version, actionCount: base.act.actions.length,
       atlas: { width: layout.width, height: layout.height, sha256: sha(png) }, slots, frames, sounds, stats,
+      layers: layerRefs, layerOrder: Array.from({ length: 8 }, (_, d) => layerDrawOrder(kind, layers.length, d)),
     },
     png,
     composed,

@@ -4,7 +4,7 @@ import { connectFormalGateway } from "./gateway.ts";
 import { loadFormalAssets, type LoadedAssets } from "./game/assets.ts";
 import { InputState } from "./game/input.ts";
 import { GameLoop, type BenchResult, type LoopStats } from "./game/loop.ts";
-import { ArenaRenderer } from "./game/renderer.ts";
+import { ArenaRenderer } from "./game/fixture/benchRenderer.ts";
 import { MissingAssetsError, type MissingAsset } from "./game/requirements.ts";
 
 declare global {

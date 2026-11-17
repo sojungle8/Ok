@@ -24,6 +24,12 @@
   - the legacy RSM model position-key count is mandatory (truncation is detected);
   - the publish commit point is explicit, and cleanup after it is best-effort with a warning;
   - a missing core map row is reported with its fixed canonical path.
+- Commit C, formal renderer (`reports/phase1/COMMIT-C-FORMAL-RENDERER.md`):
+  - GND ground with texture UVs, vertex colour and embedded lightmaps;
+  - GRSM props instanced at every RSW placement, and the 32 official water frames;
+  - four-layer swordsman atlas with per-direction layer order, and the official shadow at alpha 128;
+  - BGM 12 + positional RSW WAVs behind a 「點擊啟用音訊」 gate;
+  - formal and fixture worlds split; fixture build only via `--mode fixture`.
 
 ## Unreleased — Phase 2 vertical slice (2026-11-17)
 

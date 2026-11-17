@@ -42,6 +42,8 @@ async function enterRun(page, query) {
   await page.getByTestId("job-swordsman").click();
   await page.getByTestId("stage-prt_fild08").click();
   await page.getByTestId("run-hud").waitFor({ timeout: 30_000 });
+  // Synthetic sources are only ever shown with the explicit TEST FIXTURE banner.
+  if ((await page.getByTestId("fixture-banner").count()) !== 1) throw new Error("TEST FIXTURE banner missing in the test-fixture build");
   return errors;
 }
 

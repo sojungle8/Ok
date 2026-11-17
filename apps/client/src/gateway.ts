@@ -3,8 +3,11 @@ import whitelistCsv from "../../../docs/product-plan/handoff/fan-local-asset-whi
 
 export const whitelist = AssetWhitelist.fromCsv(whitelistCsv);
 
-/** Test-fixture builds (automated tests only) may talk to a synthetic gateway; formal builds never. */
-export const FIXTURE_BUILD = import.meta.env.VITE_ALLOW_SYNTHETIC === "1";
+/**
+ * Test-fixture builds (automated tests only) may talk to a synthetic gateway; formal builds never.
+ * Set at compile time from the build mode only (`--mode fixture`), never from environment variables.
+ */
+export const FIXTURE_BUILD: boolean = typeof __FIXTURE_BUILD__ !== "undefined" && __FIXTURE_BUILD__;
 
 export type GatewayConnection =
   | { ok: true; client: HttpAssetGatewayClient; health: AssetGatewayHealth }

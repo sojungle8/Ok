@@ -5,7 +5,12 @@ import { IndexedDbBackend, idempotencyKey, recordPending, settle, settleAllPendi
 import seedJson from "../../../docs/product-plan/handoff/vertical-slice-content-seed.json?raw";
 import { connectFormalGateway, FIXTURE_BUILD, type GatewayConnection } from "./gateway.ts";
 import { loadFormalAssets, type LoadedAssets } from "./game/assets.ts";
-import { FormalRendererPendingError, MissingAssetsError, type MissingAsset } from "./game/requirements.ts";
+import { FormalAudio, type AudioContextLike } from "./game/formal/audio.ts";
+import { FormalWorld, nearestTexture, OfficialShadowLayer } from "./game/formal/world.ts";
+import { MissingAssetsError, missingWhitelisted, type MissingAsset } from "./game/requirements.ts";
+import type { GroundData } from "./game/renderer.ts";
+import type { WorldLayer } from "./game/terrain.ts";
+import { whitelist } from "./gateway.ts";
 import { RunRenderer } from "./game/runRenderer.ts";
 import { RunSession } from "./game/session.ts";
 import { DraftModal } from "./screens/Draft.tsx";
@@ -46,6 +51,10 @@ export function App() {
   const [results, setResults] = useState<{ result: RunResult; applied: boolean; character: CharacterRecord | null } | null>(null);
   const [settings, setSettings] = useState<Settings>(loadSettings);
   const [debug, setDebug] = useState(false);
+  const [audioGate, setAudioGate] = useState(false);
+  const audio = useRef<FormalAudio | null>(null);
+  /** Test-fixture builds only: world factory from the dynamically imported fixture module. */
+  const fixtureWorld = useRef<((g: GroundData) => WorldLayer) | null>(null);
   const db = useRef<IndexedDbBackend | null>(null);
   const session = useRef<RunSession | null>(null);
   const renderer = useRef<RunRenderer | null>(null);
@@ -86,12 +95,27 @@ export function App() {
         return;
       }
       try {
-        setAssets(await loadFormalAssets(conn.client, conn.health.fixture === true));
+        const loaded = await loadFormalAssets(conn.client, conn.health.fixture === true);
+        if (loaded.formal) {
+          // Original audio is decoded up front; a decode failure blocks like any missing asset.
+          const a = new FormalAudio(new AudioContext() as unknown as AudioContextLike, loaded.formal);
+          try {
+            await a.prepare();
+          } catch (err) {
+            throw new MissingAssetsError([missingWhitelisted(whitelist, loaded.formal.scene.bgm, `original audio could not be decoded: ${String(err)}`)]);
+          }
+          audio.current = a;
+        } else if (FIXTURE_BUILD) {
+          const mod = await import("./game/fixture/fixtureWorld.ts");
+          fixtureWorld.current = (g) => new mod.FixtureWorld(g);
+        } else {
+          throw new Error("formal build without a formal scene");
+        }
+        setAssets(loaded);
         send({ type: "loaded" });
       } catch (err) {
         setBlocked(
           err instanceof MissingAssetsError ? { reason: "缺少必要的 RO 素材，正式畫面停止（不以任何替代圖取代）。", missing: err.missing }
-          : err instanceof FormalRendererPendingError ? { reason: `所有必要素材均已就緒，但正式原始素材 renderer 尚未完成：${err.pending.join("、")}。正式畫面不以自繪地面或影子替代。`, missing: [] }
           : { reason: String(err), missing: [] },
         );
       }
@@ -103,8 +127,12 @@ export function App() {
     const f = flowRef.current;
     if (runKey === null || session.current || !assets || !canvas.current || !("runSeed" in f)) return;
     const runSeed = f.runSeed;
-    const r = new RunRenderer(canvas.current, content, assets.player, assets.enemies, settingsRef.current);
-    r.setGround(assets.ground);
+    const world: WorldLayer | null = assets.formal ? new FormalWorld(assets.formal, assets.ground, nearestTexture) : (fixtureWorld.current?.(assets.ground) ?? null);
+    if (!world) return;
+    const shadow = assets.formal ? new OfficialShadowLayer(assets.formal, nearestTexture, 441) : null;
+    const r = new RunRenderer(canvas.current, content, assets.player, assets.enemies, settingsRef.current, world, shadow);
+    const a = audio.current;
+    if (a && !a.tryStart()) setAudioGate(true);
     renderer.current = r;
     const resize = (): void => r.resize(canvas.current?.clientWidth ?? 1, canvas.current?.clientHeight ?? 1);
     resize();
@@ -113,6 +141,7 @@ export function App() {
     const s = new RunSession(content, runSeed, r, {
       onFrame: (state) => {
         setSt({ ...state });
+        a?.setListener(state.player.x / 1000, world.heightAt(state.player.x / 1000, state.player.y / 1000), -state.player.y / 1000);
         const screen = flowRef.current.screen;
         const want = state.phase === "draft" || state.phase === "keystone-confirm" ? "draft-paused" : state.phase === "boss-intro" ? "boss-intro" : state.phase === "victory" || state.phase === "defeat" ? state.phase : "running";
         if (screen !== want && (screen === "running" || screen === "draft-paused" || screen === "boss-intro")) send({ type: "run-phase", phase: state.phase });
@@ -173,6 +202,9 @@ export function App() {
     return () => {
       s.stop();
       r.dispose();
+      a?.dispose();
+      audio.current = null;
+      setAudioGate(false);
       session.current = null;
       window.removeEventListener("resize", resize);
       window.removeEventListener("keydown", kd);
@@ -269,6 +301,9 @@ export function App() {
           </dl>
           <button class="primary" onClick={() => { setResults(null); setAssets(null); setSt(null); send({ type: "continue" }); }} data-testid="continue">繼續</button>
         </section>
+      ) : null}
+      {inRun && audioGate ? (
+        <button class="audio-gate" data-testid="audio-gate" onClick={() => void audio.current?.enable().then(() => setAudioGate(false))}>點擊啟用音訊</button>
       ) : null}
       {inRun ? <div class="stick" ref={stick} data-testid="joystick" aria-label="虛擬搖桿"><div class="knob" /></div> : null}
     </main>
