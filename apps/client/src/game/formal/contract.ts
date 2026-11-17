@@ -184,6 +184,42 @@ export function soundPlacements(scene: DerivedScene, gnd: DerivedGnd): { assetId
   });
 }
 
+export interface WaterBuffers {
+  /** Selected GND cells (same rule as the extractor: max(corner heights) > water level). */
+  cells: number;
+  /** Two triangles per selected cell at the RSW water level (world metres, z = -north). */
+  positions: number[];
+  /** One official frame spans two GND tiles (repeat wrapping); calibrated locally (DEFERRED_LOCAL). */
+  uvs: number[];
+}
+
+/**
+ * Water surface only over the GND cells that lie below the RSW water level — the rule the
+ * extractor uses for `scene.water.cells` (RO heights grow downwards). Waves are not applied.
+ */
+export function buildWaterBuffers(gnd: DerivedGnd, level: number): WaterBuffers {
+  const tile = gnd.zoom * RO_UNIT_M;
+  const y = -level * RO_UNIT_M;
+  const positions: number[] = [];
+  const uvs: number[] = [];
+  let cells = 0;
+  for (let cy = 0; cy < gnd.height; cy += 1) {
+    for (let cx = 0; cx < gnd.width; cx += 1) {
+      const i = cy * gnd.width + cx;
+      const hs = [0, 1, 2, 3].map((k) => gnd.cubes.heights[i * 4 + k] ?? 0);
+      if (!(Math.max(...hs) > level)) continue;
+      cells += 1;
+      const corners: [number, number][] = [[cx, cy], [cx + 1, cy], [cx, cy + 1], [cx + 1, cy + 1]];
+      for (const c of [0, 1, 2, 2, 1, 3]) {
+        const [gx, gy] = corners[c] as [number, number];
+        positions.push(gx * tile, y, -gy * tile);
+        uvs.push(gx / 2, gy / 2);
+      }
+    }
+  }
+  return { cells, positions, uvs };
+}
+
 /** Water frame for a time: RO advances one of the 32 frames every `animSpeed` render frames (60 Hz). */
 export function waterFrameAt(water: NonNullable<DerivedScene["water"]>, timeMs: number): string {
   if (water.frames.length === 0) throw new Error("water has no frames");

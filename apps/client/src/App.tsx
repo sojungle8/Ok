@@ -5,9 +5,9 @@ import { IndexedDbBackend, idempotencyKey, recordPending, settle, settleAllPendi
 import seedJson from "../../../docs/product-plan/handoff/vertical-slice-content-seed.json?raw";
 import { connectFormalGateway, FIXTURE_BUILD, type GatewayConnection } from "./gateway.ts";
 import { loadFormalAssets, type LoadedAssets } from "./game/assets.ts";
-import { FormalAudio, type AudioContextLike } from "./game/formal/audio.ts";
+import { FormalAudio, prepareFormalAudio, type AudioContextLike } from "./game/formal/audio.ts";
 import { FormalWorld, nearestTexture, OfficialShadowLayer } from "./game/formal/world.ts";
-import { MissingAssetsError, missingWhitelisted, type MissingAsset } from "./game/requirements.ts";
+import { MissingAssetsError, type MissingAsset } from "./game/requirements.ts";
 import type { GroundData } from "./game/renderer.ts";
 import type { WorldLayer } from "./game/terrain.ts";
 import { whitelist } from "./gateway.ts";
@@ -99,11 +99,7 @@ export function App() {
         if (loaded.formal) {
           // Original audio is decoded up front; a decode failure blocks like any missing asset.
           const a = new FormalAudio(new AudioContext() as unknown as AudioContextLike, loaded.formal);
-          try {
-            await a.prepare();
-          } catch (err) {
-            throw new MissingAssetsError([missingWhitelisted(whitelist, loaded.formal.scene.bgm, `original audio could not be decoded: ${String(err)}`)]);
-          }
+          await prepareFormalAudio(a, whitelist); // a decode failure names the exact asset ID + path
           audio.current = a;
         } else if (FIXTURE_BUILD) {
           const mod = await import("./game/fixture/fixtureWorld.ts");

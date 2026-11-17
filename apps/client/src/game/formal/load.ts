@@ -6,8 +6,8 @@
 import type { AssetWhitelist } from "@ro-survivor/asset-contracts";
 import { MissingAssetsError, missingWhitelisted, type MissingAsset } from "../requirements.ts";
 import {
-  bakeModel, buildGroundBuffers, buildModelInstances, sceneRequiredIds, shadowParams, soundPlacements,
-  type BakedModel, type DerivedGnd, type DerivedModel, type DerivedScene, type DerivedShadow, type GroundBuffers, type ModelInstance,
+  bakeModel, buildGroundBuffers, buildModelInstances, buildWaterBuffers, sceneRequiredIds, shadowParams, soundPlacements,
+  type BakedModel, type DerivedGnd, type DerivedModel, type DerivedScene, type DerivedShadow, type GroundBuffers, type ModelInstance, type WaterBuffers,
 } from "./contract.ts";
 
 export const FORMAL_SCENE_ID = "map.prt_fild08.rsw";
@@ -42,6 +42,8 @@ export interface FormalSceneData {
   images: Map<string, ImageLike>;
   /** Official water frames by asset ID (original JPG bytes, decoded). */
   water: Map<string, ImageLike>;
+  /** Water surface over the selected GND cells only (null when the RSW has no water). */
+  waterCells: WaterBuffers | null;
   /** Original audio bytes by asset ID (BGM 12 + ambient WAVs). */
   audio: Map<string, ArrayBuffer>;
 }
@@ -125,9 +127,19 @@ export async function loadFormalScene(gateway: FormalGatewayLike, decoders: Form
   derived(FORMAL_SCENE_ID, () => (instances = buildModelInstances(scene, gnd, models)));
   derived(FORMAL_SCENE_ID, () => (sounds = soundPlacements(scene, gnd)));
   for (const [id, m] of models) derived(id, () => baked.set(id, bakeModel(m)));
+  let waterCells: WaterBuffers | null = null;
+  const w = scene.water;
+  if (w) {
+    derived(FORMAL_SCENE_ID, () => {
+      const b = buildWaterBuffers(gnd, w.level);
+      // Fail closed: the renderer's cell selection must equal the extractor's count.
+      if (b.cells !== w.cells) throw new Error(`water: ${b.cells} GND cells selected, derived scene says ${w.cells}`);
+      waterCells = b;
+    });
+  }
   const sh = shadow as DerivedShadow | null;
   if (!sh) fail(`${scene.shadow}.act`, "official shadow ACT not loaded");
   else derived(`${scene.shadow}.act`, () => (sp = shadowParams(sh)));
   if (missing.length > 0 || !sh || !sp) throw new MissingAssetsError(missing);
-  return { scene, gnd, ground, models, baked, instances, shadow: sh, shadowParams: sp, sounds, images, water, audio };
+  return { scene, gnd, ground, models, baked, instances, shadow: sh, shadowParams: sp, sounds, images, water, waterCells, audio };
 }

@@ -50,7 +50,7 @@ async function setup() {
 
 describe("formal scene loader on the real derived contract (synthetic sources)", () => {
   it("builds GND ground groups, 69 RSM instances of 23 models, official shadow, 32 water frames and 4 positional sounds", async () => {
-    const { client, whitelist } = await setup();
+    const { client, whitelist, out } = await setup();
     const s = await loadFormalScene(client, decoders, whitelist);
     // Ground: one up-surface per GND cube (32×32) with texture UV, colour and lightmap UV per vertex.
     expect(s.ground.quads).toBe(32 * 32);
@@ -71,6 +71,12 @@ describe("formal scene loader on the real derived contract (synthetic sources)",
     expect(modelTextures.size).toBe(44);
     expect(s.shadowParams).toMatchObject({ alpha: 128 / 255, scale: 1 });
     expect(s.water.size).toBe(32);
+    // Water geometry = exactly the extractor's selected cells (synthetic count, not the real client's).
+    const derivedScene = JSON.parse(readFileSync(join(out, "map.prt_fild08.rsw.json"), "utf8")) as { water: { cells: number } };
+    expect(derivedScene.water.cells).toBeGreaterThan(0);
+    expect(derivedScene.water.cells).toBeLessThan(32 * 32);
+    expect(s.waterCells?.cells).toBe(derivedScene.water.cells);
+    expect(s.waterCells?.positions.length).toBe(derivedScene.water.cells * 6 * 3);
     expect(s.audio.size).toBe(5);
     expect(s.sounds.map((x) => x.assetId).sort()).toEqual(["map.prt_fild08.ambient_sound.001", "map.prt_fild08.ambient_sound.002", "map.prt_fild08.ambient_sound.003", "map.prt_fild08.ambient_sound.004"]);
   });

@@ -3,7 +3,29 @@
  * gateway. When the browser blocks autoplay the controller reports `needsGesture` and the UI shows a
  * single "點擊啟用音訊" action; no other sound is ever substituted.
  */
+import type { AssetWhitelist } from "@ro-survivor/asset-contracts";
+import { MissingAssetsError, missingWhitelisted } from "../requirements.ts";
 import type { FormalSceneData } from "./load.ts";
+
+/** An original audio asset failed to decode; carries the exact logical asset ID. */
+export class AudioDecodeError extends Error {
+  readonly assetId: string;
+  constructor(assetId: string, cause: unknown) {
+    super(`${assetId}: original audio could not be decoded: ${cause instanceof Error ? cause.message : String(cause)}`, { cause });
+    this.name = "AudioDecodeError";
+    this.assetId = assetId;
+  }
+}
+
+/** Decode every original audio asset; a failure blocks with that asset's ID and canonical path. */
+export async function prepareFormalAudio(audio: FormalAudio, whitelist: AssetWhitelist): Promise<void> {
+  try {
+    await audio.prepare();
+  } catch (err) {
+    if (err instanceof AudioDecodeError) throw new MissingAssetsError([missingWhitelisted(whitelist, err.assetId, err.message)]);
+    throw err;
+  }
+}
 
 export interface AudioNodeLike {
   connect(dest: unknown): unknown;
@@ -50,7 +72,13 @@ export class FormalAudio {
 
   /** Decode every original audio asset; a decode failure is an error, never a silent substitute. */
   async prepare(): Promise<void> {
-    for (const [id, bytes] of this.#data.audio) this.#decoded.set(id, await this.#ctx.decodeAudioData(bytes.slice(0)));
+    for (const [id, bytes] of this.#data.audio) {
+      try {
+        this.#decoded.set(id, await this.#ctx.decodeAudioData(bytes.slice(0)));
+      } catch (err) {
+        throw new AudioDecodeError(id, err);
+      }
+    }
   }
 
   get needsGesture(): boolean {

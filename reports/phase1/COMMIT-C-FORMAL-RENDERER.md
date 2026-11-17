@@ -14,10 +14,10 @@ ID and canonical path (`game/formal/load.ts`).
 | --- | --- | --- |
 | Ground | GND surfaces. Colour = `texture × surface colour × lightmap brightness + lightmap colour`; up quad per cube plus linked front/right walls | `formal/contract.ts buildGroundBuffers`, `formal/world.ts FormalWorld` |
 | Props | 23 GRSM models baked to a static pose, instanced at every RSW placement (one InstancedMesh per model × texture) with the 44 official model textures | `bakeModel`, `buildModelInstances`, `FormalWorld.propMeshes` |
-| Water | The 32 official JPG frames for RSW water type 1, advancing one frame every `animSpeed` 60 Hz ticks at the RSW water level | `waterFrameAt`, `FormalWorld.update` |
+| Water | The 32 official JPG frames for RSW water type 1, advancing one frame every `animSpeed` 60 Hz ticks. Drawn **only on the GND cells selected by `max(corner heights) > level`**, at the RSW water level. The selected count must equal the extractor's `scene.water.cells`, otherwise the world is blocked. No whole-map plane | `buildWaterBuffers`, `waterFrameAt`, `FormalWorld.update` |
 | Swordsman | One atlas composed from body + hair + sword + guard with the original body/hair palettes. Per-direction draw order: weapon and shield behind the body when facing away (3/4/5). The formal loader rejects any atlas without all four layers, both palettes and the order table | `tools/assets/extract-lib.ts layerDrawOrder`, `assets.ts checkPlayerLayers` |
 | Shadow | Official `shadow.spr/.act`, action 0 frame 0, scale 1.0, ACT alpha 128 (0.502), on the ground under the swordsman and every monster | `shadowParams`, `OfficialShadowLayer` |
-| Audio | BGM 12 and the 4 RSW ambient WAVs (original bytes, decoded up front; a decode failure blocks). Ambient sounds use WebAudio panners at their RSW positions, and the listener follows the player. If autoplay is blocked, the only UI is a 「點擊啟用音訊」 button | `formal/audio.ts FormalAudio`, `App.tsx` |
+| Audio | BGM 12 and the 4 RSW ambient WAVs (original bytes, decoded up front; a decode failure blocks with that asset's own ID and canonical path, via `AudioDecodeError` / `prepareFormalAudio`). Ambient sounds use WebAudio panners at their RSW positions, and the listener follows the player. If autoplay is blocked, the only UI is a 「點擊啟用音訊」 button | `formal/audio.ts FormalAudio`, `App.tsx` |
 
 ## Formal / fixture separation
 
@@ -36,7 +36,8 @@ ID and canonical path (`game/formal/load.ts`).
 - RSM static pose and transform order: placement rotation `Euler(-rx, -ry, rz, "ZXY")`, recentred on the
   bounding-box bottom centre. Animation keys are not applied.
 - RSW/RO → world axis mapping: RSW z is treated as north.
-- Water: opacity 0.6; texture repeats every two GND tiles. Wave motion is not applied.
+- Water: opacity 0.6; texture repeats every two GND tiles. RSW wave height, speed and pitch are read but **not
+  implemented**: the surface is flat.
 - Layer order rule for facing-away directions.
 
 None of these substitutes any RO asset; they are transform and blend parameters to calibrate against the client.

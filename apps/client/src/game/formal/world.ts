@@ -6,7 +6,7 @@
 import * as THREE from "three";
 import type { GroundData } from "../renderer.ts";
 import { gatHeightAt, type WorldLayer } from "../terrain.ts";
-import { RO_UNIT_M, waterFrameAt } from "./contract.ts";
+import { waterFrameAt } from "./contract.ts";
 import type { FormalSceneData, ImageLike } from "./load.ts";
 
 export type TextureFactory = (image: ImageLike, opts: { repeat?: boolean }) => THREE.Texture;
@@ -122,25 +122,24 @@ export class FormalWorld implements WorldLayer {
       }
     }
 
-    // Water: official frames only, at the RSW water level over the whole GND.
+    // Water: official frames only, on the selected GND cells only (never over land).
     const w = data.scene.water;
     if (w && w.frames.length > 0) {
+      const cells = data.waterCells;
+      if (!cells || cells.cells !== w.cells) throw new Error(`water cells ${cells?.cells ?? "missing"} != derived ${w.cells}`);
       for (const id of w.frames) {
         const img = data.water.get(id);
         if (!img) throw new Error(`water frame ${id} not loaded`);
         this.#waterFrames.set(id, makeTexture(img, { repeat: true }));
       }
-      const tile = data.gnd.zoom * RO_UNIT_M;
-      const sizeX = data.gnd.width * tile;
-      const sizeZ = data.gnd.height * tile;
-      const geo = new THREE.PlaneGeometry(sizeX, sizeZ).rotateX(-Math.PI / 2);
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute("position", new THREE.Float32BufferAttribute(cells.positions, 3));
+      geo.setAttribute("uv", new THREE.Float32BufferAttribute(cells.uvs, 2));
       const first = this.#waterFrames.get(w.frames[0] as string) as THREE.Texture;
-      // One frame repeats every two GND tiles; opacity is calibrated against the local client (DEFERRED_LOCAL).
-      first.repeat.set(data.gnd.width / 2, data.gnd.height / 2);
-      const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: first, transparent: true, opacity: 0.6, depthWrite: false }));
-      mesh.position.set(sizeX / 2, -w.level * RO_UNIT_M, -sizeZ / 2);
+      // Opacity is calibrated against the local client (DEFERRED_LOCAL); no wave motion is applied.
+      const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: first, transparent: true, opacity: 0.6, depthWrite: false, side: THREE.DoubleSide }));
       mesh.renderOrder = 1;
-      mesh.userData = { formal: "water", frames: w.frames.length };
+      mesh.userData = { formal: "water", frames: w.frames.length, cells: cells.cells };
       (this as { water: THREE.Mesh | null }).water = mesh;
       this.#waterFrame = w.frames[0] as string;
       this.object.add(mesh);
@@ -157,9 +156,7 @@ export class FormalWorld implements WorldLayer {
     if (!w || !this.water) return;
     const id = waterFrameAt(w, timeMs);
     if (id === this.#waterFrame) return;
-    const t = this.#waterFrames.get(id) as THREE.Texture;
-    t.repeat.copy((this.water.material as THREE.MeshBasicMaterial).map?.repeat ?? t.repeat);
-    (this.water.material as THREE.MeshBasicMaterial).map = t;
+    (this.water.material as THREE.MeshBasicMaterial).map = this.#waterFrames.get(id) as THREE.Texture;
     this.#waterFrame = id;
   }
 

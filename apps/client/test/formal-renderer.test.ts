@@ -4,9 +4,11 @@ import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 import { resolveClientBuild } from "../build-info.ts";
 import { checkPlayerLayers } from "../src/game/assets.ts";
-import { FormalAudio, type AudioContextLike } from "../src/game/formal/audio.ts";
+import { FormalAudio, prepareFormalAudio, type AudioContextLike } from "../src/game/formal/audio.ts";
+import { MissingAssetsError } from "../src/game/requirements.ts";
+import { whitelist } from "../src/gateway.ts";
 import {
-  bakeModel, buildGroundBuffers, buildModelInstances, shadowParams, soundPlacements, waterFrameAt,
+  bakeModel, buildGroundBuffers, buildModelInstances, buildWaterBuffers, shadowParams, soundPlacements, waterFrameAt,
   type DerivedGnd, type DerivedModel, type DerivedScene, type DerivedShadow,
 } from "../src/game/formal/contract.ts";
 import type { FormalSceneData } from "../src/game/formal/load.ts";
@@ -22,7 +24,8 @@ const gnd: DerivedGnd = {
     u: [0, 1, 0, 1, 0, 1, 0, 1], v: [0, 0, 1, 1, 0, 0, 1, 1], texture: [0, 1], lightmap: [0, 1],
     color: [255, 128, 0, 255, 255, 255, 255, 255],
   },
-  cubes: { heights: [0, 0, 0, 0, -5, -5, -5, -5, 0, 0, 0, 0, 0, 0, 0, 0], up: [0, 1, 0, 0], front: [-1, -1, -1, -1], right: [1, -1, -1, -1] },
+  // Cube 2 lies below the water level (RO heights grow downwards: 2 > level 1); the others do not.
+  cubes: { heights: [0, 0, 0, 0, -5, -5, -5, -5, 2, 2, 0, 2, 0, 0, 0, 0], up: [0, 1, 0, 0], front: [-1, -1, -1, -1], right: [1, -1, -1, -1] },
 };
 const model: DerivedModel = {
   assetId: "model.m", version: "1.4", alpha: 255, textures: [{ name: "m.bmp", assetId: "tex.m" }], mainNode: "root",
@@ -57,7 +60,7 @@ function data(): FormalSceneData {
   return {
     scene, gnd, ground: buildGroundBuffers(gnd), models, baked: new Map([["model.m", bakeModel(model)]]), instances: buildModelInstances(scene, gnd, models),
     shadow, shadowParams: shadowParams(shadow), sounds: soundPlacements(scene, gnd), images,
-    water: new Map(frames.map((f) => [f, img(128, 128, f)])), audio: new Map([["bgm.prt_fild08", new ArrayBuffer(4)], ["wav.1", new ArrayBuffer(4)]]),
+    water: new Map(frames.map((f) => [f, img(128, 128, f)])), waterCells: buildWaterBuffers(gnd, 1), audio: new Map([["bgm.prt_fild08", new ArrayBuffer(4)], ["wav.1", new ArrayBuffer(4)]]),
   };
 }
 const gat = { width: 4, height: 4, types: "0".repeat(16), cellHeights: new Array<number>(16).fill(0) };
@@ -115,6 +118,30 @@ describe("formal props: GRSM instances", () => {
     expect(() => buildModelInstances(scene, gnd, models)).toThrow(/model m\.rsm is not loaded/u);
     const bad = { ...model, nodes: [{ ...model.nodes[0], faces: [{ vertices: [0, 1, 2], tvertices: [0, 1, 2], texture: 3, twoSide: false }] }] } as DerivedModel;
     expect(() => bakeModel(bad)).toThrow(/face texture 3/u);
+  });
+});
+
+describe("water only on the selected GND cells (golden 2×2)", () => {
+  it("selects exactly the cells whose lowest corner is below the RSW level; no whole-map plane", () => {
+    const b = buildWaterBuffers(gnd, 1);
+    expect(b.cells).toBe(1);
+    expect(b.positions).toHaveLength(1 * 6 * 3);
+    const xs = b.positions.filter((_, i) => i % 3 === 0);
+    const ys = b.positions.filter((_, i) => i % 3 === 1);
+    const zs = b.positions.filter((_, i) => i % 3 === 2);
+    expect([Math.min(...xs), Math.max(...xs)]).toEqual([0, 2]); // cube 2 = (x 0, y 1): one 2 m tile
+    expect([Math.min(...zs), Math.max(...zs)]).toEqual([-4, -2]);
+    expect(new Set(ys)).toEqual(new Set([-0.2])); // RSW level 1 × 0.2 m, flat (no waves)
+    expect(buildWaterBuffers(gnd, 3).cells).toBe(0);
+    expect(buildWaterBuffers(gnd, -6).cells).toBe(4);
+  });
+
+  it("FormalWorld draws exactly those cells and fails closed when the count disagrees with the derived scene", () => {
+    const w = new FormalWorld(data(), gat, factory);
+    expect(w.water?.geometry.getAttribute("position").count).toBe(6);
+    expect(w.water?.userData).toMatchObject({ formal: "water", cells: 1 });
+    expect(w.water?.geometry.type).toBe("BufferGeometry");
+    expect(() => new FormalWorld({ ...data(), waterCells: buildWaterBuffers(gnd, -6) }, gat, factory)).toThrow(/water cells 4 != derived 1/u);
   });
 });
 
@@ -240,5 +267,20 @@ describe("formal / fixture graph separation", () => {
     expect(resolveClientBuild("development")).toEqual({ fixture: false, outDir: "dist" });
     expect(resolveClientBuild("fixture")).toEqual({ fixture: true, outDir: "dist-test" });
     expect(readFileSync(join(src, "gateway.ts"), "utf8")).not.toContain("VITE_ALLOW_SYNTHETIC");
+  });
+});
+
+describe("audio decode failure names the exact asset (never defaults to BGM)", () => {
+  const ids = ["bgm.prt_fild08", "map.prt_fild08.ambient_sound.001", "map.prt_fild08.ambient_sound.002", "map.prt_fild08.ambient_sound.003", "map.prt_fild08.ambient_sound.004"];
+  it.each(ids)("%s fails to decode -> blocked with that ID and its canonical path", async (failing) => {
+    const audioMap = new Map(ids.map((id, i) => [id, new ArrayBuffer(i + 1)]));
+    const { ctx } = fakeCtx("running");
+    const bad = ids.indexOf(failing) + 1;
+    ctx.decodeAudioData = (b: ArrayBuffer) => (b.byteLength === bad ? Promise.reject(new Error("EncodingError")) : Promise.resolve({}));
+    const err = await prepareFormalAudio(new FormalAudio(ctx, { ...data(), audio: audioMap }), whitelist).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(MissingAssetsError);
+    expect((err as MissingAssetsError).missing).toEqual([
+      expect.objectContaining({ assetId: failing, canonicalPath: whitelist.get(failing).canonical_cp949_path, reason: expect.stringContaining("EncodingError") as unknown }),
+    ]);
   });
 });
