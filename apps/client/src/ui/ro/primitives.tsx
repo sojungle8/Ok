@@ -7,7 +7,7 @@
  */
 import type { JSX } from "preact";
 import { MissingAssetsError } from "../../game/requirements.ts";
-import { isVerifiedRaster, missingRaster, type VerifiedRaster, type VerifiedRasterSet } from "./raster.ts";
+import { isVerifiedRaster, missingRaster, type RasterRegistry, type VerifiedRaster } from "./raster.ts";
 
 export type RoButtonState = "off" | "on" | "hover" | "down" | "disabled";
 
@@ -21,6 +21,7 @@ function checkScale(scale: number): number {
 }
 function checkRaster(r: unknown, field: string): VerifiedRaster {
   if (!isVerifiedRaster(r)) throw contractError(field, "not a verified raster issued by the UI loader");
+  if (r.disposed) throw missingRaster(r.assetId, `${field}: verified raster was disposed`);
   return r;
 }
 
@@ -101,25 +102,35 @@ export function RoThreeSlice(props: { left: VerifiedRaster; mid: VerifiedRaster;
 }
 
 // ---------------------------------------------------------------- RoButton
+/** Canonical control family of a button raster: its ID without the state token (+ slice part). */
+export function buttonFamily(r: VerifiedRaster): string {
+  const sl = r.entry.slice;
+  if (sl) return `${sl.group.split(".").slice(0, -1).join(".")}|${sl.part}`;
+  return r.assetId.split(".").slice(0, -1).join(".");
+}
 /**
  * `declared` maps every interaction state the button has in the client to its exact logical ID.
  * Every declared state must resolve to a verified raster; the shown state must be declared. There is
  * no fallback to another state and no CSS filter / opacity state synthesis.
  */
-export function planButton(rasters: VerifiedRasterSet, declared: Partial<Record<RoButtonState, string>>, state: RoButtonState, scale = 1): { assetId: string; pieces: Piece[]; width: number; height: number } {
+export function planButton(rasters: RasterRegistry, declared: Partial<Record<RoButtonState, string>>, state: RoButtonState, scale = 1): { assetId: string; pieces: Piece[]; width: number; height: number } {
   const s = checkScale(scale);
   const entries = Object.entries(declared) as [RoButtonState, string][];
   if (entries.length === 0) throw contractError("button.declared", "a button must declare at least one state");
+  const families = new Set<string>();
   for (const [st, id] of entries) {
-    const r = rasters.get(id); // throws with the canonical container / path when missing
+    const r = checkRaster(rasters.get(id), `button.${st}`); // throws with the canonical container / path when missing
     if (r.entry.role !== "button" || r.entry.state !== st) throw contractError(`button.${st}`, `${id} is declared as ${r.entry.role}/${r.entry.state ?? "none"}, not button/${st}`);
+    families.add(buttonFamily(r));
   }
+  // All declared states must be the same canonical control (and the same slice part for sliced buttons).
+  if (families.size !== 1) throw contractError("button.family", `declared states mix controls: ${[...families].sort().join(", ")}`);
   const id = declared[state];
   if (!id) throw contractError(`button.${state}`, `state ${state} is not declared for this button (no fallback)`);
-  const r = rasters.get(id);
+  const r = checkRaster(rasters.get(id), `button.${state}`);
   return { assetId: id, pieces: [piece(r, 0, 0, s)], width: r.width * s, height: r.height * s };
 }
-export function RoButton(props: { rasters: VerifiedRasterSet; declared: Partial<Record<RoButtonState, string>>; state: RoButtonState; scale?: number; label: string; onPress?: () => void }) {
+export function RoButton(props: { rasters: RasterRegistry; declared: Partial<Record<RoButtonState, string>>; state: RoButtonState; scale?: number; label: string; onPress?: () => void }) {
   const p = planButton(props.rasters, props.declared, props.state, props.scale ?? 1);
   return (
     <button type="button" class="ro-button" aria-label={props.label} data-ro-state={props.state} onClick={props.onPress} style={{ all: "unset", display: "inline-block", cursor: "inherit" }}>
@@ -167,7 +178,7 @@ export function planSlot(frame: VerifiedRaster, icon: VerifiedRaster | null, sca
   }
   return { pieces, width: f.width * s, height: f.height * s };
 }
-export function RoSlot(props: { rasters: VerifiedRasterSet; frameId: string; iconId?: string; hotkey?: string; count?: number; scale?: number }) {
+export function RoSlot(props: { rasters: RasterRegistry; frameId: string; iconId?: string; hotkey?: string; count?: number; scale?: number }) {
   const icon = props.iconId === undefined ? null : props.rasters.get(props.iconId);
   const p = planSlot(props.rasters.get(props.frameId), icon, props.scale ?? 1);
   return (

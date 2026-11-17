@@ -5,14 +5,32 @@ import { classifyUiAsset, declaredUiDimensions, UI_PROFILE_ID } from "@ro-surviv
 import type { UiManifestEntry } from "@ro-survivor/content-schema";
 import { MissingAssetsError } from "../src/game/requirements.ts";
 import { whitelist } from "../src/gateway.ts";
-import { isVerifiedRaster, planButton, planGauge, planRaster, planSlot, planThreeSlice, RoButton, RoGauge, RoRaster, RoSlot, RoThreeSlice, VerifiedRasterSet, type VerifiedRaster } from "../src/ui/ro/index.ts";
-import { FORBIDDEN, moduleGraph, scanFormalVisual } from "./visual-guard.ts";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { mintRasterSet, type MintItem } from "../src/game/formal/rasterMint.ts";
+import * as roPublic from "../src/ui/ro/index.ts";
+import { isVerifiedRaster, planButton, planGauge, planRaster, planSlot, planThreeSlice, RoButton, RoGauge, RoRaster, RoSlot, RoThreeSlice, type VerifiedRaster } from "../src/ui/ro/index.ts";
+import { FORBIDDEN, guardGraph, moduleGraph, scanFormalVisual } from "./visual-guard.ts";
 
-/** SYNTHETIC structural harness: fake object URLs, entries derived from the canonical whitelist rows. */
-function fakeUrls() {
+/**
+ * SYNTHETIC structural harness. TEST-ONLY ADAPTER: tests mint handles with the loader-internal
+ * `mintRasterSet` (production code may call it only from game/formal/ui.ts — see the call-site test).
+ * Fake object URLs; entries derived from the canonical whitelist rows.
+ */
+function fakeUrls(failAt = 0) {
   const log: string[] = [];
   let n = 0;
-  return { log, urls: { create: () => `blob:synthetic/${(n += 1)}`, revoke: (u: string) => void log.push(`revoke ${u}`) } };
+  return {
+    log,
+    urls: {
+      create: () => {
+        n += 1;
+        if (n === failAt) throw new Error(`createObjectURL failed at ${n}`);
+        return `blob:synthetic/${n}`;
+      },
+      revoke: (u: string) => void log.push(`revoke ${u}`),
+    },
+  };
 }
 function entryFor(id: string): UiManifestEntry {
   const row = whitelist.get(id);
@@ -24,14 +42,13 @@ function entryFor(id: string): UiManifestEntry {
     nine_slice_insets_or_null: null, cursor_hotspot_or_null: null, transparent_key_or_alpha_mode: "magenta-key", reference_profile_id: UI_PROFILE_ID,
   };
 }
+const itemFor = (id: string): MintItem => {
+  const e = entryFor(id);
+  return { assetId: id, bytes: new Uint8Array([1]), width: e.native_width ?? 1, height: e.native_height ?? 1, entry: e };
+};
 function rasterSet(ids: string[]) {
   const { log, urls } = fakeUrls();
-  const set = new VerifiedRasterSet(urls);
-  for (const id of ids) {
-    const e = entryFor(id);
-    set.issue(id, new Uint8Array([1]), e.native_width ?? 1, e.native_height ?? 1, e);
-  }
-  return { set, log };
+  return { set: mintRasterSet(ids.map(itemFor), urls), log };
 }
 const missingOf = (fn: () => unknown) => {
   try {
@@ -42,23 +59,82 @@ const missingOf = (fn: () => unknown) => {
   }
   throw new Error("expected MissingAssetsError");
 };
+const srcDir = resolve(import.meta.dirname, "../src");
 
 describe("verified raster handles (synthetic harness)", () => {
-  it("issued only for loader IDs; unknown ID -> canonical container/path; deterministic, double-dispose-safe revoke", () => {
+  it("unknown ID -> canonical container/path; deterministic, double-dispose-safe revoke", () => {
     const { set, log } = rasterSet(["ui.arrow.left", "ui.arrow.right"]);
     const h = set.get("ui.arrow.left");
     expect([h.width, h.height, h.entry.canonical_cp949_path]).toEqual([11, 11, whitelist.get("ui.arrow.left").canonical_cp949_path]);
     expect(isVerifiedRaster(h)).toBe(true);
-    expect(isVerifiedRaster({ ...h, url: "https://example.invalid/x.png" })).toBe(false);
     expect(missingOf(() => set.get("ui.arrow.up"))).toEqual([expect.objectContaining({ assetId: "ui.arrow.up", container: "data.grf", canonicalPath: whitelist.get("ui.arrow.up").canonical_cp949_path })]);
     expect(missingOf(() => set.get("ui.not.real"))).toEqual([expect.objectContaining({ assetId: "ui.not.real", canonicalPath: "(not in the canonical UI registry)" })]);
     set.dispose();
     set.dispose();
     expect(log).toEqual(["revoke blob:synthetic/1", "revoke blob:synthetic/2"]);
     expect(() => h.url).toThrow(/disposed/u);
-    expect(() => set.get("ui.arrow.left")).toThrow(MissingAssetsError);
-    expect(() => set.issue("ui.arrow.up", new Uint8Array(), 11, 11, entryFor("ui.arrow.up"))).toThrow(/disposed/u);
-    expect(() => new VerifiedRasterSet(fakeUrls().urls).issue("ui.arrow.up", new Uint8Array(), 1, 1, entryFor("ui.arrow.left"))).toThrow(/entry is for/u);
+    expect(missingOf(() => set.get("ui.arrow.left"))).toEqual([expect.objectContaining({ assetId: "ui.arrow.left", reason: expect.stringContaining("disposed") as unknown })]);
+  });
+
+  it("B2-1: the public API cannot mint; look-alikes, unknown IDs and forged entries never become verified", () => {
+    expect(Object.keys(roPublic).filter((k) => /mint|issue|RasterSet/iu.test(k))).toEqual([]);
+    const { set } = rasterSet(["ui.arrow.left"]);
+    const h = set.get("ui.arrow.left");
+    expect(isVerifiedRaster({ ...h, url: "https://example.invalid/x.png" })).toBe(false);
+    expect(isVerifiedRaster(Object.create(Object.getPrototypeOf(h) as object))).toBe(false);
+    expect(() => mintRasterSet([{ ...itemFor("ui.arrow.left"), assetId: "ui.forged.icon", entry: { ...entryFor("ui.arrow.left"), logical_asset_id: "ui.forged.icon" } }], fakeUrls().urls)).toThrow(/not in the canonical UI registry/u);
+    expect(() => mintRasterSet([{ ...itemFor("ui.arrow.left"), entry: entryFor("ui.arrow.right") }], fakeUrls().urls)).toThrow(/entry is for/u);
+    expect(() => mintRasterSet([{ ...itemFor("ui.arrow.left"), width: 99 }], fakeUrls().urls)).toThrow(/!= native/u);
+  });
+
+  it("B2-1: only game/formal/ui.ts calls the loader-only mint in production sources", () => {
+    const files = moduleGraph(join(srcDir, "main.tsx")).concat(moduleGraph(join(srcDir, "game/formal/ui.ts")), moduleGraph(join(srcDir, "ui/ro/index.ts")));
+    const callers = [...new Set(files)].filter((f) => /\bmintRasterSet\s*\(/u.test(readFileSync(f, "utf8").replace(/export function mintRasterSet/u, ""))).map((f) => f.slice(srcDir.length + 1));
+    expect(callers).toEqual(["game/formal/ui.ts"]);
+    const importers = [...new Set(files)].filter((f) => /rasterMint\.ts["']/u.test(readFileSync(f, "utf8"))).map((f) => f.slice(srcDir.length + 1)).sort();
+    expect(importers).toEqual(["game/formal/ui.ts", "ui/ro/raster.ts"]);
+    expect(readFileSync(join(srcDir, "ui/ro/raster.ts"), "utf8")).toMatch(/import \{ isMintedRaster \} from "..\/..\/game\/formal\/rasterMint\.ts";/u);
+  });
+
+  it("B2-2: handle metadata is an independent, recursively frozen copy", () => {
+    const item = itemFor("ui.button.hover.left");
+    const set = mintRasterSet([item], fakeUrls().urls);
+    const h = set.get("ui.button.hover.left");
+    expect(() => {
+      (h.entry as { role: string }).role = "icon";
+    }).toThrow(TypeError);
+    expect(() => {
+      (h.entry.slice as { part: string }).part = "mid";
+    }).toThrow(TypeError);
+    (item.entry as { role: string }).role = "icon";
+    (item.entry.slice as { part: string }).part = "mid";
+    expect([h.entry.role, h.entry.slice?.part]).toEqual(["button", "left"]);
+  });
+
+  it("B2-3: issuance is one transaction — a failure at item N revokes items 1..N-1 exactly once and returns nothing", () => {
+    const ids = ["ui.arrow.left", "ui.arrow.right", "ui.arrow.up", "ui.arrow.down"];
+    const a = fakeUrls(3);
+    expect(() => mintRasterSet(ids.map(itemFor), a.urls)).toThrow(/createObjectURL failed at 3/u);
+    expect(a.log).toEqual(["revoke blob:synthetic/1", "revoke blob:synthetic/2"]);
+    const b = fakeUrls();
+    const bad = ids.map(itemFor);
+    bad[2] = { ...(bad[2] as MintItem), entry: entryFor("ui.arrow.left") };
+    expect(() => mintRasterSet(bad, b.urls)).toThrow(/entry is for/u);
+    expect(b.log).toEqual(["revoke blob:synthetic/1", "revoke blob:synthetic/2"]);
+  });
+
+  it("B2-3: a disposed handle is rejected by every primitive with its canonical path", () => {
+    const ids = ["ui.window.title.left", "ui.window.title.mid", "ui.window.title.right", "ui.gauge.empty.left", "ui.gauge.empty.mid", "ui.gauge.empty.right", "ui.gauge.hp.left", "ui.gauge.hp.mid", "ui.gauge.hp.right", "ui.slot.selection", "ui.control.close.normal"];
+    const { set } = rasterSet(ids);
+    const g = (i: string) => set.get(i);
+    const [tl, tm, tr, el, em, er, hl, hm, hr, slot, close] = ids.map<VerifiedRaster>(g);
+    set.dispose();
+    const path = (id: string) => whitelist.get(id).canonical_cp949_path;
+    expect(missingOf(() => planRaster(close as VerifiedRaster))).toEqual([expect.objectContaining({ assetId: "ui.control.close.normal", canonicalPath: path("ui.control.close.normal") })]);
+    expect(missingOf(() => planThreeSlice(tl as VerifiedRaster, tm as VerifiedRaster, tr as VerifiedRaster, 100))[0]).toMatchObject({ assetId: "ui.window.title.left", canonicalPath: path("ui.window.title.left") });
+    expect(missingOf(() => planGauge([el, em, er] as [VerifiedRaster, VerifiedRaster, VerifiedRaster], [hl, hm, hr] as [VerifiedRaster, VerifiedRaster, VerifiedRaster], 0.5, 100))[0]).toMatchObject({ assetId: "ui.gauge.empty.left" });
+    expect(missingOf(() => planSlot(slot as VerifiedRaster, null))[0]).toMatchObject({ assetId: "ui.slot.selection", canonicalPath: path("ui.slot.selection") });
+    expect(missingOf(() => planButton(set, { off: "ui.control.close.normal" }, "off"))[0]).toMatchObject({ assetId: "ui.control.close.normal", canonicalPath: path("ui.control.close.normal") });
   });
 
   it("native size × positive integer scale only", () => {
@@ -111,6 +187,14 @@ describe("RoButton", () => {
     const chrome = rasterSet(["ui.button.normal.mid", "ui.button.hover.mid", "ui.button.pressed.mid"]).set;
     const four = { off: "ui.button.normal.mid", hover: "ui.button.hover.mid", down: "ui.button.pressed.mid", disabled: "ui.button.disabled.mid" } as const;
     expect(missingOf(() => planButton(chrome, four, "off"))).toEqual([expect.objectContaining({ assetId: "ui.button.disabled.mid", canonicalPath: whitelist.get("ui.button.disabled.mid").canonical_cp949_path })]);
+  });
+
+  it("B2-5: declared states must be one canonical control (and one slice part)", () => {
+    const { set } = rasterSet(["ui.control.close.normal", "ui.control.minimize.hover", "ui.menu.status.normal", "ui.menu.skill.active", "ui.button.normal.left", "ui.button.hover.mid", "ui.button.hover.left"]);
+    expect(missingOf(() => planButton(set, { off: "ui.control.close.normal", hover: "ui.control.minimize.hover" }, "off"))).toEqual([expect.objectContaining({ canonicalPath: "button.family" })]);
+    expect(missingOf(() => planButton(set, { off: "ui.menu.status.normal", on: "ui.menu.skill.active" }, "on"))).toEqual([expect.objectContaining({ canonicalPath: "button.family" })]);
+    expect(missingOf(() => planButton(set, { off: "ui.button.normal.left", hover: "ui.button.hover.mid" }, "off"))).toEqual([expect.objectContaining({ canonicalPath: "button.family" })]);
+    expect(planButton(set, { off: "ui.button.normal.left", hover: "ui.button.hover.left" }, "hover").assetId).toBe("ui.button.hover.left");
   });
 });
 
@@ -182,6 +266,27 @@ describe("formal visual static guard", () => {
     const files = moduleGraph(join(src, "ui/ro/index.ts"));
     expect(files.map((f) => f.slice(src.length + 1))).toEqual(expect.arrayContaining(["ui/ro/index.ts", "ui/ro/primitives.tsx", "ui/ro/raster.ts"]));
     for (const f of files) expect(scanFormalVisual(readFileSync(f, "utf8")), f).toEqual([]);
+    expect(guardGraph(join(src, "ui/ro/index.ts"))).toEqual([]);
+  });
+
+  it("B2-4: styles and external runtime imports are part of the guard", () => {
+    const dir = mkdtempSync(join(tmpdir(), "ro-guard-"));
+    try {
+      mkdirSync(join(dir, "nested"));
+      writeFileSync(join(dir, "a.tsx"), `import "./a.css";\nexport const A = 1;\n`);
+      writeFileSync(join(dir, "a.css"), `@import "./nested/b.css";\n.x { background: linear-gradient(#000,#fff); border: 1px solid #888; }\n.x::after { content: ""; }\n`);
+      writeFileSync(join(dir, "nested/b.css"), `.y { box-shadow: 0 0 2px #000; border-radius: 4px; }\n`);
+      writeFileSync(join(dir, "c.tsx"), `import { X } from "lucide-preact";\nimport { Canvas } from "fabric";\nimport type { Foo } from "type-only-pkg";\nimport { h } from "preact";\nexport const C = [X, Canvas, h];\n`);
+      const a = guardGraph(join(dir, "a.tsx"));
+      expect(a.map((r) => [r.file.slice(dir.length + 1), r.violations.sort()])).toEqual([
+        ["a.css", ["css-border-surface", "css-colour-fill", "gradient", "pseudo-element-surface"]],
+        ["nested/b.css", ["border-radius", "box-shadow"]],
+      ]);
+      const c = guardGraph(join(dir, "c.tsx"));
+      expect(c[0]?.violations).toEqual(["external-import:lucide-preact", "external-import:fabric"]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it("the primitive library is unreachable from the shipped formal screen", () => {

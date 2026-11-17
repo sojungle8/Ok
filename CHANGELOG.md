@@ -47,6 +47,12 @@
   - verified raster handles issued by the UI loader;
   - RO primitives RoRaster / RoThreeSlice / RoButton / RoGauge / RoSlot (`apps/client/src/ui/ro/`);
   - a formal visual static guard over the primitive graph.
+- UI-B2 fixes B2-1…B2-5:
+  - minting is loader-only and transactional;
+  - handle entries are frozen copies;
+  - disposed handles are rejected;
+  - the guard scans CSS and allowlists runtime imports;
+  - `RoButton` states must belong to one control family.
 
 ## Unreleased — Phase 2 vertical slice (2026-11-17)
 

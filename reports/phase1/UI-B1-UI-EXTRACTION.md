@@ -69,24 +69,30 @@ Status: synthetic structural tests only. The library is **not** imported by `mai
 or the HUD. A static-graph test checks this, and e2e check E confirms the marker
 `RO-SURVIVOR-DETACHED-RO-PRIMITIVES` is in no bundle.
 
-- **`VerifiedRasterSet` / `VerifiedRaster`** (`apps/client/src/ui/ro/raster.ts`):
-  - The loader issues one handle per verified PNG, and only after every UI-B1 check has passed.
-  - Each handle is keyed by logical ID and exposes the native size and the exact UI-A entry.
-  - It owns an object URL. `dispose()` revokes the URL once; double dispose is safe.
-  - Primitives accept only issued handles, not look-alike objects, URLs or paths.
-  - An unknown or disposed ID raises `MissingAssetsError` with the canonical registry container and path.
+- **Verified rasters**:
+  - The public module (`apps/client/src/ui/ro/raster.ts`) exposes only read-only handles, a read-only
+    `RasterRegistry` and `isVerifiedRaster`. It exports no issuer, no constructible set and no `issue()`.
+  - Handles are minted only by `game/formal/rasterMint.ts`, called only from `game/formal/ui.ts` (static call-site test):
+    - after every UI-B1 check;
+    - as one transaction: a failure revokes every URL created so far exactly once, and no partial set is returned;
+    - only for canonical registry IDs whose entry matches the ID and native size.
+  - Each handle keeps an independent, recursively frozen copy of its UI-A entry.
+  - `dispose()` revokes the URL once; double dispose is safe.
+  - A disposed, unknown or missing handle raises `MissingAssetsError` with the canonical container and path. Every
+    primitive rejects a disposed handle the same way.
 - **Primitives** (`apps/client/src/ui/ro/primitives.tsx`). Each has a pure `plan*` function and a component.
 
   | Primitive | Behaviour |
   | --- | --- |
   | `RoRaster` | One raster at native size × a positive integer scale, pixelated. |
   | `RoThreeSlice` | Three distinct declared left/mid/right parts of one group. Caps keep their native size; only the middle repeats. |
-  | `RoButton` | Every declared state must resolve to its own verified raster, otherwise the button blocks. An undeclared state never falls back to another one. |
+  | `RoButton` | Every declared state must resolve to its own verified raster, otherwise the button blocks. All states must belong to one canonical control (and one slice part). An undeclared state never falls back to another one. |
   | `RoGauge` | The official empty three-slice, plus the official fill three-slice clipped to the clamped ratio. Gauge parts only. |
   | `RoSlot` | A slot/frame raster plus an optional icon raster. The hotkey and count are DOM text only. |
 
 - **Formal visual static guard** (`apps/client/test/visual-guard.ts`):
-  - Scope: the primitive dependency graph only.
+  - Scope: the primitive dependency graph only, including relative CSS imports and CSS `@import`.
+  - Non-relative runtime imports must be on a minimal allowlist: preact and the repository's own contract packages.
   - It rejects:
     - gradients, border-radius, shadows, CSS border surfaces, pseudo-elements;
     - CSS colour fills, filter/opacity state synthesis;

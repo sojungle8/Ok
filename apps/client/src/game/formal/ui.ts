@@ -13,7 +13,8 @@ import {
   type DerivedCursorAct, type DerivedCursorSpr, type DerivedUiBitmap, type UiManifestEntry, type WhitelistRow,
 } from "@ro-survivor/content-schema";
 import { MissingAssetsError, missingWhitelisted, type MissingAsset } from "../requirements.ts";
-import { browserRasterUrls, VerifiedRasterSet, type RasterUrlFactory } from "../../ui/ro/raster.ts";
+import { browserRasterUrls, type RasterRegistry, type RasterUrlFactory } from "../../ui/ro/raster.ts";
+import { mintRasterSet } from "./rasterMint.ts";
 import { FORMAL_CONVERTER_VERSION, type FormalDecoders, type ImageLike } from "./load.ts";
 
 export interface UiGatewayLike {
@@ -39,7 +40,7 @@ export interface FormalUiAssets {
   /** Original font bytes by logical ID (filesystem:System allowlist). */
   fonts: Map<string, ArrayBuffer>;
   /** UI-B2: lifecycle-owned handles for every verified PNG (issued only after all checks passed). */
-  rasters: VerifiedRasterSet;
+  rasters: RasterRegistry;
 }
 
 const reasonOf = (err: unknown): string => (err instanceof Error ? err.message : String(err));
@@ -212,12 +213,13 @@ export async function loadFormalUiAssets(
   if (missing.length > 0 || !s || !a) {
     throw new MissingAssetsError([...new Map(missing.map((m) => [`${m.assetId ?? ""}|${m.reason}`, m])).values()].sort((x, y) => ((x.assetId ?? "") < (y.assetId ?? "") ? -1 : 1)));
   }
-  const rasters = new VerifiedRasterSet(options.rasterUrls ?? browserRasterUrls);
-  for (const [assetId, img] of images) {
+  // Mint every handle in one transaction (all or nothing), only after every check above has passed.
+  const items = [...images].map(([assetId, img]) => {
     const bytes = pngBytes.get(assetId);
     const entry = entries.get(assetId);
     if (!bytes || !entry) throw new MissingAssetsError([missingWhitelisted(whitelist, assetId, "verified bytes / entry missing at handle issue")]);
-    rasters.issue(assetId, bytes, img.width, img.height, entry);
-  }
+    return { assetId, bytes, width: img.width, height: img.height, entry };
+  });
+  const rasters = mintRasterSet(items, options.rasterUrls ?? browserRasterUrls);
   return { profileId: UI_PROFILE_ID, lockId: id.lockId, entries, images, cursor: { atlas: s, act: a }, fonts, rasters };
 }
