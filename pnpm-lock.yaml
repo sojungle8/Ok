@@ -82,6 +82,16 @@ importers:
         specifier: workspace:*
         version: link:../testkit
 
+  packages/ro-format-runtime:
+    dependencies:
+      '@ro-survivor/asset-contracts':
+        specifier: workspace:*
+        version: link:../asset-contracts
+    devDependencies:
+      '@ro-survivor/testkit':
+        specifier: workspace:*
+        version: link:../testkit
+
   packages/testkit: {}
 
 packages:
