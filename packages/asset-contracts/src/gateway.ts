@@ -9,6 +9,10 @@ export interface AssetGatewayHealth {
   sourceHashes: Record<string, string | null>;
   /** True when the gateway serves synthetic test fixtures; the formal client must refuse it. */
   fixture?: boolean;
+  /** `lockId` of the verified source lock the gateway serves. */
+  lockId?: string;
+  /** Identity of the ready derived manifest, or null when none is valid. */
+  derived?: { converterVersion: number; lockId: string; whitelistSha256: string; uiProfileId: string; uiEntrySetSha256: string } | null;
 }
 
 /** Contract from docs/product-plan/09-GITHUB-CLOUD-WORKFLOW.md. */

@@ -9,3 +9,4 @@ export * from "./buildProfile.ts";
 export * from "./http.ts";
 export * from "./formal.ts";
 export * from "./ui.ts";
+export * from "./uiRegistry.ts";

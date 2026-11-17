@@ -10,6 +10,9 @@ import { decodeOwnPng, encodePng } from "../lib/png.ts";
 import { auditWhitelist } from "./audit-whitelist-lib.ts";
 import { runExtraction } from "./extract-run.ts";
 import { repoRoot } from "./local-context.ts";
+import { CANONICAL_WHITELIST_SHA256 } from "@ro-survivor/asset-contracts";
+/** Verified lock of the reader + canonical v3 whitelist hash (synthetic run). */
+const identityOf = (r: { lockId: string }) => ({ lockId: r.lockId, whitelistSha256: CANONICAL_WHITELIST_SHA256 });
 import { buildSyntheticSources } from "./synthetic-sources.ts";
 
 const base = join(repoRoot, ".local-assets/synthetic-demo");
@@ -22,7 +25,7 @@ try {
   const audit = auditWhitelist(src.rows, reader);
   console.log(`audit (synthetic): ${audit.filter((r) => r.status === "PASS").length}/${audit.length} PASS`);
   const derived = join(base, "derived");
-  const m = runExtraction(src.rows, reader, derived);
+  const m = runExtraction(src.rows, reader, derived, { identity: identityOf(reader) });
   console.log(`extract (synthetic): ${m.outputs.length} outputs, ${m.sprites.length} actors, map reachable ${m.map?.flood.reachableFromSpawn}/${m.map?.flood.walkable}`);
   const evidence = join(repoRoot, "reports/phase1/synthetic");
   mkdirSync(evidence, { recursive: true });

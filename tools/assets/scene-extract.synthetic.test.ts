@@ -11,6 +11,9 @@ import { HttpAssetGatewayClient } from "@ro-survivor/asset-contracts";
 import { startGateway } from "@ro-survivor/asset-gateway";
 import { extractCommand, MANIFEST_FILE, MISSING_REPORT, runExtraction, type ExtractManifest, type PublishFs } from "./extract-run.ts";
 import { extractScene, SceneExtractionError } from "./scene-extract.ts";
+import { CANONICAL_WHITELIST_SHA256 } from "@ro-survivor/asset-contracts";
+/** Verified lock of the reader + canonical v3 whitelist hash (synthetic run). */
+const identityOf = (r: { lockId: string }) => ({ lockId: r.lockId, whitelistSha256: CANONICAL_WHITELIST_SHA256 });
 import { buildSyntheticSources } from "./synthetic-sources.ts";
 
 const repoRoot = resolve(import.meta.dirname, "../..");
@@ -102,7 +105,7 @@ describe("Commit B scene extraction (synthetic structural fixture — not RO evi
     const { rows, reader, out } = setup((r) => r.map((x) =>
       x.asset_id === "map.prt_fild08.ambient_sound.002" ? { ...x, bytes: x.bytes + 1 } : x));
     const wav = rows.find((r) => r.asset_id === "map.prt_fild08.ambient_sound.002") as WhitelistRow;
-    const err = sceneError(() => runExtraction(rows, reader, out));
+    const err = sceneError(() => runExtraction(rows, reader, out, { identity: identityOf(reader) }));
     expect(err.missing).toEqual([expect.objectContaining({ assetId: "map.prt_fild08.ambient_sound.002", canonicalPath: wav.canonical_cp949_path, reason: expect.stringContaining("source unreadable") as unknown })]);
     expect(existsSync(join(out, "manifest.json"))).toBe(false);
   });
@@ -118,7 +121,7 @@ describe("Commit B scene extraction (synthetic structural fixture — not RO evi
 
   it("transactional re-run: success, then a corrupted dependency in the same outDir leaves no ready manifest and the gateway serves nothing", async () => {
     const { cleanRows, reader, out, lock, root } = setup();
-    runExtraction(cleanRows, reader, out);
+    runExtraction(cleanRows, reader, out, { identity: identityOf(reader) });
     expect(existsSync(join(out, MANIFEST_FILE))).toBe(true);
     const gw = await startGateway({ config: { host: "127.0.0.1", port: 0, lanProfile: null }, whitelist: new AssetWhitelist(cleanRows), lock, buildId: "t", derivedDir: out });
     cleanups.push(() => void gw.close());
@@ -126,7 +129,7 @@ describe("Commit B scene extraction (synthetic structural fixture — not RO evi
     await expect(client.getJson("map.prt_fild08.rsw")).resolves.toMatchObject({ assetId: "map.prt_fild08.rsw" });
 
     const broken = cleanRows.map((r) => (r.asset_id === "map.prt_fild08.model.003" ? { ...r, sha256: "0".repeat(64) } : r));
-    const err = sceneError(() => runExtraction(broken, reader, out));
+    const err = sceneError(() => runExtraction(broken, reader, out, { identity: identityOf(reader) }));
     expect(err.missing.map((m) => m.assetId)).toEqual(["map.prt_fild08.model.003"]);
     expect(existsSync(join(out, MANIFEST_FILE))).toBe(false);
     expect(existsSync(join(out, MISSING_REPORT))).toBe(true);
@@ -136,7 +139,7 @@ describe("Commit B scene extraction (synthetic structural fixture — not RO evi
     await expect(client.getJson("map.prt_fild08.rsw")).rejects.toMatchObject({ code: "http-404" });
 
     // A clean re-run publishes again (atomic swap; no staging left behind).
-    runExtraction(cleanRows, reader, out);
+    runExtraction(cleanRows, reader, out, { identity: identityOf(reader) });
     await expect(client.getJson("map.prt_fild08.rsw")).resolves.toMatchObject({ assetId: "map.prt_fild08.rsw" });
     expect(readdirSync(root).filter((f) => f.includes(".staging-") || f.includes(".old-"))).toEqual([]);
   });
@@ -153,7 +156,7 @@ describe("Commit B scene extraction (synthetic structural fixture — not RO evi
   ] as const)("core map %s failure is structured (%s): exact ID / container / path, exit 1, no ready manifest", (id, reason, mutate) => {
     const { rows, reader, out } = setup((r) => mutate(r));
     const lines: string[] = [];
-    const res = extractCommand(rows, reader, out, (l) => lines.push(l));
+    const res = extractCommand(rows, reader, out, (l) => lines.push(l), identityOf(reader));
     expect(res.code).toBe(1);
     const expected = realRows.find((r) => r.asset_id === id) as WhitelistRow;
     const missing = res.code === 1 ? res.missing : [];
@@ -165,7 +168,7 @@ describe("Commit B scene extraction (synthetic structural fixture — not RO evi
 
   it("composite outputs carry the provenance of every input that decides their content", () => {
     const { rows, reader, out } = setup();
-    const m: ExtractManifest = runExtraction(rows, reader, out);
+    const m: ExtractManifest = runExtraction(rows, reader, out, { identity: identityOf(reader) });
     const fromOf = (file: string) => new Set(m.outputs.find((o) => o.file === file)?.from.map((f) => f.assetId));
     const ids = (pred: (r: WhitelistRow) => boolean) => rows.filter(pred).map((r) => r.asset_id);
     const expected = [
@@ -182,7 +185,7 @@ describe("Commit B scene extraction (synthetic structural fixture — not RO evi
 
   it("cleanup failure after the commit point: success + one valid active manifest, warning only", async () => {
     const { cleanRows, reader, out, lock, root } = setup();
-    runExtraction(cleanRows, reader, out);
+    runExtraction(cleanRows, reader, out, { identity: identityOf(reader) });
     const lines: string[] = [];
     const lockedOld: PublishFs = {
       rename: (a, b) => renameSync(a, b),
@@ -191,7 +194,7 @@ describe("Commit B scene extraction (synthetic structural fixture — not RO evi
         rmSync(p, { recursive: true, force: true });
       },
     };
-    const res = extractCommand(cleanRows, reader, out, (l) => lines.push(l), lockedOld);
+    const res = extractCommand(cleanRows, reader, out, (l) => lines.push(l), identityOf(reader), lockedOld);
     expect(res.code).toBe(0);
     expect(lines.filter((l) => l.startsWith("WARN ")).length).toBe(1);
     expect(existsSync(join(out, MANIFEST_FILE))).toBe(true);
@@ -206,7 +209,7 @@ describe("Commit B scene extraction (synthetic structural fixture — not RO evi
 
   it("failure at the commit point (publish rename): failure + no valid active manifest", () => {
     const { cleanRows, reader, out, root } = setup();
-    runExtraction(cleanRows, reader, out);
+    runExtraction(cleanRows, reader, out, { identity: identityOf(reader) });
     const failingPublish: PublishFs = {
       rename: (a, b) => {
         if (a.includes(".staging-")) throw new Error("EPERM: operation not permitted (injected)");
@@ -214,7 +217,7 @@ describe("Commit B scene extraction (synthetic structural fixture — not RO evi
       },
       removeDir: (p) => rmSync(p, { recursive: true, force: true }),
     };
-    expect(() => runExtraction(cleanRows, reader, out, { fs: failingPublish, onWarning: () => undefined })).toThrow(/EPERM/u);
+    expect(() => runExtraction(cleanRows, reader, out, { identity: identityOf(reader), fs: failingPublish, onWarning: () => undefined })).toThrow(/EPERM/u);
     expect(existsSync(join(out, MANIFEST_FILE))).toBe(false);
     expect(readdirSync(root).filter((f) => f.includes(".staging-"))).toEqual([]);
     for (const d of readdirSync(root).filter((f) => f.includes(".old-"))) expect(existsSync(join(root, d, MANIFEST_FILE))).toBe(false);

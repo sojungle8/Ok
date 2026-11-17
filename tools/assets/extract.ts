@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { createAssetReader, derivedDirFor } from "@ro-survivor/asset-gateway";
 import { writeJson } from "./verify-sources-lib.ts";
@@ -14,7 +16,8 @@ const { lock, whitelist } = loadLocalContext();
 const reader = createAssetReader(lock);
 try {
   const outDir = derivedDirFor(repoRoot, lock.sources["data.grf"].sha256);
-  const result = extractCommand(whitelist.rows(), reader, outDir, (line) => console.error(line));
+  const whitelistSha256 = createHash("sha256").update(readFileSync(join(repoRoot, "docs/product-plan/handoff/fan-local-asset-whitelist.csv"))).digest("hex").toUpperCase();
+  const result = extractCommand(whitelist.rows(), reader, outDir, (line) => console.error(line), { lockId: lock.lockId, whitelistSha256 });
   if (result.code !== 0) process.exit(1);
   const manifest = result.manifest;
   for (const s of manifest.sprites) console.log(`sprite ${s.id}: ${s.composedFrames} frames, ${s.uniqueImages} images, ${s.mirrorDeduped} mirror-deduped, fallbacks=[${s.fallbacks.join(", ")}]`);

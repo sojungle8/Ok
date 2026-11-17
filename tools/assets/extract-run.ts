@@ -1,9 +1,9 @@
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, renameSync, rmSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import type { WhitelistRow } from "@ro-survivor/content-schema";
 import type { AssetReader } from "@ro-survivor/asset-gateway";
-import { FORMAL_MAP_CORE, FORMAL_MAP_CORE_PATHS } from "@ro-survivor/asset-contracts";
+import { CANONICAL_WHITELIST_SHA256, FORMAL_MAP_CORE, FORMAL_MAP_CORE_PATHS, UI_ENTRY_SET_SHA256, UI_PROFILE_ID } from "@ro-survivor/asset-contracts";
 import { parseGat, parseGnd, parseRsw } from "@ro-survivor/ro-format-runtime";
 import { DERIVED_MARKER } from "../lib/png.ts";
 import { extractUi, type UiExtractionSummary } from "./ui-extract.ts";
@@ -13,10 +13,21 @@ import { buildContactSheet, buildSpriteAtlas, CONVERTER_VERSION, extractMap, par
 export const MANIFEST_FILE = "manifest.json";
 export const MISSING_REPORT = "reports/prt_fild08-scene-missing.json";
 
+/**
+ * Identity of one extraction: the verified source lock (`lock.lockId` from source-lock.local.json)
+ * and the SHA-256 of the canonical whitelist CSV bytes. Supplied by the caller; never recomputed from
+ * parsed rows or composed here.
+ */
+export interface ExtractionIdentity {
+  lockId: string;
+  whitelistSha256: string;
+}
+
 export interface ExtractManifest {
   rights: string;
   converterVersion: number;
   profile: "fan-local";
+  identity: ExtractionIdentity & { uiProfileId: string; uiEntrySetSha256: string };
   sources: Record<string, string>;
   outputs: { file: string; sha256: string; bytes: number; from: { assetId: string; entrySha256: string; rawHex: string }[] }[];
   sprites: { id: string; composedFrames: number; uniqueImages: number; mirrorDeduped: number; fallbacks: string[] }[];
@@ -60,7 +71,7 @@ export function runExtraction(
   rows: readonly WhitelistRow[],
   reader: AssetReader,
   outDir: string,
-  options: { fs?: PublishFs; onWarning?: (message: string) => void } = {},
+  options: { identity: ExtractionIdentity; fs?: PublishFs; onWarning?: (message: string) => void },
 ): ExtractManifest {
   const fs = options.fs ?? realFs;
   const warn = options.onWarning ?? ((m: string) => console.warn(m));
@@ -70,7 +81,7 @@ export function runExtraction(
   let manifest: ExtractManifest;
   let old: string | null;
   try {
-    manifest = extractInto(rows, reader, staging);
+    manifest = extractInto(rows, reader, staging, options.identity);
     writeOutput(staging, MANIFEST_FILE, JSON.stringify(manifest, null, 2));
     old = existsSync(outDir) ? `${outDir}.old-${randomUUID().slice(0, 8)}` : null;
     if (old) fs.rename(outDir, old);
@@ -97,9 +108,9 @@ export function runExtraction(
 }
 
 /** CLI body of `pnpm assets:extract`: 0 on success, 1 with MISSING lines on a dependency problem. */
-export function extractCommand(rows: readonly WhitelistRow[], reader: AssetReader, outDir: string, log: (line: string) => void, fs?: PublishFs): { code: 0; manifest: ExtractManifest } | { code: 1; missing: SceneMissing[] } {
+export function extractCommand(rows: readonly WhitelistRow[], reader: AssetReader, outDir: string, log: (line: string) => void, identity: ExtractionIdentity, fs?: PublishFs): { code: 0; manifest: ExtractManifest } | { code: 1; missing: SceneMissing[] } {
   try {
-    return { code: 0, manifest: runExtraction(rows, reader, outDir, { onWarning: (m) => log(`WARN ${m}`), ...(fs ? { fs } : {}) }) };
+    return { code: 0, manifest: runExtraction(rows, reader, outDir, { identity, onWarning: (m) => log(`WARN ${m}`), ...(fs ? { fs } : {}) }) };
   } catch (err) {
     if (!(err instanceof SceneExtractionError)) throw err;
     for (const m of err.missing) log(`MISSING ${m.assetId ?? "(not whitelisted)"} ${m.container} ${m.canonicalPath}: ${m.reason}`);
@@ -108,9 +119,18 @@ export function extractCommand(rows: readonly WhitelistRow[], reader: AssetReade
   }
 }
 
-function extractInto(rows: readonly WhitelistRow[], reader: AssetReader, outDir: string): ExtractManifest {
+function extractInto(rows: readonly WhitelistRow[], reader: AssetReader, outDir: string, identity: ExtractionIdentity): ExtractManifest {
+  // Contract identity first: a wrong lock or whitelist means nothing is extracted.
+  const contract: SceneMissing[] = [];
+  if (identity.lockId !== reader.lockId) contract.push({ assetId: null, container: "contract", canonicalPath: "identity.lockId", reason: `lockId ${JSON.stringify(identity.lockId)} is not the verified lock ${JSON.stringify(reader.lockId)}` });
+  if (identity.whitelistSha256.toUpperCase() !== CANONICAL_WHITELIST_SHA256) contract.push({ assetId: null, container: "contract", canonicalPath: "identity.whitelistSha256", reason: `whitelist SHA-256 ${identity.whitelistSha256} is not the canonical v3 ${CANONICAL_WHITELIST_SHA256}` });
+  if (contract.length > 0) throw new SceneExtractionError(contract);
   const byId = new Map(rows.map((r) => [r.asset_id, r]));
-  const manifest: ExtractManifest = { rights: DERIVED_MARKER, converterVersion: CONVERTER_VERSION, profile: "fan-local", sources: reader.sourceHashes, outputs: [], sprites: [], map: null, ui: null };
+  const manifest: ExtractManifest = {
+    rights: DERIVED_MARKER, converterVersion: CONVERTER_VERSION, profile: "fan-local",
+    identity: { lockId: identity.lockId, whitelistSha256: CANONICAL_WHITELIST_SHA256, uiProfileId: UI_PROFILE_ID, uiEntrySetSha256: UI_ENTRY_SET_SHA256 },
+    sources: reader.sourceHashes, outputs: [], sprites: [], map: null, ui: null,
+  };
   const problem = (id: string, reason: string): SceneMissing => {
     const row = byId.get(id);
     const fixed = (FORMAL_MAP_CORE_PATHS as Record<string, { container: string; canonicalPath: string } | undefined>)[id];
@@ -187,8 +207,7 @@ function extractInto(rows: readonly WhitelistRow[], reader: AssetReader, outDir:
     scene: scene.summary,
   };
   // UI-B1: the 108 RO UI rows (same transaction; any problem → no ready manifest).
-  const whitelistSha256 = createHash("sha256").update(JSON.stringify(rows)).digest("hex").toUpperCase();
-  const ui = extractUi(rows, reader, outDir, { lockId: `data.grf:${reader.sourceHashes["data.grf"] ?? "?"}`, whitelistSha256 });
+  const ui = extractUi(rows, reader, outDir, { lockId: identity.lockId, whitelistSha256: CANONICAL_WHITELIST_SHA256 });
   manifest.outputs.push(...ui.outputs);
   manifest.ui = ui.summary;
   return manifest;

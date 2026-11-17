@@ -2,39 +2,35 @@
  * UI-B1 — FormalUiAssetLoader: fail-closed registry of the 108 RO UI assets of profile
  * KRO2021_CLASSIC_V0_FAN, loaded only by logical ID from the local gateway. Not wired into the visible
  * UI yet (no HUD in this step). It never synthesises a missing state, slice, cursor frame, texture or font:
- * any missing / drifted / undecodable / contract-violating asset is reported with ID + container + path.
+ * any contract, identity, registry, drift, decode or validation failure is reported with ID + container + path.
  */
-import { classifyUiAsset, isUiRow, UI_PROFILE_ID, uiButtonStates, type AssetWhitelist } from "@ro-survivor/asset-contracts";
-import { uiManifestEntrySchema, type UiManifestEntry } from "@ro-survivor/content-schema";
+import {
+  CANONICAL_WHITELIST_SHA256, classifyUiAsset, isUiRow, UI_ENTRY_SET_SHA256, UI_PROFILE_ID, UI_REGISTRY, UI_REGISTRY_COUNT,
+  type AssetGatewayHealth, type AssetWhitelist,
+} from "@ro-survivor/asset-contracts";
+import {
+  derivedCursorActSchema, derivedCursorSprSchema, derivedUiBitmapSchema,
+  type DerivedCursorAct, type DerivedCursorSpr, type DerivedUiBitmap, type UiManifestEntry, type WhitelistRow,
+} from "@ro-survivor/content-schema";
 import { MissingAssetsError, missingWhitelisted, type MissingAsset } from "../requirements.ts";
 import { FORMAL_CONVERTER_VERSION, type FormalDecoders, type ImageLike } from "./load.ts";
 
 export interface UiGatewayLike {
+  health(): Promise<AssetGatewayHealth>;
   getJson<T>(assetId: string): Promise<T>;
   getDerivedImage(assetId: string): Promise<Uint8Array>;
   getBinary(assetId: string): Promise<ArrayBuffer>;
 }
 
-interface DerivedUiHeader {
-  converterVersion: number;
+export interface UiExpectedIdentity {
   profileId: string;
-  entry: UiManifestEntry;
-}
-interface DerivedUiBitmap extends DerivedUiHeader {
-  derived: { file: string; sha256: string; width: number; height: number };
-  filter: string;
-}
-export interface DerivedCursorAct extends DerivedUiHeader {
-  actVersion: string;
-  actions: { delay: number; frames: { layers: { sprIndex: number; sprType: "indexed" | "rgba"; x: number; y: number }[] }[] }[];
-  hotspots: { action: number; x: number; y: number }[];
-}
-export interface DerivedCursorSpr extends DerivedUiBitmap {
-  frames: { x: number; y: number; w: number; h: number; type: "indexed" | "rgba"; index: number }[];
+  /** SHA-256 of the canonical whitelist CSV bytes the client was built with. */
+  whitelistSha256: string;
 }
 
 export interface FormalUiAssets {
   profileId: typeof UI_PROFILE_ID;
+  lockId: string;
   entries: Map<string, UiManifestEntry>;
   /** Decoded derived bitmaps by logical ID (UI BMPs and the cursor atlas). */
   images: Map<string, ImageLike>;
@@ -44,25 +40,63 @@ export interface FormalUiAssets {
 }
 
 const reasonOf = (err: unknown): string => (err instanceof Error ? err.message : String(err));
+const contractError = (field: string, reason: string): MissingAssetsError =>
+  new MissingAssetsError([{ assetId: null, container: "contract", canonicalPath: field, reason }]);
 
-export async function loadFormalUiAssets(gateway: UiGatewayLike, decoders: FormalDecoders, whitelist: AssetWhitelist, profileId: string): Promise<FormalUiAssets> {
-  if (profileId !== UI_PROFILE_ID) throw new Error(`UI profile ${profileId} is not accepted (only ${UI_PROFILE_ID})`);
-  const rows = whitelist.rows().filter(isUiRow);
+async function sha256Upper(bytes: Uint8Array): Promise<string> {
+  const d = await crypto.subtle.digest("SHA-256", bytes as Uint8Array<ArrayBuffer>);
+  return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, "0")).join("").toUpperCase();
+}
+
+export async function loadFormalUiAssets(gateway: UiGatewayLike, decoders: FormalDecoders, whitelist: AssetWhitelist, expected: UiExpectedIdentity): Promise<FormalUiAssets> {
+  // 1. Contract identity, before any UI asset is requested.
+  if (expected.profileId !== UI_PROFILE_ID) throw contractError("profileId", `UI profile ${expected.profileId} is not accepted (only ${UI_PROFILE_ID})`);
+  if (expected.whitelistSha256.toUpperCase() !== CANONICAL_WHITELIST_SHA256) throw contractError("whitelistSha256", `client whitelist ${expected.whitelistSha256} is not the canonical v3 ${CANONICAL_WHITELIST_SHA256}`);
+  const health = await gateway.health();
+  const id = health.derived;
+  if (!id) throw contractError("derived", "gateway has no ready derived manifest");
+  if (id.converterVersion !== FORMAL_CONVERTER_VERSION) throw contractError("derived.converterVersion", `v${id.converterVersion}, client needs v${FORMAL_CONVERTER_VERSION}`);
+  if (!health.lockId || id.lockId !== health.lockId) throw contractError("derived.lockId", `manifest lock ${id.lockId} is not the gateway's verified lock ${health.lockId ?? "(none)"}`);
+  if (id.whitelistSha256.toUpperCase() !== CANONICAL_WHITELIST_SHA256) throw contractError("derived.whitelistSha256", `manifest whitelist ${id.whitelistSha256} is not canonical`);
+  if (id.uiProfileId !== UI_PROFILE_ID) throw contractError("derived.uiProfileId", `manifest profile ${id.uiProfileId}`);
+  if (id.uiEntrySetSha256 !== UI_ENTRY_SET_SHA256) throw contractError("derived.uiEntrySetSha256", "manifest UI entry set differs from the canonical 108-row registry");
+
   const missing: MissingAsset[] = [];
-  const fail = (id: string, reason: string): void => {
-    missing.push(missingWhitelisted(whitelist, id, reason));
+  const failRow = (assetId: string, reason: string): void => {
+    missing.push(missingWhitelisted(whitelist, assetId, reason));
   };
+  // 2. Canonical registry vs whitelist: missing, extra, duplicate or drifted rows all block.
+  const registry = new Map(UI_REGISTRY.map(([assetId, category, container, path]) => [assetId, { category, container, path }]));
+  if (registry.size !== UI_REGISTRY_COUNT) throw contractError("registry", `canonical registry has ${registry.size} unique IDs, expected ${UI_REGISTRY_COUNT}`);
+  const rows = new Map<string, WhitelistRow>();
+  for (const [assetId, reg] of registry) {
+    if (!whitelist.has(assetId)) {
+      missing.push({ assetId, container: reg.container, canonicalPath: reg.path, reason: "canonical UI row is missing from the whitelist" });
+      continue;
+    }
+    const row = whitelist.get(assetId);
+    if (row.category !== reg.category || row.source_container !== reg.container || row.canonical_cp949_path !== reg.path) {
+      missing.push({ assetId, container: reg.container, canonicalPath: reg.path, reason: "whitelist row drifts from the canonical registry (category / container / path)" });
+      continue;
+    }
+    rows.set(assetId, row);
+  }
+  for (const r of whitelist.rows().filter(isUiRow)) if (!registry.has(r.asset_id)) failRow(r.asset_id, "UI row is not in the canonical KRO2021_CLASSIC_V0_FAN registry");
+
   const entries = new Map<string, UiManifestEntry>();
   const images = new Map<string, ImageLike>();
   const fonts = new Map<string, ArrayBuffer>();
-  let cursorSpr: DerivedCursorSpr | null = null;
-  let cursorAct: DerivedCursorAct | null = null;
+  let spr: DerivedCursorSpr | null = null;
+  let act: DerivedCursorAct | null = null;
+  let atlasImage: ImageLike | null = null;
 
-  /** Manifest entry must describe exactly this whitelist row (no drift). */
-  const checkEntry = (row: (typeof rows)[number], header: DerivedUiHeader): UiManifestEntry => {
-    if (header.converterVersion !== FORMAL_CONVERTER_VERSION) throw new Error(`converter v${header.converterVersion}, client needs v${FORMAL_CONVERTER_VERSION}`);
-    if (header.profileId !== UI_PROFILE_ID) throw new Error(`profile ${header.profileId} != ${UI_PROFILE_ID}`);
-    const e = uiManifestEntrySchema.parse(header.entry);
+  const checkHeader = (row: WhitelistRow, h: { converterVersion: number; profileId: string; lockId: string; whitelistSha256: string; entrySetSha256: string; entry: UiManifestEntry }): UiManifestEntry => {
+    if (h.converterVersion !== id.converterVersion) throw new Error(`converterVersion ${h.converterVersion} != manifest ${id.converterVersion}`);
+    if (h.profileId !== UI_PROFILE_ID) throw new Error(`profileId ${h.profileId}`);
+    if (h.lockId !== id.lockId) throw new Error(`lockId ${h.lockId} != manifest ${id.lockId}`);
+    if (h.whitelistSha256.toUpperCase() !== CANONICAL_WHITELIST_SHA256) throw new Error("whitelistSha256 is not canonical");
+    if (h.entrySetSha256 !== UI_ENTRY_SET_SHA256) throw new Error("entrySetSha256 differs from the canonical registry");
+    const e = h.entry;
     const c = classifyUiAsset(row);
     if (e.logical_asset_id !== row.asset_id) throw new Error(`entry is for ${e.logical_asset_id}`);
     if (e.reference_profile_id !== UI_PROFILE_ID) throw new Error(`entry profile ${e.reference_profile_id}`);
@@ -71,72 +105,100 @@ export async function loadFormalUiAssets(gateway: UiGatewayLike, decoders: Forma
     if (e.role !== c.role || e.state !== c.state || JSON.stringify(e.slice) !== JSON.stringify(c.slice)) throw new Error("role / state / slice differ from the UI contract");
     return e;
   };
+  /** Derived PNG: bytes must hash to the JSON's declared SHA-256, decode to the declared size. */
+  const loadPng = async (assetId: string, meta: DerivedUiBitmap): Promise<ImageLike> => {
+    const bytes = await gateway.getDerivedImage(assetId);
+    const got = await sha256Upper(bytes);
+    if (got !== meta.derived.sha256.toUpperCase()) throw new Error(`derived PNG SHA-256 ${got} != declared ${meta.derived.sha256}`);
+    const img = await decoders.image(bytes, "image/png");
+    if (img.width !== meta.derived.width || img.height !== meta.derived.height) throw new Error(`decoded ${img.width}x${img.height} != derived ${meta.derived.width}x${meta.derived.height}`);
+    return img;
+  };
 
-  await Promise.all(rows.map(async (row) => {
-    const id = row.asset_id;
+  // 3. Load every canonical UI asset by logical ID only.
+  await Promise.all([...rows.values()].map(async (row) => {
+    const assetId = row.asset_id;
     try {
       if (row.source_container === "filesystem:System") {
-        const bytes = await gateway.getBinary(id);
+        const bytes = await gateway.getBinary(assetId);
         const sig = String.fromCharCode(...new Uint8Array(bytes, 0, Math.min(4, bytes.byteLength)));
         if (sig !== "OTTO") throw new Error(`font signature ${JSON.stringify(sig)} is not OTTO`);
-        fonts.set(id, bytes);
+        fonts.set(assetId, bytes);
         return;
       }
-      if (id === "ui.cursor.act") {
-        const act = await gateway.getJson<DerivedCursorAct>(id);
-        const e = checkEntry(row, act);
-        if (act.actions.length !== Number(row.act_actions || act.actions.length)) throw new Error(`ACT actions ${act.actions.length} != whitelist ${row.act_actions}`);
-        if (act.hotspots.length !== act.actions.length) throw new Error("cursor hotspot missing for some action");
-        cursorAct = act;
-        entries.set(id, e);
+      if (assetId === "ui.cursor.act") {
+        const a = derivedCursorActSchema.parse(await gateway.getJson<unknown>(assetId));
+        entries.set(assetId, checkHeader(row, a));
+        if (row.act_actions !== "" && a.actions.length !== Number(row.act_actions)) throw new Error(`ACT actions ${a.actions.length} != whitelist ${row.act_actions}`);
+        act = a;
         return;
       }
-      const meta = await gateway.getJson<DerivedUiBitmap>(id);
-      const e = checkEntry(row, meta);
-      if (meta.filter !== "nearest") throw new Error(`filter ${meta.filter} is not nearest`);
-      const img = await decoders.image(await gateway.getDerivedImage(id), "image/png");
-      if (e.format === "bmp" && (img.width !== e.native_width || img.height !== e.native_height)) throw new Error(`decoded ${img.width}x${img.height} != native ${e.native_width ?? "?"}x${e.native_height ?? "?"}`);
-      if (img.width !== meta.derived.width || img.height !== meta.derived.height) throw new Error("decoded size differs from the derived metadata");
-      images.set(id, img);
-      entries.set(id, e);
-      if (id === "ui.cursor.spr") cursorSpr = meta as DerivedCursorSpr;
+      if (assetId === "ui.cursor.spr") {
+        const s = derivedCursorSprSchema.parse(await gateway.getJson<unknown>(assetId));
+        entries.set(assetId, checkHeader(row, s));
+        atlasImage = await loadPng(assetId, s);
+        images.set(assetId, atlasImage);
+        spr = s;
+        return;
+      }
+      const meta = derivedUiBitmapSchema.parse(await gateway.getJson<unknown>(assetId));
+      const e = checkHeader(row, meta);
+      const img = await loadPng(assetId, meta);
+      if (img.width !== e.native_width || img.height !== e.native_height) throw new Error(`decoded ${img.width}x${img.height} != native ${e.native_width ?? "?"}x${e.native_height ?? "?"}`);
+      images.set(assetId, img);
+      entries.set(assetId, e);
     } catch (err) {
-      fail(id, `UI asset unavailable or invalid: ${reasonOf(err)}`);
+      entries.delete(assetId);
+      failRow(assetId, `UI asset unavailable or invalid: ${reasonOf(err)}`);
     }
   }));
 
-  // Cursor: every action's first layer must reference an existing atlas frame, hotspot inside it.
-  const spr = cursorSpr as DerivedCursorSpr | null;
-  const act = cursorAct as DerivedCursorAct | null;
-  if (spr && act) {
-    act.actions.forEach((a, i) => {
-      const layer = a.frames[0]?.layers[0];
-      const frame = layer ? spr.frames.find((f) => f.type === layer.sprType && f.index === layer.sprIndex) : undefined;
-      const hs = act.hotspots.find((h) => h.action === i);
-      if (!layer || !frame) fail("ui.cursor.act", `action ${i}: no first-frame layer with an atlas frame`);
-      else if (!hs || hs.x < 0 || hs.y < 0 || hs.x >= frame.w || hs.y >= frame.h) fail("ui.cursor.act", `action ${i}: hotspot outside its ${frame.w}x${frame.h} frame`);
+  // 4. Cursor: atlas rects inside the atlas and unique; every non-empty layer of every frame of every
+  //    action references an atlas frame; hotspots exactly one per action 0..n-1, inside that action's frame.
+  const s = spr as DerivedCursorSpr | null;
+  const a = act as DerivedCursorAct | null;
+  const atlas = atlasImage as ImageLike | null;
+  if (s && a && atlas) {
+    const seen = new Set<string>();
+    for (const f of s.frames) {
+      const key = `${f.type}:${f.index}`;
+      if (seen.has(key)) failRow("ui.cursor.spr", `duplicate atlas frame ${key}`);
+      seen.add(key);
+      if (f.x + f.w > s.derived.width || f.y + f.h > s.derived.height || f.x + f.w > atlas.width || f.y + f.h > atlas.height) failRow("ui.cursor.spr", `atlas frame ${key} rect outside the ${s.derived.width}x${s.derived.height} atlas`);
+    }
+    const frameOf = (type: string, index: number) => s.frames.find((f) => f.type === type && f.index === index);
+    a.actions.forEach((action, ai) => {
+      if (action.frames.length === 0) failRow("ui.cursor.act", `action ${ai} has no frames`);
+      action.frames.forEach((fr, fi) => fr.layers.forEach((l, li) => {
+        if (l.sprIndex >= 0 && !frameOf(l.sprType, l.sprIndex)) failRow("ui.cursor.act", `action ${ai} frame ${fi} layer ${li}: ${l.sprType} ${l.sprIndex} not in the atlas`);
+      }));
     });
+    const actionsWithHotspot = a.hotspots.map((h) => h.action);
+    const expectedActions = a.actions.map((_, i) => i);
+    if (new Set(actionsWithHotspot).size !== actionsWithHotspot.length || [...actionsWithHotspot].sort((x, y) => x - y).join() !== expectedActions.join()) {
+      failRow("ui.cursor.act", `hotspot actions [${actionsWithHotspot.join(",")}] are not exactly 0..${a.actions.length - 1}`);
+    }
+    for (const h of a.hotspots) {
+      const l = a.actions[h.action]?.frames[0]?.layers[0];
+      const f = l ? frameOf(l.sprType, l.sprIndex) : undefined;
+      if (!f || h.x < 0 || h.y < 0 || h.x >= f.w || h.y >= f.h) failRow("ui.cursor.act", `action ${h.action}: hotspot (${h.x},${h.y}) outside its frame`);
+    }
+  } else {
+    if (!s && !missing.some((m) => m.assetId === "ui.cursor.spr")) failRow("ui.cursor.spr", "cursor atlas not loaded");
+    if (!a && !missing.some((m) => m.assetId === "ui.cursor.act")) failRow("ui.cursor.act", "cursor ACT not loaded");
   }
-  // Completeness: every declared button state and every slice part must have its own loaded asset.
-  for (const [group, states] of uiButtonStates(whitelist)) {
-    const ids = rows.filter((r) => {
-      const c = classifyUiAsset(r);
-      return c.role === "button" && c.state !== null && (c.slice ? `${c.slice.group.split(".").slice(0, -1).join(".")}.*.${c.slice.part}` : r.asset_id.split(".").slice(0, -1).join(".")) === group;
-    });
-    if (ids.length !== states.length) fail(ids[0]?.asset_id ?? group, `button group ${group}: ${ids.length} rows for ${states.length} states`);
-  }
-  for (const r of rows) {
-    const c = classifyUiAsset(r);
-    if (!c.slice) continue;
-    for (const part of ["left", "mid", "right"] as const) {
-      const pid = `${c.slice.group}.${part}`;
-      if (!whitelist.has(pid)) fail(r.asset_id, `three-part slice ${c.slice.group} lacks ${part}`);
+
+  // 5. Completeness against the canonical registry: every button state and every slice part is its own
+  //    loaded asset (fonts are tracked separately); nothing is derived from a neighbour.
+  for (const [assetId, reg] of registry) {
+    const c = classifyUiAsset({ asset_id: assetId, category: reg.category });
+    const loaded = reg.container === "filesystem:System" ? fonts.has(assetId) : entries.has(assetId);
+    if (!loaded && !missing.some((m) => m.assetId === assetId)) {
+      missing.push({ assetId, container: reg.container, canonicalPath: reg.path, reason: c.state ? `button state ${c.state} not loaded` : c.slice ? `slice ${c.slice.group}.${c.slice.part} not loaded` : "not loaded" });
     }
   }
-  if (missing.length > 0 || !spr || !act) {
-    if (!spr && !missing.some((m) => m.assetId === "ui.cursor.spr")) fail("ui.cursor.spr", "cursor atlas not loaded");
-    if (!act && !missing.some((m) => m.assetId === "ui.cursor.act")) fail("ui.cursor.act", "cursor ACT not loaded");
-    throw new MissingAssetsError([...new Map(missing.map((m) => [`${m.assetId ?? ""}|${m.reason}`, m])).values()].sort((a, b) => ((a.assetId ?? "") < (b.assetId ?? "") ? -1 : 1)));
+  if (missing.length > 0 || !s || !a) {
+    throw new MissingAssetsError([...new Map(missing.map((m) => [`${m.assetId ?? ""}|${m.reason}`, m])).values()].sort((x, y) => ((x.assetId ?? "") < (y.assetId ?? "") ? -1 : 1)));
   }
-  return { profileId: UI_PROFILE_ID, entries, images, cursor: { atlas: spr, act }, fonts };
+  return { profileId: UI_PROFILE_ID, lockId: id.lockId, entries, images, cursor: { atlas: s, act: a }, fonts };
 }

@@ -99,3 +99,41 @@ export const uiReferenceMetricsSchema = z.object({
   if (hasNull(m.desktop1024x768) || hasNull(m.font)) ctx.addIssue({ code: "custom", message: "MEASURED metrics cannot contain null values" });
 });
 export type UiReferenceMetrics = z.infer<typeof uiReferenceMetricsSchema>;
+
+/** Identity carried by every derived UI file (UI-B1): converter, profile, verified lock, canonical whitelist, entry set. */
+const derivedUiIdentity = {
+  converterVersion: z.number().int(),
+  profileId: z.string(),
+  lockId: z.string().min(1),
+  whitelistSha256: sha256,
+  entrySetSha256: sha256,
+};
+const derivedImage = z.object({ file: z.string(), sha256, width: z.number().int().positive(), height: z.number().int().positive() });
+
+export const derivedUiBitmapSchema = z.object({
+  ...derivedUiIdentity,
+  entry: uiManifestEntrySchema,
+  derived: derivedImage,
+  filter: z.literal("nearest"),
+});
+export type DerivedUiBitmap = z.infer<typeof derivedUiBitmapSchema>;
+
+export const derivedCursorSprSchema = derivedUiBitmapSchema.extend({
+  frames: z.array(z.object({ x: z.number().int().nonnegative(), y: z.number().int().nonnegative(), w: z.number().int().positive(), h: z.number().int().positive(), type: z.enum(["indexed", "rgba"]), index: z.number().int().nonnegative() })),
+});
+export type DerivedCursorSpr = z.infer<typeof derivedCursorSprSchema>;
+
+const actLayer = z.object({
+  x: z.number(), y: z.number(), sprIndex: z.number().int(), mirror: z.boolean(),
+  color: z.tuple([z.number(), z.number(), z.number(), z.number()]), scaleX: z.number(), scaleY: z.number(), rotation: z.number(),
+  sprType: z.enum(["indexed", "rgba"]), width: z.number().int().nullable(), height: z.number().int().nullable(),
+});
+export const derivedCursorActSchema = z.object({
+  ...derivedUiIdentity,
+  entry: uiManifestEntrySchema,
+  actVersion: z.string(),
+  actions: z.array(z.object({ delay: z.number(), frames: z.array(z.object({ layers: z.array(actLayer), soundIndex: z.number().int(), anchors: z.array(z.object({ x: z.number(), y: z.number(), attr: z.number() })) })) })),
+  sounds: z.array(z.string()),
+  hotspots: z.array(z.object({ action: z.number().int().nonnegative(), x: z.number().int(), y: z.number().int() })),
+});
+export type DerivedCursorAct = z.infer<typeof derivedCursorActSchema>;

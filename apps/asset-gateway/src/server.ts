@@ -45,7 +45,7 @@ export function createGateway(options: GatewayServerOptions): { handler: (req: I
   const { lock, whitelist, config } = options;
   const reader = createAssetReader(lock, options.maxAssetBytes === undefined ? {} : { maxAssetBytes: options.maxAssetBytes });
   const sourceHashes = reader.sourceHashes;
-  const derived = options.derivedDir ? createDerivedStore(options.derivedDir, sourceHashes) : null;
+  const derived = options.derivedDir ? createDerivedStore(options.derivedDir, sourceHashes, lock.lockId) : null;
 
   const handler = (req: IncomingMessage, res: ServerResponse): void => {
     try {
@@ -69,7 +69,7 @@ export function createGateway(options: GatewayServerOptions): { handler: (req: I
       if (req.method !== "GET" && req.method !== "HEAD") throw new HttpError(405, "only GET is allowed");
       const path = (req.url ?? "/").split("?")[0] ?? "/";
       if (path === "/health") {
-        json(res, 200, { ok: true, mode: "fan-local", buildId: options.buildId, sourceHashes, fixture: isFixtureLock(lock) });
+        json(res, 200, { ok: true, mode: "fan-local", buildId: options.buildId, sourceHashes, fixture: isFixtureLock(lock), lockId: lock.lockId, derived: derived?.identity() ?? null });
         return;
       }
       const m = ASSET_ROUTE.exec(path);

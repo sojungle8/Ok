@@ -13,6 +13,9 @@ import { createTempDir } from "@ro-survivor/testkit";
 import { loadFormalScene, type FormalDecoders } from "../../apps/client/src/game/formal/load.ts";
 import { MissingAssetsError } from "../../apps/client/src/game/requirements.ts";
 import { runExtraction } from "./extract-run.ts";
+import { CANONICAL_WHITELIST_SHA256 } from "@ro-survivor/asset-contracts";
+/** Verified lock of the reader + canonical v3 whitelist hash (synthetic run). */
+const identityOf = (r: { lockId: string }) => ({ lockId: r.lockId, whitelistSha256: CANONICAL_WHITELIST_SHA256 });
 import { buildSyntheticSources } from "./synthetic-sources.ts";
 
 const repoRoot = resolve(import.meta.dirname, "../..");
@@ -41,7 +44,7 @@ async function setup() {
   const reader = createAssetReader(src.lock);
   cleanups.push(() => reader.close());
   const out = join(d.root, "derived");
-  runExtraction(src.rows, reader, out);
+  runExtraction(src.rows, reader, out, { identity: identityOf(reader) });
   const whitelist = new AssetWhitelist(src.rows);
   const gw = await startGateway({ config: { host: "127.0.0.1", port: 0, lanProfile: null }, whitelist, lock: src.lock, buildId: "t", derivedDir: out });
   cleanups.push(() => gw.close());

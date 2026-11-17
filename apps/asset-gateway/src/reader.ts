@@ -46,6 +46,8 @@ export function createAssetReader(lock: SourceLockLocal, options: { maxAssetByte
   };
 
   return {
+    /** `lockId` of the verified lock this reader serves (identity of the derived outputs). */
+    lockId: lock.lockId,
     sourceHashes,
     /** Whether rdata.grf holds an entry with the same raw name (an override the whitelist must declare). */
     hasRdataOverride(row: WhitelistRow): boolean {

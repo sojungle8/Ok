@@ -37,6 +37,12 @@
   - the 108 RO UI rows are extracted inside the transactional extraction: BMP → lossless PNG with the magenta key,
     and the cursor atlas/ACT with hotspots; fonts stay source-only;
   - new `FormalUiAssetLoader` (profile KRO2021_CLASSIC_V0_FAN only, fail-closed), not wired into the screen yet.
+- UI-B1 fixes B1-1…B1-5:
+  - the verified lock + canonical whitelist identity is enforced in extraction, the gateway and the loader;
+  - the cursor ACT is kept verbatim;
+  - a canonical 108-ID registry is introduced;
+  - full cursor frame / layer / hotspot validation;
+  - PNG ↔ JSON SHA-256 cross-check.
 
 ## Unreleased — Phase 2 vertical slice (2026-11-17)
 

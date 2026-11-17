@@ -10,6 +10,9 @@ import { scanRepository } from "../rights-check/scan.ts";
 import { auditWhitelist } from "./audit-whitelist-lib.ts";
 import { runExtraction } from "./extract-run.ts";
 import { layerDrawOrder, type SpriteMetadata } from "./extract-lib.ts";
+import { CANONICAL_WHITELIST_SHA256 } from "@ro-survivor/asset-contracts";
+/** Verified lock of the reader + canonical v3 whitelist hash (synthetic run). */
+const identityOf = (r: { lockId: string }) => ({ lockId: r.lockId, whitelistSha256: CANONICAL_WHITELIST_SHA256 });
 import { buildSyntheticSources } from "./synthetic-sources.ts";
 
 const repoRoot = resolve(import.meta.dirname, "../..");
@@ -52,7 +55,7 @@ describe("assets:audit-whitelist (synthetic sources)", () => {
 describe("assets:extract (synthetic sources)", () => {
   it("writes atlases, metadata, contact sheets, map data and a hashed manifest", () => {
     const { rows, reader, out } = setup();
-    const m = runExtraction(rows, reader, out);
+    const m = runExtraction(rows, reader, out, { identity: identityOf(reader) });
     expect(m.sprites.map((s) => s.id).sort()).toEqual([
       "monster.1002", "monster.1007", "monster.1010", "monster.1011", "monster.1020", "monster.1031", "monster.1052", "monster.1063",
       "monster.1088", "monster.1090", "monster.1113", "monster.1167", "player.swordsman.female", "player.swordsman.male",
@@ -95,7 +98,7 @@ describe("assets:extract (synthetic sources)", () => {
     const a = setup();
     const b = setup();
     const hashes = (m: ReturnType<typeof runExtraction>) => m.outputs.map((o) => `${o.file}:${o.sha256}`);
-    expect(hashes(runExtraction(b.rows, b.reader, b.out))).toEqual(hashes(runExtraction(a.rows, a.reader, a.out)));
+    expect(hashes(runExtraction(b.rows, b.reader, b.out, { identity: identityOf(b.reader) }))).toEqual(hashes(runExtraction(a.rows, a.reader, a.out, { identity: identityOf(a.reader) })));
   });
 });
 
@@ -107,7 +110,7 @@ describe("rights:check vs derived outputs", () => {
 
   it("allows derived files under .local-assets/ but fails anywhere else (marker), even renamed", async () => {
     const { rows, reader, out } = setup();
-    runExtraction(rows, reader, out);
+    runExtraction(rows, reader, out, { identity: identityOf(reader) });
     const r = createTempGitRepo("derived-");
     repos.push(r);
     r.write(".gitignore", ".local-assets/\n");

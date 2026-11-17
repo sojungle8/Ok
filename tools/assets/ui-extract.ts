@@ -9,7 +9,7 @@
  * - OTF fonts → no derived file: original bytes are served only by their exact filesystem:System ID.
  * Any UI problem throws SceneExtractionError (asset ID + container + path), so no manifest is published.
  */
-import { isUiRow, UI_PROFILE_ID } from "@ro-survivor/asset-contracts";
+import { isUiRow, UI_ENTRY_SET_SHA256, UI_PROFILE_ID } from "@ro-survivor/asset-contracts";
 import type { UiManifestEntry, WhitelistRow } from "@ro-survivor/content-schema";
 import type { AssetReader } from "@ro-survivor/asset-gateway";
 import { frameToRgba, parseAct, parseBmp, parseSpr, RO_COLOR_KEY_RULE } from "@ro-survivor/ro-format-runtime";
@@ -52,7 +52,11 @@ export function extractUi(rows: readonly WhitelistRow[], reader: AssetReader, ou
       return fail(id, `source unreadable: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
-  const header = (e: UiManifestEntry) => ({ rights: DERIVED_MARKER, converterVersion: CONVERTER_VERSION, profileId: UI_PROFILE_ID, entry: e });
+  // Every per-asset file carries the extraction identity so the loader can cross-check it.
+  const header = (e: UiManifestEntry) => ({
+    rights: DERIVED_MARKER, converterVersion: CONVERTER_VERSION, profileId: UI_PROFILE_ID,
+    lockId: meta.lockId, whitelistSha256: meta.whitelistSha256, entrySetSha256: UI_ENTRY_SET_SHA256, entry: e,
+  });
   let bitmaps = 0;
   let fonts = 0;
   let cursorActions = 0;
@@ -110,12 +114,12 @@ export function extractUi(rows: readonly WhitelistRow[], reader: AssetReader, ou
     const png = writeOutput(outDir, "ui.cursor.spr.png", encodePng(width, height, atlas, DERIVED_MARKER));
     outputs.push({ ...png, from });
     outputs.push({ ...writeOutput(outDir, "ui.cursor.spr.json", JSON.stringify({ ...header(sprEntry), derived: { file: png.file, sha256: png.sha256, width, height }, filter: "nearest", frames: rects })), from });
-    const actions = act.actions.map((a) => ({ delay: a.delay, frames: a.frames.map((fr) => ({ layers: fr.layers.map((l) => ({ sprIndex: l.sprIndex, sprType: l.sprType, x: l.x, y: l.y, mirror: l.mirror, color: l.color, scaleX: l.scaleX, scaleY: l.scaleY, rotation: l.rotation })), anchors: fr.anchors, soundIndex: fr.soundIndex })) }));
-    outputs.push({ ...writeOutput(outDir, "ui.cursor.act.json", JSON.stringify({ ...header(actEntry), actVersion: act.version, actions, hotspots: actEntry.cursor_hotspot_or_null })), from });
+    // The parsed ACT verbatim: every action / frame / layer / anchor field and the sound table.
+    outputs.push({ ...writeOutput(outDir, "ui.cursor.act.json", JSON.stringify({ ...header(actEntry), actVersion: act.version, actions: act.actions, sounds: act.sounds, hotspots: actEntry.cursor_hotspot_or_null })), from });
     cursorActions = act.actions.length;
   }
 
-  const full = { rights: DERIVED_MARKER, converterVersion: CONVERTER_VERSION, ...manifest };
+  const full = { rights: DERIVED_MARKER, converterVersion: CONVERTER_VERSION, entrySetSha256: UI_ENTRY_SET_SHA256, ...manifest };
   outputs.push({ ...writeOutput(outDir, "ui/ui-manifest.json", JSON.stringify(full, null, 2)), from: [...outputs.flatMap((o) => o.from), ...fontFrom].filter((f, i, a) => a.findIndex((g) => g.assetId === f.assetId) === i).sort((a, b) => (a.assetId < b.assetId ? -1 : 1)) });
   return { outputs, summary: { profileId: UI_PROFILE_ID, entries: manifest.entries.length, bitmaps, cursorActions, fonts } };
 }
