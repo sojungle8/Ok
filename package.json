@@ -36,6 +36,7 @@
     "@ro-survivor/asset-gateway": "workspace:*",
     "@ro-survivor/content-schema": "workspace:*",
     "@ro-survivor/core-sim": "workspace:*",
+    "@ro-survivor/persistence": "workspace:*",
     "@ro-survivor/ro-format-runtime": "workspace:*",
     "@ro-survivor/testkit": "workspace:*",
     "@types/node": "24.19.2",

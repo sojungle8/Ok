@@ -23,6 +23,9 @@ importers:
       '@ro-survivor/core-sim':
         specifier: workspace:*
         version: link:packages/core-sim
+      '@ro-survivor/persistence':
+        specifier: workspace:*
+        version: link:packages/persistence
       '@ro-survivor/ro-format-runtime':
         specifier: workspace:*
         version: link:packages/ro-format-runtime
@@ -113,6 +116,12 @@ importers:
       '@ro-survivor/testkit':
         specifier: workspace:*
         version: link:../testkit
+
+  packages/persistence:
+    devDependencies:
+      fake-indexeddb:
+        specifier: 6.2.7
+        version: 6.2.7
 
   packages/ro-format-runtime:
     dependencies:
@@ -747,6 +756,10 @@ packages:
   expect-type@1.4.0:
     resolution: {integrity: sha512-KfYbmpRm0VbLjEvVa9yGwCi9GI34xvi7A/HXYWQO65CSD2u3MczUJSuwXKFIxlGsgBQizV9q5J9NHj4VG0n+pA==}
     engines: {node: '>=12.0.0'}
+
+  fake-indexeddb@6.2.7:
+    resolution: {integrity: sha512-g0ghQ+BmU3CSZaHup5FigEAAtCmtNyxkrmID7OAeK2qONHghw1aQ2l2T1RxmfhP1H1tEXVRWArUTGVCk5832ww==}
+    engines: {node: '>=18'}
 
   fast-deep-equal@3.1.3:
     resolution: {integrity: sha512-f3qQ9oQy9j2AhBe/H9VC91wLmKBCCU/gDOnKNAYG5hswO7BLKj09Hc5HYNz9cGI++xlpDCIgDaitVs03ATR84Q==}
@@ -1915,6 +1928,8 @@ snapshots:
   esutils@2.0.3: {}
 
   expect-type@1.4.0: {}
+
+  fake-indexeddb@6.2.7: {}
 
   fast-deep-equal@3.1.3: {}
 
