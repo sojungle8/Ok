@@ -3,3 +3,5 @@ export * from "./hash.ts";
 export * from "./sim.ts";
 export * from "./loop.ts";
 export * from "./arena.ts";
+export * from "./trig.ts";
+export * from "./run/content.ts";

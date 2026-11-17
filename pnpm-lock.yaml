@@ -101,6 +101,9 @@ importers:
 
   packages/content-schema:
     dependencies:
+      '@ro-survivor/core-sim':
+        specifier: workspace:*
+        version: link:../core-sim
       zod:
         specifier: 4.6.7
         version: 4.6.7
