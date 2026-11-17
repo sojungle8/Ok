@@ -15,7 +15,7 @@
   }
 }
 * { box-sizing: border-box; }
-html, body, #app { margin: 0; height: 100%; overflow: hidden; background: #8fb6d8; }
+html, body, #app { margin: 0; height: 100%; overflow: hidden; background: var(--hud-bg); }
 .game { position: relative; width: 100%; height: 100%; }
 .world { display: block; width: 100%; height: 100%; touch-action: none; }
 .hud {
@@ -63,3 +63,11 @@ html, body, #app { margin: 0; height: 100%; overflow: hidden; background: #8fb6d
   .hud { font-size: 12px; padding: 8px 10px; }
   .hud .keys { display: none; }
 }
+.game.stopped { background: var(--hud-bg); overflow: auto; }
+.stopped .hud { position: static; margin: max(16px, env(safe-area-inset-top)) auto 0; pointer-events: auto; }
+.blocked { max-width: 920px; margin: 16px auto; padding: 0 16px 24px; color: var(--hud-fg); font-size: 14px; line-height: 1.55; }
+.blocked h2 { font-size: 18px; margin: 8px 0; }
+.blocked .hint { color: var(--muted); font-size: 13px; }
+.missing { width: 100%; border-collapse: collapse; font-size: 12px; }
+.missing th, .missing td { text-align: left; padding: 4px 6px; border-bottom: 1px solid rgba(127, 127, 127, 0.3); vertical-align: top; overflow-wrap: anywhere; }
+.hud .fixture { margin: 0 0 6px; padding: 2px 6px; border-radius: 4px; background: #b3261e; color: #fff; font-weight: 600; font-size: 12px; }

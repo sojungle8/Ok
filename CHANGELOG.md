@@ -8,6 +8,8 @@
 - Deterministic arena with RenderSnapshot (`2f213e6`).
 - Three.js arena client, synthetic fan-local demo, e2e smoke and bench (`151c3d9`).
 - Reports: render-spike-01, Phase 1 acceptance; GAP-002 for map textures and models.
+- Formal-screen rule (D-022): no placeholder/self-drawn/synthetic art in the game; missing RO assets stop the
+  client with canonical paths; synthetic fixtures only in the separate test build; shadows off (GAP-003).
 
 ## Unreleased — Phase 0 fixes for Issue #2 (2026-11-17)
 

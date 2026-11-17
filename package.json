@@ -20,7 +20,7 @@
     "assets:validate-handoff": "node tools/assets/validate-handoff.ts",
     "assets:verify-sources": "node tools/assets/verify-sources.ts",
     "local:old-trees": "node tools/local/old-trees.ts",
-    "e2e:smoke": "node tools/e2e/smoke.mjs",
+    "e2e:smoke": "node tools/e2e/run-all.mjs",
     "dev": "pnpm --filter @ro-survivor/client dev",
     "ci:local": "pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm rights:check && pnpm assets:test-synthetic && pnpm assets:validate-handoff",
     "maint:cp949-generate": "node tools/cp949/generate.ts",
@@ -28,8 +28,7 @@
     "assets:audit-whitelist": "node tools/assets/audit-whitelist.ts",
     "assets:extract": "node tools/assets/extract.ts",
     "dev:fan-local": "node tools/dev/fan-local.ts",
-    "assets:synthetic-demo": "node tools/assets/synthetic-demo.ts",
-    "e2e:bench": "node tools/e2e/bench.mjs"
+    "assets:synthetic-demo": "node tools/assets/synthetic-demo.ts"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

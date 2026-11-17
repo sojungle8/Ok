@@ -43,3 +43,7 @@ reports/local/
 # Test output
 test-results/
 playwright-report/
+
+# Client test builds (synthetic fixtures; never released)
+apps/client/dist-test/
+apps/client/dist-formal-gw/

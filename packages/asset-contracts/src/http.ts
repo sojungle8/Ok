@@ -164,8 +164,8 @@ export class HttpAssetGatewayClient implements AssetGateway {
 }
 
 /**
- * Try the local gateway; on any failure return the placeholder gateway with a human-readable
- * reason and setup guidance, so simulation and saves never depend on the gateway.
+ * Try the local gateway; on failure return the test-only placeholder gateway with a reason.
+ * For tooling and tests only — the formal client uses connectFormalGateway and stops instead (D-022).
  */
 export async function connectAssetGateway(options: HttpGatewayOptions & { buildId: string }): Promise<AssetGateway & { reason?: string }> {
   try {

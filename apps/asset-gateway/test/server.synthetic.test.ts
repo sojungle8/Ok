@@ -8,7 +8,7 @@ import {
 } from "@ro-survivor/asset-contracts";
 import type { SourceLockLocal, WhitelistRow } from "@ro-survivor/content-schema";
 import { createTempDir, syntheticBytes, writeGrf } from "@ro-survivor/testkit";
-import { startGateway, type RunningGateway } from "../src/index.ts";
+import { isFixtureLock, startGateway, type RunningGateway } from "../src/index.ts";
 
 const sha = (b: Uint8Array) => createHash("sha256").update(b).digest("hex").toUpperCase();
 const cleanups: (() => Promise<void> | void)[] = [];
@@ -83,7 +83,7 @@ describe("asset gateway + HttpAssetGatewayClient (synthetic GRF)", () => {
     const { gw, whitelist, lock } = await fixture();
     const client = new HttpAssetGatewayClient({ baseUrl: gw.url, whitelist });
     const h = await client.health();
-    expect(h).toEqual({ ok: true, mode: "fan-local", buildId: "test-build", sourceHashes: { "data.grf": lock.sources["data.grf"].sha256, "rdata.grf": lock.sources["rdata.grf"].sha256, bgm: "B".repeat(64) } });
+    expect(h).toEqual({ ok: true, mode: "fan-local", buildId: "test-build", sourceHashes: { "data.grf": lock.sources["data.grf"].sha256, "rdata.grf": lock.sources["rdata.grf"].sha256, bgm: "B".repeat(64) }, fixture: true });
   });
 
   it("serves whitelisted entries by raw CP949 hex with source hash headers", async () => {
@@ -154,5 +154,13 @@ describe("asset gateway + HttpAssetGatewayClient (synthetic GRF)", () => {
     expect(offline.mode()).toBe("placeholder");
     expect(offline.reason).toMatch(/未連線/u);
     expect(isPlaceholderBinary(await offline.getBinary("monster.1002.spr"))).toBe(true);
+  });
+});
+
+describe("fixture locks", () => {
+  it("marks synthetic test locks so formal clients refuse them", async () => {
+    const { lock } = await fixture();
+    expect(isFixtureLock(lock)).toBe(true);
+    expect(isFixtureLock({ ...lock, lockId: "kro2021-2026-11-17", tool: "assets:verify-sources" })).toBe(false);
   });
 });

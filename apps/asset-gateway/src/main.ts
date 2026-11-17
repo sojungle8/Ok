@@ -5,7 +5,7 @@ import { execFileSync } from "node:child_process";
 import { AssetWhitelist } from "@ro-survivor/asset-contracts";
 import { sourceLockLocalSchema } from "@ro-survivor/content-schema";
 import { parseGatewayConfig } from "./config.ts";
-import { startGateway } from "./server.ts";
+import { isFixtureLock, startGateway } from "./server.ts";
 import { CONVERTER_VERSION, derivedDirFor } from "./paths.ts";
 
 const root = resolve(import.meta.dirname, "../../..");
@@ -24,6 +24,10 @@ if (!existsSync(lockPath)) {
   process.exit(2);
 }
 const lock = sourceLockLocalSchema.parse(JSON.parse(readFileSync(lockPath, "utf8")));
+if (isFixtureLock(lock) && env.RO_GATEWAY_ALLOW_SYNTHETIC !== "1") {
+  console.error("gateway: refusing a SYNTHETIC test-fixture lock. Synthetic sources are for automated tests only (set RO_GATEWAY_ALLOW_SYNTHETIC=1 in test harnesses).");
+  process.exit(2);
+}
 const whitelist = AssetWhitelist.fromCsv(readFileSync(join(root, "docs/product-plan/handoff/fan-local-asset-whitelist.csv"), "utf8"));
 const config = parseGatewayConfig(env);
 let buildId = env.BUILD_ID ?? "local";

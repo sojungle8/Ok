@@ -106,7 +106,6 @@ export class ArenaRenderer {
   readonly camera: THREE.OrthographicCamera;
   readonly #player: BillboardBatch;
   readonly #enemies: BillboardBatch;
-  readonly #shadows: THREE.InstancedMesh;
   #ground: THREE.Mesh | null = null;
   #overlay: THREE.Mesh | null = null;
   #heightAt: (x: number, y: number) => number = () => 0;
@@ -121,28 +120,24 @@ export class ArenaRenderer {
     this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 500);
     this.#player = new BillboardBatch(player, 1);
     this.#enemies = new BillboardBatch(enemy, options.capacity);
-    const shadowGeo = new THREE.CircleGeometry(0.42, 16).rotateX(-Math.PI / 2);
-    this.#shadows = new THREE.InstancedMesh(shadowGeo, new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.28, depthWrite: false, depthTest: false }), options.capacity + 1);
-    this.#shadows.frustumCulled = false;
-    // Shadows draw after the ground and before sprites, ignoring depth, so slopes never clip them.
-    this.#shadows.renderOrder = 1;
+    // No engine-drawn shadows: the RO ground-shadow sprite is not whitelisted yet (GAP-003).
     this.#enemies.mesh.renderOrder = 2;
     this.#player.mesh.renderOrder = 3;
-    this.scene.add(this.#shadows, this.#enemies.mesh, this.#player.mesh);
+    this.scene.add(this.#enemies.mesh, this.#player.mesh);
     this.textureBytes = player.textureBytes + enemy.textureBytes;
-    this.setGround(null);
   }
 
-  /** Ground from GAT data (or a placeholder field). Y-up world: sim (x, y north) -> (X, -Z). */
-  setGround(data: GroundData | null): void {
+  /**
+   * Ground geometry from GAT heights. Y-up world: sim (x, y north) -> (X, -Z). Untextured shading is
+   * only reachable in test-fixture builds; the formal game requires the GND textures (GAP-002).
+   */
+  setGround(data: GroundData): void {
     if (this.#ground) this.scene.remove(this.#ground);
     if (this.#overlay) this.scene.remove(this.#overlay);
-    const w = data?.width ?? 120;
-    const h = data?.height ?? 120;
-    // Real maps start at (0,0) in GAT cells; the placeholder field is centred on the origin.
-    const off = data ? 0 : -w / 2;
+    const w = data.width;
+    const h = data.height;
+    const off = 0;
     const heightAt = (cx: number, cy: number): number => {
-      if (!data) return 0;
       const x = Math.max(0, Math.min(w - 1, cx));
       const y = Math.max(0, Math.min(h - 1, cy));
       return -(data.cellHeights[y * w + x] ?? 0) * 0.2;
@@ -160,7 +155,7 @@ export class ArenaRenderer {
       pos.setXYZ(i, vx + off, heightAt(cx, cy), -(h - vz + off));
       const checker = (Math.floor(vx / 4) + Math.floor(vz / 4)) % 2 === 0 ? 0.04 : 0;
       colors.set([0.36 + checker, 0.55 + checker, 0.3], i * 3);
-      const t = data ? data.types.charCodeAt(cy * w + cx) - 48 : 0;
+      const t = data.types.charCodeAt(cy * w + cx) - 48;
       overlayColors.set(t === 0 || t === 3 ? [0.2, 0.75, 0.3] : [0.85, 0.15, 0.15], i * 3);
     }
     geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
@@ -197,21 +192,16 @@ export class ArenaRenderer {
     this.camera.updateMatrixWorld();
     const right = new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld, 0);
     const up = new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld, 1);
-    const m = new THREE.Matrix4();
     this.#player.set(0, px, py, pz, snap.player.moving ? "walk" : "idle", snap.player.dir, timeMs);
     this.#player.commit(1, right, up);
-    this.#shadows.setMatrixAt(0, m.makeTranslation(px, py + 0.02, pz));
     const e = snap.enemies;
     for (let i = 0; i < snap.enemyCount; i += 1) {
       const ex = (e[i * 5 + 1] as number) / 1000;
       const ey = (e[i * 5 + 2] as number) / 1000;
       const eh = this.#heightAt(ex, ey);
       this.#enemies.set(i, ex, eh, -ey, e[i * 5 + 4] ? "walk" : "idle", e[i * 5 + 3] as number, timeMs + (e[i * 5] as number) * 37);
-      this.#shadows.setMatrixAt(i + 1, m.makeTranslation(ex, eh + 0.02, -ey));
     }
     this.#enemies.commit(snap.enemyCount, right, up);
-    this.#shadows.count = snap.enemyCount + 1;
-    this.#shadows.instanceMatrix.needsUpdate = true;
     this.renderer.render(this.scene, this.camera);
   }
 

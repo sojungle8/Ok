@@ -28,7 +28,8 @@ function throwIfAborted(signal: AbortSignal | undefined): void {
 }
 
 /**
- * Network-free gateway used by CI and whenever the local fan-local gateway is offline.
+ * Network-free gateway for AUTOMATED TESTS ONLY (CI without RO sources). The formal client never
+ * uses it: without the user's RO client the game stops and lists missing canonical paths (D-022).
  * It only answers whitelisted IDs and never returns RO material.
  */
 export class PlaceholderAssetGateway implements AssetGateway {

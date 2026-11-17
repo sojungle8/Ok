@@ -7,6 +7,8 @@ export interface AssetGatewayHealth {
   mode: AssetSourceMode;
   buildId: string;
   sourceHashes: Record<string, string | null>;
+  /** True when the gateway serves synthetic test fixtures; the formal client must refuse it. */
+  fixture?: boolean;
 }
 
 /** Contract from docs/product-plan/09-GITHUB-CLOUD-WORKFLOW.md. */

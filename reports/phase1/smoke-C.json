@@ -2,30 +2,34 @@
   {
     "browser": "chromium 153.0.8010.12",
     "viewport": "desktop",
+    "expect": "running",
     "status": "PASS",
+    "buildId": "0.0.0+ca4390b29646.20261117",
+    "profile": "fan-local",
+    "fixtureBanner": 1,
     "input": {
       "keyboardEast": true,
       "joystickNorth": true,
       "facingAfterStick": 4
     },
-    "buildId": "0.0.0+151c3d953247.20261117",
-    "profile": "fan-local",
     "errors": [],
-    "screenshot": "reports/phase1/smoke-fanlocal-synthetic-chromium-desktop.png"
+    "screenshot": "reports/phase1/smoke-C-test-fixture-chromium-desktop.png"
   },
   {
     "browser": "chromium 153.0.8010.12",
     "viewport": "mobile",
+    "expect": "running",
     "status": "PASS",
+    "buildId": "0.0.0+ca4390b29646.20261117",
+    "profile": "fan-local",
+    "fixtureBanner": 1,
     "input": {
       "keyboardEast": true,
       "joystickNorth": true,
       "facingAfterStick": 4
     },
-    "buildId": "0.0.0+151c3d953247.20261117",
-    "profile": "fan-local",
     "errors": [],
-    "screenshot": "reports/phase1/smoke-fanlocal-synthetic-chromium-mobile.png"
+    "screenshot": "reports/phase1/smoke-C-test-fixture-chromium-mobile.png"
   },
   {
     "browser": "webkit",

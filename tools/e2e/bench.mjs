@@ -1,4 +1,4 @@
-// Render spike bench: serves apps/client/dist on 127.0.0.1 and runs ?bench=N for N in 50/100/250/500
+// Render spike bench: serves the test-fixture build on 127.0.0.1 and runs ?bench=N for N in 50/100/250/500
 // in headless Chromium (preinstalled Playwright), plus a 4x CPU-throttled 30 FPS-capped run at 250.
 // Results are CLOUD numbers (software WebGL in a container), not device measurements.
 import { createServer } from "node:http";
@@ -9,19 +9,21 @@ import { extname, join, normalize, resolve } from "node:path";
 import { execFileSync } from "node:child_process";
 
 const root = resolve(import.meta.dirname, "../..");
-const dist = join(root, "apps/client/dist");
+// Bench runs on the test-fixture build (synthetic sprites); formal builds refuse synthetic sources.
+const dist = resolve(root, process.env.BENCH_DIST ?? "apps/client/dist-test");
 if (!existsSync(join(dist, "index.html"))) {
-  console.error("bench: run `pnpm build` first");
+  console.error("bench: build the test-fixture client first (node tools/e2e/run-all.mjs)");
   process.exit(2);
 }
 let playwright;
 try {
   playwright = createRequire(import.meta.url)("playwright");
 } catch {
-  const globalRoot = execFileSync("npm", ["root", "-g"], { encoding: "utf8" }).trim();
+  const globalRoot = process.env.PLAYWRIGHT_GLOBAL_ROOT ?? execFileSync("npm", ["root", "-g"], { encoding: "utf8" }).trim();
   playwright = createRequire(join(globalRoot, "noop.js"))("playwright");
 }
 const types = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css" };
+// The test-fixture build fetches sprites from the synthetic gateway (started by run-all.mjs).
 let bytesServed = 0;
 const server = createServer(async (req, res) => {
   const urlPath = decodeURIComponent(new URL(req.url ?? "/", "http://x").pathname);

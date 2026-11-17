@@ -11,16 +11,18 @@ Details, gates and local commands: `reports/phase1/PHASE1-ACCEPTANCE.md`; perfor
 | Area | Status |
 | --- | --- |
 | Clean-room parsers (SPR 1.x–2.1, ACT 2.0–2.5, PAL, GAT, GND, RSW 1.2–2.1, GRF 0x200) | CLOUD_PASS on synthetic files · real files DEFERRED_LOCAL |
-| Loopback gateway + HttpAssetGatewayClient + placeholder fallback | CLOUD_PASS (synthetic GRF) |
+| Loopback gateway + HttpAssetGatewayClient | CLOUD_PASS (synthetic GRF) |
+| **Formal-screen rule (D-022):** only original RO assets; missing assets stop the game and list canonical paths | CLOUD_PASS: formal build without a gateway is blocked (no world canvas); a formal build refuses a synthetic gateway; unit tests list missing canonical paths (`smoke-A/B.json`, `apps/client/test`) |
 | audit-whitelist / extract --profile fan-local / dev:fan-local | CLOUD_PASS on synthetic sources (48/48 audit) · real DEFERRED_LOCAL |
 | Contact sheets (6 slots × 8 directions, pivot, shadow), UV-mirror dedupe | CLOUD_PASS synthetic · human review of real sheets DEFERRED_LOCAL |
-| Arena: player + 50 Porings, 1 spawn/s, collision, WASD + joystick, RenderSnapshot | CLOUD_PASS |
+| Arena: player + 50 Porings, 1 spawn/s, collision, WASD + joystick, RenderSnapshot | CLOUD_PASS (headless; browser run only in the test-fixture build, `smoke-C.json`) |
 | 15/30/60 FPS identical 60 s hash | CLOUD_PASS (`4dbb7aa405a98e3b`) |
-| prt_fild08 ground textures, RSM models, instanced map props | NOT DONE: not whitelisted (GAP-002) |
+| prt_fild08 ground textures, RSM models, instanced map props | NOT DONE: not whitelisted (GAP-002). Under D-022 the formal arena stops and lists them |
+| Actor ground shadows | Off: RO shadow sprite not whitelisted (GAP-003) |
 | 250 enemies @60 FPS desktop / phone 30 FPS | Emulated 4x CPU at 30 FPS: pass · real GPU / phone DEFERRED_LOCAL |
 | Derived files only in `.local-assets` | CLOUD_PASS (marker + rights:check tests) |
 
-Test counts at commit `151c3d9` (Actions run #7 <https://github.com/sojungle8/Ok/actions/runs/44014237315>: success): 101 unit/integration tests, 70 synthetic tests.
+Test counts: see the latest `pnpm ci:local` / Actions run (105 unit/integration, 71 synthetic at the D-022 change).
 
 ---
 

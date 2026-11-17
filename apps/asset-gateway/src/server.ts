@@ -69,7 +69,7 @@ export function createGateway(options: GatewayServerOptions): { handler: (req: I
       if (req.method !== "GET" && req.method !== "HEAD") throw new HttpError(405, "only GET is allowed");
       const path = (req.url ?? "/").split("?")[0] ?? "/";
       if (path === "/health") {
-        json(res, 200, { ok: true, mode: "fan-local", buildId: options.buildId, sourceHashes });
+        json(res, 200, { ok: true, mode: "fan-local", buildId: options.buildId, sourceHashes, fixture: isFixtureLock(lock) });
         return;
       }
       const m = ASSET_ROUTE.exec(path);
@@ -120,6 +120,11 @@ class HttpError extends Error {
     super(message);
     this.status = status;
   }
+}
+
+/** Locks produced by the synthetic test generator; never valid for the formal game. */
+export function isFixtureLock(lock: SourceLockLocal): boolean {
+  return lock.tool === "synthetic-sources" || lock.lockId === "synthetic";
 }
 
 export async function startGateway(options: GatewayServerOptions): Promise<RunningGateway> {
