@@ -3,6 +3,7 @@
 日期：2026-11-17  
 目標 branch：`claude/ro-survivor-fangame-handoff`  
 正式 UI profile：`KRO2021_CLASSIC_V0_FAN`
+自動協作 Draft PR：[#3](https://github.com/sojungle8/Ok/pull/3)
 
 ## 目前狀態
 
@@ -14,18 +15,20 @@
 
 ## Claude 必读順序
 
-1. `CLAUDE-PHASE1-ORIGINAL-ASSETS.md`
-2. `fan-local-asset-whitelist-v2-174.csv`
-3. `CLAUDE-PHASE1-RO-UI.md`
-4. `RO-UI-REFERENCE-EVIDENCE.md`
-5. `ro-ui-original-assets-NOTES.md`
-6. `ro-ui-original-assets.csv`
-7. `fan-local-asset-whitelist-v3-282.csv`
+1. `CLAUDE-CODEX-AUTOPILOT.md`
+2. `CLAUDE-PHASE1-ORIGINAL-ASSETS.md`
+3. `fan-local-asset-whitelist-v2-174.csv`
+4. `CLAUDE-PHASE1-RO-UI.md`
+5. `RO-UI-REFERENCE-EVIDENCE.md`
+6. `ro-ui-original-assets-NOTES.md`
+7. `ro-ui-original-assets.csv`
+8. `fan-local-asset-whitelist-v3-282.csv`
 
 ## Canonical 檔案
 
 | 檔案 | 用途 | Rows／Bytes | SHA-256 |
 | --- | --- | ---: | --- |
+| `CLAUDE-CODEX-AUTOPILOT.md` | Claude/Codex 自動交接、留言格式與停止條件 | 6,221 bytes | `BC23C0138A5F6749D0BF767BD0B566679D10013B169C989EF4A3DBAC049FBC99` |
 | `CLAUDE-PHASE1-ORIGINAL-ASSETS.md` | 原始地圖、角色、影子、音訊施工規格 | 5,408 bytes | `252138A3A00898A6727F87F9405F80CB641B1D5F2E167E07511013EA19CFCBCF` |
 | `fan-local-asset-whitelist-v2-174.csv` | 場景／角色 canonical 白名單 | 174 rows／65,311 bytes | `16A6A34F5756E09CBEBCEE15284065361845F7DBFFE5958A648F99E89E27E5FF` |
 | `CLAUDE-PHASE1-RO-UI.md` | 正式 RO UI 架構、施工與驗收 | 28,195 bytes | `278B18539D26C142D86882797F4259978D180F11382A9F22AA67CCF26B10D28A` |
