@@ -1,0 +1,10 @@
+site,artifact_type,url,http_status,bytes,sha256,etag,cache_control,last_modified_utc,retained_in_project
+official,main_js,https://ro-survivors.com/build/main-2n_YvaNQ.js,200,1351156,75E30EB32412865756AF386132F6D10B3ED46062890122E185EFF1A34B87732B,"W/""6afade32-149df4""","public, max-age=31536000, immutable",2026-11-16T10:42:58Z,false
+official,talents_js,https://ro-survivors.com/build/talents-B1EIhxat.js,200,7532,F73B41EF7D1DC4B8298601580FE118F90A19E83E293D8E36238771C21BC6F406,"W/""6afade31-1d6c""","public, max-age=31536000, immutable",2026-11-16T10:42:57Z,false
+official,shared_job_js,https://ro-survivors.com/build/soul_linker-BNTKE1pN.js,200,2617063,34F8B78FD0461C8ED35EA38CC1C8F3D63012F3C9213644AA3393A050F05D1147,"W/""6afade32-27eee7""","public, max-age=31536000, immutable",2026-11-16T10:42:58Z,false
+official,main_css,https://ro-survivors.com/build/main-BT36rxL4.css,200,223804,7285FDE86DBA74DCAE77B11122F4172B0C9590840477D2E245EAFFFA89200BEA,"W/""6afa2ade-36a3c""","public, max-age=31536000, immutable",2026-11-15T21:57:50Z,false
+hans,main_js,https://ro.hans-webgametw.com/build/main-BNOcv2PN.hz70eb4bc4.js,200,1622877,04C76E491B5233343A86C3CB6253720265C4BE55861060D0026024B79E883162,"W/""ys7x-mwjwaxkw""","public, max-age=31536000, immutable",2026-11-16T23:29:20Z,false
+hans,talents_js,https://ro.hans-webgametw.com/build/talents-YzPGKinw.hze75f75a1.js,200,7335,884A13EB904726BF47109AC884EE070B8DF3056A3880D8EE901D5EC21738AC5F,"W/""5nr-mwjwaxkw""","public, max-age=31536000, immutable",2026-11-16T23:29:20Z,false
+hans,shared_job_js,https://ro.hans-webgametw.com/build/soul_linker-DllBVIRO.hzd091984d.js,200,2987673,E7D5CC7589F621B6741FE95744160D45623C968803FADF9EB2893C8F3030CE5B,"W/""1s1ax-mwjwaxkw""","public, max-age=31536000, immutable",2026-11-16T23:29:20Z,false
+hans,main_css,https://ro.hans-webgametw.com/build/main-D3mWrOYd.css,200,210470,7F6174D40D38B420F865424DB06AF8EF782E8F1AA9F5CDAA2648C142C580B3BD,"W/""4iee-mwdrcnew""","public, max-age=31536000, immutable",2026-11-12T16:24:05Z,false
+

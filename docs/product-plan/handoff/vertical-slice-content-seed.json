@@ -1,0 +1,273 @@
+{
+  "schemaVersion": 1,
+  "contentVersion": "slice-0.1.0-seed",
+  "status": "implementation_seed_requires_playtest_tuning",
+  "rightsProfile": "fan-local",
+  "rules": {
+    "sourceIdsAreReferencesOnly": true,
+    "runtimeBalanceIsOriginalDesign": true,
+    "doNotImportRathenaCombatStats": true,
+    "doNotCommitDerivedAssets": true,
+    "simulationHz": 60,
+    "durationTicks": 36000,
+    "bossEnrageTick": 43200
+  },
+  "sourceEvidence": {
+    "rathenaSnapshot": "local snapshot without Git metadata",
+    "rathenaRoot": "C:\\Users\\user\\Downloads\\RO-Amatsu\\server",
+    "roBrowserLegacyCommit": "5435cf67642eac8281f9a7a94c92f98428db471e",
+    "remoteClientCommit": "cd51fcab453444ae5d9a1028b677fe0c56a32ca6",
+    "canonicalAssetRoot": "C:\\Users\\user\\Downloads\\RO-Server\\browser-research\\client-assets\\kro2021",
+    "dataGrfSha256": "FA3B7BBDBD650C3468ECA5E978A44E7A848D533F2735E6F5AF2B668E1D1DC3B6",
+    "rdataGrfSha256": "FA6367B8ABC5D1297DE742A127CFF4E1DA626AB3D6B1B0A81BA563CB3CB5124E",
+    "assetWhitelist": "fan-local-asset-whitelist.csv"
+  },
+  "job": {
+    "runtimeId": "job.swordsman",
+    "sourceJobId": 1,
+    "sourceConstant": "JOB_SWORDMAN",
+    "nameKey": "job.swordsman.name",
+    "role": "durable short-range beginner",
+    "baseStats": {
+      "maxHp": 140,
+      "moveMetersPerSecond": 4.8,
+      "armorReduction": 0.08,
+      "pickupRadiusMeters": 1.6,
+      "baseAttackIntervalMs": 750,
+      "str": 10,
+      "agi": 8,
+      "vit": 10,
+      "int": 1,
+      "dex": 8,
+      "luk": 1
+    },
+    "slotRules": {
+      "activeSlots": 4,
+      "passiveSlots": 4,
+      "builtInSkillsDoNotConsumeSlot": true,
+      "keystoneLimit": 1
+    },
+    "startingSkillIds": ["skill.sw.basic_slash"],
+    "guaranteedEarlyOffer": {
+      "beforeElapsedSeconds": 60,
+      "oneOf": ["skill.sw.magnum_break", "skill.sw.shield_wave"]
+    }
+  },
+  "skills": [
+    {
+      "id": "skill.sw.basic_slash",
+      "sourceSkill": {"id": 2, "constant": "SM_SWORD", "maxLevel": 10},
+      "kind": "built-in",
+      "tags": ["physical", "melee", "sword", "front-arc"],
+      "trigger": "automatic-nearest-in-range",
+      "cooldownMs": 750,
+      "castMs": 0,
+      "geometry": {"shape": "sector", "rangeMeters": 1.8, "angleDegrees": 100},
+      "baseDamage": 18,
+      "hitLimit": 3,
+      "levelCurve": [
+        {"rank": 1, "damageMultiplier": 1.0, "hitLimit": 3},
+        {"rank": 2, "damageMultiplier": 1.18, "hitLimit": 3},
+        {"rank": 3, "damageMultiplier": 1.36, "hitLimit": 4},
+        {"rank": 4, "damageMultiplier": 1.55, "hitLimit": 4},
+        {"rank": 5, "damageMultiplier": 1.75, "hitLimit": 5}
+      ]
+    },
+    {
+      "id": "skill.sw.bash",
+      "sourceSkill": {"id": 5, "constant": "SM_BASH", "maxLevel": 10},
+      "kind": "active",
+      "tags": ["physical", "melee", "impact"],
+      "trigger": "automatic-nearest-in-range",
+      "cooldownMs": 3000,
+      "castMs": 200,
+      "geometry": {"shape": "capsule", "rangeMeters": 2.4, "radiusMeters": 0.65},
+      "baseDamage": 42,
+      "hitLimit": 1,
+      "status": {"type": "stun", "chance": 0.2, "durationMs": 600},
+      "rankDelta": {"damage": 8, "stunChance": 0.05, "rank3HitLimit": 2, "maxRank": 5}
+    },
+    {
+      "id": "skill.sw.magnum_break",
+      "sourceSkill": {"id": 7, "constant": "SM_MAGNUM", "maxLevel": 10},
+      "kind": "active",
+      "tags": ["physical", "fire", "area", "early-clear"],
+      "trigger": "automatic-enemy-count-threshold",
+      "minimumTargets": 3,
+      "cooldownMs": 5000,
+      "castMs": 350,
+      "geometry": {"shape": "circle", "radiusMeters": 2.6},
+      "baseDamage": 28,
+      "hitLimit": 20,
+      "rankDelta": {"damage": 6, "radiusMeters": 0.15, "cooldownMs": -250, "maxRank": 5}
+    },
+    {
+      "id": "skill.sw.endure",
+      "sourceSkill": {"id": 8, "constant": "SM_ENDURE", "maxLevel": 10},
+      "kind": "active",
+      "tags": ["defense", "buff"],
+      "trigger": "automatic-on-damage-window",
+      "cooldownMs": 12000,
+      "castMs": 0,
+      "durationMs": 4000,
+      "effects": {"damageReduction": 0.25, "knockbackImmune": true, "invulnerable": false},
+      "rankDelta": {"durationMs": 500, "damageReduction": 0.03, "maxRank": 5}
+    },
+    {
+      "id": "skill.sw.provoke",
+      "sourceSkill": {"id": 6, "constant": "SM_PROVOKE", "maxLevel": 10},
+      "kind": "active",
+      "tags": ["debuff", "area", "risk-reward"],
+      "trigger": "automatic-nearby-elite-priority",
+      "cooldownMs": 10000,
+      "castMs": 250,
+      "geometry": {"shape": "circle", "radiusMeters": 5.0},
+      "durationMs": 6000,
+      "effects": {"enemyArmorDelta": -0.15, "enemyMoveMultiplier": 1.08},
+      "rankDelta": {"radiusMeters": 0.3, "enemyArmorDelta": -0.025, "maxRank": 5}
+    },
+    {
+      "id": "skill.sw.shield_wave",
+      "sourceSkill": {"id": null, "constant": "ORIGINAL_SURVIVOR_ADAPTATION", "maxLevel": 5},
+      "kind": "active",
+      "requiresTags": ["shield-equipped"],
+      "tags": ["physical", "shield", "front-cone", "control"],
+      "trigger": "automatic-highest-density-sector",
+      "cooldownMs": 6500,
+      "castMs": 300,
+      "geometry": {"shape": "sector", "rangeMeters": 4.0, "angleDegrees": 90},
+      "baseDamage": 30,
+      "hitLimit": 10,
+      "status": {"type": "stun", "chance": 1.0, "durationMs": 350},
+      "movesPlayer": false,
+      "rankDelta": {"damage": 7, "rangeMeters": 0.25, "cooldownMs": -300, "maxRank": 5}
+    },
+    {
+      "id": "skill.sw.fatal_blow",
+      "sourceSkill": {"id": 145, "constant": "SM_FATALBLOW", "maxLevel": 1, "quest": true},
+      "kind": "active",
+      "tags": ["physical", "charged", "elite-killer", "armor-break"],
+      "trigger": "automatic-elite-priority",
+      "cooldownMs": 8000,
+      "castMs": 800,
+      "geometry": {"shape": "sector", "rangeMeters": 2.8, "angleDegrees": 70},
+      "baseDamage": 90,
+      "eliteDamageMultiplier": 1.5,
+      "effects": {"enemyArmorDelta": -0.25, "durationMs": 5000},
+      "rankDelta": {"damage": 18, "castMs": -60, "maxRank": 5}
+    },
+    {
+      "id": "skill.sw.auto_berserk",
+      "sourceSkill": {"id": 146, "constant": "SM_AUTOBERSERK", "maxLevel": 1, "quest": true},
+      "kind": "passive",
+      "tags": ["low-hp", "damage", "risk-reward"],
+      "condition": {"hpRatioAtOrBelow": 0.3},
+      "effects": {"damageMultiplier": 1.25, "moveMultiplier": 1.1, "incomingDamageMultiplier": 1.1},
+      "maxRank": 1
+    }
+  ],
+  "passives": [
+    {
+      "id": "passive.sw.sword_mastery",
+      "sourceSkill": {"id": 2, "constant": "SM_SWORD", "maxLevel": 10},
+      "maxRank": 5,
+      "perRank": {"physicalDamageMultiplier": 0.06, "basicArcDegrees": 4}
+    },
+    {
+      "id": "passive.sw.twohand_mastery",
+      "sourceSkill": {"id": 3, "constant": "SM_TWOHAND", "maxLevel": 10},
+      "requiresTags": ["two-handed-sword"],
+      "maxRank": 5,
+      "perRank": {"physicalDamageMultiplier": 0.08, "attackIntervalMultiplier": -0.025},
+      "tradeoff": {"shieldSkillsDisabled": true}
+    },
+    {
+      "id": "passive.sw.hp_recovery",
+      "sourceSkill": {"id": 4, "constant": "SM_RECOVERY", "maxLevel": 10},
+      "maxRank": 5,
+      "perRank": {"maxHpMultiplier": 0.05, "healPerSecondMaxHp": 0.0025},
+      "combatHealCapPerSecond": 3.5
+    },
+    {
+      "id": "passive.sw.moving_recovery",
+      "sourceSkill": {"id": 144, "constant": "SM_MOVINGRECOVERY", "maxLevel": 1, "quest": true},
+      "maxRank": 1,
+      "effect": {"recoveryWhileMoving": true, "healMultiplier": 0.7}
+    }
+  ],
+  "keystones": [
+    {
+      "id": "keystone.guardian",
+      "nameKey": "keystone.guardian.name",
+      "effects": {"shieldWaveCooldownMultiplier": 0.7, "endureDamageReductionDelta": 0.12, "counterOnBlockDamage": 20, "moveMultiplier": 0.9},
+      "confirmationRequired": true
+    },
+    {
+      "id": "keystone.weapon",
+      "nameKey": "keystone.weapon.name",
+      "effects": {"twoHandEnabled": true, "eliteDamageMultiplier": 1.25, "frontArcRangeMultiplier": 1.15, "shieldSkillsDisabled": true},
+      "confirmationRequired": true
+    },
+    {
+      "id": "keystone.fury",
+      "nameKey": "keystone.fury.name",
+      "effects": {"magnumRadiusMultiplier": 1.3, "magnumCooldownMultiplier": 0.72, "bossDamageMultiplier": 0.9},
+      "confirmationRequired": true
+    }
+  ],
+  "monsters": [
+    {"runtimeId":"monster.poring","source":{"id":1002,"aegis":"PORING","sprite":"poring"},"role":"normal","hp":18,"move":1.8,"contactDamage":5,"xp":1,"assetRef":"monster.1002"},
+    {"runtimeId":"monster.drops","source":{"id":1113,"aegis":"DROPS","sprite":"drops"},"role":"normal","hp":22,"move":2.0,"contactDamage":5,"xp":1,"assetRef":"monster.1113"},
+    {"runtimeId":"monster.fabre","source":{"id":1007,"aegis":"FABRE","sprite":"fabre"},"role":"normal","hp":26,"move":1.65,"contactDamage":6,"xp":1,"assetRef":"monster.1007"},
+    {"runtimeId":"monster.lunatic","source":{"id":1063,"aegis":"LUNATIC","sprite":"lunatic"},"role":"normal","hp":30,"move":2.4,"contactDamage":7,"xp":2,"assetRef":"monster.1063"},
+    {"runtimeId":"monster.chonchon","source":{"id":1011,"aegis":"CHONCHON","sprite":"chocho"},"role":"normal","hp":20,"move":3.0,"contactDamage":6,"xp":2,"assetRef":"monster.1011"},
+    {"runtimeId":"monster.willow","source":{"id":1010,"aegis":"WILOW","sprite":"wilow"},"role":"normal","hp":65,"move":1.15,"contactDamage":9,"xp":3,"assetRef":"monster.1010"},
+    {"runtimeId":"monster.rocker","source":{"id":1052,"aegis":"ROCKER","sprite":"rocker"},"role":"normal","hp":48,"move":2.1,"contactDamage":9,"xp":3,"assetRef":"monster.1052"},
+    {"runtimeId":"monster.mandragora","source":{"id":1020,"aegis":"MANDRAGORA","sprite":"mandragora"},"role":"normal-ranged","hp":42,"move":0.8,"contactDamage":6,"projectile":{"damage":8,"speed":4.0,"cooldownMs":2400},"xp":3,"assetRef":"monster.1020"},
+    {"runtimeId":"monster.savage_babe","source":{"id":1167,"aegis":"SAVAGE_BABE","sprite":"savage_babe"},"role":"normal-charger","hp":78,"move":2.25,"contactDamage":11,"charge":{"telegraphMs":650,"speed":5.5,"damage":16,"cooldownMs":5000},"xp":4,"assetRef":"monster.1167"},
+    {"runtimeId":"monster.poporing","source":{"id":1031,"aegis":"POPORING","sprite":"poporing"},"role":"normal-poison","hp":90,"move":1.9,"contactDamage":10,"pool":{"radius":1.2,"damagePerSecond":4,"durationMs":3500},"xp":5,"assetRef":"monster.1031"},
+    {"runtimeId":"elite.poring","source":{"id":2696,"aegis":"C3_PORING","sprite":"poring"},"role":"elite","baseRuntimeId":"monster.poring","multipliers":{"hp":12,"damage":2.0,"size":1.45,"move":1.05,"xp":20},"mechanic":"three telegraphed hops","assetRef":"monster.1002"},
+    {"runtimeId":"elite.poporing","source":{"id":2701,"aegis":"C3_POPORING","sprite":"poporing"},"role":"elite","baseRuntimeId":"monster.poporing","multipliers":{"hp":10,"damage":1.8,"size":1.4,"move":1.0,"xp":20},"mechanic":"one expanding poison ring","assetRef":"monster.1031"},
+    {"runtimeId":"miniboss.vocal","source":{"id":1088,"aegis":"VOCAL","sprite":"vocal"},"role":"miniboss","hp":900,"move":2.0,"contactDamage":14,"xp":50,"assetRef":"monster.1088","attacks":[{"id":"sound-cone","cooldownMs":4500,"telegraphMs":700,"shape":"sector","rangeMeters":6,"angleDegrees":55,"damage":22},{"id":"sidestep","cooldownMs":7000,"movesPlayer":false,"distanceMeters":2.5}]},
+    {"runtimeId":"boss.mastering","source":{"id":1090,"aegis":"MASTERING","sprite":"mastering"},"role":"mvp","hp":4800,"move":1.8,"contactDamage":16,"xp":0,"assetRef":"monster.1090","attacks":[{"id":"hop-slam","cooldownMs":6000,"telegraphMs":900,"shape":"circle","radiusMeters":2.2,"damage":26},{"id":"summon-porings","cooldownMs":9000,"count":6,"spawnRuntimeId":"monster.poring"},{"id":"bounce-ring","cooldownMs":7500,"projectiles":12,"safeGapCount":2,"speed":4.0,"damage":18},{"id":"harden","hpThresholds":[0.7,0.4],"durationMs":4000,"damageReduction":0.5,"rearArcDamageMultiplier":1.35}],"enrage":{"atTick":43200,"cooldownMultiplier":0.7,"moveMultiplier":1.15}}
+  ],
+  "stage": {
+    "id": "stage.prt_fild08.slice",
+    "sourceMap": {"name":"prt_fild08","rathenaMapIndex":201,"assetRefs":["map.prt_fild08.rsw","map.prt_fild08.gnd","map.prt_fild08.gat"]},
+    "bgm": {"assetRef":"bgm.prt_fild08","sourceFile":"BGM/12.mp3","title":"Streamside","artist":"SoundTeMP"},
+    "note": "Only Poring, Lunatic, Fabre and Drops are source-map-native in the checked rAthena variants; all other waves are an original survivor-mode composition.",
+    "timeline": [
+      {"fromSecond":0,"toSecond":60,"spawnPerSecond":0.7,"pool":["monster.poring","monster.fabre","monster.lunatic"],"purpose":"movement and basic attack tutorial"},
+      {"fromSecond":60,"toSecond":120,"spawnPerSecond":1.0,"pool":["monster.poring","monster.drops","monster.chonchon"],"purpose":"guarantee first area-clear offer"},
+      {"atSecond":120,"event":"spawn","entity":"elite.poring","reward":"one guaranteed upgrade chest"},
+      {"fromSecond":120,"toSecond":180,"spawnPerSecond":1.2,"pool":["monster.fabre","monster.lunatic","monster.willow","monster.rocker"],"purpose":"mix speed and durability"},
+      {"fromSecond":180,"toSecond":270,"spawnPerSecond":1.5,"pool":["monster.chonchon","monster.mandragora","monster.poporing"],"purpose":"ranged pressure and route changes"},
+      {"atSecond":300,"event":"spawn","entity":"miniboss.vocal","reward":"one keystone offer"},
+      {"fromSecond":300,"toSecond":420,"spawnPerSecond":1.8,"pool":["monster.rocker","monster.mandragora","monster.savage_babe","monster.poporing"],"purpose":"build check"},
+      {"atSecond":420,"event":"spawn","entity":"elite.poporing","reward":"one guaranteed upgrade chest"},
+      {"fromSecond":420,"toSecond":540,"spawnPerSecond":2.2,"pool":["monster.lunatic","monster.chonchon","monster.savage_babe","monster.poporing"],"purpose":"high-density climax"},
+      {"atSecond":540,"event":"boss-warning","pickupMagnetMultiplier":3.0,"clearTransientDropsAfterSeconds":15},
+      {"atSecond":600,"event":"spawn","entity":"boss.mastering","normalWaveMultiplier":0.25},
+      {"atSecond":720,"event":"boss-enrage"}
+    ]
+  },
+  "progression": {
+    "xpCurve": {"level2":8,"growthMultiplier":1.22,"flatPerLevel":3,"maxRunLevel":30},
+    "choiceCount": 3,
+    "maxGroundXpObjects": 120,
+    "xpMergeRadiusMeters": 0.8,
+    "pity": {"maxLevelsWithoutNewActiveOffer":3,"maxLevelsWithoutDefenseOffer":5},
+    "settlement": {"appendOnlyRunResult":true,"transactional":true,"idempotencyKey":"profileId+runId+contentVersion"}
+  },
+  "acceptance": [
+    "The same seed and InputCommand stream produces the same state hash at 15, 30 and 60 render FPS.",
+    "At least one area-clear skill is offered before tick 3600.",
+    "No automatic skill changes the player's position.",
+    "Every telegraph and hit test references the same attackGeometryId.",
+    "Ten fixed seeds are winnable by keyboard, touch and gamepad adapters.",
+    "Twenty settlement fault-injection retries never duplicate rewards.",
+    "The boss always exposes a safe route and at least one melee damage window.",
+    "All balance values above remain tagged as hypotheses until a report records measured outcomes."
+  ]
+}
+
