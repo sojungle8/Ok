@@ -30,8 +30,13 @@ Fail-closed and transactional:
   directory on the same filesystem.
 - Only after every read, parse and write succeeds does it write `manifest.json` and swap the staging directory into
   place by rename.
-- On failure it deletes the staging directory and leaves no manifest in the active directory.
-- Failure covers sprites, the core RSW/GND/GAT and the scene closure: a dependency that is not whitelisted,
+- **Commit point** = the rename of staging onto the active directory.
+  - Before the commit point, a failure deletes staging (best effort) and leaves no manifest in the active directory.
+  - After it, removing the previous directory (`*.old-*`) is best-effort. On a failure (for example a Windows file
+    lock) the command still succeeds and prints `WARN …`. That directory never holds a ready manifest, because the
+    active manifest is removed before the run starts.
+- Failure covers sprites, the core RSW/GND/GAT (reported with their fixed canonical paths `data\prt_fild08.{rsw,gnd,gat}`
+  even when the whitelist row is missing) and the scene closure: a dependency that is not whitelisted,
   unreadable, size/hash-mismatched or malformed. The command exits 1, prints
   `MISSING <assetId|(not whitelisted)> <container> <canonical CP949 path>: <reason>` and writes
   `reports/prt_fild08-scene-missing.json`.

@@ -10,6 +10,15 @@ export const FORMAL_PLAYER_LAYERS = ["player.swordsman.male.body", "player.hair0
 export const FORMAL_PLAYER_PALETTES = ["palette.body.swordsman.male", "palette.hair01.male"] as const;
 export const FORMAL_MONSTERS = ["monster.1002", "monster.1113", "monster.1007", "monster.1063", "monster.1011", "monster.1010", "monster.1052", "monster.1020", "monster.1167", "monster.1031", "monster.1088", "monster.1090"] as const;
 export const FORMAL_MAP_CORE = ["map.prt_fild08.rsw", "map.prt_fild08.gnd", "map.prt_fild08.gat"] as const;
+/**
+ * Fixed formal requirement: the core map files and their canonical location, known even when a
+ * whitelist row is missing (so a missing row is still reported with its exact container + path).
+ */
+export const FORMAL_MAP_CORE_PATHS: Readonly<Record<(typeof FORMAL_MAP_CORE)[number], { container: "data.grf"; canonicalPath: string }>> = {
+  "map.prt_fild08.rsw": { container: "data.grf", canonicalPath: "data\\prt_fild08.rsw" },
+  "map.prt_fild08.gnd": { container: "data.grf", canonicalPath: "data\\prt_fild08.gnd" },
+  "map.prt_fild08.gat": { container: "data.grf", canonicalPath: "data\\prt_fild08.gat" },
+};
 export const FORMAL_SHADOW = ["common.shadow.spr", "common.shadow.act"] as const;
 export const FORMAL_BGM = "bgm.prt_fild08";
 const CLOSURE_CATEGORIES = new Set(["map_ground_texture", "map_model", "map_model_texture", "map_water_texture", "map_ambient_sound"]);

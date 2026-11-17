@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, renameSync, rmSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import type { WhitelistRow } from "@ro-survivor/content-schema";
 import type { AssetReader } from "@ro-survivor/asset-gateway";
+import { FORMAL_MAP_CORE, FORMAL_MAP_CORE_PATHS } from "@ro-survivor/asset-contracts";
 import { parseGat, parseGnd, parseRsw } from "@ro-survivor/ro-format-runtime";
 import { DERIVED_MARKER } from "../lib/png.ts";
 import { extractScene, SceneExtractionError, type SceneMissing, type SceneSummary } from "./scene-extract.ts";
@@ -27,45 +28,76 @@ export interface ExtractManifest {
 }
 
 type From = ExtractManifest["outputs"][number]["from"][number];
-const CORE_MAP = ["map.prt_fild08.rsw", "map.prt_fild08.gnd", "map.prt_fild08.gat"] as const;
+const CORE_MAP = FORMAL_MAP_CORE;
 const dedupe = (list: From[]): From[] => [...new Map(list.map((f) => [f.assetId, f])).values()].sort((a, b) => (a.assetId < b.assetId ? -1 : 1));
+
+/** Filesystem operations of the publish step; injectable so failure paths can be tested. */
+export interface PublishFs {
+  rename(from: string, to: string): void;
+  removeDir(path: string): void;
+}
+const realFs: PublishFs = {
+  rename: (from, to) => renameSync(from, to),
+  removeDir: (path) => rmSync(path, { recursive: true, force: true }),
+};
 
 /**
  * Extract only whitelisted assets into `outDir` (.local-assets/<source-hash>/v<converter>/), as one
- * transaction:
- * 1. any existing `manifest.json` in `outDir` is removed first (a re-run never leaves an old ready state);
+ * transaction whose **commit point is the rename of the staging directory onto `outDir`**:
+ * 1. any existing `manifest.json` in `outDir` is removed first, so neither the active directory nor a
+ *    later `.old-*` copy of it can hold a ready manifest from an earlier run;
  * 2. every output is written to a unique sibling staging directory on the same filesystem;
- * 3. only when all reads, parses and writes succeed is `manifest.json` written and the staging
- *    directory swapped into place by rename;
- * 4. on any failure the staging directory is deleted, `outDir` keeps no manifest, and dependency
- *    problems are written to `outDir/reports/prt_fild08-scene-missing.json` and thrown as
- *    SceneExtractionError (asset ID + container + canonical CP949 path).
+ * 3. when all reads, parses and writes succeed, `manifest.json` is written into staging, the old
+ *    `outDir` is moved aside and staging is renamed onto `outDir` (commit point);
+ * 4. before the commit point any failure deletes staging (best effort), restores nothing that could be
+ *    served (no manifest), writes `reports/prt_fild08-scene-missing.json` for dependency problems and
+ *    rethrows; after it, removing the old directory is best-effort: a failure there is a warning
+ *    (`onWarning`), never a failed command, because the new manifest is already the valid ready state.
  */
-export function runExtraction(rows: readonly WhitelistRow[], reader: AssetReader, outDir: string): ExtractManifest {
+export function runExtraction(
+  rows: readonly WhitelistRow[],
+  reader: AssetReader,
+  outDir: string,
+  options: { fs?: PublishFs; onWarning?: (message: string) => void } = {},
+): ExtractManifest {
+  const fs = options.fs ?? realFs;
+  const warn = options.onWarning ?? ((m: string) => console.warn(m));
   rmSync(join(outDir, MANIFEST_FILE), { force: true });
   const staging = join(dirname(outDir), `${basename(outDir)}.staging-${process.pid}-${randomUUID().slice(0, 8)}`);
   mkdirSync(staging, { recursive: true });
+  let manifest: ExtractManifest;
+  let old: string | null;
   try {
-    const manifest = extractInto(rows, reader, staging);
+    manifest = extractInto(rows, reader, staging);
     writeOutput(staging, MANIFEST_FILE, JSON.stringify(manifest, null, 2));
-    const old = existsSync(outDir) ? `${outDir}.old-${randomUUID().slice(0, 8)}` : null;
-    if (old) renameSync(outDir, old);
-    renameSync(staging, outDir);
-    if (old) rmSync(old, { recursive: true, force: true });
-    return manifest;
+    old = existsSync(outDir) ? `${outDir}.old-${randomUUID().slice(0, 8)}` : null;
+    if (old) fs.rename(outDir, old);
+    fs.rename(staging, outDir); // commit point
   } catch (err) {
-    rmSync(staging, { recursive: true, force: true });
+    try {
+      fs.removeDir(staging);
+    } catch (cleanupErr) {
+      warn(`assets:extract: could not remove staging ${staging}: ${String(cleanupErr)} (it holds no published state)`);
+    }
     if (err instanceof SceneExtractionError) {
       writeOutput(outDir, MISSING_REPORT, JSON.stringify({ rights: DERIVED_MARKER, converterVersion: CONVERTER_VERSION, sources: reader.sourceHashes, missing: err.missing }, null, 2));
     }
     throw err;
   }
+  if (old) {
+    try {
+      fs.removeDir(old);
+    } catch (cleanupErr) {
+      warn(`assets:extract: published, but could not remove the previous directory ${old}: ${String(cleanupErr)} (it holds no manifest; delete it later)`);
+    }
+  }
+  return manifest;
 }
 
 /** CLI body of `pnpm assets:extract`: 0 on success, 1 with MISSING lines on a dependency problem. */
-export function extractCommand(rows: readonly WhitelistRow[], reader: AssetReader, outDir: string, log: (line: string) => void): { code: 0; manifest: ExtractManifest } | { code: 1; missing: SceneMissing[] } {
+export function extractCommand(rows: readonly WhitelistRow[], reader: AssetReader, outDir: string, log: (line: string) => void, fs?: PublishFs): { code: 0; manifest: ExtractManifest } | { code: 1; missing: SceneMissing[] } {
   try {
-    return { code: 0, manifest: runExtraction(rows, reader, outDir) };
+    return { code: 0, manifest: runExtraction(rows, reader, outDir, { onWarning: (m) => log(`WARN ${m}`), ...(fs ? { fs } : {}) }) };
   } catch (err) {
     if (!(err instanceof SceneExtractionError)) throw err;
     for (const m of err.missing) log(`MISSING ${m.assetId ?? "(not whitelisted)"} ${m.container} ${m.canonicalPath}: ${m.reason}`);
@@ -79,7 +111,8 @@ function extractInto(rows: readonly WhitelistRow[], reader: AssetReader, outDir:
   const manifest: ExtractManifest = { rights: DERIVED_MARKER, converterVersion: CONVERTER_VERSION, profile: "fan-local", sources: reader.sourceHashes, outputs: [], sprites: [], map: null };
   const problem = (id: string, reason: string): SceneMissing => {
     const row = byId.get(id);
-    return { assetId: id, container: row?.source_container ?? "data.grf", canonicalPath: row?.canonical_cp949_path ?? "(not in whitelist)", reason };
+    const fixed = (FORMAL_MAP_CORE_PATHS as Record<string, { container: string; canonicalPath: string } | undefined>)[id];
+    return { assetId: id, container: row?.source_container ?? fixed?.container ?? "data.grf", canonicalPath: row?.canonical_cp949_path ?? fixed?.canonicalPath ?? "(not in whitelist)", reason };
   };
   const read = (id: string) => {
     if (!byId.has(id)) throw new SceneExtractionError([problem(id, "required asset is not whitelisted")]);

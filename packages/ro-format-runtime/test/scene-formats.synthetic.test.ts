@@ -76,7 +76,7 @@ describe("GRSM (synthetic)", () => {
     expect(m.volumeBoxes).toHaveLength(1);
   });
 
-  it("parses 1.1 (no colour / smooth group) and 1.5 (per-node position keys)", () => {
+  it("parses 1.1 (no colour / smooth group) and 1.5 legacy model-level position keys", () => {
     expect(parseRsm(model([1, 1])).nodes[0]?.tvertices[0]?.color).toBe(0xffffffff);
     expect(parseRsm(model([1, 5])).version).toBe("1.5");
   });
@@ -144,6 +144,16 @@ describe("GRSM legacy golden fixture (independent bytes)", () => {
     expect(m.version).toBe("1.5");
     expect(m.posKeyframes.map((k) => k.data)).toEqual([42.5, -0.125]);
     expect(m.volumeBoxes).toHaveLength(1);
+  });
+
+  it("a file cut exactly after the last node (no model position-key count) is truncated, not valid", () => {
+    const ok = goldenRsm(4);
+    const tail = 4 + 2 * 20 + 4 + 40; // position-key count + 2 keys + volume-box count + 1 box with flag
+    const cut = ok.subarray(0, ok.length - tail);
+    expect(() => parseRsm(cut)).toThrow(/unexpected end of data/u);
+    // The same cut plus an explicit zero count is valid (count 0, no volume boxes).
+    const zero = Uint8Array.from([...cut, 0, 0, 0, 0]);
+    expect(parseRsm(zero)).toMatchObject({ posKeyframes: [], volumeBoxes: [] });
   });
 
   it("bytes after the volume boxes are a FormatError, not a warning", () => {

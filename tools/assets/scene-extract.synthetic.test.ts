@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, renameSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { AssetWhitelist } from "@ro-survivor/asset-contracts";
@@ -9,7 +9,7 @@ import { createTempDir } from "@ro-survivor/testkit";
 import { decodeOwnPng } from "../lib/png.ts";
 import { HttpAssetGatewayClient } from "@ro-survivor/asset-contracts";
 import { startGateway } from "@ro-survivor/asset-gateway";
-import { extractCommand, MANIFEST_FILE, MISSING_REPORT, runExtraction, type ExtractManifest } from "./extract-run.ts";
+import { extractCommand, MANIFEST_FILE, MISSING_REPORT, runExtraction, type ExtractManifest, type PublishFs } from "./extract-run.ts";
 import { extractScene, SceneExtractionError } from "./scene-extract.ts";
 import { buildSyntheticSources } from "./synthetic-sources.ts";
 
@@ -148,6 +148,8 @@ describe("Commit B scene extraction (synthetic structural fixture — not RO evi
       return rows.map((r) => (r.asset_id === "map.prt_fild08.gnd" ? { ...r, raw_name_hex: gat.raw_name_hex, bytes: gat.bytes, sha256: gat.sha256 } : r));
     }],
     ["map.prt_fild08.gat", "not whitelisted", (rows: WhitelistRow[]) => rows.filter((r) => r.asset_id !== "map.prt_fild08.gat")],
+    ["map.prt_fild08.rsw", "not whitelisted", (rows: WhitelistRow[]) => rows.filter((r) => r.asset_id !== "map.prt_fild08.rsw")],
+    ["map.prt_fild08.gnd", "not whitelisted", (rows: WhitelistRow[]) => rows.filter((r) => r.asset_id !== "map.prt_fild08.gnd")],
   ] as const)("core map %s failure is structured (%s): exact ID / container / path, exit 1, no ready manifest", (id, reason, mutate) => {
     const { rows, reader, out } = setup((r) => mutate(r));
     const lines: string[] = [];
@@ -155,7 +157,7 @@ describe("Commit B scene extraction (synthetic structural fixture — not RO evi
     expect(res.code).toBe(1);
     const expected = realRows.find((r) => r.asset_id === id) as WhitelistRow;
     const missing = res.code === 1 ? res.missing : [];
-    expect(missing).toEqual([expect.objectContaining({ assetId: id, container: "data.grf", canonicalPath: id === "map.prt_fild08.gat" ? "(not in whitelist)" : expected.canonical_cp949_path, reason: expect.stringContaining(reason) as unknown })]);
+    expect(missing).toEqual([expect.objectContaining({ assetId: id, container: "data.grf", canonicalPath: expected.canonical_cp949_path, reason: expect.stringContaining(reason) as unknown })]);
     expect(lines[0]).toMatch(new RegExp(`^MISSING ${id.replaceAll(".", "\\.")} data\\.grf `, "u"));
     expect(existsSync(join(out, MANIFEST_FILE))).toBe(false);
     expect(existsSync(join(out, MISSING_REPORT))).toBe(true);
@@ -176,5 +178,45 @@ describe("Commit B scene extraction (synthetic structural fixture — not RO evi
       expect([j.rights, j.converterVersion, Object.keys(j.sources).length], file).toEqual(["RO-SURVIVOR-DERIVED:local-fan-use", 2, 4]);
     }
     expect([...fromOf("map.prt_fild08.model.001.json")]).toEqual(["map.prt_fild08.model.001"]);
+  });
+
+  it("cleanup failure after the commit point: success + one valid active manifest, warning only", async () => {
+    const { cleanRows, reader, out, lock, root } = setup();
+    runExtraction(cleanRows, reader, out);
+    const lines: string[] = [];
+    const lockedOld: PublishFs = {
+      rename: (a, b) => renameSync(a, b),
+      removeDir: (p) => {
+        if (p.includes(".old-")) throw new Error("EBUSY: resource busy or locked (injected)");
+        rmSync(p, { recursive: true, force: true });
+      },
+    };
+    const res = extractCommand(cleanRows, reader, out, (l) => lines.push(l), lockedOld);
+    expect(res.code).toBe(0);
+    expect(lines.filter((l) => l.startsWith("WARN ")).length).toBe(1);
+    expect(existsSync(join(out, MANIFEST_FILE))).toBe(true);
+    const leftovers = readdirSync(root).filter((f) => f.includes(".old-"));
+    expect(leftovers).toHaveLength(1);
+    expect(existsSync(join(root, leftovers[0] as string, MANIFEST_FILE))).toBe(false); // the old copy holds no ready manifest
+    const gw = await startGateway({ config: { host: "127.0.0.1", port: 0, lanProfile: null }, whitelist: new AssetWhitelist(cleanRows), lock, buildId: "t", derivedDir: out });
+    cleanups.push(() => void gw.close());
+    const client = new HttpAssetGatewayClient({ baseUrl: gw.url, whitelist: new AssetWhitelist(cleanRows) });
+    await expect(client.getJson("map.prt_fild08.rsw")).resolves.toMatchObject({ assetId: "map.prt_fild08.rsw" });
+  });
+
+  it("failure at the commit point (publish rename): failure + no valid active manifest", () => {
+    const { cleanRows, reader, out, root } = setup();
+    runExtraction(cleanRows, reader, out);
+    const failingPublish: PublishFs = {
+      rename: (a, b) => {
+        if (a.includes(".staging-")) throw new Error("EPERM: operation not permitted (injected)");
+        renameSync(a, b);
+      },
+      removeDir: (p) => rmSync(p, { recursive: true, force: true }),
+    };
+    expect(() => runExtraction(cleanRows, reader, out, { fs: failingPublish, onWarning: () => undefined })).toThrow(/EPERM/u);
+    expect(existsSync(join(out, MANIFEST_FILE))).toBe(false);
+    expect(readdirSync(root).filter((f) => f.includes(".staging-"))).toEqual([]);
+    for (const d of readdirSync(root).filter((f) => f.includes(".old-"))) expect(existsSync(join(root, d, MANIFEST_FILE))).toBe(false);
   });
 });

@@ -20,6 +20,10 @@
   - structured failures for RSW/GND/GAT;
   - complete provenance for composite outputs;
   - 32-bit BMP rejected.
+- Commit B fixes for R-1…R-3:
+  - the legacy RSM model position-key count is mandatory (truncation is detected);
+  - the publish commit point is explicit, and cleanup after it is best-effort with a warning;
+  - a missing core map row is reported with its fixed canonical path.
 
 ## Unreleased — Phase 2 vertical slice (2026-11-17)
 

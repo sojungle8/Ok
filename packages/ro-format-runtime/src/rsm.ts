@@ -125,13 +125,12 @@ export function parseRsm(bytes: Uint8Array): Rsm {
   for (const n of nodes) {
     if (n.name !== mainNode && n.parent !== "" && !names.has(n.parent)) throw new FormatError("RSM", `node ${n.name}: unknown parent ${JSON.stringify(n.parent)}`);
   }
-  // After all nodes (every legacy version < 1.6): model-level position keys, then volume boxes.
-  // A file may end exactly at a section boundary; any bytes left after the volume boxes are an error.
+  // After all nodes (every legacy version < 1.6) the model-level position-key count is mandatory
+  // (0 is valid; a file that ends right after the last node is truncated). Volume boxes may be absent
+  // at end of file; any bytes left after them are an error.
   const posKeyframes: Rsm["posKeyframes"] = [];
-  if (r.remaining > 0) {
-    const pk = count(r, "model position keyframe");
-    for (let i = 0; i < pk; i += 1) posKeyframes.push({ frame: r.i32(), position: v3(r), data: r.f32() });
-  }
+  const pk = count(r, "model position keyframe");
+  for (let i = 0; i < pk; i += 1) posKeyframes.push({ frame: r.i32(), position: v3(r), data: r.f32() });
   const volumeBoxes: Rsm["volumeBoxes"] = [];
   if (r.remaining > 0) {
     const vb = count(r, "volume box", 4096);
