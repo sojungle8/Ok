@@ -29,6 +29,8 @@ export interface BenchResult {
   droppedTicks: number;
   finalTick: number;
   stateHash: string;
+  /** Navigation start -> first simulated frame (ms): app + asset load time. */
+  loopStartMs: number;
 }
 
 function percentile(values: number[], p: number): number {
@@ -140,6 +142,7 @@ export class GameLoop {
           droppedTicks: this.#clock.droppedTicks,
           finalTick: this.state.tick,
           stateHash: arenaHash(this.state),
+          loopStartMs: Math.round(this.#startedAt),
         });
       }
     };

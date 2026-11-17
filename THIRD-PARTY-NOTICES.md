@@ -17,7 +17,7 @@ listed below with its origin commit, original path, original authors and modific
 | roBrowserLegacy | GPL-3.0 | `5435cf67642eac8281f9a7a94c92f98428db471e` (per plan; local verification DEFERRED_LOCAL) | — | — | not copied |
 | remote-client (GRF gateway) | GPL-3.0 | `cd51fcab453444ae5d9a1028b677fe0c56a32ca6` (per plan; local verification DEFERRED_LOCAL) | — | — | not copied; Phase 1 treats it as an external read-only service |
 | rAthena | GPL-3.0 | local snapshot without Git metadata | — | — | not copied; IDs used only as name/source references |
-| Three.js | MIT | — | — | — | planned for Phase 1; not installed |
+| Three.js | MIT | npm `three@0.186.1` (package dependency, not copied source) | — | — | installed as a dependency in Phase 1 |
 
 ## Data files
 
@@ -40,7 +40,8 @@ Runtime (shipped in the client bundle):
 | Package | Version | License |
 | --- | --- | --- |
 | preact | 10.29.8 | MIT |
-| zod | 4.6.7 | MIT (used by content-schema; not yet in the client bundle) |
+| zod | 4.6.7 | MIT (used by content-schema) |
+| three | 0.186.1 | MIT |
 
 Development only (not shipped):
 
@@ -55,6 +56,7 @@ Development only (not shipped):
 | typescript-eslint | 8.73.0 | MIT |
 | globals | 17.14.0 | MIT |
 | @types/node | 24.19.2 | MIT |
+| @types/three | 0.186.0 | MIT |
 
 ## RO material
 

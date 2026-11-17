@@ -1,7 +1,31 @@
 # STATUS
 
-Current phase: **Phase 0 — 建立安全的新專案（cloud handoff complete; local gates DEFERRED_LOCAL）**
-Phase 1 has **not** started.
+Current phase: **Phase 1 — 素材與渲染技術尖峰: cloud spike done; real-asset gates DEFERRED_LOCAL (Phase 1 not complete)**.
+Phase 2 has **not** started.
+
+## Phase 1 (cloud) — summary
+
+Details, gates and local commands: `reports/phase1/PHASE1-ACCEPTANCE.md`; performance: `reports/render-spike-01.md`.
+
+| Area | Status |
+| --- | --- |
+| Clean-room parsers (SPR 1.x–2.1, ACT 2.0–2.5, PAL, GAT, GND, RSW 1.2–2.1, GRF 0x200) | CLOUD_PASS on synthetic files · real files DEFERRED_LOCAL |
+| Loopback gateway + HttpAssetGatewayClient + placeholder fallback | CLOUD_PASS (synthetic GRF) |
+| audit-whitelist / extract --profile fan-local / dev:fan-local | CLOUD_PASS on synthetic sources (48/48 audit) · real DEFERRED_LOCAL |
+| Contact sheets (6 slots × 8 directions, pivot, shadow), UV-mirror dedupe | CLOUD_PASS synthetic · human review of real sheets DEFERRED_LOCAL |
+| Arena: player + 50 Porings, 1 spawn/s, collision, WASD + joystick, RenderSnapshot | CLOUD_PASS |
+| 15/30/60 FPS identical 60 s hash | CLOUD_PASS (`4dbb7aa405a98e3b`) |
+| prt_fild08 ground textures, RSM models, instanced map props | NOT DONE: not whitelisted (GAP-002) |
+| 250 enemies @60 FPS desktop / phone 30 FPS | Emulated 4x CPU at 30 FPS: pass · real GPU / phone DEFERRED_LOCAL |
+| Derived files only in `.local-assets` | CLOUD_PASS (marker + rights:check tests) |
+
+Test counts at commit `151c3d9` (Actions run #7 <https://github.com/sojungle8/Ok/actions/runs/44014237315>: success): 101 unit/integration tests, 70 synthetic tests.
+
+---
+
+# Phase 0 (closed in the cloud)
+
+Phase 0 cloud gates CLOUD_PASS; local gates DEFERRED_LOCAL (Codex reported local evidence in Issue #2).
 
 Environment of record (cloud): Linux container, Node 24.21.0 (`.nvmrc`), pnpm 10.28.0,
 Chromium 153 (preinstalled Playwright). No GRF / RO client / old RO trees available.
@@ -46,5 +70,6 @@ Counts are taken from the runner output of run #5 and a clean local `pnpm instal
 
 ## Next minimal step
 
-Wait for the user's local run of the DEFERRED_LOCAL commands in
-`reports/phase0/PHASE0-ACCEPTANCE.md` and for an explicit Phase 1 instruction.
+Run the Phase 1 local commands in `reports/phase1/PHASE1-ACCEPTANCE.md` (audit, extract, contact-sheet
+review, dev:fan-local, GPU bench), return the audit and dependency reports, and wait for an explicit
+instruction before Phase 2.

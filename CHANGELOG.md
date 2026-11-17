@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased — Phase 1 cloud spike (2026-11-17)
+
+- Clean-room RO format parsers + synthetic writers (`704e75e`).
+- Loopback asset gateway and HttpAssetGatewayClient with placeholder fallback (`9d686e1`).
+- assets:audit-whitelist, assets:extract --profile fan-local, dev:fan-local, derived-output marker (`8bfcd48`).
+- Deterministic arena with RenderSnapshot (`2f213e6`).
+- Three.js arena client, synthetic fan-local demo, e2e smoke and bench (`151c3d9`).
+- Reports: render-spike-01, Phase 1 acceptance; GAP-002 for map textures and models.
+
 ## Unreleased — Phase 0 fixes for Issue #2 (2026-11-17)
 
 - Handoff transfer integrity: removed the extra trailing CRLF from four hash-locked files, `.gitattributes eol=lf`,

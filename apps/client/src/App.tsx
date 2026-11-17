@@ -10,7 +10,7 @@ import { ArenaRenderer } from "./game/renderer.ts";
 declare global {
   interface Window {
     __bench?: BenchResult & { buildId: string; userAgent: string; viewport: string; pixelRatio: number; loadMs: number; assetSource: string };
-    __arena?: { hash(): string; tick(): number; enemies(): number };
+    __arena?: { hash(): string; tick(): number; enemies(): number; player(): { x: number; y: number; dir: number } };
   }
 }
 
@@ -66,7 +66,7 @@ export function App() {
                 onDone: (r: BenchResult) => {
                   window.__bench = {
                     ...r, buildId: __BUILD_ID__, userAgent: navigator.userAgent, viewport: `${window.innerWidth}x${window.innerHeight}`,
-                    pixelRatio: renderer?.renderer.getPixelRatio() ?? 1, loadMs: Math.round(performance.now()), assetSource: assets.player.source,
+                    pixelRatio: renderer?.renderer.getPixelRatio() ?? 1, loadMs: r.loopStartMs, assetSource: assets.player.source,
                   };
                 },
               },
@@ -75,7 +75,7 @@ export function App() {
       });
       loop.onStats = setStats;
       const l = loop;
-      window.__arena = { hash: () => arenaHash(l.state), tick: () => l.state.tick, enemies: () => l.state.enemies.length };
+      window.__arena = { hash: () => arenaHash(l.state), tick: () => l.state.tick, enemies: () => l.state.enemies.length, player: () => ({ x: l.state.player.x, y: l.state.player.y, dir: l.state.player.dir }) };
       loop.start();
     })();
     window.addEventListener("resize", onResize);

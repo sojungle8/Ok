@@ -57,15 +57,29 @@ for (const name of ["chromium", "webkit"]) {
       await page.goto(url);
       await page.getByTestId("gateway-status").filter({ hasText: `mode=${expectMode}` }).waitFor({ timeout: 15_000 });
       await page.getByTestId("sim-stats").filter({ hasText: "FPS" }).waitFor({ timeout: 15_000 });
+      // Input: keyboard D moves east (+x), joystick dragged up moves north (+y).
+      const p0 = await page.evaluate(() => window.__arena.player());
+      await page.keyboard.down("KeyD");
+      await page.waitForTimeout(700);
+      await page.keyboard.up("KeyD");
+      const p1 = await page.evaluate(() => window.__arena.player());
+      const stick = await page.getByTestId("joystick").boundingBox();
+      await page.mouse.move(stick.x + stick.width / 2, stick.y + stick.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(stick.x + stick.width / 2, stick.y - 10, { steps: 4 });
+      await page.waitForTimeout(700);
+      await page.mouse.up();
+      const p2 = await page.evaluate(() => window.__arena.player());
+      const input = { keyboardEast: p1.x > p0.x, joystickNorth: p2.y > p1.y, facingAfterStick: p2.dir };
       if (process.env.SMOKE_DEBUG_OVERLAY) await page.keyboard.press("KeyG");
       await page.waitForTimeout(1500);
       const buildId = (await page.getByTestId("build-id").innerText()).trim();
       const profile = (await page.getByTestId("build-profile").innerText()).trim();
       const name = (await page.getByTestId("project-name").innerText()).trim();
-      const ok = name === "RO Survivor Fan Game" && profile === "fan-local" && /\+[0-9a-f]{12}\.\d{8}$|^ci-/.test(buildId) && errors.length === 0;
+      const ok = name === "RO Survivor Fan Game" && profile === "fan-local" && /\+[0-9a-f]{12}\.\d{8}$|^ci-/.test(buildId) && errors.length === 0 && input.keyboardEast && input.joystickNorth;
       const shot = join(outDir, `smoke${tag}-${browserName(browser)}-${viewport.tag}.png`);
       await page.screenshot({ path: shot, fullPage: true });
-      results.push({ browser: `${browserName(browser)} ${browser.version()}`, viewport: viewport.tag, status: ok ? "PASS" : "FAIL", buildId, profile, errors, screenshot: shot.slice(root.length + 1) });
+      results.push({ browser: `${browserName(browser)} ${browser.version()}`, viewport: viewport.tag, status: ok ? "PASS" : "FAIL", input, buildId, profile, errors, screenshot: shot.slice(root.length + 1) });
       await page.close();
     }
   } finally {

@@ -1,0 +1,35 @@
+[
+  {
+    "browser": "chromium 153.0.8010.12",
+    "viewport": "desktop",
+    "status": "PASS",
+    "input": {
+      "keyboardEast": true,
+      "joystickNorth": true,
+      "facingAfterStick": 4
+    },
+    "buildId": "0.0.0+151c3d953247.20261117",
+    "profile": "fan-local",
+    "errors": [],
+    "screenshot": "reports/phase1/smoke-fanlocal-synthetic-chromium-desktop.png"
+  },
+  {
+    "browser": "chromium 153.0.8010.12",
+    "viewport": "mobile",
+    "status": "PASS",
+    "input": {
+      "keyboardEast": true,
+      "joystickNorth": true,
+      "facingAfterStick": 4
+    },
+    "buildId": "0.0.0+151c3d953247.20261117",
+    "profile": "fan-local",
+    "errors": [],
+    "screenshot": "reports/phase1/smoke-fanlocal-synthetic-chromium-mobile.png"
+  },
+  {
+    "browser": "webkit",
+    "status": "NOT_RUN",
+    "detail": "Error: browserType.launch: Executable doesn't exist at /opt/pw-browsers/webkit-2359/pw_run.sh"
+  }
+]
