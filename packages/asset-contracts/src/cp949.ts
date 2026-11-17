@@ -1,69 +1,45 @@
 /**
- * Strict CP949 (Windows-949 / Unified Hangul Code) codec.
+ * Strict CP949 (Windows-949 / Unified Hangul Code) codec backed by the fixed official
+ * Microsoft table published by Unicode (cp949-table.generated.ts, 17,048 double-byte
+ * mappings, source SHA-256 verified at generation time). No host TextDecoder is used, so
+ * results are identical on every platform.
  *
- * Why not TextDecoder("euc-kr")? Node's ICU converter only implements plain EUC-KR: it does
- * not know the UHC extension (e.g. 0x8C63 "똠") and, even with { fatal: true }, silently drops
- * an unknown lead byte. GRF lookups must never be lossy, so this module:
- *  - takes the KS X 1001 (lead/trail 0xA1-0xFE) table from the platform EUC-KR decoder, one
- *    pair at a time, and
- *  - derives the 8,822 UHC extension syllables algorithmically: every precomposed Hangul
- *    syllable missing from KS X 1001, in Unicode order, fills lead 0x81-0xA0 (trails
- *    41-5A, 61-7A, 81-FE) then lead 0xA1-0xC6 (trails 41-5A, 61-7A, 81-A0).
- * Decoding is strict: unknown sequences throw.
+ * - 0x00-0x7F: ASCII identity.
+ * - 0x80, 0xFF: undefined -> throw.
+ * - 0x81-0xFE: lead byte; the pair must exist in the official table, otherwise throw.
+ *   Machine-local EUDC rows (C9A1-C9FE, FEA1-FEFE) are not in the table and are rejected.
  */
+import { CP949_DBCS_HEX } from "./cp949-table.generated.ts";
+
 interface Tables {
-  decode: Map<number, string>;
-  encode: Map<string, number>;
+  decode: Map<number, number>;
+  encode: Map<number, number>;
+  pairs: [number, number][];
 }
 let tables: Tables | undefined;
 
-function uhcTrails(lead: number): number[] {
-  const out: number[] = [];
-  for (let t = 0x41; t <= 0x5a; t += 1) out.push(t);
-  for (let t = 0x61; t <= 0x7a; t += 1) out.push(t);
-  const last = lead <= 0xa0 ? 0xfe : 0xa0;
-  for (let t = 0x81; t <= last; t += 1) out.push(t);
-  return out;
-}
-
 function buildTables(): Tables {
   if (tables) return tables;
-  const decode = new Map<number, string>();
-  const encode = new Map<string, number>();
-  const decoder = new TextDecoder("euc-kr");
-  const pair = new Uint8Array(2);
-  for (let lead = 0xa1; lead <= 0xfe; lead += 1) {
-    for (let trail = 0xa1; trail <= 0xfe; trail += 1) {
-      pair[0] = lead;
-      pair[1] = trail;
-      const ch = decoder.decode(pair);
-      if ([...ch].length !== 1 || ch === "�" || (ch.codePointAt(0) as number) < 0x80) continue;
-      const code = (lead << 8) | trail;
-      decode.set(code, ch);
-      if (!encode.has(ch)) encode.set(ch, code);
+  const decode = new Map<number, number>();
+  const encode = new Map<number, number>();
+  const pairs: [number, number][] = [];
+  for (const chunk of CP949_DBCS_HEX) {
+    for (let i = 0; i < chunk.length; i += 8) {
+      const code = Number.parseInt(chunk.slice(i, i + 4), 16);
+      const uni = Number.parseInt(chunk.slice(i + 4, i + 8), 16);
+      if (decode.has(code) || encode.has(uni)) throw new Error(`CP949 table has a duplicate entry at 0x${code.toString(16)}`);
+      decode.set(code, uni);
+      encode.set(uni, code);
+      pairs.push([code, uni]);
     }
   }
-  const missing: string[] = [];
-  for (let cp = 0xac00; cp <= 0xd7a3; cp += 1) {
-    const ch = String.fromCharCode(cp);
-    if (!encode.has(ch)) missing.push(ch);
-  }
-  let i = 0;
-  for (let lead = 0x81; lead <= 0xc6 && i < missing.length; lead += 1) {
-    for (const trail of uhcTrails(lead)) {
-      if (i >= missing.length) break;
-      const ch = missing[i] as string;
-      const code = (lead << 8) | trail;
-      decode.set(code, ch);
-      encode.set(ch, code);
-      i += 1;
-    }
-  }
-  if (missing.length !== 8822 || i !== 8822) {
-    throw new Error(`CP949 table build failed: expected 8822 UHC syllables, got ${missing.length}/${i}`);
-  }
-  tables = { decode, encode };
+  tables = { decode, encode, pairs };
   return tables;
+}
+
+/** Double-byte [code, unicode] pairs in source order (for golden tests). */
+export function cp949DbcsPairs(): readonly (readonly [number, number])[] {
+  return buildTables().pairs;
 }
 
 export function decodeCp949(bytes: Uint8Array): string {
@@ -75,11 +51,13 @@ export function decodeCp949(bytes: Uint8Array): string {
       out += String.fromCharCode(b);
       continue;
     }
+    if (b === 0x80 || b === 0xff) throw new Error(`CP949: invalid byte 0x${b.toString(16).toUpperCase()} at ${i}`);
     const t = bytes[i + 1];
-    if (b < 0x81 || b > 0xfe || t === undefined) throw new Error(`CP949: invalid byte 0x${b.toString(16)} at ${i}`);
-    const ch = decode.get((b << 8) | t);
-    if (ch === undefined) throw new Error(`CP949: unmapped sequence 0x${((b << 8) | t).toString(16).toUpperCase()} at ${i}`);
-    out += ch;
+    if (t === undefined) throw new Error(`CP949: incomplete sequence at ${i}`);
+    const code = (b << 8) | t;
+    const uni = decode.get(code);
+    if (uni === undefined) throw new Error(`CP949: unmapped sequence 0x${code.toString(16).toUpperCase()} at ${i}`);
+    out += String.fromCharCode(uni);
     i += 1;
   }
   return out;
@@ -94,7 +72,7 @@ export function encodeCp949(text: string): Uint8Array {
       out.push(cp);
       continue;
     }
-    const code = encode.get(ch);
+    const code = encode.get(cp);
     if (code === undefined) throw new Error(`CP949: character U+${cp.toString(16).toUpperCase()} is not encodable`);
     out.push(code >> 8, code & 0xff);
   }

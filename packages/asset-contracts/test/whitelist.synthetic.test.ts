@@ -2,11 +2,8 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   AssetWhitelist,
-  bytesToHex,
   canonicalPathToRequestUri,
   checkWhitelistRoundTrips,
-  decodeCp949,
-  encodeCp949,
   isPlaceholderBinary,
   parseCsv,
   PlaceholderAssetGateway,
@@ -37,36 +34,6 @@ describe("fan-local whitelist (handoff CSV, no GRF needed)", () => {
     const versions = new Set(list.rows().map((r) => r.act_version).filter((v) => v !== ""));
     expect(versions).toContain("2.4");
     expect(versions).toContain("2.5");
-  });
-});
-
-describe("CP949 codec (synthetic strings)", () => {
-  it("encodes Hangul to the documented bytes", () => {
-    expect(bytesToHex(encodeCp949("몬스터"))).toBe("B8F3BDBAC5CD");
-    expect(decodeCp949(Uint8Array.from([0xb8, 0xf3, 0xbd, 0xba, 0xc5, 0xcd]))).toBe("몬스터");
-  });
-  it("maps UHC extension syllables (known Windows-949 code points)", () => {
-    expect(bytesToHex(encodeCp949("갂"))).toBe("8141");
-    expect(bytesToHex(encodeCp949("똠"))).toBe("8C63");
-    expect(bytesToHex(encodeCp949("힝"))).toBe("C8FE");
-    expect(bytesToHex(encodeCp949("힣"))).toBe("C652");
-    const text = "똠방각하";
-    expect(decodeCp949(encodeCp949(text))).toBe(text);
-  });
-  it("round-trips all 11,172 precomposed Hangul syllables", () => {
-    let all = "";
-    for (let cp = 0xac00; cp <= 0xd7a3; cp += 1) all += String.fromCharCode(cp);
-    const bytes = encodeCp949(all);
-    expect(bytes.length).toBe(11172 * 2);
-    expect(decodeCp949(bytes)).toBe(all);
-  });
-  it("decodes strictly (no silent byte loss)", () => {
-    expect(() => decodeCp949(Uint8Array.from([0x8c]))).toThrow(/invalid/u);
-    expect(() => decodeCp949(Uint8Array.from([0xc6, 0x53]))).toThrow(/unmapped/u);
-    expect(() => decodeCp949(Uint8Array.from([0x80, 0x41]))).toThrow(/invalid/u);
-  });
-  it("refuses unencodable characters", () => {
-    expect(() => encodeCp949("😀")).toThrow(/not encodable/u);
   });
 });
 

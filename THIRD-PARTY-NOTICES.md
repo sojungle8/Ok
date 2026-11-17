@@ -19,6 +19,20 @@ listed below with its origin commit, original path, original authors and modific
 | rAthena | GPL-3.0 | local snapshot without Git metadata | — | — | not copied; IDs used only as name/source references |
 | Three.js | MIT | — | — | — | planned for Phase 1; not installed |
 
+## Data files
+
+### Unicode CP949 mapping (Microsoft cp949 table)
+
+| Field | Value |
+| --- | --- |
+| Source | <https://www.unicode.org/Public/MAPPINGS/VENDORS/MICSFT/WINDOWS/CP949.TXT> (table version 2.01, Format A) |
+| Source SHA-256 | `f57e6fef9d1ed44f445e319a8e1b879ce6b6064520ab571c341e47b892e32abc` |
+| Copyright / license | Copyright © 1991-2026 Unicode, Inc. — Unicode License v3, full text in `licenses/UNICODE-LICENSE-V3.txt` (obtained from <https://www.unicode.org/license.txt>, SHA-256 `e7a93b009565cfce55919a381437ac4db883e9da2126fa28b91d12732bc53d96`) |
+| Derived file | `packages/asset-contracts/src/cp949-table.generated.ts` |
+| Transformation | `tools/cp949/generate.ts` (maintenance command `pnpm maint:cp949-generate`, generator v1): verifies the source SHA-256 before anything is written, checks single bytes 0x00-0x7F are ASCII identity, keeps only the 17,048 double-byte rows and stores each as 8 hex digits (CP949 code + Unicode code point). Comments and Unicode names are dropped. |
+| Derived-data check | Double-byte stream (code u16 BE + Unicode u16 BE, source order) SHA-256 `1ed8d8e4d8095248317a77a2976f4ec8e76e551b11caa1f7249476bf109961cd`, asserted by tests |
+| Network | Only the maintenance command may download; build, test, `ci:local` and CI read the committed table offline |
+
 ## Package dependencies (installed via pnpm, versions pinned by `pnpm-lock.yaml`)
 
 Runtime (shipped in the client bundle):
