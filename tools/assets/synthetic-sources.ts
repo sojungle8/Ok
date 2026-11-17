@@ -182,7 +182,7 @@ export function buildSyntheticSources(dir: string, realRows: readonly WhitelistR
       sources: {
         "data.grf": { path: join(dir, "data.grf"), bytes: dataGrf.length, sha256: sha(dataGrf) },
         "rdata.grf": { path: join(dir, "rdata.grf"), bytes: rdataGrf.length, sha256: sha(rdataGrf) },
-        bgm: { path: join(dir, "BGM"), fileCount: 1, manifestSha256: sha(bgmFiles.map((f) => `${f.name}\t${f.bytes}\t${f.sha256}`).join("\n")), files: bgmFiles },
+        bgm: { path: join(dir, "BGM"), fileCount: 1, manifestSha256: sha(Buffer.from(bgmFiles.map((f) => `${f.name}\t${f.bytes}\t${f.sha256}`).join("\n"))), files: bgmFiles },
       },
     },
   };

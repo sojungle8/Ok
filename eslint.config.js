@@ -20,7 +20,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ["packages/core-sim/**/*.ts"],
+    files: ["packages/core-sim/src/**/*.ts"],
     rules: {
       "no-restricted-properties": [
         "error",

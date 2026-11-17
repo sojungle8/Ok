@@ -132,7 +132,7 @@ describe("asset gateway + HttpAssetGatewayClient (synthetic GRF)", () => {
     expect(new HttpAssetGatewayClient({ baseUrl: "http://192.168.1.10:4178", whitelist, allowLan: true }).mode()).toBe("fan-local");
 
     const health = { ok: true, mode: "fan-local", buildId: "b", sourceHashes: { "data.grf": "A".repeat(64), "rdata.grf": null, bgm: null } };
-    const fake = (body: Uint8Array, headers: Record<string, string>) => (u: string) =>
+    const fake = (body: Uint8Array<ArrayBuffer>, headers: Record<string, string>) => (u: string) =>
       Promise.resolve(u.endsWith("/health") ? new Response(JSON.stringify(health), { headers: { "content-type": "application/json" } }) : new Response(body, { headers }));
     const big = new HttpAssetGatewayClient({ baseUrl: "http://127.0.0.1:1", whitelist, fetch: fake(new Uint8Array(5000), { "content-type": "application/octet-stream", "x-ro-source-sha256": "A".repeat(64) }) });
     await expect(big.getBinary("monster.1002.spr")).rejects.toMatchObject({ code: "too-large" });
