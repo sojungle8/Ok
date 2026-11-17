@@ -59,8 +59,9 @@ MVP 才擴到劍士、魔法師、弓箭手三職、3 張圖、3 個 MVP、約 2
 7. `06-CLAUDE-COMMANDS.md`：可直接貼給 Claude 的主指令與逐階段指令。
 8. `07-REFERENCE-LEDGER.md`：持續追蹤原作、HANS、攻略與玩家實測的黑箱參考流程。
 9. `08-PUBLIC-CODE-OBSERVATIONS.md`：Codex 對官網公開客戶端做的一次性唯讀分析與乾淨室轉譯。
-10. `handoff/README.md` 與 `handoff/ASSET-AUDIT.md`：Claude 可直接消費的資料包、精確素材稽核與使用順序。
-11. `SOURCES.md`：官方、中文與海外玩家來源。
+10. `09-GITHUB-CLOUD-WORKFLOW.md`：Claude 在 GitHub 雲端施工時的路徑覆寫、placeholder 與本機素材接線。
+11. `handoff/README.md` 與 `handoff/ASSET-AUDIT.md`：Claude 可直接消費的資料包、精確素材稽核與使用順序。
+12. `SOURCES.md`：官方、中文與海外玩家來源。
 
 ## 交給 Claude 的方式
 

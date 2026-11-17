@@ -4,7 +4,7 @@
 
 ## 使用順序
 
-1. 讀 `../00-START-HERE.md` 至 `../08-PUBLIC-CODE-OBSERVATIONS.md`。
+1. 讀 `../00-START-HERE.md` 至 `../09-GITHUB-CLOUD-WORKFLOW.md`；若在 GitHub 雲端工作，以 09 的路徑與驗收覆寫規則為準。
 2. 驗證 `reference-snapshot-2026-11-17.json` 可解析。
 3. 讀 `public-client-artifacts.csv`，只用 hash 判斷研究版本，不下載對應檔案。
 4. 讀 `../reference-ledger.csv`，只採用 `review_status=reviewed` 的觀察。

@@ -22,6 +22,7 @@ C:\Users\user\Documents\ChatGPT\量化交易系統\docs\ro-survivors-cleanroom\0
 C:\Users\user\Documents\ChatGPT\量化交易系統\docs\ro-survivors-cleanroom\05-QA-AND-RELEASE.md
 C:\Users\user\Documents\ChatGPT\量化交易系統\docs\ro-survivors-cleanroom\07-REFERENCE-LEDGER.md
 C:\Users\user\Documents\ChatGPT\量化交易系統\docs\ro-survivors-cleanroom\08-PUBLIC-CODE-OBSERVATIONS.md
+C:\Users\user\Documents\ChatGPT\量化交易系統\docs\ro-survivors-cleanroom\09-GITHUB-CLOUD-WORKFLOW.md
 C:\Users\user\Documents\ChatGPT\量化交易系統\docs\ro-survivors-cleanroom\handoff\README.md
 C:\Users\user\Documents\ChatGPT\量化交易系統\docs\ro-survivors-cleanroom\handoff\ASSET-AUDIT.md
 C:\Users\user\Documents\ChatGPT\量化交易系統\docs\ro-survivors-cleanroom\handoff\reference-snapshot-2026-11-17.json
@@ -29,6 +30,8 @@ C:\Users\user\Documents\ChatGPT\量化交易系統\docs\ro-survivors-cleanroom\h
 C:\Users\user\Documents\ChatGPT\量化交易系統\docs\ro-survivors-cleanroom\handoff\fan-local-asset-whitelist.csv
 C:\Users\user\Documents\ChatGPT\量化交易系統\docs\ro-survivors-cleanroom\handoff\vertical-slice-content-seed.json
 C:\Users\user\Documents\ChatGPT\量化交易系統\docs\ro-survivors-cleanroom\SOURCES.md
+
+若你在 GitHub／Claude 雲端環境工作，`09-GITHUB-CLOUD-WORKFLOW.md` 對施工位置、本機素材檢查及驗收狀態具有優先權：repository root 就是專案根目錄，無法執行的真實素材 gate 標成 `DEFERRED_LOCAL`，不得嘗試存取 Windows 絕對路徑。
 
 不可違反的邊界：
 1. 官網公開客戶端已由 Codex 做過一次性唯讀分析。你不得再次下載、保存、反編譯、複製或逐行轉譯 ro-survivors.com 與 ro.hans-webgametw.com 的 JavaScript bundle、source map、伺服器程式、私有 API、資料表、文字或下載包；只使用 `handoff` 中由 Codex 重寫的事實、schema、需求與測試。
