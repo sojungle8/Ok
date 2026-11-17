@@ -77,10 +77,14 @@ or the HUD. A static-graph test checks this, and e2e check E confirms the marker
     Blob URLs of the verified bytes.
   - The mint checks each item: canonical registry ID, entry ID, native size, PNG signature, and the SHA-256 of the
     bytes against the declared hash.
+  - Before any `await`, each item is snapshotted once: scalars, the declared SHA, a defensive copy of the bytes and
+    a frozen clone of the entry. Validation, hashing, the Blob and the handle use only that snapshot, so mutating
+    the caller's items while the promise is pending changes nothing that is issued.
   - It works in two phases:
     - all validation and frozen metadata copies are done before any URL exists;
-    - a URL failure then revokes every created URL best-effort and rethrows the original error with
-      `cleanupErrors`.
+    - a URL failure then revokes every created URL best-effort (continuing past revoke errors) and rethrows the
+      original error with `cleanupErrors`. If the original cannot carry them (frozen or non-extensible object, or a
+      thrown primitive), it is wrapped in `RasterIssuanceError` with `cause` set to the original.
   - No partial set is returned.
   - Each handle keeps an independent, recursively frozen copy of its UI-A entry.
   - `dispose()` revokes the URL once; double dispose is safe.
@@ -102,8 +106,16 @@ or the HUD. A static-graph test checks this, and e2e check E confirms the marker
   - Non-relative runtime imports and re-exports must be on a minimal allowlist: preact and the repository's own
     contract packages.
   - Non-relative or remote CSS `@import` is rejected.
-  - Literal raster sources (`url("…")`, `<img>`, `src=`, `new Image()`) are rejected. The only accepted source is a
-    verified handle's object URL.
+  - TS/TSX module structure is read from the TypeScript AST: static imports and re-exports (including minified
+    forms), dynamic imports with string or template literals, and inline `type` specifiers. Non-literal
+    `import()`/`require()` and `import.meta.glob` are rejected as opaque module loads, both in the graph and across
+    all of `apps/client/src`. CSS `@import` is matched case-insensitively.
+  - Raster sources are checked on the AST. Any `url(`/`image(` in a string, template part or JSX text, image-loading
+    elements (JSX or `h`/`createElement`), `new Image()`, `src`-like attributes, properties, assignments and
+    `setAttribute`, and raster style properties with computed values are all rejected. The only accepted source is
+    the exact helper `verifiedRasterUrl(raster: VerifiedRaster)` returning
+    `` `url("${checkRaster(raster, …).url}")` ``, at most once per graph.
+  - Every path the guard reports is POSIX `/` on Windows and Linux.
   - It rejects:
     - gradients, border-radius, shadows, CSS border surfaces, pseudo-elements;
     - CSS colour fills, filter/opacity state synthesis;

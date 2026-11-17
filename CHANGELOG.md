@@ -60,6 +60,16 @@
   - two-phase minting with best-effort rollback;
   - the guard resolves extensions and `index` files, checks re-exports, rejects remote CSS imports and literal raster
     sources.
+- UI-B2 fixes W1, R2-1, R2-2, R3 (Windows-native run):
+  - every path the guard reports or compares is POSIX `/` on every OS (also the renderer's formal/fixture
+    graph-separation test, which failed on Windows);
+  - the mint snapshots each item synchronously before any await (scalars, declared SHA, a copy of the bytes, a frozen
+    entry clone), so mutation while it is pending cannot change what is issued;
+  - rollback never loses the original error: a frozen/non-extensible error or thrown primitive is wrapped in
+    `RasterIssuanceError` (`cause` + `cleanupErrors`);
+  - the guard reads TS/TSX imports, re-exports, dynamic imports and type-only forms from the TypeScript AST, flags
+    non-literal dynamic imports and `import.meta.glob`, matches CSS `@import` case-insensitively, and allows a raster
+    source only through the single `verifiedRasterUrl(VerifiedRaster)` helper.
 
 ## Unreleased — Phase 2 vertical slice (2026-11-17)
 

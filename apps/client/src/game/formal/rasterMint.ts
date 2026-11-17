@@ -93,17 +93,68 @@ function revokeAll(urls: readonly string[]): unknown[] {
 }
 
 /**
+ * Raised instead of the original issuance error when rollback produced cleanup errors that cannot be
+ * attached to it (a frozen / non-extensible object, or a thrown primitive). `cause` is the original.
+ */
+export class RasterIssuanceError extends Error {
+  readonly cleanupErrors: readonly unknown[];
+  constructor(cause: unknown, cleanupErrors: readonly unknown[]) {
+    super(`raster issuance failed: ${cause instanceof Error ? cause.message : String(cause)}`, { cause });
+    this.name = "RasterIssuanceError";
+    this.cleanupErrors = cleanupErrors;
+  }
+}
+
+/** The error to rethrow after rollback: never loses the original error / value or any cleanup error. */
+function withCleanupErrors(err: unknown, cleanupErrors: unknown[]): unknown {
+  if (cleanupErrors.length === 0) return err;
+  if (err !== null && (typeof err === "object" || typeof err === "function")) {
+    try {
+      if (Object.isExtensible(err)) {
+        Object.defineProperty(err, "cleanupErrors", { value: cleanupErrors, enumerable: true, configurable: true, writable: false });
+        return err;
+      }
+    } catch {
+      // not safely attachable (proxy trap, existing non-configurable property): wrap instead
+    }
+  }
+  return new RasterIssuanceError(err, cleanupErrors);
+}
+
+/** Immutable, independent snapshot of one item, taken synchronously before any await. */
+interface Prepared {
+  readonly assetId: string;
+  readonly width: number;
+  readonly height: number;
+  readonly sha256: string;
+  readonly bytes: Uint8Array;
+  readonly entry: Readonly<UiManifestEntry>;
+}
+
+function snapshot(it: MintItem): Prepared {
+  // Each caller-visible field is read exactly once; later validation never looks at `it` again.
+  const { assetId, width, height, sha256, bytes, entry } = it;
+  if (typeof assetId !== "string" || typeof sha256 !== "string" || typeof width !== "number" || typeof height !== "number") throw new Error("raster item has malformed scalars");
+  if (!(bytes instanceof Uint8Array)) throw new Error(`${assetId}: bytes are not a Uint8Array`);
+  return Object.freeze({ assetId, width, height, sha256, bytes: new Uint8Array(bytes), entry: deepFreeze(structuredClone(entry)) });
+}
+
+/**
  * Issue every handle as one transaction:
- * 1. validate every item (canonical ID, entry ID, size, PNG signature, SHA-256 of the bytes) and make
- *    its independent frozen metadata — no URL exists yet, so a failure here leaks nothing;
- * 2. create the URLs; if any creation fails, every URL already created is revoked best-effort (each
- *    exactly once, continuing past revoke errors) and the original error is rethrown with
- *    `cleanupErrors` attached. A partial registry is never returned.
+ * 0. synchronously (before any await) snapshot every item: scalars, declared SHA, a defensive copy of
+ *    the bytes and an independent frozen copy of the entry — mutating the caller's items while the
+ *    promise is pending cannot change what is validated, hashed, put in a Blob or issued;
+ * 1. validate every snapshot (canonical ID, entry ID, size, PNG signature, SHA-256 of the bytes) — no
+ *    URL exists yet, so a failure here leaks nothing;
+ * 2. create the URLs from the snapshots; if any creation fails, every URL already created is revoked
+ *    best-effort (each exactly once, continuing past revoke errors). The original error / value is
+ *    rethrown with `cleanupErrors` attached, or, when it cannot carry them, wrapped in a
+ *    RasterIssuanceError (`cause` = original). A partial registry is never returned.
  */
 export async function mintRasterSet(items: readonly MintItem[]): Promise<RasterRegistry> {
-  const prepared: { it: MintItem; entry: Readonly<UiManifestEntry> }[] = [];
+  const prepared: readonly Prepared[] = Object.freeze(Array.from(items, snapshot));
   const seen = new Set<string>();
-  for (const it of items) {
+  for (const it of prepared) {
     if (!canonicalIds.has(it.assetId)) throw new Error(`${it.assetId} is not in the canonical UI registry`);
     if (it.entry.logical_asset_id !== it.assetId) throw new Error(`entry is for ${it.entry.logical_asset_id}, not ${it.assetId}`);
     if (seen.has(it.assetId)) throw new Error(`raster ${it.assetId} issued twice`);
@@ -111,22 +162,21 @@ export async function mintRasterSet(items: readonly MintItem[]): Promise<RasterR
     if (!Number.isInteger(it.width) || !Number.isInteger(it.height) || it.width < 1 || it.height < 1) throw new Error(`${it.assetId}: bad size ${it.width}x${it.height}`);
     if (it.entry.format === "bmp" && (it.width !== it.entry.native_width || it.height !== it.entry.native_height)) throw new Error(`${it.assetId}: ${it.width}x${it.height} != native ${it.entry.native_width ?? "?"}x${it.entry.native_height ?? "?"}`);
     if (!PNG_SIGNATURE.every((b, i) => it.bytes[i] === b)) throw new Error(`${it.assetId}: bytes are not a PNG`);
+  }
+  for (const it of prepared) {
     const got = await sha256Upper(it.bytes);
     if (got !== it.sha256.toUpperCase()) throw new Error(`${it.assetId}: PNG SHA-256 ${got} != declared ${it.sha256}`);
-    prepared.push({ it, entry: deepFreeze(structuredClone(it.entry)) });
   }
   const created: string[] = [];
   const handles = new Map<string, Handle>();
   try {
-    for (const { it, entry } of prepared) {
+    for (const it of prepared) {
       const url = createUrl(it.bytes);
       created.push(url);
-      handles.set(it.assetId, new Handle(it.assetId, it.width, it.height, entry, url));
+      handles.set(it.assetId, new Handle(it.assetId, it.width, it.height, it.entry, url));
     }
   } catch (err) {
-    const cleanupErrors = revokeAll(created);
-    if (err && typeof err === "object") Object.assign(err, { cleanupErrors });
-    throw err;
+    throw withCleanupErrors(err, revokeAll(created));
   }
   for (const h of handles.values()) minted.add(h);
   let disposed = false;

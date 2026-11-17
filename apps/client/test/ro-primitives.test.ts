@@ -8,11 +8,11 @@ import { whitelist } from "../src/gateway.ts";
 import { createHash } from "node:crypto";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { mintRasterSet, type MintItem } from "../src/game/formal/rasterMint.ts";
+import { mintRasterSet, RasterIssuanceError, type MintItem } from "../src/game/formal/rasterMint.ts";
 import { loadFormalUiAssets } from "../src/game/formal/ui.ts";
 import * as roPublic from "../src/ui/ro/index.ts";
 import { isVerifiedRaster, planButton, planGauge, planRaster, planSlot, planThreeSlice, RoButton, RoGauge, RoRaster, RoSlot, RoThreeSlice, type VerifiedRaster } from "../src/ui/ro/index.ts";
-import { FORBIDDEN, guardGraph, mintUsage, moduleGraph, scanFormalVisual } from "./visual-guard.ts";
+import { codeRefs, externalRuntimeImports, FORBIDDEN, guardGraph, mintUsage, moduleGraph, relPosix, scanFormalVisual } from "./visual-guard.ts";
 
 /**
  * SYNTHETIC structural harness. TEST-ONLY ADAPTER: tests mint handles with the loader-internal
@@ -24,14 +24,19 @@ let urlLog: string[] = [];
 let urlCount = 0;
 let failCreateAt = 0;
 let failRevoke: (u: string) => boolean = () => false;
+let createThrow: (n: number) => unknown = (n) => new Error(`createObjectURL failed at ${n}`);
+let blobs: Blob[] = [];
 beforeEach(() => {
   urlLog = [];
   urlCount = 0;
   failCreateAt = 0;
   failRevoke = () => false;
-  vi.spyOn(URL, "createObjectURL").mockImplementation(() => {
+  createThrow = (n) => new Error(`createObjectURL failed at ${n}`);
+  blobs = [];
+  vi.spyOn(URL, "createObjectURL").mockImplementation((b: Blob | MediaSource) => {
     urlCount += 1;
-    if (urlCount === failCreateAt) throw new Error(`createObjectURL failed at ${urlCount}`);
+    if (urlCount === failCreateAt) throw createThrow(urlCount);
+    blobs.push(b as Blob);
     return `blob:synthetic/${urlCount}`;
   });
   vi.spyOn(URL, "revokeObjectURL").mockImplementation((u: string) => {
@@ -105,7 +110,7 @@ describe("verified raster handles (synthetic harness)", () => {
   });
 
   it("B2-1/R1: across all of apps/client/src only game/formal/ui.ts imports/calls the mint; a rogue file is caught", () => {
-    expect(mintUsage(srcDir)).toEqual({ importers: ["game/formal/ui.ts", "ui/ro/raster.ts"], callers: ["game/formal/ui.ts"], rasterImportsOnlyBrand: true });
+    expect(mintUsage(srcDir)).toEqual({ importers: ["game/formal/ui.ts", "ui/ro/raster.ts"], callers: ["game/formal/ui.ts"], opaque: [], rasterImportsOnlyBrand: true });
     const dir = mkdtempSync(join(tmpdir(), "ro-mint-"));
     try {
       mkdirSync(join(dir, "game/formal"), { recursive: true });
@@ -115,7 +120,15 @@ describe("verified raster handles (synthetic harness)", () => {
       writeFileSync(join(dir, "game/formal/ui.ts"), `import { mintRasterSet } from "./rasterMint.ts";\nawait mintRasterSet([]);\n`);
       writeFileSync(join(dir, "ui/ro/raster.ts"), `import { isMintedRaster } from "../../game/formal/rasterMint.ts";\n`);
       writeFileSync(join(dir, "screens/Rogue.tsx"), `import { mintRasterSet } from "../game/formal/rasterMint";\nvoid mintRasterSet([]);\n`);
-      expect(mintUsage(dir)).toEqual({ importers: ["game/formal/ui.ts", "screens/Rogue.tsx", "ui/ro/raster.ts"], callers: ["game/formal/ui.ts", "screens/Rogue.tsx"], rasterImportsOnlyBrand: true });
+      expect(mintUsage(dir)).toEqual({ importers: ["game/formal/ui.ts", "screens/Rogue.tsx", "ui/ro/raster.ts"], callers: ["game/formal/ui.ts", "screens/Rogue.tsx"], opaque: [], rasterImportsOnlyBrand: true });
+      // R3-7: computed / non-literal dynamic import and import.meta.glob are opaque module loads
+      writeFileSync(join(dir, "screens/Sneaky.tsx"), `const p = "../game/formal/" + "rasterMint";\nvoid import(p);\n`);
+      writeFileSync(join(dir, "screens/Glob.ts"), `export const mods = import.meta.glob("../game/formal/*.ts");\n`);
+      writeFileSync(join(dir, "screens/Tpl.ts"), "const n = 'rasterMint';\nvoid import(`../game/formal/${n}.ts`);\n");
+      writeFileSync(join(dir, "screens/Alias.ts"), `import * as M from "../game/formal/rasterMint.ts";\nconst k = "mint" + "RasterSet";\nvoid (M as Record<string, unknown>)[k];\n`);
+      const u = mintUsage(dir);
+      expect(u.opaque).toEqual(["screens/Glob.ts", "screens/Sneaky.tsx", "screens/Tpl.ts"]);
+      expect(u.importers).toContain("screens/Alias.ts");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -170,6 +183,92 @@ describe("verified raster handles (synthetic harness)", () => {
     expect((err as Error).message).toMatch(/createObjectURL failed at 4/u);
     expect((err as { cleanupErrors: Error[] }).cleanupErrors.map((e) => e.message)).toEqual(["revoke failed for blob:synthetic/1"]);
     expect(urlLog).toEqual(["revoke blob:synthetic/1", "revoke blob:synthetic/2", "revoke blob:synthetic/3"]);
+  });
+
+  it("R2-1: mutating items / bytes / entry while the mint is pending changes nothing that is issued", async () => {
+    const item = itemFor("ui.arrow.left");
+    const original = Uint8Array.from(item.bytes);
+    const evil = pngBytes("ui.arrow.right");
+    const pending = mintRasterSet([item]);
+    // replace every caller-visible field and mutate the original buffer / entry in place
+    item.bytes[8] = 0x00;
+    item.bytes = evil;
+    item.assetId = "ui.arrow.right";
+    item.width = 99;
+    item.height = 99;
+    item.sha256 = sha(evil);
+    (item.entry as { logical_asset_id: string }).logical_asset_id = "ui.arrow.right";
+    (item.entry as { role: string }).role = "icon";
+    const set = await pending;
+    expect(set.ids()).toEqual(["ui.arrow.left"]);
+    expect(set.has("ui.arrow.right")).toBe(false);
+    const h = set.get("ui.arrow.left");
+    expect([h.assetId, h.width, h.height, h.entry.logical_asset_id, h.entry.role]).toEqual(["ui.arrow.left", 11, 11, "ui.arrow.left", entryFor("ui.arrow.left").role]);
+    expect(isVerifiedRaster(h)).toBe(true);
+    expect(blobs).toHaveLength(1);
+    expect(new Uint8Array(await (blobs[0] as Blob).arrayBuffer())).toEqual(original);
+  });
+
+  it("R2-1: every field is read once, synchronously; a getter that turns evil later is ignored", async () => {
+    const good = itemFor("ui.arrow.left");
+    const evil = pngBytes("ui.arrow.right");
+    const reads: Record<string, number> = {};
+    const tricky = {} as MintItem;
+    for (const k of ["assetId", "bytes", "sha256", "width", "height", "entry"] as const) {
+      Object.defineProperty(tricky, k, {
+        enumerable: true,
+        get: () => {
+          reads[k] = (reads[k] ?? 0) + 1;
+          if (reads[k] > 1) return { assetId: "ui.arrow.right", bytes: evil, sha256: sha(evil), width: 99, height: 99, entry: entryFor("ui.arrow.right") }[k];
+          return good[k];
+        },
+      });
+    }
+    const set = await mintRasterSet([tricky]);
+    expect(reads).toEqual({ assetId: 1, bytes: 1, sha256: 1, width: 1, height: 1, entry: 1 });
+    expect(set.ids()).toEqual(["ui.arrow.left"]);
+    expect(new Uint8Array(await (blobs[0] as Blob).arrayBuffer())).toEqual(good.bytes);
+  });
+
+  it("R2-2: a frozen / non-extensible issuance error survives cleanup errors via a wrapper", async () => {
+    const ids = ["ui.arrow.left", "ui.arrow.right", "ui.arrow.up"];
+    for (const make of [() => Object.freeze(new Error("original issuance")), () => Object.preventExtensions(new Error("original issuance"))]) {
+      const original = make();
+      urlCount = 0;
+      urlLog = [];
+      failCreateAt = 2;
+      createThrow = () => original;
+      failRevoke = (u) => u === "blob:synthetic/1";
+      const err = await mintRasterSet(ids.map(itemFor)).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(RasterIssuanceError);
+      expect((err as RasterIssuanceError).cause).toBe(original);
+      expect((err as RasterIssuanceError).message).toMatch(/original issuance/u);
+      expect((err as RasterIssuanceError).cleanupErrors.map((e) => (e as Error).message)).toEqual(["revoke failed for blob:synthetic/1"]);
+      expect(urlLog).toEqual(["revoke blob:synthetic/1"]);
+    }
+  });
+
+  it("R2-2: a thrown primitive is kept as the cause; without cleanup errors the original is rethrown as-is", async () => {
+    const ids = ["ui.arrow.left", "ui.arrow.right", "ui.arrow.up", "ui.arrow.down"];
+    failCreateAt = 4;
+    createThrow = () => "primitive issuance";
+    failRevoke = (u) => u === "blob:synthetic/1" || u === "blob:synthetic/2";
+    const err = await mintRasterSet(ids.map(itemFor)).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(RasterIssuanceError);
+    expect((err as RasterIssuanceError).cause).toBe("primitive issuance");
+    // the first revoke error does not stop cleanup: all three URLs are revoked, both errors kept
+    expect(urlLog).toEqual(["revoke blob:synthetic/1", "revoke blob:synthetic/2", "revoke blob:synthetic/3"]);
+    expect((err as RasterIssuanceError).cleanupErrors).toHaveLength(2);
+    urlCount = 0;
+    urlLog = [];
+    failCreateAt = 2;
+    failRevoke = () => false;
+    const frozen = Object.freeze(new Error("frozen, clean rollback"));
+    createThrow = () => frozen;
+    expect(await mintRasterSet(ids.map(itemFor)).catch((e: unknown) => e)).toBe(frozen);
+    createThrow = () => 42;
+    urlCount = 0;
+    expect(await mintRasterSet(ids.map(itemFor)).catch((e: unknown) => e)).toBe(42);
   });
 
   it("B2-3: a disposed handle is rejected by every primitive with its canonical path", async () => {
@@ -308,13 +407,67 @@ describe("formal visual static guard", () => {
     expect(scanFormalVisual(bad[family] ?? "")).toContain(family);
   });
   it("accepts verified-raster positioning with nearest sampling", () => {
-    expect(scanFormalVisual(`const s = { position: "absolute", backgroundImage: \`url("\${r.url}")\`, backgroundRepeat: "repeat-x", imageRendering: "pixelated", overflow: "hidden" };`)).toEqual([]);
+    const helper = 'function verifiedRasterUrl(raster: VerifiedRaster): string {\n  return `url("${checkRaster(raster, "raster").url}")`;\n}\n';
+    expect(scanFormalVisual(`${helper}const s = { position: "absolute", backgroundImage: verifiedRasterUrl(r), backgroundRepeat: "repeat-x", imageRendering: "pixelated", overflow: "hidden" };`)).toEqual([]);
+    // only that exact helper shape is allowed; the old inline form and helper variations are not
+    expect(scanFormalVisual('const s = { backgroundImage: `url("${r.url}")` };')).toContain("literal-raster-source");
+    expect(scanFormalVisual(helper.replace('checkRaster(raster, "raster").url', "raster.url"))).toContain("literal-raster-source");
+    expect(scanFormalVisual(helper.replace("raster: VerifiedRaster", "raster: unknown"))).toContain("literal-raster-source");
+    expect(scanFormalVisual(`${helper}const s = { backgroundImage: pick(r) };`)).toContain("literal-raster-source");
+    expect(scanFormalVisual(`${helper}${helper}`)).toContain("duplicate-raster-url-helper");
+  });
+
+  it("B2-R3: AST module refs — minified re-export, template import, inline type-only, CSS @IMPORT, opaque loads", () => {
+    // 1. minified runtime re-export
+    expect(externalRuntimeImports(`export{Icon}from"lucide-preact";`, "m.ts")).toEqual(["lucide-preact"]);
+    // 2. template dynamic import
+    expect(externalRuntimeImports("void import(`fabric`);", "m.ts")).toEqual(["fabric"]);
+    // 3. inline type-only re-export / import are not runtime; mixed ones are
+    expect(externalRuntimeImports(`export { type Foo } from "type-only-pkg";\nimport { type Bar } from "type-only-pkg2";\n`, "m.ts")).toEqual([]);
+    expect(externalRuntimeImports(`export { type Foo, Baz } from "mixed-pkg";`, "m.ts")).toEqual(["mixed-pkg"]);
+    // 7. computed / non-literal dynamic import and import.meta.glob are opaque
+    expect(codeRefs("m.ts", `const p = "fab" + "ric";\nvoid import(p);\n`).opaque).toEqual(["non-literal-dynamic-import"]);
+    expect(codeRefs("m.ts", "const n = 'x';\nvoid import(`./${n}.ts`);\n").opaque).toEqual(["non-literal-dynamic-import"]);
+    expect(codeRefs("m.ts", `const g = import.meta.glob("./*.ts");\nconst h = import.meta["glob"];\n`).opaque).toEqual(["import-meta-glob", "import-meta-glob"]);
+    expect(codeRefs("m.ts", `const e = import.meta.env.MODE;`).opaque).toEqual([]);
+    const dir = mkdtempSync(join(tmpdir(), "ro-guard3-"));
+    try {
+      writeFileSync(join(dir, "entry.tsx"), `import "./s.css";\nexport{Icon}from"lucide-preact";\nexport { type Foo } from "type-only-pkg";\nconst p = "x";\nvoid import(p);\nvoid import(\`fabric\`);\n`);
+      // 6. mixed-case CSS @IMPORT (remote and package forms)
+      writeFileSync(join(dir, "s.css"), `@IMPORT "https://evil.invalid/a.css";\n@Import url(pkg/theme.css);\n.a { position: absolute; }\n`);
+      const r = Object.fromEntries(guardGraph(join(dir, "entry.tsx")).map((x) => [relPosix(dir, x.file), x.violations.sort()]));
+      expect(r).toEqual({
+        "entry.tsx": ["external-import:fabric", "external-import:lucide-preact", "non-literal-dynamic-import"],
+        "s.css": ["non-relative-css-import:https://evil.invalid/a.css", "non-relative-css-import:pkg/theme.css"],
+      });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it.each([
+    ["4. arbitrary url() interpolation", 'const evil = "/raw.png";\nconst s = { backgroundImage: `url("${evil}")` };'],
+    ["4. interpolation split across template parts", 'const s = { backgroundImage: `${a}url(${evil})` };'],
+    ["4. raster style property from a variable", "const s = { backgroundImage: evil };"],
+    ["4. shorthand raster style property", "const backgroundImage = evil;\nconst s = { backgroundImage };"],
+    ["4. raster style assignment", "el.style.backgroundImage = evil;"],
+    ["4. setProperty raster style", 'el.style.setProperty("background-image", evil);'],
+    ["5. h(\"img\", { src })", 'const v = h("img", { src: "/raw.png" });'],
+    ["5. createElement image", 'const v = createElement("img", null);'],
+    ["5. src property from a variable", "const props = { src: evil };"],
+    ["5. src assignment", "img.src = evil;"],
+    ["5. setAttribute src", 'el.setAttribute("src", evil);'],
+    ["5. JSX img", "const v = <img alt=\"\" />;"],
+    ["5. JSX src attribute", "const v = <video src={evil} />;"],
+    ["5. new Image", "const i = new Image();"],
+  ])("B2-R3: TS/TSX raster source is rejected — %s", (_name, code) => {
+    expect(scanFormalVisual(code, "x.tsx")).toContain("literal-raster-source");
   });
 
   const src = resolve(import.meta.dirname, "../src");
   it("the whole RO primitive dependency graph passes the guard", () => {
     const files = moduleGraph(join(src, "ui/ro/index.ts"));
-    expect(files.map((f) => f.slice(src.length + 1))).toEqual(expect.arrayContaining(["ui/ro/index.ts", "ui/ro/primitives.tsx", "ui/ro/raster.ts"]));
+    expect(files.map((f) => relPosix(src, f))).toEqual(expect.arrayContaining(["ui/ro/index.ts", "ui/ro/primitives.tsx", "ui/ro/raster.ts"]));
     for (const f of files) expect(scanFormalVisual(readFileSync(f, "utf8")), f).toEqual([]);
     expect(guardGraph(join(src, "ui/ro/index.ts"))).toEqual([]);
   });
@@ -328,7 +481,7 @@ describe("formal visual static guard", () => {
       writeFileSync(join(dir, "nested/b.css"), `.y { box-shadow: 0 0 2px #000; border-radius: 4px; }\n`);
       writeFileSync(join(dir, "c.tsx"), `import { X } from "lucide-preact";\nimport { Canvas } from "fabric";\nimport type { Foo } from "type-only-pkg";\nimport { h } from "preact";\nexport const C = [X, Canvas, h];\n`);
       const a = guardGraph(join(dir, "a.tsx"));
-      expect(a.map((r) => [r.file.slice(dir.length + 1), r.violations.sort()])).toEqual([
+      expect(a.map((r) => [relPosix(dir, r.file), r.violations.sort()])).toEqual([
         ["a.css", ["css-border-surface", "css-colour-fill", "gradient", "pseudo-element-surface"]],
         ["nested/b.css", ["border-radius", "box-shadow"]],
       ]);
@@ -348,7 +501,7 @@ describe("formal visual static guard", () => {
       writeFileSync(join(dir, "style.css"), `@import "./more";\n@import url("https://cdn.invalid/evil.css");\n@import "some-package/theme.css";\n.a { background-image: url("/raw.png"); }\n`);
       writeFileSync(join(dir, "more.css"), `.b { box-shadow: 0 0 1px #000; }\n`);
       writeFileSync(join(dir, "dirmod/index.tsx"), `export const I = () => <img src="/raw.png" />;\n`);
-      const r = Object.fromEntries(guardGraph(join(dir, "entry.tsx")).map((x) => [x.file.slice(dir.length + 1), x.violations.sort()]));
+      const r = Object.fromEntries(guardGraph(join(dir, "entry.tsx")).map((x) => [relPosix(dir, x.file), x.violations.sort()]));
       expect(r).toEqual({
         "entry.tsx": ["external-import:fabric", "external-import:lucide-preact"],
         "bad.ts": ["border-radius"],
@@ -362,7 +515,7 @@ describe("formal visual static guard", () => {
   });
 
   it("the primitive library is unreachable from the shipped formal screen", () => {
-    const files = moduleGraph(join(src, "main.tsx")).map((f) => f.slice(src.length + 1));
+    const files = moduleGraph(join(src, "main.tsx")).map((f) => relPosix(src, f));
     expect(files).toContain("App.tsx");
     expect(files.filter((f) => f.startsWith("ui/ro/") || f === "game/formal/ui.ts")).toEqual([]);
     expect(dirname(join(src, "ui/ro/index.ts"))).toBe(join(src, "ui/ro"));

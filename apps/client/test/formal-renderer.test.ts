@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, relative, resolve, sep } from "node:path";
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 import { resolveClientBuild } from "../build-info.ts";
@@ -248,7 +248,7 @@ describe("formal / fixture graph separation", () => {
       for (const n of staticImports(f)) walk(n);
     };
     walk(join(src, "main.tsx"));
-    const rel = [...seen].map((f) => f.slice(src.length + 1)).sort();
+    const rel = [...seen].map((f) => relative(src, f).split(sep).join("/")).sort(); // POSIX on every OS
     expect(rel).toContain("game/formal/world.ts");
     expect(rel.filter((f) => f.startsWith("game/fixture/") || f === "BenchApp.tsx" || f === "game/loop.ts")).toEqual([]);
     // UI-B1: the UI asset loader exists but is not wired into the visible formal UI yet.

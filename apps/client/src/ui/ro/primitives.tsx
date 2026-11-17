@@ -25,10 +25,18 @@ function checkRaster(r: unknown, field: string): VerifiedRaster {
   return r;
 }
 
+/**
+ * The only place a CSS raster source is produced (static guard: exactly this helper shape, once per
+ * graph): the object URL of a brand-checked, live verified handle.
+ */
+export function verifiedRasterUrl(raster: VerifiedRaster): string {
+  return `url("${checkRaster(raster, "raster").url}")`;
+}
+
 /** One positioned piece: a verified raster at native size (× scale), optionally repeated horizontally. */
 export interface Piece {
   assetId: string;
-  url: string;
+  raster: VerifiedRaster;
   x: number;
   y: number;
   width: number;
@@ -40,7 +48,7 @@ export interface Piece {
 }
 
 function piece(r: VerifiedRaster, x: number, y: number, scale: number, width = r.width * scale, repeatX = false): Piece {
-  return { assetId: r.assetId, url: r.url, x, y, width, height: r.height * scale, repeatX, tileWidth: r.width * scale };
+  return { assetId: r.assetId, raster: r, x, y, width, height: r.height * scale, repeatX, tileWidth: r.width * scale };
 }
 
 const pieceStyle = (p: Piece, scale: number): JSX.CSSProperties => ({
@@ -49,7 +57,7 @@ const pieceStyle = (p: Piece, scale: number): JSX.CSSProperties => ({
   top: `${p.y}px`,
   width: `${p.width}px`,
   height: `${p.height}px`,
-  backgroundImage: `url("${p.url}")`,
+  backgroundImage: verifiedRasterUrl(p.raster),
   backgroundRepeat: p.repeatX ? "repeat-x" : "no-repeat",
   backgroundSize: `${p.tileWidth}px ${p.height}px`,
   imageRendering: "pixelated",
