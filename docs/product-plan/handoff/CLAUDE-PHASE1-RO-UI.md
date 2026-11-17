@@ -83,6 +83,14 @@ DOM 文字、資料值、透明 hit area、Flex／Grid／absolute positioning �
 - kRO camera：<https://ro.gnjoy.com/guide/ragstart/interface5.asp>
 - jRO window guide：<https://ragnarokonline.gungho.jp/playmanual/operation/window.html>
 
+### 2.4 融合決策：Survivors 功能 × 同代 KRO skin
+
+- RO Survivors 公開實機畫面只可作為 `OBSERVED` 研究：可記錄其資訊架構、功能狀態、相對錨點與流程，例如 stage 資訊、升級選擇、暫停及結算在何時出現。
+- `OBSERVED` 不等於可複製視覺。HANS 或原版 RO Survivors 的藍白卡面、框線、裝飾、配色、比例、品牌文字及完整卡片組成不得搬用、描圖或近似重製。
+- 正式融合方案固定為：**RO Survivors 的遊戲功能與資訊需求 + `KRO2021_CLASSIC_V0_FAN` 同代 RO skin**。所有可見 frame、button、slot、gauge、icon 與 cursor 仍須符合本文件的本機原始素材規則。
+- RO 原版沒有直接對應的 Survivors 畫面，例如 level-up、pause、result、stage summary、Boss panel，其排版與元件組合必須在 manifest／metrics／驗收報告標為 `ORIGINAL-DESIGN`。這表示資訊布局為本同人作品自行設計；視覺零件仍來自 `KRO2021_CLASSIC_V0_FAN`，不得誤稱為官方原版 UI。
+- 每張 reference record 必須標記 `reference_kind = OBSERVED | LOCAL-ORIGINAL`；每個新增畫面必須標記 `design_origin = ORIGINAL-DESIGN`。不得把公開實機截圖當作可提交的素材或 pixel golden。
+
 ## 3. UI-A：reference profile 與素材 contract
 
 ### 3.1 必須交付的 reference profile
@@ -103,6 +111,8 @@ status = DISCOVERED | REVIEWED | LOCKED
 ```
 
 `component_version_map` 至少含：BasicInfo、Shortcut、MiniMap、Chat、Cursor、CommonWindow、Button、Tooltip、Status、Inventory、Skill、Pause／MessageBox。所有項目必須來自同一 compatible profile；若 client 真的會混用不同資料包，要用來源優先序與實際 client 截圖證明。
+
+本案預定的 formal profile ID 為 `KRO2021_CLASSIC_V0_FAN`。UI-A 必須用本機 source audit 與 metrics 建立它，並經 Codex 驗收後才可從 `DISCOVERED` 升為 `LOCKED`；profile 名稱本身不能代替來源驗證。
 
 ### 3.2 UI asset manifest schema
 
@@ -161,7 +171,8 @@ UI-A 結束時只可有：manifest、source audit、derived contract、reference
 
 | Profile | CSS viewport | DPR | 用途 |
 | --- | ---: | ---: | --- |
-| Desktop primary | 1280×720 | 1 | 與本機 client 主 reference 對照 |
+| Desktop classic | 1024×768 | 1 | 主 pixel reference；元件尺寸、anchor、字體 baseline 的第一驗收基準 |
+| Desktop 16:9 | 1280×720 | 1 | 寬螢幕／16:9 適配；確認不因較寬 viewport 改壞 classic anchor |
 | Desktop wide | 1920×1080 | 1 | anchor、magnet、空白伸展驗收 |
 | Mobile portrait | 390×844 | 3 或裝置實際值 | 主要手機版驗收 |
 | Mobile landscape | 844×390 | 3 或裝置實際值 | 旋轉與低高度驗收 |
@@ -184,7 +195,7 @@ reference capture 的 OS display scaling 必須記錄。CSS viewport 與實際 P
 ```json
 {
   "profileId": "...",
-  "desktop1280x720": {
+  "desktop1024x768": {
     "basicInfoExpanded": { "x": 0, "y": 0, "w": 0, "h": 0 },
     "basicInfoMinimized": { "x": 0, "y": 0, "w": 0, "h": 0 },
     "shortcut": { "x": 0, "y": 0, "w": 0, "rowHeight": 0, "slots": 9 },
@@ -417,7 +428,8 @@ Input ownership priority：`modal > focused text input > window chrome/control >
 
 使用 real local gateway、固定 seed、固定 tick、固定 viewport 產生本機截圖：
 
-- 1280×720：default HUD、Basic Info minimized、one modal、level-up；
+- 1024×768：主 pixel reference；default HUD、Basic Info expanded／minimized、one modal、level-up；
+- 1280×720：16:9 anchor、空白區與 level-up 適配；
 - 1920×1080：anchor 與 window persistence；
 - 390×844：playing、level-up、chat overlay；
 - 844×390：playing、one major overlay。
@@ -466,11 +478,12 @@ CI 只能用 synthetic fixture 驗證結構與互動；不得用 synthetic PASS 
 - Basic Info、Shortcut、MiniMap、Chat／System Log；
 - MOVE_TO、target、camera、hotkeys、chat ownership；
 - 移除 production developer HUD；diagnostics 移到 dev-only overlay；
-- 1280×720、1920×1080 interaction／metrics 驗收。
+- 1024×768 主 pixel reference，以及 1280×720、1920×1080 interaction／metrics 驗收。
 
 ### UI-D — RO Survivors windows
 
 - Stage、Boss、level-up、pause、result、build slots；
+- 使用公開實機的功能／資訊錨點只記為 `OBSERVED`；所有新排版標 `ORIGINAL-DESIGN`，不得複製 HANS／原版藍白卡面；
 - 所有畫面只組合 locked profile 的原始 RO assets；
 - 未找到合法 asset 的功能保持 blocked／文字，不補畫。
 
