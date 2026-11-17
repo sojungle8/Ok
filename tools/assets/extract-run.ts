@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, renameSync, rmSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import type { WhitelistRow } from "@ro-survivor/content-schema";
@@ -6,6 +6,7 @@ import type { AssetReader } from "@ro-survivor/asset-gateway";
 import { FORMAL_MAP_CORE, FORMAL_MAP_CORE_PATHS } from "@ro-survivor/asset-contracts";
 import { parseGat, parseGnd, parseRsw } from "@ro-survivor/ro-format-runtime";
 import { DERIVED_MARKER } from "../lib/png.ts";
+import { extractUi, type UiExtractionSummary } from "./ui-extract.ts";
 import { extractScene, SceneExtractionError, type SceneMissing, type SceneSummary } from "./scene-extract.ts";
 import { buildContactSheet, buildSpriteAtlas, CONVERTER_VERSION, extractMap, parseAct, parseSpriteWithPalette, spriteGroups, writeOutput } from "./extract-lib.ts";
 
@@ -25,6 +26,7 @@ export interface ExtractManifest {
     closure: { resolvedIds: number; missing: SceneMissing[] };
     scene: SceneSummary;
   } | null;
+  ui: UiExtractionSummary | null;
 }
 
 type From = ExtractManifest["outputs"][number]["from"][number];
@@ -108,7 +110,7 @@ export function extractCommand(rows: readonly WhitelistRow[], reader: AssetReade
 
 function extractInto(rows: readonly WhitelistRow[], reader: AssetReader, outDir: string): ExtractManifest {
   const byId = new Map(rows.map((r) => [r.asset_id, r]));
-  const manifest: ExtractManifest = { rights: DERIVED_MARKER, converterVersion: CONVERTER_VERSION, profile: "fan-local", sources: reader.sourceHashes, outputs: [], sprites: [], map: null };
+  const manifest: ExtractManifest = { rights: DERIVED_MARKER, converterVersion: CONVERTER_VERSION, profile: "fan-local", sources: reader.sourceHashes, outputs: [], sprites: [], map: null, ui: null };
   const problem = (id: string, reason: string): SceneMissing => {
     const row = byId.get(id);
     const fixed = (FORMAL_MAP_CORE_PATHS as Record<string, { container: string; canonicalPath: string } | undefined>)[id];
@@ -184,5 +186,10 @@ function extractInto(rows: readonly WhitelistRow[], reader: AssetReader, outDir:
     closure: { resolvedIds: scene.closureIds.length, missing: [] },
     scene: scene.summary,
   };
+  // UI-B1: the 108 RO UI rows (same transaction; any problem → no ready manifest).
+  const whitelistSha256 = createHash("sha256").update(JSON.stringify(rows)).digest("hex").toUpperCase();
+  const ui = extractUi(rows, reader, outDir, { lockId: `data.grf:${reader.sourceHashes["data.grf"] ?? "?"}`, whitelistSha256 });
+  manifest.outputs.push(...ui.outputs);
+  manifest.ui = ui.summary;
   return manifest;
 }

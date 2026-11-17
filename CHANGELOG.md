@@ -30,6 +30,13 @@
   - four-layer swordsman atlas with per-direction layer order, and the official shadow at alpha 128;
   - BGM 12 + positional RSW WAVs behind a 「點擊啟用音訊」 gate;
   - formal and fixture worlds split; fixture build only via `--mode fixture`.
+- Commit C fixes:
+  - C-1: water only on the selected GND cells;
+  - C-2: audio decode errors name the exact asset.
+- UI-B1 (`reports/phase1/UI-B1-UI-EXTRACTION.md`):
+  - the 108 RO UI rows are extracted inside the transactional extraction: BMP → lossless PNG with the magenta key,
+    and the cursor atlas/ACT with hotspots; fonts stay source-only;
+  - new `FormalUiAssetLoader` (profile KRO2021_CLASSIC_V0_FAN only, fail-closed), not wired into the screen yet.
 
 ## Unreleased — Phase 2 vertical slice (2026-11-17)
 

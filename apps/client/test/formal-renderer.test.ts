@@ -251,6 +251,8 @@ describe("formal / fixture graph separation", () => {
     const rel = [...seen].map((f) => f.slice(src.length + 1)).sort();
     expect(rel).toContain("game/formal/world.ts");
     expect(rel.filter((f) => f.startsWith("game/fixture/") || f === "BenchApp.tsx" || f === "game/loop.ts")).toEqual([]);
+    // UI-B1: the UI asset loader exists but is not wired into the visible formal UI yet.
+    expect(rel).not.toContain("game/formal/ui.ts");
   });
 
   it("fixture modules are only imported dynamically behind the compile-time flag", () => {

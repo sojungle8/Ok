@@ -37,7 +37,7 @@ export function buildUiManifest(rows: readonly WhitelistRow[], reader: AssetRead
       read = reader.read(row);
     } catch (err) {
       cat.missing += 1;
-      issue(err instanceof Error ? err.message : String(err));
+      issue(`source unreadable: ${err instanceof Error ? err.message : String(err)}`);
       continue;
     }
     if (!isFilesystemContainer(row.source_container) && row.rdata_override === "false" && reader.hasRdataOverride(row)) {

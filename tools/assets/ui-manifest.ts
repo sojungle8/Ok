@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join, relative } from "node:path";
-import { createAssetReader, derivedDirFor } from "@ro-survivor/asset-gateway";
+import { createAssetReader } from "@ro-survivor/asset-gateway";
 import { loadLocalContext, repoRoot } from "./local-context.ts";
 import { buildUiManifest } from "./ui-manifest-lib.ts";
 import { writeJson } from "./verify-sources-lib.ts";
@@ -11,7 +11,8 @@ const csv = readFileSync(join(repoRoot, "docs/product-plan/handoff/fan-local-ass
 const reader = createAssetReader(lock);
 try {
   const { manifest, report } = buildUiManifest(whitelist.rows(), reader, { lockId: lock.lockId, whitelistSha256: createHash("sha256").update(csv).digest("hex").toUpperCase() });
-  const out = join(derivedDirFor(repoRoot, lock.sources["data.grf"].sha256), "ui", "ui-manifest.json");
+  // Report only: the served UI manifest is produced inside the assets:extract transaction (UI-B1).
+  const out = join(repoRoot, "reports/local/ui-manifest.json");
   writeJson(out, manifest);
   writeJson(join(repoRoot, "reports/local/ui-manifest-report.json"), { at: new Date().toISOString(), ...report });
   for (const [cat, c] of Object.entries(report.categories)) console.log(`${cat}: found ${c.found}, missing ${c.missing}, ambiguous ${c.ambiguous}`);
