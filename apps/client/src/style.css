@@ -1,0 +1,105 @@
+:root {
+  color-scheme: light dark;
+  --hud-bg: rgba(255, 255, 255, 0.86);
+  --hud-fg: #1d1b18;
+  --muted: #5b564d;
+  --accent: #8a5a12;
+  font-family: system-ui, -apple-system, "Segoe UI", "Noto Sans TC", "PingFang TC", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --hud-bg: rgba(24, 22, 18, 0.86);
+    --hud-fg: #ece7dd;
+    --muted: #a59d90;
+    --accent: #e0a94a;
+  }
+}
+* { box-sizing: border-box; }
+html, body, #app { margin: 0; height: 100%; overflow: hidden; background: var(--hud-bg); }
+.game { position: relative; width: 100%; height: 100%; }
+.world { display: block; width: 100%; height: 100%; touch-action: none; }
+.hud {
+  position: absolute;
+  top: max(12px, env(safe-area-inset-top));
+  left: max(12px, env(safe-area-inset-left));
+  max-width: min(420px, calc(100% - 24px));
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--hud-bg);
+  color: var(--hud-fg);
+  font-size: 13px;
+  line-height: 1.45;
+  pointer-events: none;
+}
+.hud h1 { margin: 0; font-size: 17px; }
+.hud .tag { margin: 0 0 6px; color: var(--muted); }
+.hud dl { display: grid; grid-template-columns: max-content 1fr; gap: 2px 10px; margin: 0; }
+.hud dt { color: var(--muted); }
+.hud dd { margin: 0; overflow-wrap: anywhere; }
+.hud code { color: var(--accent); }
+.hud .reason, .hud .keys { margin: 6px 0 0; color: var(--muted); font-size: 12px; }
+.stick {
+  position: absolute;
+  left: max(20px, env(safe-area-inset-left));
+  bottom: max(20px, env(safe-area-inset-bottom));
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.18);
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  touch-action: none;
+}
+.knob {
+  position: absolute;
+  left: 36px;
+  top: 36px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.75);
+  pointer-events: none;
+}
+@media (max-width: 480px) {
+  .hud { font-size: 12px; padding: 8px 10px; }
+  .hud .keys { display: none; }
+}
+.game.stopped { background: var(--hud-bg); overflow: auto; }
+.stopped .hud { position: static; margin: max(16px, env(safe-area-inset-top)) auto 0; pointer-events: auto; }
+.blocked { max-width: 920px; margin: 16px auto; padding: 0 16px 24px; color: var(--hud-fg); font-size: 14px; line-height: 1.55; }
+.blocked h2 { font-size: 18px; margin: 8px 0; }
+.blocked .hint { color: var(--muted); font-size: 13px; }
+.missing { width: 100%; border-collapse: collapse; font-size: 12px; }
+.missing th, .missing td { text-align: left; padding: 4px 6px; border-bottom: 1px solid rgba(127, 127, 127, 0.3); vertical-align: top; overflow-wrap: anywhere; }
+.hud .fixture { margin: 0 0 6px; padding: 2px 6px; border-radius: 4px; background: #b3261e; color: #fff; font-weight: 600; font-size: 12px; }
+.app { position: relative; width: 100%; height: 100%; color: var(--hud-fg); overflow: auto; }
+.app .world { position: absolute; inset: 0; }
+.app > .hud { position: relative; z-index: 2; }
+.screen-running .hud, .screen-draft-paused .hud, .screen-boss-intro .hud, .screen-victory .hud, .screen-defeat .hud { position: absolute; }
+.panel { position: relative; z-index: 2; max-width: 720px; margin: 16px auto; padding: 16px; background: var(--hud-bg); border-radius: 12px; display: grid; gap: 12px; }
+.panel button, .modal button { min-height: 44px; min-width: 44px; padding: 8px 14px; border-radius: 8px; border: 1px solid rgba(127,127,127,.4); background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.panel button.primary, .modal button.primary { background: var(--accent); color: #fff; border: none; }
+button:focus-visible, .card.focused { outline: 3px solid var(--accent); outline-offset: 2px; }
+.settings { display: grid; gap: 6px; border: 1px solid rgba(127,127,127,.3); border-radius: 8px; }
+.run-hud { position: absolute; z-index: 2; left: 50%; top: max(8px, env(safe-area-inset-top)); transform: translateX(-50%); width: min(560px, calc(100% - 24px)); display: grid; gap: 4px; pointer-events: none; }
+.bar { position: relative; height: 16px; background: rgba(0,0,0,.45); border-radius: 4px; overflow: hidden; }
+.bar span { display: block; height: 100%; }
+.bar.hp span { background: #d64545; } .bar.xp span { background: #4a90d9; } .bar.boss span { background: #a8326e; }
+.bar em { position: absolute; inset: 0; font-style: normal; font-size: 11px; line-height: 16px; text-align: center; color: #fff; }
+.run-hud .meta, .run-hud .slots { display: flex; gap: 8px; flex-wrap: wrap; font-size: 12px; color: #fff; text-shadow: 0 1px 2px #000; }
+.run-hud .slots span { padding: 1px 6px; border-radius: 4px; background: rgba(0,0,0,.4); }
+.run-hud .slots span.ready { background: rgba(74,144,217,.6); }
+.banner { position: fixed; z-index: 3; left: 50%; top: 30%; transform: translateX(-50%); padding: 8px 16px; background: rgba(0,0,0,.65); color: #fff; border-radius: 8px; }
+.banner.big { font-size: 28px; font-weight: 700; }
+.modal { position: fixed; z-index: 5; inset: 0; margin: auto; width: min(900px, calc(100% - 24px)); height: fit-content; max-height: calc(100% - 24px); overflow: auto; padding: 16px; background: var(--hud-bg); border-radius: 12px; }
+.modal .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+.modal .card { text-align: left; display: grid; gap: 4px; }
+.modal .card .num { font-weight: 700; color: var(--accent); }
+.modal .card ul { margin: 0; padding-left: 18px; font-size: 13px; }
+.modal .row { display: flex; gap: 10px; }
+/* In-run header: compact so it never covers the HP / XP bars (full mobile layouts are Phase 3). */
+.screen-running .hud, .screen-draft-paused .hud, .screen-boss-intro .hud, .screen-victory .hud, .screen-defeat .hud { top: auto; bottom: max(12px, env(safe-area-inset-bottom)); left: auto; right: max(12px, env(safe-area-inset-right)); max-width: 300px; padding: 6px 10px; font-size: 11px; opacity: 0.85; }
+@media (max-width: 640px) {
+  .screen-running .hud h1, .screen-running .hud .tag, .screen-running .hud dl,
+  .screen-draft-paused .hud h1, .screen-draft-paused .hud .tag, .screen-draft-paused .hud dl,
+  .screen-boss-intro .hud h1, .screen-boss-intro .hud .tag, .screen-boss-intro .hud dl { display: none; }
+}

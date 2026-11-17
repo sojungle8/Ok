@@ -1,0 +1,52 @@
+{
+  "name": "ro-survivor-fangame",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Non-commercial, unofficial RO survivor fan game (clean-room). Not affiliated with Gravity, its licensees or Reven4nt.",
+  "license": "GPL-3.0-only",
+  "type": "module",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=24.21.0 <25",
+    "pnpm": ">=10.28.0 <11"
+  },
+  "scripts": {
+    "lint": "eslint . --max-warnings=0",
+    "typecheck": "pnpm -r typecheck && tsc -p tools/tsconfig.json",
+    "test": "vitest run",
+    "build": "pnpm --filter @ro-survivor/client build",
+    "rights:check": "node tools/rights-check/cli.ts",
+    "assets:test-synthetic": "vitest run synthetic",
+    "assets:validate-handoff": "node tools/assets/validate-handoff.ts",
+    "assets:verify-sources": "node tools/assets/verify-sources.ts",
+    "local:old-trees": "node tools/local/old-trees.ts",
+    "e2e:smoke": "node tools/e2e/run-all.mjs",
+    "dev": "pnpm --filter @ro-survivor/client dev",
+    "ci:local": "pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm rights:check && pnpm assets:test-synthetic && pnpm assets:validate-handoff",
+    "maint:cp949-generate": "node tools/cp949/generate.ts",
+    "gateway": "node apps/asset-gateway/src/main.ts",
+    "assets:audit-whitelist": "node tools/assets/audit-whitelist.ts",
+    "assets:extract": "node tools/assets/extract.ts",
+    "assets:ui-manifest": "node tools/assets/ui-manifest.ts",
+    "dev:fan-local": "node tools/dev/fan-local.ts",
+    "assets:synthetic-demo": "node tools/assets/synthetic-demo.ts",
+    "slice:acceptance": "node tools/slice/acceptance.ts"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@ro-survivor/asset-contracts": "workspace:*",
+    "@ro-survivor/asset-gateway": "workspace:*",
+    "@ro-survivor/content-schema": "workspace:*",
+    "@ro-survivor/core-sim": "workspace:*",
+    "@ro-survivor/input": "workspace:*",
+    "@ro-survivor/persistence": "workspace:*",
+    "@ro-survivor/ro-format-runtime": "workspace:*",
+    "@ro-survivor/testkit": "workspace:*",
+    "@types/node": "24.19.2",
+    "eslint": "10.15.0",
+    "globals": "17.14.0",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.73.0",
+    "vitest": "5.1.0"
+  }
+}

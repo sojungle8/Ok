@@ -1,0 +1,179 @@
+# Changelog
+
+## Unreleased — Phase 1 original assets and RO UI (2026-11-17)
+
+- Commit A (`983913f`): canonical v2 whitelist (174 rows), map dependency closure contract, formal loader stops at
+  the pending GND/RSM/water/shadow/audio renderer instead of substituting anything.
+- UI-A: canonical v3 whitelist (282 rows = v2 + 108 RO UI rows), exact `filesystem:System` font allowlist, UI asset
+  manifest schema + local generator, reference profile `KRO2021_CLASSIC_V0_FAN` (DISCOVERED), reference metrics
+  (DEFERRED_LOCAL), profile compatibility tests, core UI asset gate in the formal loader (D-028…D-030).
+- Commit B: local extraction and derived scene contract (converter v2). Adds clean-room BMP, JPEG-header, GRSM 1.1–1.5
+  and WAV-header readers, and parses GND 1.7 lightmaps and RSW water/sound records. Writes lossless texture PNGs, a
+  lightmap atlas, model JSON, placements, water frames by ID, the official shadow with ACT alpha kept, and audio by ID.
+  Fails closed on any missing or malformed dependency. Formal renderer still pending
+  (`reports/phase1/COMMIT-B-DERIVED-CONTRACT.md`).
+- Commit B fixes for Codex CHANGES_REQUIRED F-1…F-5:
+  - legacy GRSM keyframe layout (model-level position keys with data; no per-node keys; trailing bytes rejected),
+    with a golden fixture;
+  - transactional extraction (staging + atomic swap; a failed re-run leaves no manifest);
+  - the gateway serves derived files only through a valid manifest;
+  - structured failures for RSW/GND/GAT;
+  - complete provenance for composite outputs;
+  - 32-bit BMP rejected.
+- Commit B fixes for R-1…R-3:
+  - the legacy RSM model position-key count is mandatory (truncation is detected);
+  - the publish commit point is explicit, and cleanup after it is best-effort with a warning;
+  - a missing core map row is reported with its fixed canonical path.
+- Commit C, formal renderer (`reports/phase1/COMMIT-C-FORMAL-RENDERER.md`):
+  - GND ground with texture UVs, vertex colour and embedded lightmaps;
+  - GRSM props instanced at every RSW placement, and the 32 official water frames;
+  - four-layer swordsman atlas with per-direction layer order, and the official shadow at alpha 128;
+  - BGM 12 + positional RSW WAVs behind a 「點擊啟用音訊」 gate;
+  - formal and fixture worlds split; fixture build only via `--mode fixture`.
+- Commit C fixes:
+  - C-1: water only on the selected GND cells;
+  - C-2: audio decode errors name the exact asset.
+- UI-B1 (`reports/phase1/UI-B1-UI-EXTRACTION.md`):
+  - the 108 RO UI rows are extracted inside the transactional extraction: BMP → lossless PNG with the magenta key,
+    and the cursor atlas/ACT with hotspots; fonts stay source-only;
+  - new `FormalUiAssetLoader` (profile KRO2021_CLASSIC_V0_FAN only, fail-closed), not wired into the screen yet.
+- UI-B1 fixes B1-1…B1-5:
+  - the verified lock + canonical whitelist identity is enforced in extraction, the gateway and the loader;
+  - the cursor ACT is kept verbatim;
+  - a canonical 108-ID registry is introduced;
+  - full cursor frame / layer / hotspot validation;
+  - PNG ↔ JSON SHA-256 cross-check.
+- UI-B2 (detached, not on screen):
+  - verified raster handles issued by the UI loader;
+  - RO primitives RoRaster / RoThreeSlice / RoButton / RoGauge / RoSlot (`apps/client/src/ui/ro/`);
+  - a formal visual static guard over the primitive graph.
+- UI-B2 fixes B2-1…B2-5:
+  - minting is loader-only and transactional;
+  - handle entries are frozen copies;
+  - disposed handles are rejected;
+  - the guard scans CSS and allowlists runtime imports;
+  - `RoButton` states must belong to one control family.
+- UI-B2 fixes B2-R1…R3:
+  - no URL-factory injection in the production loader;
+  - the mint verifies the PNG bytes and their SHA-256;
+  - a full-tree mint call-site guard;
+  - two-phase minting with best-effort rollback;
+  - the guard resolves extensions and `index` files, checks re-exports, rejects remote CSS imports and literal raster
+    sources.
+- UI-B2 fixes W1, R2-1, R2-2, R3 (Windows-native run):
+  - every path the guard reports or compares is POSIX `/` on every OS (also the renderer's formal/fixture
+    graph-separation test, which failed on Windows);
+  - the mint snapshots each item synchronously before any await (scalars, declared SHA, a copy of the bytes, a frozen
+    entry clone), so mutation while it is pending cannot change what is issued;
+  - rollback never loses the original error: a frozen/non-extensible error or thrown primitive is wrapped in
+    `RasterIssuanceError` (`cause` + `cleanupErrors`);
+  - the guard reads TS/TSX imports, re-exports, dynamic imports and type-only forms from the TypeScript AST, flags
+    non-literal dynamic imports and `import.meta.glob`, matches CSS `@import` case-insensitively, and allows a raster
+    source only through the single `verifiedRasterUrl(VerifiedRaster)` helper.
+- UI-B2 fixes R4-1…R4-4:
+  - the verified handle prototype (and class) is frozen, so `url` / `disposed` / `dispose` cannot be redefined;
+    the brand set's `has` / `add` are bound once at import, so patching `WeakSet.prototype` later forges nothing;
+  - post-import tamper model: the mint captures at module initialisation `WeakSet` has / add, the
+    canonical-ID `Set.has`, `Object.freeze` / `isFrozen` / `entries` / `isExtensible` / `create`, `Array.from`,
+    `URL.createObjectURL` / `revokeObjectURL`, `SubtleCrypto` digest (bound to `crypto.subtle`),
+    `structuredClone`, `Blob`, `Uint8Array`, `ArrayBuffer.isView`, `Number.isInteger`, `Symbol.iterator` and
+    `AggregateError`; Blob parts and AggregateError errors are own-iterator iterables, SHA-256 hex is
+    computed with indexed loops, and the PNG signature check uses a fixed length (not the patchable
+    `%TypedArray%.prototype.length`); the loader-brand provenance check accepts only the pure predicate
+    `typeof x === "object" && x !== null && mintedHas(x)`, a single `mintedAdd` bound from the ambient
+    `WeakSet.prototype.add` onto the same set and called exactly once on the success path of
+    `mintRasterSet` (pinned by exact AST shape: the top-level brand loop over `const chain = issued`,
+    `issued` written only by the `new Handle(…)` link in the top-level `try`, built from the frozen
+    snapshot list), a set referenced only by those two binds, value exports equal to exactly
+    {`isMintedRaster`, `mintRasterSet`, `RasterIssuanceError`}, every callee on that path resolved by
+    declaration identity (including `createUrl`), and a `Handle` class locked by exact AST allowlist (no
+    `extends`, no constructor `return`, five fields from five plain parameters, captured `freeze(this)`,
+    `#url`-only getter, frozen class and prototype, never-written binding);
+  - item bytes are checked at validation time (import-time pure predicate: `isView`, the internal
+    `"Uint8Array"` tag via the captured `@@toStringTag` getter, and a direct prototype equal to the captured
+    local `Uint8Array.prototype`; no `instanceof`, no prototype-chain walk): ordinary subclass instances,
+    foreign-realm values and non-Uint8 typed arrays are refused; a genuine `Uint8Array` re-prototyped to the
+    captured local prototype is indistinguishable (no observable construction provenance), with byte
+    integrity unaffected;
+  - the `Handle` url getter's throw is exactly `new Error(\`raster ${this.assetId} was disposed\`)`, and
+    `createUrl`'s byte path is exact: a plain non-`async`, non-generic arrow with one plain parameter, the
+    AST-locked `ownIterable` / `ITERATOR` (plain arrows throughout), and the inert Blob options literal
+    `{ type: "image/png" }`; `revokeUrl` is likewise a plain arrow with one plain parameter. Not covered: a realm compromised before this module loads, and the
+    `Promise` / `await` machinery (`Promise.prototype.then` / `constructor`) the async mint resolves through;
+  - the mint snapshots
+    the caller's items with indexed loops (accepting only its own snapshots), and keeps handles and URLs in
+    private chains of object literals: no `Map` / `Set` / array iterator / `push` / `sort` decides what is
+    branded, returned by `get` / `has` / `ids`, revoked on rollback or disposed, or reported as a cleanup error
+    (arrays come from the captured `Array.from` over a null-prototype array-like); `get` / `has` re-check the
+    brand and the exact ID; the helper's `checkRaster` may contain only its final `return r`;
+  - the guard traces bindings with a per-file TypeScript checker and rejects what it cannot prove safe:
+    - the raster URL helper counts only as its one exact top-level declaration in `ui/ro/primitives.tsx` whose
+      `VerifiedRaster` and `checkRaster` are the real bindings; in a graph it must be the actual
+      `apps/client/src/ui/ro/primitives.tsx`, next to the actual `raster.ts` whose brand check imports the
+      actual `game/formal/rasterMint.ts` brand (look-alike trees are `raster-brand-provenance`); any other
+      declaration, shadow, alias, import, re-export, mutation or reference fails closed;
+    - element factories are capabilities: an imported `h` / `createElement` / `jsx*` may only be called
+      directly with an allowlisted intrinsic tag (`div`, `span`, `button`) and static props; aliases, comma /
+      call / apply / bind, passing, returning, exporting, namespace / default imports and `cloneElement` fail;
+    - JSX tags are allowlisted intrinsics or same-file function declarations that are never reassigned;
+      mutating any function / class / import binding (any assignment operator, ++ / --, destructuring,
+      for-in / for-of) is `binding-mutation`;
+    - every assignment operator and ++ / -- on `src` / `srcset` / `poster` or a raster-style property is
+      rejected (only a plain `=` of a literal to a style property is accepted);
+    - setter capabilities (`setAttribute*`, `setProperty`, `defineProperty`, `defineProperties`, `assign`,
+      `setPrototypeOf`, `cssText`, …) are banned outright in the formal graph: member, string name, alias,
+      destructuring, call / apply / bind (`setter-capability`);
+    - one shared assignment-target walker covers every write (all assignment operators, ++ / --,
+      array / object destructuring at any depth, defaults, spreads, for-in / for-of targets, delete); unknown
+      target shapes are `opaque-assignment-target`;
+    - every element access (read, write, call, alias) and computed key needs a provable key: a constant
+      string (literals, no-substitution templates and `+` of constants — checked against setter / source /
+      dangerous names), a number, a union of safe string-literal types, or the captured `Symbol.iterator`;
+    - restricted namespace globals (`Object`, `Array`, `Number`, `URL`, `crypto`, `Symbol`, `ArrayBuffer`) are
+      usable only as `G.<allowed member>`; aliases such as `const O = Object` fail closed;
+    - free identifiers must be allowlisted globals with allowlisted members (`document`, `globalThis`,
+      `Reflect`, `Object.fromEntries`, `Object.assign`, … fail);
+    - dynamic computed keys, element-access writes / deletes (all assignment operators), dynamic
+      `defineProperty` / `setAttribute` names, reflective members, object / JSX spreads and string literals
+      naming sources, sinks or factories fail;
+  - comments are removed with the TypeScript parser (CSS: block comments outside strings), so `//` in a string or
+    JSX text no longer hides code.
+
+## Unreleased — Phase 2 vertical slice (2026-11-17)
+
+- Seed compiler + integer runtime content (`73a33f9`); run simulation, drafts, bosses, bot, tuning layer (`d4e6687`).
+- Flow state machine, run results, transactional settlement (`4e63988`); input adapters, automated acceptance (`30dae38`).
+- Client game flow, run renderer, settlement UI, mixer rules (`6f310d9`); fix: the run no longer restarts on phase
+  changes; compact in-run header; browser flow e2e (`reports/phase2/`).
+
+## Unreleased — Phase 1 cloud spike (2026-11-17)
+
+- Clean-room RO format parsers + synthetic writers (`704e75e`).
+- Loopback asset gateway and HttpAssetGatewayClient with placeholder fallback (`9d686e1`).
+- assets:audit-whitelist, assets:extract --profile fan-local, dev:fan-local, derived-output marker (`8bfcd48`).
+- Deterministic arena with RenderSnapshot (`2f213e6`).
+- Three.js arena client, synthetic fan-local demo, e2e smoke and bench (`151c3d9`).
+- Reports: render-spike-01, Phase 1 acceptance; GAP-002 for map textures and models.
+- Formal-screen rule (D-022): no placeholder/self-drawn/synthetic art in the game; missing RO assets stop the
+  client with canonical paths; synthetic fixtures only in the separate test build; shadows off (GAP-003).
+
+## Unreleased — Phase 0 fixes for Issue #2 (2026-11-17)
+
+- Handoff transfer integrity: removed the extra trailing CRLF from four hash-locked files, `.gitattributes eol=lf`,
+  fail-closed `assets:validate-handoff` (worktree + Git blob), now part of `ci:local`. (`9062ceb`)
+- CP949 from the fixed official Unicode/Microsoft mapping with golden tests and a maintenance-only verified generator;
+  Unicode License v3 notice. (`c1e90e9`)
+- rights:check scans history paths and blob bytes after the trusted baseline, fail-closed baseline validation,
+  bounded blob reads. (`a600c32`)
+- Documentation corrections (VALIDATION.md 47 + 1 rows, STATUS, RISKS, DECISIONS, RESEARCH-GAPS).
+
+## Unreleased — Phase 0 (2026-11-17)
+
+- pnpm monorepo: `apps/client` (Vite + Preact placeholder page), `apps/asset-gateway` (loopback config contract),
+  `packages/core-sim`, `packages/content-schema`, `packages/asset-contracts`, `packages/testkit`.
+- Deterministic core: seeded PRNG streams, canonical state hash, fixed-step sim and clock with tests.
+- `rights:check` with positive and intentional-failure tests.
+- `assets:verify-sources` (local GRF/BGM SHA-256 against `assets/source-lock.example.json`).
+- `local:old-trees` read-only before/after fingerprint of the previous RO trees.
+- `assets:validate-handoff` offline re-validation of the Codex handoff package.
+- GPLv3 `LICENSE`, `THIRD-PARTY-NOTICES.md`, `.env.example`, CI workflow.

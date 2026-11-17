@@ -1,0 +1,33 @@
+[
+  {
+    "browser": "chromium 153.0.8010.12",
+    "viewport": "desktop",
+    "expect": "blocked",
+    "status": "PASS",
+    "buildId": "0.0.0+30dae38e7d7a.20261117",
+    "profile": "fan-local",
+    "reason": "未設定 asset gateway（請用 pnpm dev:fan-local 啟動，需本機 RO 客戶端）",
+    "worldCanvas": 0,
+    "missingRows": 0,
+    "errors": [],
+    "screenshot": "reports/phase1/smoke-A-formal-no-gateway-chromium-desktop.png"
+  },
+  {
+    "browser": "chromium 153.0.8010.12",
+    "viewport": "mobile",
+    "expect": "blocked",
+    "status": "PASS",
+    "buildId": "0.0.0+30dae38e7d7a.20261117",
+    "profile": "fan-local",
+    "reason": "未設定 asset gateway（請用 pnpm dev:fan-local 啟動，需本機 RO 客戶端）",
+    "worldCanvas": 0,
+    "missingRows": 0,
+    "errors": [],
+    "screenshot": "reports/phase1/smoke-A-formal-no-gateway-chromium-mobile.png"
+  },
+  {
+    "browser": "webkit",
+    "status": "NOT_RUN",
+    "detail": "Error: browserType.launch: Executable doesn't exist at /opt/pw-browsers/webkit-2359/pw_run.sh"
+  }
+]

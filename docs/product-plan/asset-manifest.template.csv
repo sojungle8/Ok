@@ -1,0 +1,6 @@
+asset_id,kind,source_profile,source_archive,source_path,companion_paths,source_sha256,owner,license_class,redistribution,attribution,atlas_group,pivot_profile,reviewed_by,reviewed_at,notes
+player.swordsman.male.body,sprite-animation,fan-local,kro2021/data.grf,<cp949-player-spr-path>,<matching-act-path>,pending,Gravity and related rights holders,local-fan-use,not-cleared,required,player-swordsman,actor-ground-center,,,Phase 0 must resolve exact paths
+monster.poring.body,sprite-animation,fan-local,kro2021/data.grf,<cp949-monster-spr-path>,<matching-act-path>,pending,Gravity and related rights holders,local-fan-use,not-cleared,required,field-01-monsters,monster-ground-center,,,Phase 0 must resolve exact paths
+map.prontera.field01,map,fan-local,kro2021/data.grf,<rsw-path>,<gnd-path>|<gat-path>,pending,Gravity and related rights holders,local-fan-use,not-cleared,required,field-01,map-origin,,,Map identifier is provisional until whitelist review
+ui.placeholder.skill,icon,original-fallback,project,assets/placeholders/skill-placeholder.svg,,pending,Project owner,original-project-owned,cleared,project,ui-common,icon-center,,,Used when local asset gateway is unavailable
+

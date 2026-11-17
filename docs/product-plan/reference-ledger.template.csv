@@ -1,0 +1,4 @@
+observation_id,observed_at,source_type,source_url,source_version,region_language,claim,evidence_method,confidence,copyright_class,design_action,our_decision,test_id,review_status
+OBS-EXAMPLE-001,2026-11-17T00:00:00+08:00,official,https://ro-survivors.com/,,EN,"Browser and mobile play are publicly presented",public page,high,fact,adapt,"Keep PWA and mobile as first-class targets",QA-PWA-001,reviewed
+OBS-EXAMPLE-002,2026-11-17T00:00:00+08:00,community,https://www.reddit.com/r/RagnarokOnline/comments/1xmyhng/ro_survivors_a_free_browser_survivors_game_with/,,EN,"Players repeatedly report iPhone memory pressure in long sessions",multiple public reports,medium,fact,test,"Require three-run iPhone Safari soak test",QA-MEM-IPHONE-001,reviewed
+

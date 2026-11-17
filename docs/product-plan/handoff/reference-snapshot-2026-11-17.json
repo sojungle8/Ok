@@ -1,0 +1,166 @@
+{
+  "schemaVersion": 1,
+  "snapshotId": "ro-reference-2026-11-17-taipei",
+  "observedAt": "2026-11-17T13:35:00+08:00",
+  "owner": "Codex research maintainer",
+  "consumer": "Claude implementation agent",
+  "cleanRoomPolicy": {
+    "rawClosedSourceIncluded": false,
+    "sourceMapsFetched": false,
+    "authenticationUsed": false,
+    "privateEndpointsUsed": false,
+    "instruction": "Implement only the decisions and schemas in this pack. Do not download the referenced client artifacts."
+  },
+  "productIdentity": {
+    "official": {
+      "name": "RO Survivors",
+      "url": "https://ro-survivors.com/",
+      "displayVersion": "0.7.2",
+      "displayVersionEvidence": "HANS 2026-11-17 public announcement says it follows official 0.7.2",
+      "languagesObserved": ["es", "en", "zh"],
+      "manifest": {
+        "display": "standalone",
+        "startUrl": "./",
+        "scope": "./",
+        "orientation": "any"
+      }
+    },
+    "hans": {
+      "name": "RO倖存者 · HANS 伺服器",
+      "url": "https://ro.hans-webgametw.com/",
+      "version": "V0.13.1",
+      "announcementDate": "2026-11-17",
+      "language": "zh-TW",
+      "guestDisabledAtObservation": true,
+      "relationship": "Public credits describe HANS as an adaptation of RO Survivors with Traditional Chinese localisation, multiplayer server and operation by HANS."
+    }
+  },
+  "publicClientInspection": {
+    "method": "Public HTML and manifest inspection plus non-retained token and structure analysis of browser-delivered minified artifacts",
+    "artifactIndex": "public-client-artifacts.csv",
+    "facts": [
+      "Content-hashed ES modules and CSS use long immutable caching.",
+      "The product presents a PWA app shell and service-worker signals.",
+      "The public client contains WebGL, PixiJS, Three.js, worker, requestAnimationFrame, local persistence and WebSocket signals.",
+      "BroadcastChannel and session-storage signals exist for cross-tab or session coordination.",
+      "Public asset paths include extracted sprite JSON, stage preview images, run-item assets and emotion effects.",
+      "Public UI and client tokens cover profile, runs, plaza, party, trade, shop, refine, tower, leaderboard and replay categories.",
+      "HANS exposes public news, notice and guest-switch endpoints in addition to status."
+    ],
+    "inferences": [
+      "The product likely separates app-shell, profile, run, social, economy, tower, rendering and persistence responsibilities, but minification prevents asserting its source module layout.",
+      "WebSocket signals and lobby/party/trade event categories imply realtime transport; they do not reveal server internals.",
+      "Party-run host and snapshot categories plus player-facing background-tab warnings suggest leader-hosted run simulation, but this remains an inference.",
+      "HANS has a broader operations surface than the official client, but bundle-size difference alone is not a feature or quality metric."
+    ]
+  },
+  "observableProductSurface": [
+    {
+      "id": "surface.character-create",
+      "fact": "Character creation exposes name, sex, job, hair, hair colour, clothing colour and 48 initial stat points.",
+      "adopt": "Use the RO six-stat identity but validate all points through the independent content schema."
+    },
+    {
+      "id": "surface.character-panels",
+      "fact": "Public UI exposes equipment, inventory, cards, pets, cosmetics, status and job panels.",
+      "adopt": "Keep these as domain boundaries; only status and job are needed in the first slice."
+    },
+    {
+      "id": "surface.run-loop",
+      "fact": "Public guides describe movement with automatic combat, level-up choices, bosses and persistent Base/Job and item progression.",
+      "adopt": "Build a deterministic ten-minute stage with three-choice levels and explicit run settlement."
+    },
+    {
+      "id": "surface.social",
+      "fact": "Accounts enable plaza chat, trade and parties; guests have restrictions.",
+      "adopt": "Defer accounts and social systems until the local single-player core is accepted."
+    },
+    {
+      "id": "surface.economy",
+      "fact": "The official rules state that shop, refine, trade and item origin are server-validated.",
+      "adopt": "Do not implement public trade without authoritative transactions and item provenance."
+    },
+    {
+      "id": "surface.tower",
+      "fact": "Endless Tower rankings can be verified by replaying stored movement and choices.",
+      "adopt": "Make fixed-step input replay a core invariant before a leaderboard exists."
+    }
+  ],
+  "communitySignals": [
+    {
+      "signal": "ro-identity",
+      "summary": "Players value recognizable RO jobs, cast time, cooldown rhythm, sprites, maps and progression.",
+      "confidence": "medium",
+      "requirement": "Every job must have a distinct resource or timing identity, not only different damage coefficients."
+    },
+    {
+      "signal": "mobile-memory",
+      "summary": "Long mobile sessions are associated with heat, reloads and memory pressure.",
+      "confidence": "medium",
+      "requirement": "Three consecutive iPhone Safari runs, atlas tiers, lazy FX and resource-disposal evidence are release blockers."
+    },
+    {
+      "signal": "visual-overload",
+      "summary": "Dense projectiles and effects can sharply reduce FPS and hide danger.",
+      "confidence": "medium",
+      "requirement": "Use pooled effects, instancing, caps, LOD and a danger layer that never disappears at low quality."
+    },
+    {
+      "signal": "telegraph-fairness",
+      "summary": "Players object when a warning shape and the actual hit do not match.",
+      "confidence": "medium",
+      "requirement": "Simulation and renderer must read the same immutable attack-geometry object."
+    },
+    {
+      "signal": "mobile-ui",
+      "summary": "Small touch targets, tooltip overflow and irreversible actions cause mistakes.",
+      "confidence": "medium",
+      "requirement": "Use 44px minimum targets, bottom-sheet details, visible deltas and confirmation for destructive choices."
+    },
+    {
+      "signal": "hosted-coop",
+      "summary": "Leader-hosted group play is vulnerable to background throttling, lag and desync.",
+      "confidence": "medium",
+      "requirement": "Phase 6 uses a dedicated authoritative room server; no leader-authoritative simulation."
+    }
+  ],
+  "verticalSliceDecision": {
+    "profile": "fan-local",
+    "durationSeconds": 600,
+    "job": "Swordsman",
+    "stageTheme": "Prontera field",
+    "normalMonsterTypes": 10,
+    "eliteVariants": 2,
+    "miniBossTypes": 1,
+    "mvp": "Mastering",
+    "activeSkillCandidates": 8,
+    "passiveSlots": 4,
+    "activeSlots": 4,
+    "keystoneChoices": 3,
+    "platforms": ["keyboard-mouse", "touch", "gamepad"],
+    "storage": "IndexedDB",
+    "excluded": ["account", "cloud-save", "multiplayer", "chat", "trade", "auction", "guild", "pvp", "paid-content"]
+  },
+  "implementationDecisions": [
+    "Use Node 24.21.x, pnpm workspace, TypeScript strict, Vite and Preact.",
+    "Use a renderer-independent fixed-step deterministic simulation and replayable PRNG.",
+    "Use one Three.js WebGL world plus DOM UI for the first slice.",
+    "Load RO assets only through a loopback read-only asset gateway and an explicit whitelist.",
+    "Store derived local assets outside Git and make rights:check fail on prohibited binaries.",
+    "Generate runtime, tooltip, wiki and tests from the same versioned content schema.",
+    "Do not start accounts before the single-player and mobile acceptance gates pass."
+  ],
+  "sources": [
+    "https://ro-survivors.com/",
+    "https://ro-survivors.com/legal.html",
+    "https://ro-survivors.com/credits.html",
+    "https://ro-survivors.com/talents.html",
+    "https://ro.hans-webgametw.com/",
+    "https://ro.hans-webgametw.com/credits.html",
+    "https://ro.hans-webgametw.com/hans-news.json",
+    "https://asiagamemaster.com/guide-ro-survivors",
+    "https://www.reddit.com/r/RagnarokOnline/comments/1xmyhng/ro_survivors_a_free_browser_survivors_game_with/",
+    "https://www.reddit.com/r/RagnarokOnline/comments/1xqzt5h/if_were_gonna_make_like_3_ragnarok_survivors/",
+    "https://www.reddit.com/r/RagnarokOnline/comments/1xqcn8m/hi_again_after_your_feedback_on_my_last_two_posts/"
+  ]
+}

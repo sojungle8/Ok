@@ -1,0 +1,17 @@
+{
+  "name": "@ro-survivor/content-schema",
+  "version": "0.0.0",
+  "private": true,
+  "license": "GPL-3.0-only",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json && tsc -p test/tsconfig.json"
+  },
+  "dependencies": {
+    "zod": "4.6.7",
+    "@ro-survivor/core-sim": "workspace:*"
+  }
+}

@@ -1,0 +1,73 @@
+{
+  "profileId": "KRO2021_CLASSIC_V0_FAN",
+  "measurement": "DEFERRED_LOCAL",
+  "captureSha256": [],
+  "desktop1024x768": {
+    "basicInfoExpanded": {
+      "x": null,
+      "y": null,
+      "w": null,
+      "h": null
+    },
+    "basicInfoMinimized": {
+      "x": null,
+      "y": null,
+      "w": null,
+      "h": null
+    },
+    "shortcut": {
+      "x": null,
+      "y": null,
+      "w": null,
+      "rowHeight": null,
+      "slots": 9
+    },
+    "miniMap": {
+      "right": null,
+      "top": null,
+      "w": null,
+      "h": null
+    },
+    "chat": {
+      "left": null,
+      "bottom": null,
+      "w": null,
+      "collapsedH": null,
+      "expandedH": null
+    }
+  },
+  "font": {
+    "family": null,
+    "sizePx": null,
+    "lineHeightPx": null,
+    "weight": null,
+    "outlineOrShadow": null
+  },
+  "researchHints": [
+    {
+      "component": "BasicInfo expanded",
+      "value": "about 280x120, top-left (roBrowserLegacy V0)",
+      "status": "HINT_NOT_TARGET"
+    },
+    {
+      "component": "BasicInfo minimized",
+      "value": "about 280x33 (roBrowserLegacy V0)",
+      "status": "HINT_NOT_TARGET"
+    },
+    {
+      "component": "Shortcut",
+      "value": "9 slots per row, 24x24 icons, 1-4 rows",
+      "status": "HINT_NOT_TARGET"
+    },
+    {
+      "component": "MiniMap",
+      "value": "128x128 canvas, top-right",
+      "status": "HINT_NOT_TARGET"
+    },
+    {
+      "component": "Chat",
+      "value": "bottom-left tabbed log + input",
+      "status": "HINT_NOT_TARGET"
+    }
+  ]
+}
