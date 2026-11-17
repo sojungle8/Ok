@@ -22,6 +22,19 @@
           "sha256": "814A8484603741406BDB5AD0F16F4B9D4BCA6218F8C23D88CBF6983E6C6DA58E"
         }
       }
+    },
+    "system": {
+      "envVar": "RO_ASSET_SYSTEM_DIR",
+      "pinnedFiles": {
+        "Font\\SCDream4.otf": {
+          "bytes": 729724,
+          "sha256": "1DC288E8CFDF96EB083C0B016FB5F107BC83208E748B6A61422404B9E42A95A4"
+        },
+        "Font\\SCDream6.otf": {
+          "bytes": 743480,
+          "sha256": "7DD3E0240002FEEDD37D0F33033A44E17B1AB11F84A93ACF8482184ADC33AA1A"
+        }
+      }
     }
   }
 }

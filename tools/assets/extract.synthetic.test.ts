@@ -29,10 +29,10 @@ function setup() {
 }
 
 describe("assets:audit-whitelist (synthetic sources)", () => {
-  it("all 174 whitelisted IDs (canonical v2) resolve by raw hex and parse", () => {
+  it("all 282 whitelisted IDs (canonical v3) resolve by raw hex or the System allowlist and parse", () => {
     const { rows, reader } = setup();
     const audit = auditWhitelist(rows, reader);
-    expect(audit).toHaveLength(174);
+    expect(audit).toHaveLength(282);
     expect(audit.filter((r) => r.status !== "PASS")).toEqual([]);
   });
 

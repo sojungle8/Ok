@@ -85,7 +85,7 @@ export class PlaceholderAssetGateway implements AssetGateway {
       ok: true,
       mode: "placeholder",
       buildId: this.#buildId,
-      sourceHashes: { "data.grf": null, "rdata.grf": null, bgm: null },
+      sourceHashes: { "data.grf": null, "rdata.grf": null, bgm: null, system: null },
     });
   }
 }

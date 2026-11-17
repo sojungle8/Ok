@@ -6,7 +6,7 @@ import { sha256File, sha256Text } from "../lib/hash.ts";
 export type CheckStatus = "PASS" | "FAIL" | "WARN";
 
 export interface SourceCheck {
-  sourceId: "data.grf" | "rdata.grf" | "bgm" | `bgm:${string}`;
+  sourceId: "data.grf" | "rdata.grf" | "bgm" | `bgm:${string}` | "system" | `system:${string}`;
   check: string;
   status: CheckStatus;
   expected: string;
@@ -40,10 +40,12 @@ export async function verifySources(options: {
   const dataPath = env[lock.sources["data.grf"].envVar];
   const rdataPath = env[lock.sources["rdata.grf"].envVar];
   const bgmDir = env[lock.sources.bgm.envVar];
+  const systemDir = env[lock.sources.system.envVar];
   for (const [name, value] of [
     [lock.sources["data.grf"].envVar, dataPath],
     [lock.sources["rdata.grf"].envVar, rdataPath],
     [lock.sources.bgm.envVar, bgmDir],
+    [lock.sources.system.envVar, systemDir],
   ] as const) {
     if (value === undefined || value === "") missingEnv.push(name);
   }
@@ -100,6 +102,26 @@ export async function verifySources(options: {
     }
   }
 
+  // System directory: only the exact pinned relative paths are opened (no listing, no other file).
+  const systemFiles: { relPath: string; bytes: number; sha256: string }[] = [];
+  const systemPath = systemDir as string;
+  if (!existsSync(systemPath) || !statSync(systemPath).isDirectory()) {
+    checks.push({ sourceId: "system", check: "exists", status: "FAIL", expected: "directory", actual: "missing" });
+  } else {
+    for (const [relPath, pinned] of Object.entries(lock.sources.system.pinnedFiles)) {
+      const p = join(systemPath, ...relPath.split("\\"));
+      const found = existsSync(p) && statSync(p).isFile() ? await sha256File(p) : null;
+      if (found) systemFiles.push({ relPath, ...found });
+      checks.push({
+        sourceId: `system:${relPath}`,
+        check: "sha256+bytes",
+        status: found && found.sha256 === pinned.sha256 && found.bytes === pinned.bytes ? "PASS" : "FAIL",
+        expected: `${pinned.bytes}/${pinned.sha256}`,
+        actual: found ? `${found.bytes}/${found.sha256}` : "missing",
+      });
+    }
+  }
+
   const ok = checks.every((c) => c.status !== "FAIL");
   const manifestSha256 = sha256Text(bgmFiles.map((f) => `${f.name}\t${f.bytes}\t${f.sha256}`).join("\n"));
   const lockOut: SourceLockLocal | null = ok
@@ -113,10 +135,16 @@ export async function verifySources(options: {
           "data.grf": grfResults["data.grf"],
           "rdata.grf": grfResults["rdata.grf"],
           bgm: { path: bgmPath, fileCount: bgmFiles.length, manifestSha256, files: bgmFiles },
+          system: { path: systemPath, manifestSha256: systemManifestSha256(systemFiles), files: systemFiles },
         },
       }
     : null;
   return { ok, checks, lock: lockOut, missingEnv };
+}
+
+/** Fingerprint of the pinned System files (sorted by relative path). */
+export function systemManifestSha256(files: readonly { relPath: string; bytes: number; sha256: string }[]): string {
+  return sha256Text([...files].sort((a, b) => (a.relPath < b.relPath ? -1 : 1)).map((f) => `${f.relPath}\t${f.bytes}\t${f.sha256}`).join("\n"));
 }
 
 export function writeJson(path: string, value: unknown): void {

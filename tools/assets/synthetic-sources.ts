@@ -6,10 +6,12 @@
  */
 import { createHash } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
-import { encodeCp949, hexToBytes } from "@ro-survivor/asset-contracts";
+import { dirname, join } from "node:path";
+import { declaredUiDimensions, encodeCp949, hexToBytes } from "@ro-survivor/asset-contracts";
 import type { SourceLockLocal, WhitelistRow } from "@ro-survivor/content-schema";
 import { syntheticBytes, syntheticPalette, writeAct, writeBmp24, writeGat, writeGnd, writeGrf, writeRsw, writeSignatureBlob, writeSpr, writeWav, type SyntheticActAction } from "@ro-survivor/testkit";
+
+import { systemManifestSha256 } from "./verify-sources-lib.ts";
 
 const sha = (b: Uint8Array): string => createHash("sha256").update(b).digest("hex").toUpperCase();
 
@@ -166,10 +168,29 @@ export function buildSyntheticSources(dir: string, realRows: readonly WhitelistR
   content.set("common.shadow.act", writeAct({ version: "2.1", actions: [{ frames: [{ layers: [{ x: 0, y: 0, sprIndex: 0, color: [255, 255, 255, 128] }] }] }] }));
   actVersion.set("common.shadow.act", "2.1");
 
+  // RO UI closure (KRO2021_CLASSIC_V0_FAN): bitmaps at the declared native size with a magenta key
+  // border; a 14-action cursor ACT 2.5 with a non-zero hotspot offset. Fonts live in System\Font.
+  for (const r of realRows.filter((x) => x.category.startsWith("ui_") && x.canonical_cp949_path.toLowerCase().endsWith(".bmp"))) {
+    const dim = declaredUiDimensions(r.notes) ?? { width: 8, height: 8 };
+    const seed = r.asset_id.length * 13;
+    content.set(r.asset_id, writeBmp24(dim.width, dim.height, (x, y) => (x === 0 && y === 0 ? [255, 0, 255] : [(x * 7 + seed) & 255, (y * 11 + seed) & 255, (x ^ y) & 255])));
+  }
+  const cursorFrames = Array.from({ length: 14 }, (_, a) => ({ width: 16 + (a % 3) * 4, height: 20, indices: new Uint8Array((16 + (a % 3) * 4) * 20).map((_, k) => ((k + a) % 5 === 0 ? 0 : 1 + (a % 7))) }));
+  content.set("ui.cursor.spr", writeSpr({ indexed: cursorFrames, palette: syntheticPalette(21) }));
+  content.set("ui.cursor.act", writeAct({ version: "2.5", actions: cursorFrames.map((f, a) => ({ delay: 4, frames: [{ layers: [{ x: Math.floor(f.width / 2) - 2, y: Math.floor(f.height / 2) - 3, sprIndex: a }] }] })) }));
+  actVersion.set("ui.cursor.act", "2.5");
+
   const rows: WhitelistRow[] = [];
   const grfEntries: { rawName: Uint8Array; data: Uint8Array }[] = [];
   let bgm: Uint8Array | null = null;
+  const systemFiles: { relPath: string; data: Uint8Array }[] = [];
   for (const r of realRows) {
+    if (r.source_container === "filesystem:System") {
+      const data = Uint8Array.from([0x4f, 0x54, 0x54, 0x4f, ...syntheticBytes(600 + systemFiles.length, 512)]);
+      systemFiles.push({ relPath: r.canonical_cp949_path.replace(/^system\\/iu, ""), data });
+      rows.push({ ...r, bytes: data.length, sha256: sha(data) });
+      continue;
+    }
     if (r.source_container === "filesystem:BGM") {
       bgm = Uint8Array.from([0x49, 0x44, 0x33, 4, 0, 0, ...syntheticBytes(99, 2048)]);
       rows.push({ ...r, bytes: bgm.length, sha256: sha(bgm) });
@@ -191,6 +212,12 @@ export function buildSyntheticSources(dir: string, realRows: readonly WhitelistR
   writeFileSync(join(dir, "rdata.grf"), rdataGrf);
   writeFileSync(join(dir, "BGM/12.mp3"), bgm ?? new Uint8Array());
   const bgmFiles = [{ name: "12.mp3", bytes: bgm?.length ?? 0, sha256: sha(bgm ?? new Uint8Array()) }];
+  for (const f of systemFiles) {
+    const p = join(dir, "System", ...f.relPath.split("\\"));
+    mkdirSync(dirname(p), { recursive: true });
+    writeFileSync(p, f.data);
+  }
+  const lockedSystem = systemFiles.map((f) => ({ relPath: f.relPath, bytes: f.data.length, sha256: sha(f.data) }));
   return {
     rows,
     lock: {
@@ -199,6 +226,7 @@ export function buildSyntheticSources(dir: string, realRows: readonly WhitelistR
         "data.grf": { path: join(dir, "data.grf"), bytes: dataGrf.length, sha256: sha(dataGrf) },
         "rdata.grf": { path: join(dir, "rdata.grf"), bytes: rdataGrf.length, sha256: sha(rdataGrf) },
         bgm: { path: join(dir, "BGM"), fileCount: 1, manifestSha256: sha(Buffer.from(bgmFiles.map((f) => `${f.name}\t${f.bytes}\t${f.sha256}`).join("\n"))), files: bgmFiles },
+        system: { path: join(dir, "System"), manifestSha256: systemManifestSha256(lockedSystem), files: lockedSystem },
       },
     },
   };

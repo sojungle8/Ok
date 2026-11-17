@@ -3,6 +3,13 @@ import type { AssetGateway, AssetGatewayHealth, AssetSourceMode } from "./gatewa
 import { PlaceholderAssetGateway } from "./placeholder.ts";
 import { AssetWhitelist } from "./whitelist.ts";
 
+/** Which verified source a whitelist row is served from. */
+export function sourceIdForRow(row: { source_container: string; rdata_override: string }): SourceId {
+  if (row.source_container === "filesystem:BGM") return "bgm";
+  if (row.source_container === "filesystem:System") return "system";
+  return row.rdata_override === "true" ? "rdata.grf" : "data.grf";
+}
+
 export type FetchLike = (input: string, init?: { signal?: AbortSignal; method?: string }) => Promise<Response>;
 
 export interface HttpGatewayOptions {
@@ -134,7 +141,7 @@ export class HttpAssetGatewayClient implements AssetGateway {
     if (body.length !== row.bytes) throw new GatewayError("size-mismatch", `${assetId}: got ${body.length} bytes, whitelist says ${row.bytes}`);
     const source = res.headers.get("x-ro-source-sha256");
     if (!source || !/^[0-9A-F]{64}$/u.test(source)) throw new GatewayError("no-source-hash", `${assetId}: missing x-ro-source-sha256`);
-    const expectedSource = await this.getSourceHash(row.source_container === "filesystem:BGM" ? "bgm" : row.rdata_override === "true" ? "rdata.grf" : "data.grf");
+    const expectedSource = await this.getSourceHash(sourceIdForRow(row));
     if (expectedSource !== source) throw new GatewayError("source-mismatch", `${assetId}: source hash ${source} differs from gateway health ${expectedSource ?? "null"}`);
     return body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength) as ArrayBuffer;
   }

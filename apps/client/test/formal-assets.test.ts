@@ -61,7 +61,7 @@ describe("formal screen: only original RO assets, missing ones stop the game", (
     expect((err as FormalRendererPendingError).pending.length).toBeGreaterThan(0);
   });
 
-  it.each(["map.prt_fild08.ground_texture.001", "common.shadow.act", "bgm.prt_fild08"])(
+  it.each(["map.prt_fild08.ground_texture.001", "common.shadow.act", "bgm.prt_fild08", "ui.cursor.act", "ui.hud.basic.background", "ui.font.scdream4"])(
     "a single missing source %s is reported alone",
     async (id) => {
       const err = await loadFormalAssets(gatewayDouble([id]), false).catch((e: unknown) => e);

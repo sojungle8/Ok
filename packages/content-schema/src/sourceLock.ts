@@ -2,7 +2,7 @@ import { z } from "zod";
 
 const sha256Upper = z.string().regex(/^[0-9A-F]{64}$/u, "SHA-256 must be 64 uppercase hex characters");
 
-export const SOURCE_IDS = ["data.grf", "rdata.grf", "bgm"] as const;
+export const SOURCE_IDS = ["data.grf", "rdata.grf", "bgm", "system"] as const;
 export type SourceId = (typeof SOURCE_IDS)[number];
 
 /**
@@ -20,6 +20,14 @@ export const sourceLockExampleSchema = z.object({
       envVar: z.literal("RO_ASSET_BGM_DIR"),
       expectedFileCount: z.number().int().positive(),
       pinnedFiles: z.record(z.string(), z.object({ bytes: z.number().int().positive(), sha256: sha256Upper })),
+    }),
+    /**
+     * The client's `System` directory (KRO UI fonts). Only the pinned relative paths are ever read;
+     * the directory is not listed and no other file is reachable.
+     */
+    system: z.object({
+      envVar: z.literal("RO_ASSET_SYSTEM_DIR"),
+      pinnedFiles: z.record(z.string().regex(/^(?:[A-Za-z0-9_-]+\\)*[A-Za-z0-9_-]+\.[A-Za-z0-9]+$/u), z.object({ bytes: z.number().int().positive(), sha256: sha256Upper })),
     }),
   }),
 });
@@ -39,6 +47,12 @@ export const sourceLockLocalSchema = z.object({
       fileCount: z.number(),
       manifestSha256: sha256Upper,
       files: z.array(z.object({ name: z.string(), bytes: z.number(), sha256: sha256Upper })),
+    }),
+    system: z.object({
+      path: z.string(),
+      manifestSha256: sha256Upper,
+      /** relPath uses backslashes, relative to the System directory (e.g. "Font\\SCDream4.otf"). */
+      files: z.array(z.object({ relPath: z.string(), bytes: z.number(), sha256: sha256Upper })),
     }),
   }),
 });

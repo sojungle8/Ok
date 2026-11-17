@@ -17,8 +17,8 @@ const csv = readFileSync(new URL("../../../docs/product-plan/handoff/fan-local-a
 describe("fan-local whitelist (handoff CSV, no GRF needed)", () => {
   const list = AssetWhitelist.fromCsv(csv);
 
-  it("has 174 unique asset ids (canonical v2)", () => {
-    expect(list.size).toBe(174);
+  it("has 282 unique asset ids (canonical v3)", () => {
+    expect(list.size).toBe(282);
   });
 
   it("every CP949 raw hex and request URI round-trips to the canonical path", () => {
@@ -58,7 +58,7 @@ describe("PlaceholderAssetGateway", () => {
       ok: true,
       mode: "placeholder",
       buildId: "test-build",
-      sourceHashes: { "data.grf": null, "rdata.grf": null, bgm: null },
+      sourceHashes: { "data.grf": null, "rdata.grf": null, bgm: null, system: null },
     });
     await expect(gw.getSourceHash("data.grf")).resolves.toBeNull();
   });

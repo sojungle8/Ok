@@ -6,7 +6,7 @@
 //   D. bench on the test-fixture build
 // Synthetic fixtures are only ever served to the separate test build in apps/client/dist-test.
 import { spawn, execFileSync } from "node:child_process";
-import { existsSync, writeFileSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 const root = resolve(import.meta.dirname, "../..");
@@ -21,7 +21,8 @@ const capture = (args, env) => {
   }
 };
 
-if (!existsSync(join(root, ".local-assets/synthetic-demo/source-lock.json"))) run(node24, ["tools/assets/synthetic-demo.ts"]);
+// Always rebuild the synthetic demo (~2 s) so a cached lock never lags behind the current schema.
+run(node24, ["tools/assets/synthetic-demo.ts"]);
 const gw = spawn(node24, ["apps/asset-gateway/src/main.ts"], {
   cwd: root,
   env: { ...process.env, RO_GATEWAY_LOCK_FILE: ".local-assets/synthetic-demo/source-lock.json", RO_GATEWAY_DERIVED_DIR: ".local-assets/synthetic-demo/derived", RO_GATEWAY_ALLOW_SYNTHETIC: "1", RO_ASSET_GATEWAY_PORT: String(port) },

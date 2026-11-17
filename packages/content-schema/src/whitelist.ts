@@ -19,7 +19,11 @@ export const WHITELIST_COLUMNS = [
   "notes",
 ] as const;
 
-export const SOURCE_CONTAINERS = ["data.grf", "rdata.grf", "filesystem:BGM"] as const;
+export const SOURCE_CONTAINERS = ["data.grf", "rdata.grf", "filesystem:BGM", "filesystem:System"] as const;
+export type SourceContainer = (typeof SOURCE_CONTAINERS)[number];
+
+/** Filesystem containers are read from an exact pinned-file allowlist, never from an arbitrary path. */
+export const isFilesystemContainer = (c: string): boolean => c.startsWith("filesystem:");
 
 const hex64 = z.string().regex(/^[0-9a-fA-F]{64}$/u);
 
@@ -30,7 +34,8 @@ export const whitelistRowSchema = z
     source_container: z.enum(SOURCE_CONTAINERS),
     canonical_cp949_path: z.string().min(1),
     normalized_request_path: z.string().startsWith("/"),
-    raw_name_hex: z.string().regex(/^(?:[0-9A-F]{2})*$/u),
+    // Canonical CSVs carry either case (v2 rows upper, RO UI rows lower); lookups use upper case.
+    raw_name_hex: z.string().regex(/^(?:[0-9A-Fa-f]{2})*$/u).transform((h) => h.toUpperCase()),
     bytes: z.coerce.number().int().positive(),
     sha256: z.union([z.literal(""), hex64]),
     source_id: z.string(),
@@ -42,7 +47,7 @@ export const whitelistRowSchema = z
     notes: z.string(),
   })
   .superRefine((row, ctx) => {
-    const fromGrf = row.source_container !== "filesystem:BGM";
+    const fromGrf = !isFilesystemContainer(row.source_container);
     if (fromGrf && row.raw_name_hex === "") {
       ctx.addIssue({ code: "custom", message: "GRF entries must carry raw_name_hex", path: ["raw_name_hex"] });
     }

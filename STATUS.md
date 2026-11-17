@@ -2,7 +2,9 @@
 
 Current phase: **Phase 2 — 劍士單人垂直切片: headless game + automated acceptance done; formal-screen play and human/device checks DEFERRED_LOCAL (Phase 2 not complete)**.
 Phase 1 real-asset gates are still DEFERRED_LOCAL (and Phase 2 was started on explicit user instruction before them).
-Pending input: Codex canonical whitelist v2 (174 rows) and `CLAUDE-PHASE1-ORIGINAL-ASSETS.md` were announced but not received in this session.
+Phase 1 original assets / RO UI: **RO UI reference/implementation in progress.** Commit A (v2, 174 rows) and UI-A
+(v3, 282 rows; profile `KRO2021_CLASSIC_V0_FAN` DISCOVERED, metrics DEFERRED_LOCAL) are contracts only; UI-B and later
+wait for Codex to mark the profile LOCKED. Real-local verification of both is DEFERRED_LOCAL (`docs/product-plan/ui/README.md`).
 
 ## Phase 2 (cloud) — summary
 

@@ -1,5 +1,5 @@
 import type { WalkGrid } from "@ro-survivor/core-sim";
-import { formalRequiredIds, missingFromWhitelist, resolveMapClosure, type HttpAssetGatewayClient } from "@ro-survivor/asset-contracts";
+import { formalRequiredIds, formalUiRequiredIds, missingFromWhitelist, resolveMapClosure, type HttpAssetGatewayClient } from "@ro-survivor/asset-contracts";
 import { whitelist } from "../gateway.ts";
 import type { GroundData } from "./renderer.ts";
 import { FORMAL_SCENE, FormalRendererPendingError, MissingAssetsError, missingWhitelisted, type MissingAsset } from "./requirements.ts";
@@ -37,13 +37,15 @@ export const FORMAL_RENDERER_PENDING: readonly string[] = [
 
 /**
  * Load the formal arena from the user's RO client via the local gateway, fail-closed:
- * 1. every formal asset ID must be whitelisted; 2. every source must exist with the whitelisted size;
+ * 1. every formal asset ID (scene + core UI) must be whitelisted; 2. every source must exist with the whitelisted size;
  * 3. derived atlases / map data must exist; 4. every GND / RSW reference must resolve to a whitelisted
  * ID (only genuinely unresolvable references are reported). `fixtureMode` (automated tests only)
  * skips the source and closure checks that synthetic fixtures cannot satisfy.
  */
 export async function loadFormalAssets(gateway: HttpAssetGatewayClient, fixtureMode: boolean): Promise<LoadedAssets> {
-  const required = formalRequiredIds(whitelist);
+  // Scene closure + core RO UI closure (KRO2021_CLASSIC_V0_FAN): the world canvas is never created
+  // unless every one is present; a missing UI bitmap is never replaced by a CSS / Canvas surface.
+  const required = [...formalRequiredIds(whitelist), ...formalUiRequiredIds(whitelist)];
   const missing: MissingAsset[] = missingFromWhitelist(whitelist, required).map((m) => ({ ...m }));
   if (missing.length > 0) throw new MissingAssetsError(missing);
   if (!fixtureMode) {

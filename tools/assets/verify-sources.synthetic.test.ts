@@ -24,6 +24,10 @@ function fixture() {
   mkdirSync(join(d.root, "BGM"));
   writeFileSync(join(d.root, "BGM/12.mp3"), bgm12);
   writeFileSync(join(d.root, "BGM/01.mp3"), syntheticBytes(4, 256));
+  const font = Uint8Array.from([0x4f, 0x54, 0x54, 0x4f, ...syntheticBytes(6, 128)]);
+  mkdirSync(join(d.root, "System/Font"), { recursive: true });
+  writeFileSync(join(d.root, "System/Font/SCDream4.otf"), font);
+  writeFileSync(join(d.root, "System/Font/unlisted.otf"), syntheticBytes(7, 64));
   const lock: SourceLockExample = {
     schemaVersion: 1,
     lockId: "synthetic",
@@ -32,12 +36,14 @@ function fixture() {
       "data.grf": { envVar: "RO_ASSET_SOURCE_DATA_GRF", bytes: data.length, sha256: sha(data) },
       "rdata.grf": { envVar: "RO_ASSET_SOURCE_RDATA_GRF", bytes: rdata.length, sha256: sha(rdata) },
       bgm: { envVar: "RO_ASSET_BGM_DIR", expectedFileCount: 2, pinnedFiles: { "12.mp3": { bytes: bgm12.length, sha256: sha(bgm12) } } },
+      system: { envVar: "RO_ASSET_SYSTEM_DIR", pinnedFiles: { "Font\\SCDream4.otf": { bytes: font.length, sha256: sha(font) } } },
     },
   };
   const env = {
     RO_ASSET_SOURCE_DATA_GRF: join(d.root, "data.grf"),
     RO_ASSET_SOURCE_RDATA_GRF: join(d.root, "rdata.grf"),
     RO_ASSET_BGM_DIR: join(d.root, "BGM"),
+    RO_ASSET_SYSTEM_DIR: join(d.root, "System"),
   };
   return { lock, env };
 }
@@ -74,6 +80,22 @@ describe("assets:verify-sources (synthetic sources)", () => {
     const { lock } = fixture();
     const res = await verifySources({ lock, env: {} });
     expect(res.ok).toBe(false);
-    expect(res.missingEnv).toEqual(["RO_ASSET_SOURCE_DATA_GRF", "RO_ASSET_SOURCE_RDATA_GRF", "RO_ASSET_BGM_DIR"]);
+    expect(res.missingEnv).toEqual(["RO_ASSET_SOURCE_DATA_GRF", "RO_ASSET_SOURCE_RDATA_GRF", "RO_ASSET_BGM_DIR", "RO_ASSET_SYSTEM_DIR"]);
+  });
+
+  it("System: only the pinned font is locked; unlisted files are never recorded", async () => {
+    const { lock, env } = fixture();
+    const res = await verifySources({ lock, env });
+    expect(res.ok).toBe(true);
+    expect(res.lock?.sources.system.files.map((f) => f.relPath)).toEqual(["Font\\SCDream4.otf"]);
+  });
+
+  it("System: a missing or drifted pinned font fails without a lock", async () => {
+    const { lock, env } = fixture();
+    lock.sources.system.pinnedFiles["Font\\SCDream6.otf"] = { bytes: 10, sha256: "B".repeat(64) };
+    const res = await verifySources({ lock, env });
+    expect(res.ok).toBe(false);
+    expect(res.lock).toBeNull();
+    expect(res.checks).toContainEqual(expect.objectContaining({ sourceId: "system:Font\\SCDream6.otf", actual: "missing", status: "FAIL" }));
   });
 });

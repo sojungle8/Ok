@@ -17,7 +17,7 @@ afterEach(async () => {
 });
 
 function row(p: Partial<WhitelistRow> & Pick<WhitelistRow, "asset_id" | "canonical_cp949_path" | "bytes">): WhitelistRow {
-  const raw = p.source_container === "filesystem:BGM" ? "" : bytesToHex(encodeCp949(p.canonical_cp949_path));
+  const raw = p.source_container?.startsWith("filesystem:") ? "" : bytesToHex(encodeCp949(p.canonical_cp949_path));
   return {
     category: "test", source_container: "data.grf", normalized_request_path: "/x", raw_name_hex: raw, sha256: "",
     source_id: "", source_key: "", act_version: "", act_actions: "", required: "true", rdata_override: "false", notes: "", ...p,
@@ -32,12 +32,16 @@ async function fixture(): Promise<{ gw: RunningGateway; whitelist: AssetWhitelis
   const gat = syntheticBytes(2, 777);
   const wrong = syntheticBytes(3, 50);
   const bgm = syntheticBytes(4, 900);
+  const font = Uint8Array.from([0x4f, 0x54, 0x54, 0x4f, ...syntheticBytes(7, 300)]);
   const rows = [
     row({ asset_id: "monster.1002.spr", canonical_cp949_path: "data\\sprite\\몬스터\\poring.spr", bytes: poring.length }),
     row({ asset_id: "map.prt_fild08.gat", canonical_cp949_path: "data\\prt_fild08.gat", bytes: gat.length, sha256: sha(gat).toLowerCase() }),
     row({ asset_id: "map.prt_fild08.gnd", canonical_cp949_path: "data\\prt_fild08.gnd", bytes: wrong.length, sha256: "0".repeat(64) }),
     row({ asset_id: "monster.1007.spr", canonical_cp949_path: "data\\sprite\\몬스터\\fabre.spr", bytes: 999 }),
     row({ asset_id: "bgm.prt_fild08", canonical_cp949_path: "BGM\\12.mp3", bytes: bgm.length, source_container: "filesystem:BGM" }),
+    row({ asset_id: "ui.font.scdream4", canonical_cp949_path: "System\\Font\\SCDream4.otf", bytes: font.length, sha256: sha(font), source_container: "filesystem:System" }),
+    // Whitelisted but not pinned in the verified lock: must not be readable from the System directory.
+    row({ asset_id: "ui.font.unpinned", canonical_cp949_path: "System\\Font\\unpinned.otf", bytes: 10, source_container: "filesystem:System" }),
   ];
   const grfBytes = writeGrf([
     { rawName: hexToBytes(rows[0]?.raw_name_hex ?? ""), data: poring },
@@ -50,6 +54,9 @@ async function fixture(): Promise<{ gw: RunningGateway; whitelist: AssetWhitelis
   writeFileSync(join(d.root, "rdata.grf"), rdata);
   mkdirSync(join(d.root, "BGM"));
   writeFileSync(join(d.root, "BGM/12.mp3"), bgm);
+  mkdirSync(join(d.root, "System/Font"), { recursive: true });
+  writeFileSync(join(d.root, "System/Font/SCDream4.otf"), font);
+  writeFileSync(join(d.root, "System/Font/unpinned.otf"), syntheticBytes(8, 10));
   const derived = join(d.root, "derived");
   mkdirSync(derived);
   writeFileSync(join(derived, "monster.1002.spr.json"), JSON.stringify({ frames: 3 }));
@@ -59,12 +66,13 @@ async function fixture(): Promise<{ gw: RunningGateway; whitelist: AssetWhitelis
       "data.grf": { path: join(d.root, "data.grf"), bytes: grfBytes.length, sha256: sha(grfBytes) },
       "rdata.grf": { path: join(d.root, "rdata.grf"), bytes: rdata.length, sha256: sha(rdata) },
       bgm: { path: join(d.root, "BGM"), fileCount: 1, manifestSha256: "B".repeat(64), files: [{ name: "12.mp3", bytes: bgm.length, sha256: sha(bgm) }] },
+      system: { path: join(d.root, "System"), manifestSha256: "C".repeat(64), files: [{ relPath: "Font\\SCDream4.otf", bytes: font.length, sha256: sha(font) }] },
     },
   };
   const whitelist = new AssetWhitelist(rows);
   const gw = await startGateway({ config: { host: "127.0.0.1", port: 0, lanProfile: null }, whitelist, lock, buildId: "test-build", derivedDir: derived });
   cleanups.push(() => gw.close());
-  return { gw, whitelist, data: { poring, gat, bgm }, lock };
+  return { gw, whitelist, data: { poring, gat, bgm, font }, lock };
 }
 
 function rawGet(url: string, headers: Record<string, string>, method = "GET"): Promise<number> {
@@ -83,7 +91,7 @@ describe("asset gateway + HttpAssetGatewayClient (synthetic GRF)", () => {
     const { gw, whitelist, lock } = await fixture();
     const client = new HttpAssetGatewayClient({ baseUrl: gw.url, whitelist });
     const h = await client.health();
-    expect(h).toEqual({ ok: true, mode: "fan-local", buildId: "test-build", sourceHashes: { "data.grf": lock.sources["data.grf"].sha256, "rdata.grf": lock.sources["rdata.grf"].sha256, bgm: "B".repeat(64) }, fixture: true });
+    expect(h).toEqual({ ok: true, mode: "fan-local", buildId: "test-build", sourceHashes: { "data.grf": lock.sources["data.grf"].sha256, "rdata.grf": lock.sources["rdata.grf"].sha256, bgm: "B".repeat(64), system: "C".repeat(64) }, fixture: true });
   });
 
   it("serves whitelisted entries by raw CP949 hex with source hash headers", async () => {
@@ -94,6 +102,16 @@ describe("asset gateway + HttpAssetGatewayClient (synthetic GRF)", () => {
     expect(new Uint8Array(await client.getBinary("bgm.prt_fild08"))).toEqual(data.bgm);
     await expect(client.getJson("monster.1002.spr")).resolves.toEqual({ frames: 3 });
     await expect(client.resolvePath("monster.1002.spr")).resolves.toBe("fan-local://data.grf/x");
+  });
+
+  it("filesystem:System serves only fonts pinned in the verified lock (exact allowlist)", async () => {
+    const { gw, whitelist, data } = await fixture();
+    const client = new HttpAssetGatewayClient({ baseUrl: gw.url, whitelist });
+    expect(new Uint8Array(await client.getBinary("ui.font.scdream4"))).toEqual(data.font);
+    await expect(client.checkSource("ui.font.scdream4")).resolves.toBeUndefined();
+    await expect(client.getBinary("ui.font.unpinned")).rejects.toMatchObject({ code: "http-404" });
+    expect(await rawGet(`${gw.url}/v1/assets/${encodeURIComponent("System\\Font\\unpinned.otf")}`, {})).toBe(404);
+    expect(await rawGet(`${gw.url}/System/Font/SCDream4.otf`, {})).toBe(404);
   });
 
   it("refuses size and SHA-256 mismatches against the whitelist", async () => {

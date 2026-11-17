@@ -18,7 +18,7 @@ export interface AssetRead {
   /** Hash of the container the bytes came from (GRF SHA-256 or BGM manifest SHA-256). */
   sourceSha256: string;
   entrySha256: string;
-  container: "data.grf" | "rdata.grf" | "bgm";
+  container: "data.grf" | "rdata.grf" | "bgm" | "system";
   entry: GrfEntry | null;
 }
 
@@ -38,7 +38,12 @@ export function createAssetReader(lock: SourceLockLocal, options: { maxAssetByte
   }
   const archives: Partial<Record<"data.grf" | "rdata.grf", GrfArchive>> = {};
   const archive = (id: "data.grf" | "rdata.grf"): GrfArchive => (archives[id] ??= openGrf(lock.sources[id].path));
-  const sourceHashes = { "data.grf": lock.sources["data.grf"].sha256, "rdata.grf": lock.sources["rdata.grf"].sha256, bgm: lock.sources.bgm.manifestSha256 };
+  const sourceHashes = {
+    "data.grf": lock.sources["data.grf"].sha256,
+    "rdata.grf": lock.sources["rdata.grf"].sha256,
+    bgm: lock.sources.bgm.manifestSha256,
+    system: lock.sources.system.manifestSha256,
+  };
 
   return {
     sourceHashes,
@@ -57,6 +62,18 @@ export function createAssetReader(lock: SourceLockLocal, options: { maxAssetByte
         if (bytes.length !== row.bytes) throw new AssetReadError(409, `${row.asset_id} is ${bytes.length} bytes, whitelist says ${row.bytes}`);
         if (row.sha256 !== "" && entrySha256 !== row.sha256.toUpperCase()) throw new AssetReadError(409, `${row.asset_id} SHA-256 differs from the whitelist`);
         return { bytes, sourceSha256: sourceHashes.bgm, entrySha256, container: "bgm", entry: null };
+      }
+      if (row.source_container === "filesystem:System") {
+        // Exact allowlist: the whitelist path minus "System\" must be a file pinned in the verified lock.
+        const m = /^system\\(.+)$/iu.exec(row.canonical_cp949_path);
+        const file = m ? lock.sources.system.files.find((f) => f.relPath.toLowerCase() === (m[1] ?? "").toLowerCase()) : undefined;
+        if (!file) throw new AssetReadError(404, `${row.asset_id} is not a pinned System file in the verified lock`);
+        const bytes = readFileSync(join(lock.sources.system.path, ...file.relPath.split("\\")));
+        const entrySha256 = sha(bytes);
+        if (entrySha256 !== file.sha256) throw new AssetReadError(409, `${row.asset_id} changed since assets:verify-sources`);
+        if (bytes.length !== row.bytes) throw new AssetReadError(409, `${row.asset_id} is ${bytes.length} bytes, whitelist says ${row.bytes}`);
+        if (row.sha256 !== "" && entrySha256 !== row.sha256.toUpperCase()) throw new AssetReadError(409, `${row.asset_id} SHA-256 differs from the whitelist`);
+        return { bytes, sourceSha256: sourceHashes.system, entrySha256, container: "system", entry: null };
       }
       const id = row.rdata_override === "true" ? "rdata.grf" : "data.grf";
       const entry = archive(id).byRawHex.get(row.raw_name_hex);

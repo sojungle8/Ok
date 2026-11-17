@@ -27,6 +27,7 @@
     "gateway": "node apps/asset-gateway/src/main.ts",
     "assets:audit-whitelist": "node tools/assets/audit-whitelist.ts",
     "assets:extract": "node tools/assets/extract.ts",
+    "assets:ui-manifest": "node tools/assets/ui-manifest.ts",
     "dev:fan-local": "node tools/dev/fan-local.ts",
     "assets:synthetic-demo": "node tools/assets/synthetic-demo.ts",
     "slice:acceptance": "node tools/slice/acceptance.ts"

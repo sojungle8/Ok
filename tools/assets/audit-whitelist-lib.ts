@@ -1,4 +1,4 @@
-import type { WhitelistRow } from "@ro-survivor/content-schema";
+import { isFilesystemContainer, type WhitelistRow } from "@ro-survivor/content-schema";
 import type { AssetReader } from "@ro-survivor/asset-gateway";
 import { parseAct, parseGat, parseGnd, parsePalette, parseRsw, parseSpr } from "@ro-survivor/ro-format-runtime";
 
@@ -8,7 +8,7 @@ export interface AuditRow {
   checks: string[];
 }
 
-const MAGIC: Record<string, string> = { spr: "SP", act: "AC", gat: "GRAT", gnd: "GRGN", rsw: "GRSW", rsm: "GRSM", bmp: "BM", wav: "RIFF" };
+const MAGIC: Record<string, string> = { spr: "SP", act: "AC", gat: "GRAT", gnd: "GRGN", rsw: "GRSW", rsm: "GRSM", bmp: "BM", wav: "RIFF", otf: "OTTO" };
 
 /**
  * Audit every whitelist row against the verified sources: raw-hex lookup, bytes, SHA-256 when
@@ -27,7 +27,7 @@ export function auditWhitelist(rows: readonly WhitelistRow[], reader: AssetReade
       const { bytes, entrySha256, container } = reader.read(row);
       checks.push(`PASS lookup ${container} raw-hex, ${bytes.length} bytes`);
       if (row.sha256 !== "") checks.push(`PASS sha256 ${entrySha256.slice(0, 16)}…`);
-      if (row.source_container !== "filesystem:BGM" && row.rdata_override === "false" && reader.hasRdataOverride(row)) fail("rdata.grf has an undeclared same-name override");
+      if (!isFilesystemContainer(row.source_container) && row.rdata_override === "false" && reader.hasRdataOverride(row)) fail("rdata.grf has an undeclared same-name override");
       const ext = row.canonical_cp949_path.split(".").pop()?.toLowerCase() ?? "";
       const magic = MAGIC[ext];
       if (magic) {

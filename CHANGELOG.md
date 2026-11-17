@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — Phase 1 original assets and RO UI (2026-11-17)
+
+- Commit A (`983913f`): canonical v2 whitelist (174 rows), map dependency closure contract, formal loader stops at
+  the pending GND/RSM/water/shadow/audio renderer instead of substituting anything.
+- UI-A: canonical v3 whitelist (282 rows = v2 + 108 RO UI rows), exact `filesystem:System` font allowlist, UI asset
+  manifest schema + local generator, reference profile `KRO2021_CLASSIC_V0_FAN` (DISCOVERED), reference metrics
+  (DEFERRED_LOCAL), profile compatibility tests, core UI asset gate in the formal loader (D-028…D-030).
+
 ## Unreleased — Phase 2 vertical slice (2026-11-17)
 
 - Seed compiler + integer runtime content (`73a33f9`); run simulation, drafts, bosses, bot, tuning layer (`d4e6687`).

@@ -19,10 +19,11 @@ function referencesFromWhitelist(): MapReferences {
   };
 }
 
-describe("formal scene contract (canonical v2 whitelist)", () => {
-  it("whitelist v2: 174 rows, 173 GRF + 1 BGM, unique paths", () => {
-    expect(list.size).toBe(174);
-    expect(list.rows().filter((r) => r.raw_name_hex !== "")).toHaveLength(173);
+describe("formal scene contract (canonical v3 whitelist)", () => {
+  it("whitelist v3: 282 rows = v2 174 (173 GRF + 1 BGM) + 108 UI (106 GRF + 2 System fonts)", () => {
+    expect(list.size).toBe(282);
+    expect(list.rows().filter((r) => r.raw_name_hex !== "")).toHaveLength(279);
+    expect(list.rows().filter((r) => !r.category.startsWith("ui_"))).toHaveLength(174);
   });
 
   it("formal required set resolves completely: missing = 0", () => {
