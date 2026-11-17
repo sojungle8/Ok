@@ -7,7 +7,8 @@ import { sheetFromDerived, type SheetData, type SpriteSheet } from "./sprites.ts
 
 export interface LoadedAssets {
   player: SpriteSheet;
-  enemy: SpriteSheet;
+  /** Sprite sheet per monster asset ref (e.g. "monster.1002"). */
+  enemies: Record<string, SpriteSheet>;
   ground: GroundData;
   grid: WalkGrid;
   start: { x: number; y: number };
@@ -54,7 +55,11 @@ export async function loadFormalAssets(gateway: HttpAssetGatewayClient, fixtureM
   };
   const playerBody = FORMAL_SCENE.player.layers[0];
   const player = await derived(async () => sheetFromDerived(await gateway.getDerivedImage(`${playerBody}.spr`), await gateway.getJson<SheetData>(`${playerBody}.act`)), [`${playerBody}.spr`, `${playerBody}.act`]);
-  const enemy = await derived(async () => sheetFromDerived(await gateway.getDerivedImage(`${FORMAL_SCENE.enemy}.spr`), await gateway.getJson<SheetData>(`${FORMAL_SCENE.enemy}.act`)), [`${FORMAL_SCENE.enemy}.spr`, `${FORMAL_SCENE.enemy}.act`]);
+  const enemies: Record<string, SpriteSheet> = {};
+  for (const ref of FORMAL_SCENE.enemies) {
+    const sheet = await derived(async () => sheetFromDerived(await gateway.getDerivedImage(`${ref}.spr`), await gateway.getJson<SheetData>(`${ref}.act`)), [`${ref}.spr`, `${ref}.act`]);
+    if (sheet) enemies[ref] = sheet;
+  }
   const map = await derived(() => gateway.getJson<MapMeta>("map.prt_fild08.gat"), ["map.prt_fild08.gat"]);
 
   // 3. Map visuals: every GND texture and RSW model must be available. They are not whitelisted
@@ -66,7 +71,7 @@ export async function loadFormalAssets(gateway: HttpAssetGatewayClient, fixtureM
       ]
     : [];
   if (!fixtureMode) missing.push(...mapDeps);
-  if (missing.length > 0 || !player || !enemy || !map) throw new MissingAssetsError(missing);
+  if (missing.length > 0 || !player || Object.keys(enemies).length !== FORMAL_SCENE.enemies.length || !map) throw new MissingAssetsError(missing);
 
   const walkable = new Uint8Array(map.gat.width * map.gat.height);
   for (let i = 0; i < walkable.length; i += 1) {
@@ -75,7 +80,7 @@ export async function loadFormalAssets(gateway: HttpAssetGatewayClient, fixtureM
   }
   return {
     player,
-    enemy,
+    enemies,
     ground: map.gat,
     grid: { width: map.gat.width, height: map.gat.height, cellMm: 1000, walkable },
     start: { x: map.spawn.x * 1000 + 500, y: map.spawn.y * 1000 + 500 },

@@ -58,5 +58,6 @@ describe("formal screen: only original RO assets, missing ones stop the game", (
     const assets = await loadFormalAssets(gatewayDouble([]), true);
     expect(assets.tolerated).toHaveLength(2);
     expect(assets.player.source).toBe("fan-local");
+    expect(Object.keys(assets.enemies)).toHaveLength(12);
   });
 });

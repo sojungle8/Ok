@@ -33,7 +33,7 @@ void main() {
   #include <colorspace_fragment>
 }`;
 
-class BillboardBatch {
+export class BillboardBatch {
   readonly mesh: THREE.InstancedMesh;
   readonly material: THREE.ShaderMaterial;
   readonly uv: THREE.InstancedBufferAttribute;

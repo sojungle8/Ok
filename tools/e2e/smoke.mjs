@@ -63,6 +63,9 @@ for (const name of ["chromium", "webkit"]) {
       let ok = title === "RO Survivor Fan Game" && profile === "fan-local" && /\+[0-9a-f]{12}\.\d{8}$|^ci-/.test(buildId);
       const detail = {};
       if (expect === "blocked") {
+        await page.getByTestId("start").click({ timeout: 15_000 });
+        await page.getByTestId("job-swordsman").click();
+        await page.getByTestId("stage-prt_fild08").click();
         await page.getByTestId("blocked").waitFor({ timeout: 15_000 });
         detail.reason = (await page.getByTestId("blocked-reason").innerText()).trim();
         detail.worldCanvas = await page.getByTestId("world").count();

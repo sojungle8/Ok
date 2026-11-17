@@ -14,7 +14,10 @@
     "@ro-survivor/asset-contracts": "workspace:*",
     "preact": "10.29.8",
     "@ro-survivor/core-sim": "workspace:*",
-    "three": "0.186.1"
+    "three": "0.186.1",
+    "@ro-survivor/content-schema": "workspace:*",
+    "@ro-survivor/input": "workspace:*",
+    "@ro-survivor/persistence": "workspace:*"
   },
   "devDependencies": {
     "@preact/preset-vite": "2.10.6",

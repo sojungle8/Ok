@@ -1,7 +1,8 @@
 // Phase 1 browser evidence, all automated:
 //   A. formal build, no gateway             -> blocked screen (no world canvas)
 //   B. formal build + synthetic gateway     -> fixture refused, blocked
-//   C. test-fixture build + synthetic gateway -> runs with TEST FIXTURE banner; input checks; GAT overlay
+//   C. test-fixture build + synthetic gateway -> game flow (tools/e2e/flow.mjs): autoplay to results +
+//      settlement, drafts by key / touch / gamepad, keyboard movement
 //   D. bench on the test-fixture build
 // Synthetic fixtures are only ever served to the separate test build in apps/client/dist-test.
 import { spawn, execFileSync } from "node:child_process";
@@ -38,10 +39,10 @@ try {
   run("pnpm", ["--filter", "@ro-survivor/client", "exec", "vite", "build", "--outDir", "dist-formal-gw"], { VITE_ASSET_GATEWAY_URL: gwUrl, VITE_ALLOW_SYNTHETIC: "" });
   const b = capture(["tools/e2e/smoke.mjs"], { SMOKE_DIST: "apps/client/dist-formal-gw", SMOKE_EXPECT: "blocked", SMOKE_TAG: "-B-formal-refuses-fixture", SMOKE_REASON: "synthetic fixture" });
   run("pnpm", ["--filter", "@ro-survivor/client", "exec", "vite", "build", "--outDir", "dist-test"], { VITE_ASSET_GATEWAY_URL: gwUrl, VITE_ALLOW_SYNTHETIC: "1" });
-  const c = capture(["tools/e2e/smoke.mjs"], { SMOKE_DIST: "apps/client/dist-test", SMOKE_EXPECT: "running", SMOKE_TAG: "-C-test-fixture", SMOKE_DEBUG_OVERLAY: "1" });
+  const c = capture(["tools/e2e/flow.mjs"], { FLOW_DIST: "apps/client/dist-test" });
   const d = process.env.SKIP_BENCH ? { code: 0, out: "skipped" } : capture(["tools/e2e/bench.mjs"], { BENCH_DIST: "apps/client/dist-test" });
   Object.assign(summary, { A: a, B: b, C: c, D: { code: d.code } });
-  for (const [k, v] of Object.entries({ A: a, B: b, C: c })) writeFileSync(join(root, `reports/phase1/smoke-${k}.json`), v.out.slice(v.out.indexOf("[")));
+  for (const [k, v] of Object.entries({ A: a, B: b })) writeFileSync(join(root, `reports/phase1/smoke-${k}.json`), v.out.slice(v.out.indexOf("[")));
 } finally {
   gw.kill();
 }

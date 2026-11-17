@@ -7,7 +7,8 @@ import type { AssetWhitelist } from "@ro-survivor/asset-contracts";
  */
 export const FORMAL_SCENE = {
   player: { layers: ["player.swordsman.male.body", "player.hair01.male", "player.swordsman.male.sword", "player.swordsman.male.guard"], palettes: ["palette.body.swordsman.male", "palette.hair01.male"] },
-  enemy: "monster.1002",
+  /** Every monster sprite the vertical-slice stage can spawn (normal, elite, Vocal, Mastering). */
+  enemies: ["monster.1002", "monster.1113", "monster.1007", "monster.1063", "monster.1011", "monster.1010", "monster.1052", "monster.1020", "monster.1167", "monster.1031", "monster.1088", "monster.1090"],
   map: ["map.prt_fild08.rsw", "map.prt_fild08.gnd", "map.prt_fild08.gat"],
 } as const;
 
@@ -43,8 +44,7 @@ export function formalSourceIds(): string[] {
   return [
     ...FORMAL_SCENE.player.layers.flatMap((l) => [`${l}.spr`, `${l}.act`]),
     ...FORMAL_SCENE.player.palettes,
-    `${FORMAL_SCENE.enemy}.spr`,
-    `${FORMAL_SCENE.enemy}.act`,
+    ...FORMAL_SCENE.enemies.flatMap((m) => [`${m}.spr`, `${m}.act`]),
     ...FORMAL_SCENE.map,
   ];
 }

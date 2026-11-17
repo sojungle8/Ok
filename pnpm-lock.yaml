@@ -75,9 +75,18 @@ importers:
       '@ro-survivor/asset-contracts':
         specifier: workspace:*
         version: link:../../packages/asset-contracts
+      '@ro-survivor/content-schema':
+        specifier: workspace:*
+        version: link:../../packages/content-schema
       '@ro-survivor/core-sim':
         specifier: workspace:*
         version: link:../../packages/core-sim
+      '@ro-survivor/input':
+        specifier: workspace:*
+        version: link:../../packages/input
+      '@ro-survivor/persistence':
+        specifier: workspace:*
+        version: link:../../packages/persistence
       preact:
         specifier: 10.29.8
         version: 10.29.8

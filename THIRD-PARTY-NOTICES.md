@@ -57,6 +57,7 @@ Development only (not shipped):
 | globals | 17.14.0 | MIT |
 | @types/node | 24.19.2 | MIT |
 | @types/three | 0.186.0 | MIT |
+| fake-indexeddb | 6.2.7 | Apache-2.0 (tests only) |
 
 ## RO material
 
