@@ -6,3 +6,4 @@ export * from "./whitelist.ts";
 export * from "./gateway.ts";
 export * from "./placeholder.ts";
 export * from "./buildProfile.ts";
+export * from "./http.ts";

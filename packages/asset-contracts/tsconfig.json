@@ -4,7 +4,8 @@
     "types": [],
     "lib": [
       "ES2023",
-      "DOM"
+      "DOM",
+      "DOM.Iterable"
     ]
   },
   "include": [

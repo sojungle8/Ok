@@ -19,7 +19,8 @@ export function parseGatewayConfig(env: Record<string, string | undefined>): Gat
   const portText = (env.RO_ASSET_GATEWAY_PORT ?? "4178").trim();
   if (!/^\d+$/u.test(portText)) throw new Error("RO_ASSET_GATEWAY_PORT must be an integer");
   const port = Number(portText);
-  if (port < 1024 || port > 65535) throw new Error("RO_ASSET_GATEWAY_PORT must be in 1024..65535");
+  // 0 = ephemeral port (tests only); otherwise an unprivileged port.
+  if (port !== 0 && (port < 1024 || port > 65535)) throw new Error("RO_ASSET_GATEWAY_PORT must be in 1024..65535");
   const cidr = env.RO_ASSET_GATEWAY_LAN_CIDR?.trim() ?? "";
   if (!isLoopbackHost(host)) {
     if (host === "0.0.0.0" || host === "::") throw new Error("binding to all interfaces is never allowed");

@@ -42,7 +42,21 @@ importers:
         specifier: 5.1.0
         version: 5.1.0(@types/node@24.19.2)(vite@8.3.8(@types/node@24.19.2))
 
-  apps/asset-gateway: {}
+  apps/asset-gateway:
+    dependencies:
+      '@ro-survivor/asset-contracts':
+        specifier: workspace:*
+        version: link:../../packages/asset-contracts
+      '@ro-survivor/content-schema':
+        specifier: workspace:*
+        version: link:../../packages/content-schema
+      '@ro-survivor/ro-format-runtime':
+        specifier: workspace:*
+        version: link:../../packages/ro-format-runtime
+    devDependencies:
+      '@ro-survivor/testkit':
+        specifier: workspace:*
+        version: link:../../packages/testkit
 
   apps/client:
     dependencies:

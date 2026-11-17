@@ -23,7 +23,8 @@
     "e2e:smoke": "node tools/e2e/smoke.mjs",
     "dev": "pnpm --filter @ro-survivor/client dev",
     "ci:local": "pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm rights:check && pnpm assets:test-synthetic && pnpm assets:validate-handoff",
-    "maint:cp949-generate": "node tools/cp949/generate.ts"
+    "maint:cp949-generate": "node tools/cp949/generate.ts",
+    "gateway": "node apps/asset-gateway/src/main.ts"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
