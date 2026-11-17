@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import type { WhitelistRow } from "@ro-survivor/content-schema";
 import {
   actionIndex, composeFrame, floodReachable, isWalkable, mapDependencies, MONSTER_ACTIONS, parseAct, parseGat, parseGnd, parseRsw, parseSpr, PLAYER_ACTIONS,
@@ -324,10 +324,12 @@ export function spriteGroups(rows: readonly WhitelistRow[]): { id: string; kind:
   return out;
 }
 
+/** Write `name` (a "/"-separated path relative to `dir`) and return its manifest entry. */
 export function writeOutput(dir: string, name: string, bytes: Uint8Array | string): { file: string; sha256: string; bytes: number } {
-  mkdirSync(dir, { recursive: true });
+  const target = join(dir, ...name.split("/"));
+  mkdirSync(dirname(target), { recursive: true });
   const data = typeof bytes === "string" ? Buffer.from(bytes) : bytes;
-  writeFileSync(join(dir, name), data);
+  writeFileSync(target, data);
   return { file: name, sha256: sha(data), bytes: data.length };
 }
 

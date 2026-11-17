@@ -32,6 +32,8 @@ describe("BMP (synthetic)", () => {
     expect(() => parseBmp(patch(ok, 0, [0x42, 0x41]))).toThrow(/bad magic/u);
     expect(() => parseBmp(truncate(ok, 5))).toThrow(/truncated pixel data/u);
     expect(() => parseBmp(patch(ok, 28, [16, 0]))).toThrow(/unsupported 16 bits/u);
+    // 32-bit is rejected until a verified BGRA/BGRX alpha policy exists (no silently dropped 4th byte).
+    expect(() => parseBmp(patch(ok, 28, [32, 0]))).toThrow(/unsupported 32 bits per pixel \(supported: 8, 24\)/u);
     expect(() => parseBmp(patch(ok, 30, [1, 0, 0, 0]))).toThrow(/unsupported compression 1/u);
     expect(() => parseBmp(ok.subarray(0, 20))).toThrow(FormatError);
   });
@@ -72,7 +74,6 @@ describe("GRSM (synthetic)", () => {
     expect(m.nodes[0]?.faces[0]).toEqual({ vertices: [0, 1, 2], tvertices: [0, 1, 2], texture: 1, twoSide: false, smoothGroup: 0 });
     expect(m.nodes[0]?.rotKeyframes).toHaveLength(1);
     expect(m.volumeBoxes).toHaveLength(1);
-    expect(m.trailingBytes).toBe(0);
   });
 
   it("parses 1.1 (no colour / smooth group) and 1.5 (per-node position keys)", () => {
@@ -91,6 +92,62 @@ describe("GRSM (synthetic)", () => {
     expect(() => parseRsm(badVert)).toThrow(/vertex index outside 1/u);
     const orphan = writeRsm({ textures: [], nodes: [{ name: "a", textures: [], vertices: [], tvertices: [], faces: [] }, { name: "b", parent: "ghost", textures: [], vertices: [], tvertices: [], faces: [] }] });
     expect(() => parseRsm(orphan)).toThrow(/unknown parent "ghost"/u);
+  });
+});
+
+/**
+ * Golden legacy GRSM bytes assembled field by field here, independently of the testkit writer:
+ * one node (rotation keys only), then model-level position keys (frame + x/y/z + data, 20 bytes
+ * each) and volume boxes after all nodes.
+ */
+function goldenRsm(minor: number, extra: number[] = []): Uint8Array {
+  const out: number[] = [];
+  const dv = new DataView(new ArrayBuffer(4));
+  const i32 = (v: number) => { dv.setInt32(0, v, true); out.push(...new Uint8Array(dv.buffer)); };
+  const u32 = (v: number) => { dv.setUint32(0, v, true); out.push(...new Uint8Array(dv.buffer)); };
+  const f32 = (v: number) => { dv.setFloat32(0, v, true); out.push(...new Uint8Array(dv.buffer)); };
+  const u16 = (v: number) => out.push(v & 0xff, (v >> 8) & 0xff);
+  const str = (t: string, n: number) => { const b = [...t].map((c) => c.charCodeAt(0)); out.push(...b, ...new Array<number>(n - b.length).fill(0)); };
+  out.push(0x47, 0x52, 0x53, 0x4d, 1, minor);
+  i32(12); i32(2); out.push(77); out.push(...new Array<number>(16).fill(0)); // animLen, shadeType, alpha, reserved
+  i32(1); str("g\\leaf.bmp", 40);
+  str("main", 40); i32(1);
+  str("main", 40); str("", 40); i32(1); i32(0);
+  for (const m of [1, 0, 0, 0, 1, 0, 0, 0, 1]) f32(m);
+  for (const x of [0.5, 0, 0, 10, -5, 20, 0.25, 0, 1, 0, 2, 2, 2]) f32(x); // offset, position, rotAngle, rotAxis, scale
+  i32(3); for (const x of [0, 0, 0, 1, 0, 0, 0, 1, 0]) f32(x);
+  i32(3); for (const [u, v] of [[0, 0], [1, 0], [0, 1]]) { u32(0xff336699); f32(u as number); f32(v as number); }
+  i32(1); u16(0); u16(1); u16(2); u16(0); u16(1); u16(2); u16(0); u16(0); i32(1); i32(3);
+  i32(1); i32(5); f32(0); f32(0.5); f32(0); f32(0.75); // one rotation key
+  i32(2); // model-level position keys
+  i32(7); f32(1.5); f32(-2.25); f32(3); f32(42.5);
+  i32(9); f32(-1); f32(0); f32(8); f32(-0.125);
+  i32(1); for (const x of [4, 5, 6, 1, 2, 3, 0, 90, 0]) f32(x); i32(1); // one volume box + flag
+  out.push(...extra);
+  return Uint8Array.from(out);
+}
+
+describe("GRSM legacy golden fixture (independent bytes)", () => {
+  it("1.4: node without position keys; model-level keys keep the data field; volume box after", () => {
+    const m = parseRsm(goldenRsm(4));
+    expect([m.version, m.animLength, m.shadeType, m.alpha]).toEqual(["1.4", 12, 2, 77]);
+    expect(m.nodes[0]).toMatchObject({ name: "main", position: [10, -5, 20], scale: [2, 2, 2], rotKeyframes: [{ frame: 5, quaternion: [0, 0.5, 0, 0.75] }] });
+    expect(m.nodes[0]).not.toHaveProperty("posKeyframes");
+    expect(m.nodes[0]?.tvertices[0]).toEqual({ color: 0xff336699, u: 0, v: 0 });
+    expect(m.nodes[0]?.faces[0]).toEqual({ vertices: [0, 1, 2], tvertices: [0, 1, 2], texture: 0, twoSide: true, smoothGroup: 3 });
+    expect(m.posKeyframes).toEqual([{ frame: 7, position: [1.5, -2.25, 3], data: 42.5 }, { frame: 9, position: [-1, 0, 8], data: -0.125 }]);
+    expect(m.volumeBoxes).toEqual([{ size: [4, 5, 6], position: [1, 2, 3], rotation: [0, 90, 0], flag: 1 }]);
+  });
+
+  it("1.5 regression: same legacy layout (no per-node position keys)", () => {
+    const m = parseRsm(goldenRsm(5));
+    expect(m.version).toBe("1.5");
+    expect(m.posKeyframes.map((k) => k.data)).toEqual([42.5, -0.125]);
+    expect(m.volumeBoxes).toHaveLength(1);
+  });
+
+  it("bytes after the volume boxes are a FormatError, not a warning", () => {
+    expect(() => parseRsm(goldenRsm(4, [0, 0, 0, 0]))).toThrow(/4 trailing bytes after the volume boxes/u);
   });
 });
 

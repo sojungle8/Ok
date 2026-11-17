@@ -12,6 +12,14 @@
   lightmap atlas, model JSON, placements, water frames by ID, the official shadow with ACT alpha kept, and audio by ID.
   Fails closed on any missing or malformed dependency. Formal renderer still pending
   (`reports/phase1/COMMIT-B-DERIVED-CONTRACT.md`).
+- Commit B fixes for Codex CHANGES_REQUIRED F-1…F-5:
+  - legacy GRSM keyframe layout (model-level position keys with data; no per-node keys; trailing bytes rejected),
+    with a golden fixture;
+  - transactional extraction (staging + atomic swap; a failed re-run leaves no manifest);
+  - the gateway serves derived files only through a valid manifest;
+  - structured failures for RSW/GND/GAT;
+  - complete provenance for composite outputs;
+  - 32-bit BMP rejected.
 
 ## Unreleased — Phase 2 vertical slice (2026-11-17)
 

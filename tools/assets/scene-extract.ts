@@ -12,7 +12,6 @@ import {
   frameToRgba, parseAct, parseBmp, parseGnd, parseRsm, parseRsw, parseSpr, readJpegInfo, readWavInfo, RO_COLOR_KEY_RULE, type Gnd, type Rsm, type Rsw,
 } from "@ro-survivor/ro-format-runtime";
 import { DERIVED_MARKER, encodePng } from "../lib/png.ts";
-import { join } from "node:path";
 import { CONVERTER_VERSION, writeOutput } from "./extract-lib.ts";
 
 export const SCENE_MAP = "map.prt_fild08";
@@ -97,10 +96,12 @@ export function lightmapAtlas(gnd: Gnd): { width: number; height: number; cols: 
   return { width, height, cols, rgba };
 }
 
-export function extractScene(rows: readonly WhitelistRow[], reader: AssetReader, outDir: string): { outputs: Output[]; summary: SceneSummary; closureIds: string[] } {
+export function extractScene(rows: readonly WhitelistRow[], reader: AssetReader, outDir: string): { outputs: Output[]; summary: SceneSummary; closureIds: string[]; inputs: Output["from"] } {
   const list = new AssetWhitelist(rows);
   const missing: SceneMissing[] = [];
   const outputs: Output[] = [];
+  /** Every verified input read in this step, by asset ID (provenance of composite outputs). */
+  const inputs = new Map<string, Output["from"][number]>();
   const miss = (assetId: string | null, canonicalPath: string, reason: string, container = "data.grf"): void => {
     missing.push({ assetId, container, canonicalPath, reason });
   };
@@ -112,7 +113,9 @@ export function extractScene(rows: readonly WhitelistRow[], reader: AssetReader,
     const row = list.get(id);
     try {
       const r = reader.read(row);
-      return { bytes: r.bytes, from: { assetId: id, entrySha256: r.entrySha256, rawHex: row.raw_name_hex } };
+      const from = { assetId: id, entrySha256: r.entrySha256, rawHex: row.raw_name_hex };
+      inputs.set(id, from);
+      return { bytes: r.bytes, from };
     } catch (err) {
       miss(id, row.canonical_cp949_path, `source unreadable: ${err instanceof Error ? err.message : String(err)}`, row.source_container);
       return null;
@@ -235,10 +238,7 @@ export function extractScene(rows: readonly WhitelistRow[], reader: AssetReader,
     }
   }
 
-  if (missing.length > 0) {
-    writeOutput(join(outDir, "reports"), "prt_fild08-scene-missing.json", JSON.stringify({ rights: DERIVED_MARKER, missing }, null, 2));
-    throw new SceneExtractionError(missing);
-  }
+  if (missing.length > 0) throw new SceneExtractionError(missing);
 
   // Ground: GND 1.7 texture table, tile UVs, surface colours, cube heights / tile links, lightmap atlas.
   const lm = lightmapAtlas(gnd);
@@ -262,7 +262,7 @@ export function extractScene(rows: readonly WhitelistRow[], reader: AssetReader,
     const json = {
       rights: DERIVED_MARKER, assetId: id, converterVersion: CONVERTER_VERSION, version: rsm.version, animLength: rsm.animLength, shadeType: rsm.shadeType, alpha: rsm.alpha,
       textures: rsm.textures.map((name) => ({ name, assetId: textureId("texture", name) })), mainNode: rsm.mainNode, nodes: rsm.nodes, posKeyframes: rsm.posKeyframes,
-      volumeBoxes: rsm.volumeBoxes, trailingBytes: rsm.trailingBytes,
+      volumeBoxes: rsm.volumeBoxes,
     };
     outputs.push({ ...writeOutput(outDir, `${id}.json`, JSON.stringify(json)), from: [from] });
   }
@@ -285,12 +285,13 @@ export function extractScene(rows: readonly WhitelistRow[], reader: AssetReader,
     textures,
     audio,
   };
-  const sceneFrom = [rswSrc.from, gndSrc.from];
+  // The scene JSON is decided by every input of this step: core map, RSMs, textures, water, shadow, audio.
+  const sceneFrom = [...inputs.values()].sort((a, b) => (a.assetId < b.assetId ? -1 : 1));
   outputs.push({ ...writeOutput(outDir, `${SCENE_MAP}.rsw.json`, JSON.stringify(scene)), from: sceneFrom });
   const summary: SceneSummary = {
     rswVersion: rsw.version, gndVersion: gnd.version, groundTextures: new Set(gnd.textures).size, lightmaps: gnd.lightmap.count, surfaces: gnd.surfaces.length,
     uniqueModels: models.size, placements: rsw.models.length, modelTextures: modelTextures.length, waterType: rsw.waterType, waterFrames: waterIds.length, waterCells,
     ambientSounds: audio.filter((a) => a.format === "wav").length, shadowLayerAlpha: shadowAlpha,
   };
-  return { outputs, summary, closureIds: closure.ids };
+  return { outputs, summary, closureIds: closure.ids, inputs: sceneFrom };
 }

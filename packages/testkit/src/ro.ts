@@ -311,10 +311,9 @@ export function writeRsm(opts: { textures: Uint8Array[]; nodes: SyntheticRsmNode
       w.u16(f.v[0]).u16(f.v[1]).u16(f.v[2]).u16(f.t[0]).u16(f.t[1]).u16(f.t[2]).u16(f.texture).u16(0).i32(0);
       if (v >= 102) w.i32(0);
     }
-    if (v >= 105) w.i32(0);
-    w.i32(1).i32(0).f32(0).f32(0).f32(0).f32(1);
+    w.i32(1).i32(0).f32(0).f32(0).f32(0).f32(1); // node: rotation keys only (legacy 1.x)
   }
-  if (v < 105) w.i32(0);
+  w.i32(0); // model-level position keys (legacy < 1.6), none
   w.i32(1).f32(1).f32(1).f32(1).f32(0).f32(0).f32(0).f32(0).f32(0).f32(0);
   if (v >= 103) w.i32(0);
   return w.done();

@@ -1,9 +1,8 @@
-import { existsSync, readFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
-import { resolve, sep } from "node:path";
 import { AssetWhitelist, UnknownAssetError } from "@ro-survivor/asset-contracts";
 import type { SourceLockLocal } from "@ro-survivor/content-schema";
 import { AssetReadError, createAssetReader } from "./reader.ts";
+import { createDerivedStore, DerivedUnavailableError } from "./derived.ts";
 import { isLoopbackHost, type GatewayConfig } from "./config.ts";
 
 export interface GatewayServerOptions {
@@ -46,6 +45,7 @@ export function createGateway(options: GatewayServerOptions): { handler: (req: I
   const { lock, whitelist, config } = options;
   const reader = createAssetReader(lock, options.maxAssetBytes === undefined ? {} : { maxAssetBytes: options.maxAssetBytes });
   const sourceHashes = reader.sourceHashes;
+  const derived = options.derivedDir ? createDerivedStore(options.derivedDir, sourceHashes) : null;
 
   const handler = (req: IncomingMessage, res: ServerResponse): void => {
     try {
@@ -90,11 +90,8 @@ export function createGateway(options: GatewayServerOptions): { handler: (req: I
       const d = DERIVED_ROUTE.exec(path);
       if (d) {
         whitelist.get(d[1] as string);
-        if (!options.derivedDir) throw new HttpError(404, "no derived assets; run pnpm assets:extract --profile fan-local");
-        const root = resolve(options.derivedDir);
-        const file = resolve(root, `${d[1] as string}.${d[2] as string}`);
-        if (!file.startsWith(root + sep) || !existsSync(file)) throw new HttpError(404, `derived ${d[1] as string}.${d[2] as string} not found`);
-        const bytes = readFileSync(file);
+        if (!derived) throw new HttpError(404, "no derived assets; run pnpm assets:extract --profile fan-local");
+        const bytes = derived.read(`${d[1] as string}.${d[2] as string}`);
         res.writeHead(200, { "content-type": d[2] === "png" ? "image/png" : "application/json; charset=utf-8", "content-length": bytes.length, "cache-control": "no-store" });
         res.end(req.method === "HEAD" ? undefined : bytes);
         return;
@@ -102,7 +99,7 @@ export function createGateway(options: GatewayServerOptions): { handler: (req: I
       throw new HttpError(404, "not found");
     } catch (err) {
       if (err instanceof UnknownAssetError) json(res, 404, { error: "unknown-asset", message: err.message });
-      else if (err instanceof HttpError || err instanceof AssetReadError) json(res, err.status, { error: `http-${err.status}`, message: err.message });
+      else if (err instanceof HttpError || err instanceof AssetReadError || err instanceof DerivedUnavailableError) json(res, err.status, { error: `http-${err.status}`, message: err.message });
       else json(res, 500, { error: "internal", message: err instanceof Error ? err.message : String(err) });
     }
   };

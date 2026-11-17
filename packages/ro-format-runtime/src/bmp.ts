@@ -7,16 +7,17 @@ const isKey = (r: number, g: number, b: number): boolean => r >= 254 && g <= 1 &
 export interface Bmp {
   width: number;
   height: number;
-  bitsPerPixel: 8 | 24 | 32;
+  bitsPerPixel: 8 | 24;
   /** RGBA, top-to-bottom rows; colour-keyed pixels have alpha 0 (RGB kept as stored). */
   rgba: Uint8Array;
   keyedPixels: number;
 }
 
 /**
- * Uncompressed Windows BMP (BITMAPINFOHEADER or later), 8-bit paletted, 24-bit or 32-bit.
+ * Uncompressed Windows BMP (BITMAPINFOHEADER or later), 8-bit paletted or 24-bit.
  * Lossless: every source pixel maps to exactly one RGBA pixel; only the alpha of colour-keyed
- * pixels changes. RLE / bitfield / other depths are rejected explicitly.
+ * pixels changes. 32-bit (whose 4th byte would need a verified BGRA/BGRX policy), RLE, bitfield
+ * and other depths are rejected explicitly instead of silently dropping data.
  */
 export function parseBmp(bytes: Uint8Array): Bmp {
   const r = new BinaryReader(bytes, "BMP");
@@ -33,7 +34,7 @@ export function parseBmp(bytes: Uint8Array): Bmp {
   r.skip(12);
   const colorsUsed = r.u32();
   if (planes !== 1) throw new FormatError("BMP", `bad plane count ${planes}`);
-  if (bpp !== 8 && bpp !== 24 && bpp !== 32) throw new FormatError("BMP", `unsupported ${bpp} bits per pixel`);
+  if (bpp !== 8 && bpp !== 24) throw new FormatError("BMP", `unsupported ${bpp} bits per pixel (supported: 8, 24)`);
   if (compression !== 0) throw new FormatError("BMP", `unsupported compression ${compression}`);
   const height = Math.abs(rawHeight);
   if (width <= 0 || height <= 0 || width > 8192 || height > 8192) throw new FormatError("BMP", `bad size ${width}x${rawHeight}`);

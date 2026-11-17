@@ -7,7 +7,9 @@ import type { WhitelistRow } from "@ro-survivor/content-schema";
 import { parseBmp } from "@ro-survivor/ro-format-runtime";
 import { createTempDir } from "@ro-survivor/testkit";
 import { decodeOwnPng } from "../lib/png.ts";
-import { runExtraction } from "./extract-run.ts";
+import { HttpAssetGatewayClient } from "@ro-survivor/asset-contracts";
+import { startGateway } from "@ro-survivor/asset-gateway";
+import { extractCommand, MANIFEST_FILE, MISSING_REPORT, runExtraction, type ExtractManifest } from "./extract-run.ts";
 import { extractScene, SceneExtractionError } from "./scene-extract.ts";
 import { buildSyntheticSources } from "./synthetic-sources.ts";
 
@@ -24,8 +26,9 @@ function setup(mutate?: (rows: WhitelistRow[]) => WhitelistRow[]) {
   const src = buildSyntheticSources(join(d.root, "src"), realRows);
   const reader = createAssetReader(src.lock);
   cleanups.push(() => reader.close());
-  return { rows: mutate ? mutate(src.rows) : src.rows, reader, out: join(d.root, "derived") };
+  return { rows: mutate ? mutate(src.rows) : src.rows, reader, out: join(d.root, "derived"), lock: src.lock, root: d.root, cleanRows: src.rows };
 }
+const row = (rows: readonly WhitelistRow[], id: string) => rows.find((r) => r.asset_id === id) as WhitelistRow;
 const sceneError = (fn: () => unknown): SceneExtractionError => {
   try {
     fn();
@@ -93,7 +96,6 @@ describe("Commit B scene extraction (synthetic structural fixture — not RO evi
     const err = sceneError(() => extractScene(rows, reader, out));
     expect(err.missing).toEqual([expect.objectContaining({ assetId: null, container: "data.grf", canonicalPath: target.canonical_cp949_path })]);
     expect(existsSync(join(out, "map.prt_fild08.rsw.json"))).toBe(false);
-    expect(existsSync(join(out, "reports", "prt_fild08-scene-missing.json"))).toBe(true);
   });
 
   it("an unreadable or malformed dependency is reported by logical ID + path; runExtraction writes no manifest", () => {
@@ -112,5 +114,67 @@ describe("Commit B scene extraction (synthetic structural fixture — not RO evi
       [null, "data\\texture\\워터\\water131.jpg"],
       ["common.shadow.act", "(not in whitelist)"],
     ]);
+  });
+
+  it("transactional re-run: success, then a corrupted dependency in the same outDir leaves no ready manifest and the gateway serves nothing", async () => {
+    const { cleanRows, reader, out, lock, root } = setup();
+    runExtraction(cleanRows, reader, out);
+    expect(existsSync(join(out, MANIFEST_FILE))).toBe(true);
+    const gw = await startGateway({ config: { host: "127.0.0.1", port: 0, lanProfile: null }, whitelist: new AssetWhitelist(cleanRows), lock, buildId: "t", derivedDir: out });
+    cleanups.push(() => void gw.close());
+    const client = new HttpAssetGatewayClient({ baseUrl: gw.url, whitelist: new AssetWhitelist(cleanRows) });
+    await expect(client.getJson("map.prt_fild08.rsw")).resolves.toMatchObject({ assetId: "map.prt_fild08.rsw" });
+
+    const broken = cleanRows.map((r) => (r.asset_id === "map.prt_fild08.model.003" ? { ...r, sha256: "0".repeat(64) } : r));
+    const err = sceneError(() => runExtraction(broken, reader, out));
+    expect(err.missing.map((m) => m.assetId)).toEqual(["map.prt_fild08.model.003"]);
+    expect(existsSync(join(out, MANIFEST_FILE))).toBe(false);
+    expect(existsSync(join(out, MISSING_REPORT))).toBe(true);
+    expect(readdirSync(root).filter((f) => f.includes(".staging-") || f.includes(".old-"))).toEqual([]);
+    // Files from the earlier successful run are still on disk, but nothing is served without a ready manifest.
+    expect(existsSync(join(out, "map.prt_fild08.rsw.json"))).toBe(true);
+    await expect(client.getJson("map.prt_fild08.rsw")).rejects.toMatchObject({ code: "http-404" });
+
+    // A clean re-run publishes again (atomic swap; no staging left behind).
+    runExtraction(cleanRows, reader, out);
+    await expect(client.getJson("map.prt_fild08.rsw")).resolves.toMatchObject({ assetId: "map.prt_fild08.rsw" });
+    expect(readdirSync(root).filter((f) => f.includes(".staging-") || f.includes(".old-"))).toEqual([]);
+  });
+
+  it.each([
+    ["map.prt_fild08.rsw", "source unreadable", (rows: WhitelistRow[]) => rows.map((r) => (r.asset_id === "map.prt_fild08.rsw" ? { ...r, bytes: r.bytes + 1 } : r))],
+    ["map.prt_fild08.gnd", "malformed", (rows: WhitelistRow[]) => {
+      const gat = row(rows, "map.prt_fild08.gat"); // GND row pointed at the GAT entry: readable, wrong format
+      return rows.map((r) => (r.asset_id === "map.prt_fild08.gnd" ? { ...r, raw_name_hex: gat.raw_name_hex, bytes: gat.bytes, sha256: gat.sha256 } : r));
+    }],
+    ["map.prt_fild08.gat", "not whitelisted", (rows: WhitelistRow[]) => rows.filter((r) => r.asset_id !== "map.prt_fild08.gat")],
+  ] as const)("core map %s failure is structured (%s): exact ID / container / path, exit 1, no ready manifest", (id, reason, mutate) => {
+    const { rows, reader, out } = setup((r) => mutate(r));
+    const lines: string[] = [];
+    const res = extractCommand(rows, reader, out, (l) => lines.push(l));
+    expect(res.code).toBe(1);
+    const expected = realRows.find((r) => r.asset_id === id) as WhitelistRow;
+    const missing = res.code === 1 ? res.missing : [];
+    expect(missing).toEqual([expect.objectContaining({ assetId: id, container: "data.grf", canonicalPath: id === "map.prt_fild08.gat" ? "(not in whitelist)" : expected.canonical_cp949_path, reason: expect.stringContaining(reason) as unknown })]);
+    expect(lines[0]).toMatch(new RegExp(`^MISSING ${id.replaceAll(".", "\\.")} data\\.grf `, "u"));
+    expect(existsSync(join(out, MANIFEST_FILE))).toBe(false);
+    expect(existsSync(join(out, MISSING_REPORT))).toBe(true);
+  });
+
+  it("composite outputs carry the provenance of every input that decides their content", () => {
+    const { rows, reader, out } = setup();
+    const m: ExtractManifest = runExtraction(rows, reader, out);
+    const fromOf = (file: string) => new Set(m.outputs.find((o) => o.file === file)?.from.map((f) => f.assetId));
+    const ids = (pred: (r: WhitelistRow) => boolean) => rows.filter(pred).map((r) => r.asset_id);
+    const expected = [
+      "map.prt_fild08.rsw", "map.prt_fild08.gnd", "bgm.prt_fild08", "common.shadow.spr", "common.shadow.act",
+      ...ids((r) => ["map_model", "map_model_texture", "map_ground_texture", "map_water_texture", "map_ambient_sound"].includes(r.category)),
+    ].sort();
+    for (const file of ["map.prt_fild08.rsw.json", "reports/prt_fild08-closure.json"]) expect([...fromOf(file)].sort(), file).toEqual(expected);
+    for (const file of ["reports/prt_fild08-dependencies.json", "reports/prt_fild08-closure.json"]) {
+      const j = JSON.parse(readFileSync(join(out, ...file.split("/")), "utf8")) as { rights: string; converterVersion: number; sources: Record<string, string> };
+      expect([j.rights, j.converterVersion, Object.keys(j.sources).length], file).toEqual(["RO-SURVIVOR-DERIVED:local-fan-use", 2, 4]);
+    }
+    expect([...fromOf("map.prt_fild08.model.001.json")]).toEqual(["map.prt_fild08.model.001"]);
   });
 });

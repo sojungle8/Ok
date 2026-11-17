@@ -25,7 +25,6 @@ export interface RsmNode {
   /** Texture vertices: colour (ARGB u32, 0xFFFFFFFF before 1.2) + u, v. */
   tvertices: { color: number; u: number; v: number }[];
   faces: RsmFace[];
-  posKeyframes: { frame: number; position: [number, number, number] }[];
   rotKeyframes: { frame: number; quaternion: [number, number, number, number] }[];
 }
 
@@ -39,9 +38,9 @@ export interface Rsm {
   textures: string[];
   mainNode: string;
   nodes: RsmNode[];
-  posKeyframes: { frame: number; position: [number, number, number] }[];
+  /** Model-level position keys (legacy < 1.6 layout: frame i32 + x/y/z f32 + data f32, 20 bytes each). */
+  posKeyframes: { frame: number; position: [number, number, number]; data: number }[];
   volumeBoxes: { size: [number, number, number]; position: [number, number, number]; rotation: [number, number, number]; flag: number }[];
-  trailingBytes: number;
 }
 
 const LIMIT = 1_000_000;
@@ -115,30 +114,29 @@ export function parseRsm(bytes: Uint8Array): Rsm {
       if (texture >= ntc) throw new FormatError("RSM", `node ${name} face ${i}: texture ${texture} outside node's ${ntc}`);
       faces.push({ vertices: vi, tvertices: ti, texture, twoSide, smoothGroup });
     }
-    const posKeyframes: RsmNode["posKeyframes"] = [];
-    if (v >= 105) {
-      const pk = count(r, "position keyframe");
-      for (let i = 0; i < pk; i += 1) posKeyframes.push({ frame: r.i32(), position: v3(r) });
-    }
+    // Legacy 1.x nodes carry rotation keys only; per-node position keys belong to the RSM2 layout.
     const rotKeyframes: RsmNode["rotKeyframes"] = [];
     const rk = count(r, "rotation keyframe");
     for (let i = 0; i < rk; i += 1) rotKeyframes.push({ frame: r.i32(), quaternion: [r.f32(), r.f32(), r.f32(), r.f32()] });
-    nodes.push({ name, parent, textures: nodeTextures, matrix, offset, position, rotAngle, rotAxis, scale, vertices, tvertices, faces, posKeyframes, rotKeyframes });
+    nodes.push({ name, parent, textures: nodeTextures, matrix, offset, position, rotAngle, rotAxis, scale, vertices, tvertices, faces, rotKeyframes });
   }
   if (!nodes.some((n) => n.name === mainNode)) throw new FormatError("RSM", `main node ${JSON.stringify(mainNode)} not found`);
   const names = new Set(nodes.map((n) => n.name));
   for (const n of nodes) {
     if (n.name !== mainNode && n.parent !== "" && !names.has(n.parent)) throw new FormatError("RSM", `node ${n.name}: unknown parent ${JSON.stringify(n.parent)}`);
   }
+  // After all nodes (every legacy version < 1.6): model-level position keys, then volume boxes.
+  // A file may end exactly at a section boundary; any bytes left after the volume boxes are an error.
   const posKeyframes: Rsm["posKeyframes"] = [];
-  if (v < 105 && r.remaining > 0) {
+  if (r.remaining > 0) {
     const pk = count(r, "model position keyframe");
-    for (let i = 0; i < pk; i += 1) posKeyframes.push({ frame: r.i32(), position: v3(r) });
+    for (let i = 0; i < pk; i += 1) posKeyframes.push({ frame: r.i32(), position: v3(r), data: r.f32() });
   }
   const volumeBoxes: Rsm["volumeBoxes"] = [];
   if (r.remaining > 0) {
     const vb = count(r, "volume box", 4096);
     for (let i = 0; i < vb; i += 1) volumeBoxes.push({ size: v3(r), position: v3(r), rotation: v3(r), flag: v >= 103 ? r.i32() : 0 });
   }
-  return { version, animLength, shadeType, alpha, textures, mainNode, nodes, posKeyframes, volumeBoxes, trailingBytes: r.remaining };
+  if (r.remaining !== 0) throw new FormatError("RSM", `${r.remaining} trailing bytes after the volume boxes`);
+  return { version, animLength, shadeType, alpha, textures, mainNode, nodes, posKeyframes, volumeBoxes };
 }
