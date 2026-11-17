@@ -72,10 +72,16 @@ or the HUD. A static-graph test checks this, and e2e check E confirms the marker
 - **Verified rasters**:
   - The public module (`apps/client/src/ui/ro/raster.ts`) exposes only read-only handles, a read-only
     `RasterRegistry` and `isVerifiedRaster`. It exports no issuer, no constructible set and no `issue()`.
-  - Handles are minted only by `game/formal/rasterMint.ts`, called only from `game/formal/ui.ts` (static call-site test):
-    - after every UI-B1 check;
-    - as one transaction: a failure revokes every URL created so far exactly once, and no partial set is returned;
-    - only for canonical registry IDs whose entry matches the ID and native size.
+  - Handles are minted only by `game/formal/rasterMint.ts`, called only from `game/formal/ui.ts`. A static guard
+    over every file in `apps/client/src` enforces this. The production loader takes no URL factory: URLs are always
+    Blob URLs of the verified bytes.
+  - The mint checks each item: canonical registry ID, entry ID, native size, PNG signature, and the SHA-256 of the
+    bytes against the declared hash.
+  - It works in two phases:
+    - all validation and frozen metadata copies are done before any URL exists;
+    - a URL failure then revokes every created URL best-effort and rethrows the original error with
+      `cleanupErrors`.
+  - No partial set is returned.
   - Each handle keeps an independent, recursively frozen copy of its UI-A entry.
   - `dispose()` revokes the URL once; double dispose is safe.
   - A disposed, unknown or missing handle raises `MissingAssetsError` with the canonical container and path. Every
@@ -91,8 +97,13 @@ or the HUD. A static-graph test checks this, and e2e check E confirms the marker
   | `RoSlot` | A slot/frame raster plus an optional icon raster. The hotkey and count are DOM text only. |
 
 - **Formal visual static guard** (`apps/client/test/visual-guard.ts`):
-  - Scope: the primitive dependency graph only, including relative CSS imports and CSS `@import`.
-  - Non-relative runtime imports must be on a minimal allowlist: preact and the repository's own contract packages.
+  - Scope: the primitive dependency graph only, including relative CSS imports and CSS `@import`. Imports resolve
+    exact, then `.ts`, `.tsx`, `.css`, `.module.css`, then `index.*`; unresolved imports are reported.
+  - Non-relative runtime imports and re-exports must be on a minimal allowlist: preact and the repository's own
+    contract packages.
+  - Non-relative or remote CSS `@import` is rejected.
+  - Literal raster sources (`url("…")`, `<img>`, `src=`, `new Image()`) are rejected. The only accepted source is a
+    verified handle's object URL.
   - It rejects:
     - gradients, border-radius, shadows, CSS border surfaces, pseudo-elements;
     - CSS colour fills, filter/opacity state synthesis;

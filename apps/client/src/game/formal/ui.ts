@@ -13,7 +13,7 @@ import {
   type DerivedCursorAct, type DerivedCursorSpr, type DerivedUiBitmap, type UiManifestEntry, type WhitelistRow,
 } from "@ro-survivor/content-schema";
 import { MissingAssetsError, missingWhitelisted, type MissingAsset } from "../requirements.ts";
-import { browserRasterUrls, type RasterRegistry, type RasterUrlFactory } from "../../ui/ro/raster.ts";
+import type { RasterRegistry } from "../../ui/ro/raster.ts";
 import { mintRasterSet } from "./rasterMint.ts";
 import { FORMAL_CONVERTER_VERSION, type FormalDecoders, type ImageLike } from "./load.ts";
 
@@ -57,7 +57,6 @@ export async function loadFormalUiAssets(
   decoders: FormalDecoders,
   whitelist: AssetWhitelist,
   expected: UiExpectedIdentity,
-  options: { rasterUrls?: RasterUrlFactory } = {},
 ): Promise<FormalUiAssets> {
   // 1. Contract identity, before any UI asset is requested.
   if (expected.profileId !== UI_PROFILE_ID) throw contractError("profileId", `UI profile ${expected.profileId} is not accepted (only ${UI_PROFILE_ID})`);
@@ -101,6 +100,7 @@ export async function loadFormalUiAssets(
   let atlasImage: ImageLike | null = null;
   /** Verified PNG bytes, held until every check has passed; only then are handles issued. */
   const pngBytes = new Map<string, Uint8Array>();
+  const derivedSha = new Map<string, string>();
 
   const checkHeader = (row: WhitelistRow, h: { converterVersion: number; profileId: string; lockId: string; whitelistSha256: string; entrySetSha256: string; entry: UiManifestEntry }): UiManifestEntry => {
     if (h.converterVersion !== id.converterVersion) throw new Error(`converterVersion ${h.converterVersion} != manifest ${id.converterVersion}`);
@@ -121,6 +121,7 @@ export async function loadFormalUiAssets(
   const loadPng = async (assetId: string, meta: DerivedUiBitmap): Promise<ImageLike> => {
     const bytes = await gateway.getDerivedImage(assetId);
     pngBytes.set(assetId, bytes);
+    derivedSha.set(assetId, meta.derived.sha256);
     const got = await sha256Upper(bytes);
     if (got !== meta.derived.sha256.toUpperCase()) throw new Error(`derived PNG SHA-256 ${got} != declared ${meta.derived.sha256}`);
     const img = await decoders.image(bytes, "image/png");
@@ -218,8 +219,10 @@ export async function loadFormalUiAssets(
     const bytes = pngBytes.get(assetId);
     const entry = entries.get(assetId);
     if (!bytes || !entry) throw new MissingAssetsError([missingWhitelisted(whitelist, assetId, "verified bytes / entry missing at handle issue")]);
-    return { assetId, bytes, width: img.width, height: img.height, entry };
+    const sha256 = derivedSha.get(assetId);
+    if (!sha256) throw new MissingAssetsError([missingWhitelisted(whitelist, assetId, "declared PNG SHA-256 missing at handle issue")]);
+    return { assetId, bytes, sha256, width: img.width, height: img.height, entry };
   });
-  const rasters = mintRasterSet(items, options.rasterUrls ?? browserRasterUrls);
+  const rasters = await mintRasterSet(items);
   return { profileId: UI_PROFILE_ID, lockId: id.lockId, entries, images, cursor: { atlas: s, act: a }, fonts, rasters };
 }

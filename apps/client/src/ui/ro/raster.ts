@@ -30,17 +30,6 @@ export interface RasterRegistry {
   dispose(): void;
 }
 
-/** Creates / revokes the browser URL for verified PNG bytes (injectable for tests). */
-export interface RasterUrlFactory {
-  create(bytes: Uint8Array): string;
-  revoke(url: string): void;
-}
-
-export const browserRasterUrls: RasterUrlFactory = {
-  create: (bytes) => URL.createObjectURL(new Blob([bytes as Uint8Array<ArrayBuffer>], { type: "image/png" })),
-  revoke: (url) => URL.revokeObjectURL(url),
-};
-
 /** True only for live-or-disposed handles minted by the UI loader (not look-alike objects). */
 export function isVerifiedRaster(x: unknown): x is VerifiedRaster {
   return isMintedRaster(x);

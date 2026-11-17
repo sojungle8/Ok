@@ -53,6 +53,13 @@
   - disposed handles are rejected;
   - the guard scans CSS and allowlists runtime imports;
   - `RoButton` states must belong to one control family.
+- UI-B2 fixes B2-R1…R3:
+  - no URL-factory injection in the production loader;
+  - the mint verifies the PNG bytes and their SHA-256;
+  - a full-tree mint call-site guard;
+  - two-phase minting with best-effort rollback;
+  - the guard resolves extensions and `index` files, checks re-exports, rejects remote CSS imports and literal raster
+    sources.
 
 ## Unreleased — Phase 2 vertical slice (2026-11-17)
 

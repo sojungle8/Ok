@@ -1,26 +1,38 @@
 /**
- * UI-B2 — loader-only mint for verified raster handles. Production code may call `mintRasterSet` only
- * from `game/formal/ui.ts` (enforced by a static call-site test). The public primitive API
- * (`ui/ro/raster.ts`) exposes read-only handles and `isVerifiedRaster`, never an issuer.
+ * UI-B2 — loader-only mint for verified raster handles. Production code may import / call
+ * `mintRasterSet` only from `game/formal/ui.ts` (static guard over all of apps/client/src). The public
+ * primitive API (`ui/ro/raster.ts`) exposes read-only handles and `isVerifiedRaster`, never an issuer.
+ * URLs are always created here from the verified bytes with the browser's Blob URLs — callers cannot
+ * inject a URL factory.
  */
 import { UI_REGISTRY } from "@ro-survivor/asset-contracts";
 import type { UiManifestEntry } from "@ro-survivor/content-schema";
-import { missingRaster as missing, type RasterRegistry, type RasterUrlFactory, type VerifiedRaster } from "../../ui/ro/raster.ts";
+import { missingRaster as missing, type RasterRegistry, type VerifiedRaster } from "../../ui/ro/raster.ts";
 
 const minted = new WeakSet<object>();
 const canonicalIds = new Set(UI_REGISTRY.map((e) => e[0]));
+const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 
 /** Brand check used by `isVerifiedRaster` (no minting capability). */
 export function isMintedRaster(x: unknown): boolean {
   return typeof x === "object" && x !== null && minted.has(x);
 }
 
+/** Trusted, fixed URL source: a Blob URL of the verified PNG bytes. */
+const createUrl = (bytes: Uint8Array): string => URL.createObjectURL(new Blob([bytes as Uint8Array<ArrayBuffer>], { type: "image/png" }));
+const revokeUrl = (url: string): void => URL.revokeObjectURL(url);
+
 function deepFreeze<T>(v: T): T {
-  if (v && typeof v === "object") {
-    for (const k of Object.keys(v)) deepFreeze((v as Record<string, unknown>)[k]);
+  if (v && typeof v === "object" && !Object.isFrozen(v)) {
     Object.freeze(v);
+    for (const k of Object.keys(v)) deepFreeze((v as Record<string, unknown>)[k]);
   }
   return v;
+}
+
+async function sha256Upper(bytes: Uint8Array): Promise<string> {
+  const d = await crypto.subtle.digest("SHA-256", bytes as Uint8Array<ArrayBuffer>);
+  return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, "0")).join("").toUpperCase();
 }
 
 class Handle implements VerifiedRaster {
@@ -29,16 +41,14 @@ class Handle implements VerifiedRaster {
   readonly height: number;
   readonly entry: Readonly<UiManifestEntry>;
   #url: string | null;
-  readonly #urls: RasterUrlFactory;
 
-  constructor(assetId: string, width: number, height: number, entry: UiManifestEntry, url: string, urls: RasterUrlFactory) {
+  /** `entry` is already an independent frozen copy; the constructor cannot fail. */
+  constructor(assetId: string, width: number, height: number, entry: Readonly<UiManifestEntry>, url: string) {
     this.assetId = assetId;
     this.width = width;
     this.height = height;
-    // Independent, recursively frozen copy: neither consumers nor the loader can change it afterwards.
-    this.entry = deepFreeze(structuredClone(entry));
+    this.entry = entry;
     this.#url = url;
-    this.#urls = urls;
     Object.freeze(this);
   }
 
@@ -55,36 +65,67 @@ class Handle implements VerifiedRaster {
     if (this.#url === null) return;
     const u = this.#url;
     this.#url = null;
-    this.#urls.revoke(u);
+    revokeUrl(u);
   }
 }
 
 export interface MintItem {
   assetId: string;
   bytes: Uint8Array;
+  /** SHA-256 the per-asset JSON declared for these PNG bytes. */
+  sha256: string;
   width: number;
   height: number;
   entry: UiManifestEntry;
 }
 
+/** Revoke every URL best-effort; returns the errors instead of stopping at the first one. */
+function revokeAll(urls: readonly string[]): unknown[] {
+  const errors: unknown[] = [];
+  for (const u of urls) {
+    try {
+      revokeUrl(u);
+    } catch (err) {
+      errors.push(err);
+    }
+  }
+  return errors;
+}
+
 /**
- * Issue every handle as one transaction: any validation or URL-creation failure revokes every URL
- * created so far exactly once and rethrows; a partial set is never returned.
+ * Issue every handle as one transaction:
+ * 1. validate every item (canonical ID, entry ID, size, PNG signature, SHA-256 of the bytes) and make
+ *    its independent frozen metadata — no URL exists yet, so a failure here leaks nothing;
+ * 2. create the URLs; if any creation fails, every URL already created is revoked best-effort (each
+ *    exactly once, continuing past revoke errors) and the original error is rethrown with
+ *    `cleanupErrors` attached. A partial registry is never returned.
  */
-export function mintRasterSet(items: readonly MintItem[], urls: RasterUrlFactory): RasterRegistry {
+export async function mintRasterSet(items: readonly MintItem[]): Promise<RasterRegistry> {
+  const prepared: { it: MintItem; entry: Readonly<UiManifestEntry> }[] = [];
+  const seen = new Set<string>();
+  for (const it of items) {
+    if (!canonicalIds.has(it.assetId)) throw new Error(`${it.assetId} is not in the canonical UI registry`);
+    if (it.entry.logical_asset_id !== it.assetId) throw new Error(`entry is for ${it.entry.logical_asset_id}, not ${it.assetId}`);
+    if (seen.has(it.assetId)) throw new Error(`raster ${it.assetId} issued twice`);
+    seen.add(it.assetId);
+    if (!Number.isInteger(it.width) || !Number.isInteger(it.height) || it.width < 1 || it.height < 1) throw new Error(`${it.assetId}: bad size ${it.width}x${it.height}`);
+    if (it.entry.format === "bmp" && (it.width !== it.entry.native_width || it.height !== it.entry.native_height)) throw new Error(`${it.assetId}: ${it.width}x${it.height} != native ${it.entry.native_width ?? "?"}x${it.entry.native_height ?? "?"}`);
+    if (!PNG_SIGNATURE.every((b, i) => it.bytes[i] === b)) throw new Error(`${it.assetId}: bytes are not a PNG`);
+    const got = await sha256Upper(it.bytes);
+    if (got !== it.sha256.toUpperCase()) throw new Error(`${it.assetId}: PNG SHA-256 ${got} != declared ${it.sha256}`);
+    prepared.push({ it, entry: deepFreeze(structuredClone(it.entry)) });
+  }
+  const created: string[] = [];
   const handles = new Map<string, Handle>();
   try {
-    for (const it of items) {
-      if (!canonicalIds.has(it.assetId)) throw new Error(`${it.assetId} is not in the canonical UI registry`);
-      if (it.entry.logical_asset_id !== it.assetId) throw new Error(`entry is for ${it.entry.logical_asset_id}, not ${it.assetId}`);
-      if (handles.has(it.assetId)) throw new Error(`raster ${it.assetId} issued twice`);
-      if (!Number.isInteger(it.width) || !Number.isInteger(it.height) || it.width < 1 || it.height < 1) throw new Error(`${it.assetId}: bad size ${it.width}x${it.height}`);
-      if (it.entry.format === "bmp" && (it.width !== it.entry.native_width || it.height !== it.entry.native_height)) throw new Error(`${it.assetId}: ${it.width}x${it.height} != native ${it.entry.native_width ?? "?"}x${it.entry.native_height ?? "?"}`);
-      const h = new Handle(it.assetId, it.width, it.height, it.entry, urls.create(it.bytes), urls);
-      handles.set(it.assetId, h);
+    for (const { it, entry } of prepared) {
+      const url = createUrl(it.bytes);
+      created.push(url);
+      handles.set(it.assetId, new Handle(it.assetId, it.width, it.height, entry, url));
     }
   } catch (err) {
-    for (const h of handles.values()) h.dispose();
+    const cleanupErrors = revokeAll(created);
+    if (err && typeof err === "object") Object.assign(err, { cleanupErrors });
     throw err;
   }
   for (const h of handles.values()) minted.add(h);
@@ -101,10 +142,17 @@ export function mintRasterSet(items: readonly MintItem[], urls: RasterUrlFactory
       return disposed;
     },
     dispose() {
-      for (const h of handles.values()) h.dispose();
       disposed = true;
+      const errors: unknown[] = [];
+      for (const h of handles.values()) {
+        try {
+          h.dispose();
+        } catch (err) {
+          errors.push(err);
+        }
+      }
+      if (errors.length > 0) throw new AggregateError(errors, "some raster URLs could not be revoked");
     },
   };
   return Object.freeze(registry);
 }
-
