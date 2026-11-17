@@ -10,7 +10,8 @@ export type FindingCode =
   | "ro-magic"
   | "audio-magic"
   | "large-unknown-binary"
-  | "history-baseline";
+  | "history-baseline"
+  | "derived-marker";
 
 export interface Finding {
   where: "index" | "untracked" | "worktree" | "history" | "dist";
@@ -83,8 +84,22 @@ export function isBinary(bytes: Uint8Array): boolean {
   return false;
 }
 
+// Built from parts so this source file does not itself contain the marker.
+const DERIVED_MARKER_BYTES = Array.from(["RO-SURVIVOR-DERIVED", "local-fan-use"].join(":"), (c) => c.charCodeAt(0));
+
+function containsMarker(bytes: Uint8Array): boolean {
+  const m = DERIVED_MARKER_BYTES;
+  outer: for (let i = 0; i + m.length <= bytes.length; i += 1) {
+    if (bytes[i] !== m[0]) continue;
+    for (let k = 1; k < m.length; k += 1) if (bytes[i + k] !== m[k]) continue outer;
+    return true;
+  }
+  return false;
+}
+
 /** Detect RO formats and raw audio by magic, so renamed files are still caught. */
 export function checkContent(bytes: Uint8Array): { code: FindingCode; detail: string } | null {
+  if (containsMarker(bytes.subarray(0, 4096))) return { code: "derived-marker", detail: "fan-local derived output (atlas / metadata / contact sheet)" };
   if (startsWith(bytes, "Master of Magic")) return { code: "ro-magic", detail: "GRF archive magic" };
   for (const m of ["GRSW", "GRGN", "GRAT", "GRSM", "GRSG", "STRM"]) {
     if (startsWith(bytes, m)) return { code: "ro-magic", detail: `${m} magic` };

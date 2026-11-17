@@ -24,13 +24,18 @@
     "dev": "pnpm --filter @ro-survivor/client dev",
     "ci:local": "pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm rights:check && pnpm assets:test-synthetic && pnpm assets:validate-handoff",
     "maint:cp949-generate": "node tools/cp949/generate.ts",
-    "gateway": "node apps/asset-gateway/src/main.ts"
+    "gateway": "node apps/asset-gateway/src/main.ts",
+    "assets:audit-whitelist": "node tools/assets/audit-whitelist.ts",
+    "assets:extract": "node tools/assets/extract.ts",
+    "dev:fan-local": "node tools/dev/fan-local.ts"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
     "@ro-survivor/asset-contracts": "workspace:*",
+    "@ro-survivor/asset-gateway": "workspace:*",
     "@ro-survivor/content-schema": "workspace:*",
     "@ro-survivor/core-sim": "workspace:*",
+    "@ro-survivor/ro-format-runtime": "workspace:*",
     "@ro-survivor/testkit": "workspace:*",
     "@types/node": "24.19.2",
     "eslint": "10.15.0",

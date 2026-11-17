@@ -14,12 +14,18 @@ importers:
       '@ro-survivor/asset-contracts':
         specifier: workspace:*
         version: link:packages/asset-contracts
+      '@ro-survivor/asset-gateway':
+        specifier: workspace:*
+        version: link:apps/asset-gateway
       '@ro-survivor/content-schema':
         specifier: workspace:*
         version: link:packages/content-schema
       '@ro-survivor/core-sim':
         specifier: workspace:*
         version: link:packages/core-sim
+      '@ro-survivor/ro-format-runtime':
+        specifier: workspace:*
+        version: link:packages/ro-format-runtime
       '@ro-survivor/testkit':
         specifier: workspace:*
         version: link:packages/testkit
