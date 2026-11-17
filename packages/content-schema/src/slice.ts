@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type {
-  BossAttackDef, Geometry, KeystoneDef, MonsterDef, MonsterRole, PassiveDef, RunContent, SkillDef, SkillTrigger, TimelineEntry,
+  BossAttackDef, Geometry, ItemDef, KeystoneDef, MonsterDef, MonsterRole, PassiveDef, RunContent, SkillDef, SkillTrigger, TimelineEntry,
 } from "@ro-survivor/core-sim";
 
 /**
@@ -85,6 +85,52 @@ export const sliceSeedSchema = z.object({
   }).passthrough(),
 }).passthrough();
 export type SliceSeed = z.infer<typeof sliceSeedSchema>;
+
+/**
+ * Balance tuning layered on top of the seed (the seed file itself is never edited). Every entry is a
+ * hypothesis with a reason; reports/vertical-slice-acceptance.md records the measured effect.
+ */
+export const SLICE_TUNING = {
+  /** T-01: sustain. Without regen the seed's chip damage killed every bot build by 4:50. */
+  levelUpHealPermille: 150,
+  /** T-02: keystone drafts at these run levels (the Vocal reward adds one more offer). */
+  keystoneOfferLevels: [6, 12],
+  /** T-03: contact damage per enemy at most once per second (seed gives per-touch damage only). */
+  contactIntervalTicks: 60,
+  /** T-04: 0.2 s grace after any contact hit so a swarm cannot stack every frame. */
+  contactGraceTicks: 12,
+  /** T-05: Poporing's identity is the poison pool; it was also the top contact-damage killer in every losing run. */
+  monsterOverrides: { "monster.poporing": { hp: 75, contactDamage: 7 } } as Record<string, { hp?: number; contactDamage?: number }>,
+  /**
+   * T-06 / T-07: the weapon keystone (two-handed) cleaves (+3 basic-slash targets) and hits harder
+   * (×1.2 on every target; the seed's ×1.25 applies to elites only). Without them the build won 0–1/10 seeds.
+   */
+  keystoneOverrides: { "keystone.weapon": { basicHitLimitBonus: 3, allDamagePermille: 1200 } } as Record<string, { basicHitLimitBonus?: number; allDamagePermille?: number }>,
+} as const;
+
+/**
+ * Ten fixed test items (Phase 2.7). Original test data — not RO item stats. `nameKey`s are
+ * localisation keys; no item art is involved.
+ */
+export const TEST_EQUIPMENT: ItemDef[] = [
+  { id: "equip.test.sword", slot: "weapon", nameKey: "equip.test.sword", damagePermille: 150, maxHp: 0, armorPermille: 0, movePermille: 0, regenPerSecond: 0, pickupPermille: 0 },
+  // T-08: same HP budget as sword + guard; the two-hander trades the guard's armor for damage.
+  { id: "equip.test.two_hand", slot: "weapon", nameKey: "equip.test.two_hand", damagePermille: 250, maxHp: 2000, armorPermille: 0, movePermille: 0, regenPerSecond: 0, pickupPermille: 0 },
+  { id: "equip.test.guard", slot: "shield", nameKey: "equip.test.guard", damagePermille: 0, maxHp: 2000, armorPermille: 60, movePermille: 0, regenPerSecond: 0, pickupPermille: 0 },
+  { id: "equip.test.shirt", slot: "armor", nameKey: "equip.test.shirt", damagePermille: 0, maxHp: 4000, armorPermille: 40, movePermille: 0, regenPerSecond: 0, pickupPermille: 0 },
+  { id: "equip.test.hood", slot: "garment", nameKey: "equip.test.hood", damagePermille: 0, maxHp: 1500, armorPermille: 30, movePermille: 0, regenPerSecond: 0, pickupPermille: 0 },
+  { id: "equip.test.sandals", slot: "shoes", nameKey: "equip.test.sandals", damagePermille: 0, maxHp: 1000, armorPermille: 0, movePermille: 60, regenPerSecond: 0, pickupPermille: 0 },
+  { id: "equip.test.bandana", slot: "headgear", nameKey: "equip.test.bandana", damagePermille: 0, maxHp: 1500, armorPermille: 20, movePermille: 0, regenPerSecond: 0, pickupPermille: 0 },
+  { id: "equip.test.clip", slot: "accessory", nameKey: "equip.test.clip", damagePermille: 0, maxHp: 0, armorPermille: 0, movePermille: 0, regenPerSecond: 60, pickupPermille: 0 },
+  { id: "equip.test.ring", slot: "accessory", nameKey: "equip.test.ring", damagePermille: 80, maxHp: 0, armorPermille: 0, movePermille: 0, regenPerSecond: 0, pickupPermille: 0 },
+  { id: "equip.test.glove", slot: "accessory", nameKey: "equip.test.glove", damagePermille: 0, maxHp: 0, armorPermille: 0, movePermille: 0, regenPerSecond: 0, pickupPermille: 400 },
+];
+export const STANDARD_TEST_LOADOUT = ["equip.test.sword", "equip.test.guard", "equip.test.shirt", "equip.test.hood", "equip.test.sandals", "equip.test.bandana", "equip.test.clip", "equip.test.ring"];
+export const BUILD_TEST_LOADOUTS: Record<string, string[]> = {
+  guardian: STANDARD_TEST_LOADOUT,
+  fury: STANDARD_TEST_LOADOUT,
+  weapon: ["equip.test.two_hand", "equip.test.shirt", "equip.test.hood", "equip.test.sandals", "equip.test.bandana", "equip.test.clip", "equip.test.ring"],
+};
 
 const HZ = 60;
 const ticks = (ms: number): number => Math.round((ms * HZ) / 1000);
@@ -187,6 +233,9 @@ export function compileSliceContent(raw: unknown): RunContent {
     if (num(e, "magnumRadiusMultiplier") !== undefined) out.magnumRadiusPermille = permille(num(e, "magnumRadiusMultiplier") as number);
     if (num(e, "magnumCooldownMultiplier") !== undefined) out.magnumCooldownPermille = permille(num(e, "magnumCooldownMultiplier") as number);
     if (num(e, "bossDamageMultiplier") !== undefined) out.bossDamagePermille = permille(num(e, "bossDamageMultiplier") as number);
+    const ko = SLICE_TUNING.keystoneOverrides[k.id];
+    if (ko?.basicHitLimitBonus) out.basicHitLimitBonus = ko.basicHitLimitBonus;
+    if (ko?.allDamagePermille) out.allDamagePermille = ko.allDamagePermille;
     keystones[k.id] = { id: k.id, effects: out };
   }
 
@@ -196,8 +245,14 @@ export function compileSliceContent(raw: unknown): RunContent {
     cooldownTicks: 600, telegraphTicks: 0, geometry: null, damage: 0, count: 0, spawnId: null, projectileSpeedMmPerTick: 0, safeGapCount: 0,
     hpThresholdsPermille: [], durationTicks: 0, damageReductionPermille: 0, rearArcPermille: 1000, distanceMm: 0, ...a,
   });
-  const base = new Map(seed.monsters.map((m) => [m.runtimeId, m]));
-  for (const m of seed.monsters) {
+  const base = new Map(
+    seed.monsters.map((m) => {
+      const o = SLICE_TUNING.monsterOverrides[m.runtimeId];
+      return [m.runtimeId, o ? { ...m, ...o } : m];
+    }),
+  );
+  for (const raw of seed.monsters) {
+    const m = base.get(raw.runtimeId) ?? raw;
     const src = m.baseRuntimeId ? base.get(m.baseRuntimeId) : m;
     if (!src) throw new Error(`${m.runtimeId}: unknown base ${m.baseRuntimeId ?? ""}`);
     const mul = m.multipliers ?? { hp: 1, damage: 1, size: 1, move: 1, xp: 1 };
@@ -284,6 +339,9 @@ export function compileSliceContent(raw: unknown): RunContent {
     passives,
     keystones,
     monsters,
+    items: Object.fromEntries(TEST_EQUIPMENT.map((i) => [i.id, i])),
+    standardLoadout: [...STANDARD_TEST_LOADOUT],
+    buildLoadouts: Object.fromEntries(Object.entries(BUILD_TEST_LOADOUTS).map(([k, v]) => [k, [...v]])),
     timeline,
     progression: {
       xpToNext,
@@ -293,7 +351,10 @@ export function compileSliceContent(raw: unknown): RunContent {
       xpMergeRadiusMm: mm(seed.progression.xpMergeRadiusMeters),
       pityNewActive: seed.progression.pity.maxLevelsWithoutNewActiveOffer,
       pityDefense: seed.progression.pity.maxLevelsWithoutDefenseOffer,
-      keystoneOfferLevels: [6, 12],
+      keystoneOfferLevels: [...SLICE_TUNING.keystoneOfferLevels],
+      levelUpHealPermille: SLICE_TUNING.levelUpHealPermille,
+      contactIntervalTicks: SLICE_TUNING.contactIntervalTicks,
+      contactGraceTicks: SLICE_TUNING.contactGraceTicks,
     },
     bossSpawnTick,
     enrageTick: seed.rules.bossEnrageTick,

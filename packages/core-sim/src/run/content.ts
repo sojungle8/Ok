@@ -89,6 +89,10 @@ export interface KeystoneDef {
     magnumRadiusPermille?: number;
     magnumCooldownPermille?: number;
     bossDamagePermille?: number;
+    /** Extra targets per basic slash (tuning layer). */
+    basicHitLimitBonus?: number;
+    /** Damage multiplier against every target (tuning layer). */
+    allDamagePermille?: number;
   };
 }
 
@@ -134,6 +138,19 @@ export type TimelineEntry =
   | { kind: "boss-warning"; atTick: number; magnetPermille: number }
   | { kind: "boss-enrage"; atTick: number };
 
+/** Fixed test equipment (Phase 2.7): flat modifiers, no random affixes. */
+export interface ItemDef {
+  id: string;
+  slot: "weapon" | "shield" | "armor" | "garment" | "shoes" | "headgear" | "accessory";
+  nameKey: string;
+  damagePermille: number;
+  maxHp: number;
+  armorPermille: number;
+  movePermille: number;
+  regenPerSecond: number;
+  pickupPermille: number;
+}
+
 export interface RunContent {
   contentVersion: string;
   player: {
@@ -152,6 +169,11 @@ export interface RunContent {
   passives: Record<string, PassiveDef>;
   keystones: Record<string, KeystoneDef>;
   monsters: Record<string, MonsterDef>;
+  items: Record<string, ItemDef>;
+  /** Loadout used by acceptance runs ("standard difficulty with fixed test equipment"). */
+  standardLoadout: string[];
+  /** Per-build fixed loadouts (the weapon build fights with the two-handed test sword). */
+  buildLoadouts: Record<string, string[]>;
   timeline: TimelineEntry[];
   progression: {
     /** xpToNext[level] for level = 1..maxLevel-1. */
@@ -163,6 +185,11 @@ export interface RunContent {
     pityNewActive: number;
     pityDefense: number;
     keystoneOfferLevels: number[];
+    /** Heal on level-up, per-mille of max HP (tuning layer, not in the seed). */
+    levelUpHealPermille: number;
+    /** Ticks between contact hits from the same enemy, and player hit-grace after any contact hit. */
+    contactIntervalTicks: number;
+    contactGraceTicks: number;
   };
   bossSpawnTick: number;
   enrageTick: number;

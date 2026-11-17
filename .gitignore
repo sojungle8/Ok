@@ -47,3 +47,4 @@ playwright-report/
 # Client test builds (synthetic fixtures; never released)
 apps/client/dist-test/
 apps/client/dist-formal-gw/
+.scratch/

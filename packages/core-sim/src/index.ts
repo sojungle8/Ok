@@ -5,3 +5,7 @@ export * from "./loop.ts";
 export * from "./arena.ts";
 export * from "./trig.ts";
 export * from "./run/content.ts";
+export * from "./run/geometry.ts";
+export * from "./run/draft.ts";
+export * from "./run/run.ts";
+export * from "./run/bot.ts";
