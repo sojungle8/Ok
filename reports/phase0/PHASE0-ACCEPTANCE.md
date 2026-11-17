@@ -12,16 +12,18 @@ is **placeholder / synthetic** and is not real-material validation.
 | `pnpm install --frozen-lockfile` (clean `node_modules`) | PASS |
 | `pnpm lint` | PASS (0 problems; rule probe confirmed `Math.random`, floating promise, `require-await` are errors) |
 | `pnpm typecheck` | PASS (6 workspace projects + tools) |
-| `pnpm test` | PASS — 9 files, 54 tests |
+| `pnpm test` | PASS — 11 files, 68 tests (after Issue #2 fixes) |
 | `pnpm build` | PASS — `apps/client/dist` (index.html, 1 CSS, 1 JS ≈125 kB) |
-| `pnpm rights:check` | PASS (index, untracked, whole working tree, Git history, dist) |
+| `pnpm rights:check` | PASS (index, untracked, whole working tree, history `b6d70c2fd527..HEAD` paths + blob bytes, dist) |
 | intentional failure: ignored `test.grf` at repo root → `pnpm rights:check` | FAIL as expected (exit 1); after removal PASS — `reports/phase0/rights-check-demo.txt` |
-| `pnpm assets:test-synthetic` | PASS — 4 files (rights-check, verify-sources, old-trees, whitelist/CP949/placeholder) |
-| `pnpm assets:validate-handoff` | content checks PASS; 4 delivered hashes DRIFT — `reports/phase0/handoff-validation.txt` |
+| `pnpm assets:test-synthetic` | PASS — 6 files, 44 tests (rights-check, verify-sources, old-trees, whitelist/placeholder, CP949 golden, CP949 generator) |
+| `pnpm assets:validate-handoff` | PASS — 21/21 incl. worktree and Git blob hashes, fail-closed — `reports/phase0/handoff-validation.txt` |
 | `node tools/e2e/smoke.mjs` | Chromium desktop + 390 px mobile PASS; WebKit NOT_RUN (not installed) — screenshots in this folder |
 
 Deterministic core: golden final state hash `991c54eee7df3deb` (seed 12345, 3,600 ticks); seed 777
 gives one identical hash at 15, 30 and 60 render FPS with 0 dropped ticks.
+
+GitHub Actions: run #5 <https://github.com/sojungle8/Ok/actions/runs/44010045832> on `a600c32` — success.
 
 ## Gate status
 

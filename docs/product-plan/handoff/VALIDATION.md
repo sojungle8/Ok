@@ -7,7 +7,7 @@
 - JSON 解析：PASS。
 - CSV 解析：PASS。
 - 素材列：48；`asset_id` 48 個且唯一。
-- 每筆 `data.grf` 的 CP949 raw hex → canonical path round trip：48 筆適用列全部 PASS。
+- 每筆 `data.grf` 的 CP949 raw hex → canonical path round trip：47 筆適用列全部 PASS（另 1 筆 `bgm.prt_fild08` 為 filesystem BGM，沒有 raw hex，不適用；2026-11-17 Claude 依 Issue #2 校正）。
 - 每筆 normalized request URI → canonical path round trip：48 筆全部 PASS。
 - 內容 seed：8 skills、4 passives、3 keystones、10 normal、2 elite、1 miniboss、1 MVP。
 - 關卡 timeline 的 entity／pool reference：PASS。
