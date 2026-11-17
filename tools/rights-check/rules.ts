@@ -9,7 +9,8 @@ export type FindingCode =
   | "credentials-file"
   | "ro-magic"
   | "audio-magic"
-  | "large-unknown-binary";
+  | "large-unknown-binary"
+  | "history-baseline";
 
 export interface Finding {
   where: "index" | "untracked" | "worktree" | "history" | "dist";
