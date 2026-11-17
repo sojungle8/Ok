@@ -49,7 +49,12 @@ try {
   const bundleHas = (dir) => readdirSync(join(root, dir, "assets")).some((f) => f.endsWith(".js") && readFileSync(join(root, dir, "assets", f), "utf8").includes(MARKER));
   const sep = { dist: bundleHas("apps/client/dist"), "dist-formal-gw": bundleHas("apps/client/dist-formal-gw"), "dist-test": bundleHas("apps/client/dist-test") };
   console.log(`bundle fixture marker: ${JSON.stringify(sep)}`);
-  const e = { code: !sep.dist && !sep["dist-formal-gw"] && sep["dist-test"] ? 0 : 1 };
+  // The detached RO primitive library (UI-B2) must not be in any shipped bundle yet.
+  const PRIM = "RO-SURVIVOR-DETACHED-RO-PRIMITIVES";
+  const primIn = (dir) => readdirSync(join(root, dir, "assets")).some((f) => f.endsWith(".js") && readFileSync(join(root, dir, "assets", f), "utf8").includes(PRIM));
+  const prim = ["apps/client/dist", "apps/client/dist-formal-gw", "apps/client/dist-test"].filter(primIn);
+  console.log(`bundle RO primitive marker in: ${JSON.stringify(prim)}`);
+  const e = { code: !sep.dist && !sep["dist-formal-gw"] && sep["dist-test"] && prim.length === 0 ? 0 : 1 };
   Object.assign(summary, { A: a, B: b, C: c, D: { code: d.code }, E: e });
   for (const [k, v] of Object.entries({ A: a, B: b })) writeFileSync(join(root, `reports/phase1/smoke-${k}.json`), v.out.slice(v.out.indexOf("[")));
 } finally {

@@ -13,6 +13,7 @@ import {
   type DerivedCursorAct, type DerivedCursorSpr, type DerivedUiBitmap, type UiManifestEntry, type WhitelistRow,
 } from "@ro-survivor/content-schema";
 import { MissingAssetsError, missingWhitelisted, type MissingAsset } from "../requirements.ts";
+import { browserRasterUrls, VerifiedRasterSet, type RasterUrlFactory } from "../../ui/ro/raster.ts";
 import { FORMAL_CONVERTER_VERSION, type FormalDecoders, type ImageLike } from "./load.ts";
 
 export interface UiGatewayLike {
@@ -37,6 +38,8 @@ export interface FormalUiAssets {
   cursor: { atlas: DerivedCursorSpr; act: DerivedCursorAct };
   /** Original font bytes by logical ID (filesystem:System allowlist). */
   fonts: Map<string, ArrayBuffer>;
+  /** UI-B2: lifecycle-owned handles for every verified PNG (issued only after all checks passed). */
+  rasters: VerifiedRasterSet;
 }
 
 const reasonOf = (err: unknown): string => (err instanceof Error ? err.message : String(err));
@@ -48,7 +51,13 @@ async function sha256Upper(bytes: Uint8Array): Promise<string> {
   return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, "0")).join("").toUpperCase();
 }
 
-export async function loadFormalUiAssets(gateway: UiGatewayLike, decoders: FormalDecoders, whitelist: AssetWhitelist, expected: UiExpectedIdentity): Promise<FormalUiAssets> {
+export async function loadFormalUiAssets(
+  gateway: UiGatewayLike,
+  decoders: FormalDecoders,
+  whitelist: AssetWhitelist,
+  expected: UiExpectedIdentity,
+  options: { rasterUrls?: RasterUrlFactory } = {},
+): Promise<FormalUiAssets> {
   // 1. Contract identity, before any UI asset is requested.
   if (expected.profileId !== UI_PROFILE_ID) throw contractError("profileId", `UI profile ${expected.profileId} is not accepted (only ${UI_PROFILE_ID})`);
   if (expected.whitelistSha256.toUpperCase() !== CANONICAL_WHITELIST_SHA256) throw contractError("whitelistSha256", `client whitelist ${expected.whitelistSha256} is not the canonical v3 ${CANONICAL_WHITELIST_SHA256}`);
@@ -89,6 +98,8 @@ export async function loadFormalUiAssets(gateway: UiGatewayLike, decoders: Forma
   let spr: DerivedCursorSpr | null = null;
   let act: DerivedCursorAct | null = null;
   let atlasImage: ImageLike | null = null;
+  /** Verified PNG bytes, held until every check has passed; only then are handles issued. */
+  const pngBytes = new Map<string, Uint8Array>();
 
   const checkHeader = (row: WhitelistRow, h: { converterVersion: number; profileId: string; lockId: string; whitelistSha256: string; entrySetSha256: string; entry: UiManifestEntry }): UiManifestEntry => {
     if (h.converterVersion !== id.converterVersion) throw new Error(`converterVersion ${h.converterVersion} != manifest ${id.converterVersion}`);
@@ -108,6 +119,7 @@ export async function loadFormalUiAssets(gateway: UiGatewayLike, decoders: Forma
   /** Derived PNG: bytes must hash to the JSON's declared SHA-256, decode to the declared size. */
   const loadPng = async (assetId: string, meta: DerivedUiBitmap): Promise<ImageLike> => {
     const bytes = await gateway.getDerivedImage(assetId);
+    pngBytes.set(assetId, bytes);
     const got = await sha256Upper(bytes);
     if (got !== meta.derived.sha256.toUpperCase()) throw new Error(`derived PNG SHA-256 ${got} != declared ${meta.derived.sha256}`);
     const img = await decoders.image(bytes, "image/png");
@@ -200,5 +212,12 @@ export async function loadFormalUiAssets(gateway: UiGatewayLike, decoders: Forma
   if (missing.length > 0 || !s || !a) {
     throw new MissingAssetsError([...new Map(missing.map((m) => [`${m.assetId ?? ""}|${m.reason}`, m])).values()].sort((x, y) => ((x.assetId ?? "") < (y.assetId ?? "") ? -1 : 1)));
   }
-  return { profileId: UI_PROFILE_ID, lockId: id.lockId, entries, images, cursor: { atlas: s, act: a }, fonts };
+  const rasters = new VerifiedRasterSet(options.rasterUrls ?? browserRasterUrls);
+  for (const [assetId, img] of images) {
+    const bytes = pngBytes.get(assetId);
+    const entry = entries.get(assetId);
+    if (!bytes || !entry) throw new MissingAssetsError([missingWhitelisted(whitelist, assetId, "verified bytes / entry missing at handle issue")]);
+    rasters.issue(assetId, bytes, img.width, img.height, entry);
+  }
+  return { profileId: UI_PROFILE_ID, lockId: id.lockId, entries, images, cursor: { atlas: s, act: a }, fonts, rasters };
 }

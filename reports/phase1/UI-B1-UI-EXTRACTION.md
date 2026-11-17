@@ -62,3 +62,36 @@ pnpm assets:verify-sources
 pnpm assets:ui-manifest                    # report only (reports/local/)
 pnpm assets:extract --profile fan-local    # now also publishes the UI outputs in the same transaction
 ```
+
+## UI-B2 — verified raster handles and the detached primitive library
+
+Status: synthetic structural tests only. The library is **not** imported by `main.tsx`, `App.tsx`, the formal scene
+or the HUD. A static-graph test checks this, and e2e check E confirms the marker
+`RO-SURVIVOR-DETACHED-RO-PRIMITIVES` is in no bundle.
+
+- **`VerifiedRasterSet` / `VerifiedRaster`** (`apps/client/src/ui/ro/raster.ts`):
+  - The loader issues one handle per verified PNG, and only after every UI-B1 check has passed.
+  - Each handle is keyed by logical ID and exposes the native size and the exact UI-A entry.
+  - It owns an object URL. `dispose()` revokes the URL once; double dispose is safe.
+  - Primitives accept only issued handles, not look-alike objects, URLs or paths.
+  - An unknown or disposed ID raises `MissingAssetsError` with the canonical registry container and path.
+- **Primitives** (`apps/client/src/ui/ro/primitives.tsx`). Each has a pure `plan*` function and a component.
+
+  | Primitive | Behaviour |
+  | --- | --- |
+  | `RoRaster` | One raster at native size × a positive integer scale, pixelated. |
+  | `RoThreeSlice` | Three distinct declared left/mid/right parts of one group. Caps keep their native size; only the middle repeats. |
+  | `RoButton` | Every declared state must resolve to its own verified raster, otherwise the button blocks. An undeclared state never falls back to another one. |
+  | `RoGauge` | The official empty three-slice, plus the official fill three-slice clipped to the clamped ratio. Gauge parts only. |
+  | `RoSlot` | A slot/frame raster plus an optional icon raster. The hotkey and count are DOM text only. |
+
+- **Formal visual static guard** (`apps/client/test/visual-guard.ts`):
+  - Scope: the primitive dependency graph only.
+  - It rejects:
+    - gradients, border-radius, shadows, CSS border surfaces, pseudo-elements;
+    - CSS colour fills, filter/opacity state synthesis;
+    - inline SVG, emoji, icon fonts;
+    - canvas/WebGL textures;
+    - network or gateway access;
+    - placeholder or synthetic imports.
+  - Each family has its own positive and negative fixture.

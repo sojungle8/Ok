@@ -43,6 +43,10 @@
   - a canonical 108-ID registry is introduced;
   - full cursor frame / layer / hotspot validation;
   - PNG ↔ JSON SHA-256 cross-check.
+- UI-B2 (detached, not on screen):
+  - verified raster handles issued by the UI loader;
+  - RO primitives RoRaster / RoThreeSlice / RoButton / RoGauge / RoSlot (`apps/client/src/ui/ro/`);
+  - a formal visual static guard over the primitive graph.
 
 ## Unreleased — Phase 2 vertical slice (2026-11-17)
 

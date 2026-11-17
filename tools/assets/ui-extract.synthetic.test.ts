@@ -116,6 +116,14 @@ describe("UI-B1 extraction + FormalUiAssetLoader (synthetic)", () => {
     expect(ui.images.size).toBe(105);
     expect([...ui.fonts.keys()].sort()).toEqual(["ui.font.scdream4", "ui.font.scdream6"]);
     expect(ui.cursor.act.hotspots).toHaveLength(14);
+    // UI-B2: one lifecycle-owned verified raster handle per verified PNG, keyed by logical ID.
+    expect(ui.rasters.ids()).toEqual([...ui.images.keys()].sort());
+    const h = ui.rasters.get("ui.hud.basic.background");
+    expect([h.width, h.height, h.entry.logical_asset_id]).toEqual([280, 120, "ui.hud.basic.background"]);
+    expect(h.url).toMatch(/^blob:/u);
+    ui.rasters.dispose();
+    ui.rasters.dispose();
+    expect(h.disposed).toBe(true);
     await expect(loadFormalUiAssets(client, decoders, whitelist, { ...EXPECTED, profileId: "KRO2019_RENEWAL" })).rejects.toMatchObject({ missing: [expect.objectContaining({ canonicalPath: "profileId" })] });
   });
 
