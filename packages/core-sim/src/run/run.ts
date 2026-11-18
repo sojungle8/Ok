@@ -3,7 +3,7 @@ import { hashState, type HashValue } from "../hash.ts";
 import { DIR12, DIR16, TRIG_SCALE } from "../trig.ts";
 import type { InputCommand } from "../sim.ts";
 import type { BossAttackDef, Geometry, MonsterDef, RunContent, SkillDef } from "./content.ts";
-import { DEFENSE_IDS, generateDraft, type BuildView, type DraftOption } from "./draft.ts";
+import { DEFENSE_IDS, generateDraft, isAreaClear, type BuildView, type DraftOption } from "./draft.ts";
 import { hits, unitToward, type Placed } from "./geometry.ts";
 
 /**
@@ -39,6 +39,8 @@ export interface Enemy {
   maxHp: number;
   radius: number;
   stunUntil: number;
+  /** Player-applied control only; monster wind-up also uses stunUntil. */
+  playerControlUntil: number;
   contactReadyAt: number;
   armorDebuff: number;
   moveDebuff: number;
@@ -101,16 +103,37 @@ export interface OtherRunEvent {
 }
 export type RunEvent = SkillFiredEvent | OtherRunEvent;
 
+export type BalanceRole = "normal" | "elite" | "mvp";
+
 export interface RunStats {
   kills: number;
   damageBySource: Record<string, number>;
+  /** Effective damage, capped at each target's remaining HP, for balance telemetry. */
+  effectiveDamageBySource: Record<string, number>;
   damageTakenBySource: Record<string, number>;
+  /** Effective damage taken, capped at the player's remaining HP, for balance telemetry. */
+  effectiveDamageTakenBySource: Record<string, number>;
   levelUps: number;
   bossSpawnTick: number;
   bossKillTick: number;
+  bossType: string | null;
+  bossMaxHp: number;
   spawnsSkipped: number;
   maxEnemies: number;
+  /** Deprecated compatibility alias: the first area-clear selection tick. */
   firstAreaClearTick: number;
+  firstAreaClearOfferedTick: number;
+  firstAreaClearSelectedTick: number;
+  firstAreaClearCastTick: number;
+  firstEffectiveAreaClearTick: number;
+  damageToMvp: number;
+  mvpDamageBySource: Record<string, number>;
+  distanceTravelledMm: number;
+  minHpPermille: number;
+  lowHpTicks: number;
+  playerControlApplications: Record<BalanceRole, number>;
+  playerControlTargetTicks: Record<BalanceRole, number>;
+  enemyTargetTicks: Record<BalanceRole, number>;
   draftsOffered: number;
   telegraphHits: { geomId: string; attackId: string }[];
 }
@@ -160,6 +183,8 @@ const SPAWN_MIN_MM = 13_000;
 const SPAWN_MAX_MM = 16_000;
 const MAX_ENEMIES = 420;
 const ORB_PULL_MM = 260;
+const emptyRoleCounts = (): Record<BalanceRole, number> => ({ normal: 0, elite: 0, mvp: 0 });
+export const RUN_CHECKPOINT_SCHEMA_VERSION = 1;
 
 function walkable(grid: RunGrid | null | undefined, x: number, y: number): boolean {
   if (!grid) return true;
@@ -223,8 +248,12 @@ export function createRun(cfg: RunConfig): RunState {
     levelsSinceNewActive: 0,
     levelsSinceDefense: 0,
     stats: {
-      kills: 0, damageBySource: {}, damageTakenBySource: {}, levelUps: 0, bossSpawnTick: -1, bossKillTick: -1, spawnsSkipped: 0, maxEnemies: 0,
+      kills: 0, damageBySource: {}, effectiveDamageBySource: {}, damageTakenBySource: {}, effectiveDamageTakenBySource: {},
+      levelUps: 0, bossSpawnTick: -1, bossKillTick: -1, bossType: null, bossMaxHp: 0, spawnsSkipped: 0, maxEnemies: 0,
       firstAreaClearTick: -1, draftsOffered: 0, telegraphHits: [],
+      firstAreaClearOfferedTick: -1, firstAreaClearSelectedTick: -1, firstAreaClearCastTick: -1, firstEffectiveAreaClearTick: -1,
+      damageToMvp: 0, mvpDamageBySource: {}, distanceTravelledMm: 0, minHpPermille: 1000, lowHpTicks: 0,
+      playerControlApplications: emptyRoleCounts(), playerControlTargetTicks: emptyRoleCounts(), enemyTargetTicks: emptyRoleCounts(),
     },
     events: [],
   };
@@ -316,8 +345,14 @@ function damageEnemy(c: RunContent, st: RunState, e: Enemy, raw: number, source:
     }
   }
   dmg = Math.max(1, dmg);
+  const effective = Math.min(e.hp, dmg);
   e.hp -= dmg;
   st.stats.damageBySource[source] = (st.stats.damageBySource[source] ?? 0) + dmg;
+  st.stats.effectiveDamageBySource[source] = (st.stats.effectiveDamageBySource[source] ?? 0) + effective;
+  if (c.monsters[e.type]?.role === "mvp") {
+    st.stats.damageToMvp += effective;
+    st.stats.mvpDamageBySource[source] = (st.stats.mvpDamageBySource[source] ?? 0) + effective;
+  }
   st.events.push({ type: "hit", tick: st.runTick, source, targetId: e.id, amount: dmg });
 }
 
@@ -332,9 +367,12 @@ function damagePlayer(c: RunContent, st: RunState, raw: number, source: string, 
     if (d?.lowHp && p.hp * 1000 <= p.maxHp * d.lowHp.thresholdPermille) dmg = permille(dmg, d.lowHp.incomingPermille);
   }
   dmg = Math.max(1, dmg);
+  const effective = Math.min(p.hp, dmg);
   p.hp = Math.max(0, p.hp - dmg);
+  st.stats.minHpPermille = Math.min(st.stats.minHpPermille, Math.trunc((p.hp * 1000) / Math.max(1, p.maxHp)));
   p.lastDamagedTick = st.runTick;
   st.stats.damageTakenBySource[source] = (st.stats.damageTakenBySource[source] ?? 0) + dmg;
+  st.stats.effectiveDamageTakenBySource[source] = (st.stats.effectiveDamageTakenBySource[source] ?? 0) + effective;
   st.events.push({ type: "player-hit", tick: st.runTick, source, amount: dmg, ...(geomId ? { geomId } : {}) });
   const k = p.keystone ? c.keystones[p.keystone]?.effects : undefined;
   if (attacker && st.runTick < p.endureUntil && k?.counterOnBlockDamage) damageEnemy(c, st, attacker, k.counterOnBlockDamage, "keystone.guardian.counter", p.x, p.y);
@@ -357,7 +395,7 @@ function spawnEnemy(c: RunContent, st: RunState, grid: RunGrid | null | undefine
     const y = oy + Math.trunc((uy * dist) / TRIG_SCALE);
     if (!walkable(grid, x, y)) continue;
     const e: Enemy = {
-      id: st.nextId++, type, x, y, hp: def.hp, maxHp: def.hp, radius: def.radiusMm, stunUntil: 0, contactReadyAt: 0,
+      id: st.nextId++, type, x, y, hp: def.hp, maxHp: def.hp, radius: def.radiusMm, stunUntil: 0, playerControlUntil: 0, contactReadyAt: 0,
       armorDebuff: 0, moveDebuff: 1000, debuffUntil: 0, fx: 0, fy: -TRIG_SCALE,
       attackReadyAt: def.attacks.map((a) => st.runTick + Math.max(60, Math.trunc(a.cooldownTicks / 2))),
       dashUntil: 0, dashDx: 0, dashDy: 0, hardenUntil: 0, hardenUsed: 0,
@@ -390,6 +428,8 @@ function runTimeline(c: RunContent, st: RunState, grid: RunGrid | null | undefin
         st.bossId = e.id;
         st.normalWavePermille = t.normalWavePermille;
         st.stats.bossSpawnTick = st.runTick;
+        st.stats.bossType = e.type;
+        st.stats.bossMaxHp = e.maxHp;
         st.phase = "boss-intro";
         st.phaseUntil = st.tick + BOSS_INTRO_TICKS;
       }
@@ -551,6 +591,11 @@ const isElite = (c: RunContent, e: Enemy): boolean => {
   return role === "elite" || role === "miniboss" || role === "mvp";
 };
 
+function balanceRole(c: RunContent, e: Enemy): BalanceRole {
+  const role = c.monsters[e.type]?.role;
+  return role === "mvp" ? "mvp" : role === "elite" || role === "miniboss" ? "elite" : "normal";
+}
+
 function shieldBlocked(c: RunContent, st: RunState, s: SkillDef): boolean {
   if (!s.tags.includes("shield")) return false;
   if (st.player.keystone && c.keystones[st.player.keystone]?.effects.shieldSkillsDisabled) return true;
@@ -578,7 +623,7 @@ function acquire(c: RunContent, st: RunState, s: SkillDef, v: ReturnType<typeof 
       return elite || near.length >= 5 ? { dx: p.fx, dy: p.fy } : null;
     }
     case "automatic-highest-density-sector": {
-      if (!v.geometry || near.length < 2) return null;
+      if (!v.geometry || near.length < s.minimumTargets) return null;
       let best = 0;
       let dir: [number, number] = [p.fx, p.fy];
       for (const d of DIR16) {
@@ -589,7 +634,7 @@ function acquire(c: RunContent, st: RunState, s: SkillDef, v: ReturnType<typeof 
           dir = [d[0], d[1]];
         }
       }
-      return best >= 2 ? { dx: dir[0], dy: dir[1] } : null;
+      return best >= s.minimumTargets ? { dx: dir[0], dy: dir[1] } : null;
     }
     case "automatic-elite-priority": {
       const elite = near.find((t) => isElite(c, t.e));
@@ -609,6 +654,7 @@ function resolveSkill(c: RunContent, st: RunState, s: SkillDef, rank: number, dx
     type: "skill", tick: st.runTick, source: s.id, geomId, origin: { xMm: p.x, yMm: p.y }, direction: { x: dx, y: dy },
     geometry: v.geometry, rank, vfxCue: s.id, designOrigin: s.designOrigin,
   });
+  if (isAreaClear(c, s.id) && st.stats.firstAreaClearCastTick < 0) st.stats.firstAreaClearCastTick = st.runTick;
   if (s.id === "skill.sw.endure") {
     p.endureUntil = st.runTick + v.duration;
     p.endureReduction = v.reduction;
@@ -616,13 +662,22 @@ function resolveSkill(c: RunContent, st: RunState, s: SkillDef, rank: number, dx
     const placed: Placed = { shape: v.geometry, ox: p.x, oy: p.y, dx, dy };
     const targets = enemiesWithin(st, p.x, p.y, v.geometry.shape === "circle" ? v.geometry.radiusMm : v.geometry.rangeMm).filter((t) => hits(placed, t.e.x, t.e.y, t.e.radius));
     const limit = v.damage > 0 ? v.hitLimit : targets.length;
-    for (const t of targets.slice(0, limit)) {
+    const hitTargets = targets.slice(0, limit);
+    if (isAreaClear(c, s.id) && st.stats.firstEffectiveAreaClearTick < 0 && hitTargets.filter((t) => c.monsters[t.e.type]?.role !== "mvp").length >= 3) {
+      st.stats.firstEffectiveAreaClearTick = st.runTick;
+    }
+    for (const t of hitTargets) {
       if (v.damage > 0) {
         let dmg = v.damage;
         if (s.effects.eliteDamagePermille && isElite(c, t.e)) dmg = permille(dmg, s.effects.eliteDamagePermille);
         damageEnemy(c, st, t.e, dmg, s.id, p.x, p.y);
       }
-      if (s.stun && rng.nextInt(1000) < v.stunChance) t.e.stunUntil = Math.max(t.e.stunUntil, st.runTick + s.stun.ticks);
+      if (s.stun && rng.nextInt(1000) < v.stunChance) {
+        const until = st.runTick + s.stun.ticks;
+        t.e.stunUntil = Math.max(t.e.stunUntil, until);
+        t.e.playerControlUntil = Math.max(t.e.playerControlUntil, until);
+        st.stats.playerControlApplications[balanceRole(c, t.e)] += 1;
+      }
       if (v.armorDelta !== 0) {
         t.e.armorDebuff = v.armorDelta;
         t.e.moveDebuff = s.effects.enemyMovePermille ?? 1000;
@@ -899,6 +954,7 @@ function openDraft(c: RunContent, st: RunState): void {
   if (!source) return;
   const rng = Rng.restore(st.rngDraft);
   const options = generateDraft(c, buildView(st), rng, source);
+  if (st.stats.firstAreaClearOfferedTick < 0 && options.some((option) => isAreaClear(c, option.id))) st.stats.firstAreaClearOfferedTick = st.runTick;
   st.rngDraft = rng.snapshot();
   st.draft = { options, source };
   st.phase = "draft";
@@ -911,7 +967,10 @@ function applyOption(c: RunContent, st: RunState, o: DraftOption): void {
   if (o.kind === "new-active") {
     p.active.push({ id: o.id, rank: 1, readyAt: st.runTick });
     const s = c.skills[o.id];
-    if (st.stats.firstAreaClearTick < 0 && s && (s.tags.includes("area") || s.tags.includes("front-cone"))) st.stats.firstAreaClearTick = st.runTick;
+    if (s && isAreaClear(c, s.id)) {
+      if (st.stats.firstAreaClearTick < 0) st.stats.firstAreaClearTick = st.runTick;
+      if (st.stats.firstAreaClearSelectedTick < 0) st.stats.firstAreaClearSelectedTick = st.runTick;
+    }
   } else if (o.kind === "rank-active") {
     const a = p.active.find((x) => x.id === o.id);
     if (a) a.rank += 1;
@@ -989,6 +1048,8 @@ export function stepRun(st: RunState, cfg: RunConfig, input: RunInput | undefine
 
   // running
   const p = st.player;
+  const beforeX = p.x;
+  const beforeY = p.y;
   const mx = input ? Math.max(-1000, Math.min(1000, input.moveX)) : 0;
   const my = input ? Math.max(-1000, Math.min(1000, input.moveY)) : 0;
   const len = Math.sqrt(mx * mx + my * my);
@@ -1006,6 +1067,7 @@ export function stepRun(st: RunState, cfg: RunConfig, input: RunInput | undefine
     p.fy = Math.trunc((my * TRIG_SCALE) / len);
     p.moving = true;
   } else p.moving = false;
+  st.stats.distanceTravelledMm += Math.round(Math.hypot(p.x - beforeX, p.y - beforeY));
 
   runTimeline(c, st, cfg.grid);
   updateEnemies(c, st, cfg.grid);
@@ -1015,6 +1077,13 @@ export function stepRun(st: RunState, cfg: RunConfig, input: RunInput | undefine
   processDeaths(c, st);
   collectOrbs(c, st);
   regen(c, st);
+  if (p.hp * 1000 <= p.maxHp * 300) st.stats.lowHpTicks += 1;
+  for (const enemy of st.enemies) {
+    if (enemy.hp <= 0) continue;
+    const role = balanceRole(c, enemy);
+    st.stats.enemyTargetTicks[role] += 1;
+    if (st.runTick < enemy.playerControlUntil) st.stats.playerControlTargetTicks[role] += 1;
+  }
   st.runTick += 1;
   if (p.hp <= 0) {
     st.phase = "defeat";
@@ -1037,11 +1106,61 @@ export function runHash(st: RunState): string {
 /** Checkpoints are only taken while running, so a restore never lands in a half-open draft. */
 export function checkpoint(st: RunState): string | null {
   if (st.phase !== "running") return null;
-  return JSON.stringify(withoutEvents(st));
+  return JSON.stringify({ schemaVersion: RUN_CHECKPOINT_SCHEMA_VERSION, state: withoutEvents(st) });
+}
+
+function record(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function nonNegativeInteger(value: unknown): value is number {
+  return Number.isSafeInteger(value) && (value as number) >= 0;
+}
+
+function integerRecord(value: unknown): boolean {
+  return record(value) && Object.values(value).every(nonNegativeInteger);
+}
+
+function roleIntegerRecord(value: unknown): boolean {
+  return record(value)
+    && Object.keys(value).length === 3
+    && nonNegativeInteger(value.normal)
+    && nonNegativeInteger(value.elite)
+    && nonNegativeInteger(value.mvp);
+}
+
+function assertCurrentCheckpointState(value: unknown): asserts value is Omit<RunState, "events"> {
+  if (!record(value)) throw new Error("checkpoint state is malformed");
+  if (value.phase !== "running") throw new Error("checkpoint is not in the running phase");
+  if (!Array.isArray(value.enemies)) throw new Error("checkpoint enemies are malformed");
+  for (const enemy of value.enemies) {
+    if (!record(enemy) || !nonNegativeInteger(enemy.playerControlUntil)) throw new Error("checkpoint enemy control state is malformed");
+  }
+  if (!record(value.stats)) throw new Error("checkpoint stats are malformed");
+  const stats = value.stats;
+  const counters = [
+    "firstAreaClearOfferedTick", "firstAreaClearSelectedTick", "firstAreaClearCastTick", "firstEffectiveAreaClearTick",
+    "damageToMvp", "distanceTravelledMm", "minHpPermille", "lowHpTicks", "bossMaxHp",
+  ];
+  for (const key of counters) {
+    const n = stats[key];
+    const permitsSentinel = key.startsWith("firstAreaClear");
+    if (!Number.isSafeInteger(n) || (permitsSentinel ? (n as number) < -1 : (n as number) < 0)) throw new Error(`checkpoint stat ${key} is malformed`);
+  }
+  for (const key of ["effectiveDamageBySource", "effectiveDamageTakenBySource", "mvpDamageBySource"]) {
+    if (!integerRecord(stats[key])) throw new Error(`checkpoint stat ${key} is malformed`);
+  }
+  for (const key of ["playerControlApplications", "playerControlTargetTicks", "enemyTargetTicks"]) {
+    if (!roleIntegerRecord(stats[key])) throw new Error(`checkpoint stat ${key} is malformed`);
+  }
+  if (stats.bossType !== null && typeof stats.bossType !== "string") throw new Error("checkpoint boss type is malformed");
 }
 
 export function restore(json: string): RunState {
-  const parsed = JSON.parse(json) as Omit<RunState, "events">;
-  if (parsed.phase !== "running") throw new Error("checkpoint is not in the running phase");
-  return { ...parsed, events: [] };
+  const envelope = JSON.parse(json) as unknown;
+  if (!record(envelope) || envelope.schemaVersion !== RUN_CHECKPOINT_SCHEMA_VERSION) {
+    throw new Error(`unsupported run checkpoint schema version; expected ${RUN_CHECKPOINT_SCHEMA_VERSION}`);
+  }
+  assertCurrentCheckpointState(envelope.state);
+  return { ...envelope.state, events: [] };
 }

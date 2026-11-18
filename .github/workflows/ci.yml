@@ -27,7 +27,9 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
+      - run: pnpm slice:acceptance:check
       - run: pnpm build
       - run: pnpm rights:check
       - run: pnpm assets:test-synthetic
       - run: pnpm assets:validate-handoff
+      - run: pnpm skills:validate-vfx

@@ -211,7 +211,7 @@ export function compileSliceContent(raw: unknown): RunContent {
       geometry: geometry(s.geometry),
       damage: centi(s.baseDamage ?? 0),
       hitLimit: s.hitLimit ?? 1,
-      minimumTargets: s.minimumTargets ?? 1,
+      minimumTargets: s.minimumTargets ?? (s.trigger === "automatic-highest-density-sector" ? 3 : 1),
       stun: s.status ? { chancePermille: permille(s.status.chance), ticks: ticks(s.status.durationMs) } : null,
       durationTicks: ticks(s.durationMs ?? num(e, "durationMs") ?? 0),
       effects,

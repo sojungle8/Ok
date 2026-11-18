@@ -106,6 +106,6 @@ export function generateDraft(content: RunContent, b: BuildView, rng: Rng, sourc
 
 export function isAreaClear(content: RunContent, id: string): boolean {
   const s = content.skills[id];
-  return !!s && (s.tags.includes("area") || s.tags.includes("front-cone"));
+  return !!s && s.damage > 0 && s.hitLimit >= 3 && (s.tags.includes("area-clear") || s.tags.includes("early-clear") || s.tags.includes("area") || s.tags.includes("front-cone"));
 }
 

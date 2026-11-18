@@ -1,6 +1,7 @@
 {
-  "at": "2026-11-17T05:49:21.842Z",
+  "at": "2026-11-18T03:12:56.382Z",
   "contentVersion": "slice-0.1.0-seed",
+  "balanceRevision": "D-032-v0.1",
   "tuning": {
     "levelUpHealPermille": 300,
     "keystoneOfferLevels": [
@@ -23,10 +24,13 @@
       }
     }
   },
-  "durationMs": 38716,
+  "durationMs": 61549,
   "gates": {
     "noCrash": true,
     "areaClearOfferedWithin60s": true,
+    "areaClearSelectedWithin60s": true,
+    "areaClearCastWithin60s": true,
+    "effectiveAreaClearWithin60s": true,
     "skillsNeverMovePlayer": true,
     "everyHitHasAnnouncedGeometry": true,
     "noUnreachableSpawns": true,
@@ -36,8 +40,8 @@
   "matrix": [
     {
       "plan": "guardian",
-      "keyboard": 7,
-      "touch": 8,
+      "keyboard": 9,
+      "touch": 10,
       "gamepad": 10
     },
     {
@@ -48,115 +52,1224 @@
     },
     {
       "plan": "fury",
-      "keyboard": 10,
-      "touch": 10,
-      "gamepad": 10
+      "keyboard": 8,
+      "touch": 8,
+      "gamepad": 7
+    }
+  ],
+  "balanceMatrix": [
+    {
+      "plan": "guardian",
+      "device": "keyboard",
+      "uniqueSeeds": 10,
+      "wins": 9,
+      "clearSpeed": {
+        "killsAt60": {
+          "samples": 10,
+          "mean": 36.8,
+          "p10": 34,
+          "p50": 37,
+          "p90": 39
+        },
+        "killsAt540": {
+          "samples": 10,
+          "mean": 747.8,
+          "p10": 460,
+          "p50": 780,
+          "p90": 786
+        },
+        "killsAt600": {
+          "samples": 10,
+          "mean": 764.2,
+          "p10": 460,
+          "p50": 798,
+          "p90": 798
+        },
+        "effectiveAreaClearTick": {
+          "samples": 10,
+          "mean": 1559.6,
+          "p10": 1035,
+          "p50": 1325,
+          "p90": 1947
+        }
+      },
+      "mvpDamage": {
+        "damagePermille": {
+          "samples": 10,
+          "mean": 900,
+          "p10": 0,
+          "p50": 1000,
+          "p90": 1000
+        },
+        "ttkSeconds": {
+          "samples": 9,
+          "mean": 92.6,
+          "p10": 77,
+          "p50": 86,
+          "p90": 112
+        }
+      },
+      "survivability": {
+        "minHpPermille": {
+          "samples": 10,
+          "mean": 349.2,
+          "p10": 0,
+          "p50": 326,
+          "p90": 581
+        },
+        "damageTaken": {
+          "samples": 10,
+          "mean": 91322.9,
+          "p10": 65792,
+          "p50": 92680,
+          "p90": 105156
+        },
+        "lowHpSeconds": {
+          "samples": 10,
+          "mean": 8.9,
+          "p10": 0,
+          "p50": 0,
+          "p90": 27.2
+        }
+      },
+      "mobility": {
+        "distanceMetersPerMinute": {
+          "samples": 10,
+          "mean": 265.8,
+          "p10": 262.5,
+          "p50": 265.2,
+          "p90": 267.1
+        }
+      },
+      "control": {
+        "coveragePermille": {
+          "samples": 10,
+          "mean": 5.1,
+          "p10": 0,
+          "p50": 5,
+          "p90": 7
+        },
+        "normalTargetTicks": {
+          "samples": 10,
+          "mean": 2063.4,
+          "p10": 49,
+          "p50": 2442,
+          "p90": 2761
+        },
+        "eliteTargetTicks": {
+          "samples": 10,
+          "mean": 200.8,
+          "p10": 36,
+          "p50": 210,
+          "p90": 261
+        },
+        "mvpTargetTicks": {
+          "samples": 10,
+          "mean": 339.5,
+          "p10": 0,
+          "p50": 360,
+          "p90": 469
+        }
+      },
+      "damageConcentration": {
+        "topSourceSharePermille": {
+          "samples": 10,
+          "mean": 380.6,
+          "p10": 308,
+          "p50": 357,
+          "p90": 443
+        }
+      }
+    },
+    {
+      "plan": "guardian",
+      "device": "touch",
+      "uniqueSeeds": 10,
+      "wins": 10,
+      "clearSpeed": {
+        "killsAt60": {
+          "samples": 10,
+          "mean": 36.1,
+          "p10": 34,
+          "p50": 36,
+          "p90": 37
+        },
+        "killsAt540": {
+          "samples": 10,
+          "mean": 780.1,
+          "p10": 758,
+          "p50": 782,
+          "p90": 786
+        },
+        "killsAt600": {
+          "samples": 10,
+          "mean": 798,
+          "p10": 798,
+          "p50": 798,
+          "p90": 798
+        },
+        "effectiveAreaClearTick": {
+          "samples": 10,
+          "mean": 1644.6,
+          "p10": 935,
+          "p50": 1650,
+          "p90": 2088
+        }
+      },
+      "mvpDamage": {
+        "damagePermille": {
+          "samples": 10,
+          "mean": 1000,
+          "p10": 1000,
+          "p50": 1000,
+          "p90": 1000
+        },
+        "ttkSeconds": {
+          "samples": 10,
+          "mean": 92.1,
+          "p10": 78,
+          "p50": 82,
+          "p90": 114
+        }
+      },
+      "survivability": {
+        "minHpPermille": {
+          "samples": 10,
+          "mean": 402.9,
+          "p10": 19,
+          "p50": 451,
+          "p90": 596
+        },
+        "damageTaken": {
+          "samples": 10,
+          "mean": 93273.6,
+          "p10": 77542,
+          "p50": 94802,
+          "p90": 104167
+        },
+        "lowHpSeconds": {
+          "samples": 10,
+          "mean": 13.8,
+          "p10": 0,
+          "p50": 0,
+          "p90": 36.4
+        }
+      },
+      "mobility": {
+        "distanceMetersPerMinute": {
+          "samples": 10,
+          "mean": 264.4,
+          "p10": 260.2,
+          "p50": 263.6,
+          "p90": 267.4
+        }
+      },
+      "control": {
+        "coveragePermille": {
+          "samples": 10,
+          "mean": 5.5,
+          "p10": 0,
+          "p50": 6,
+          "p90": 7
+        },
+        "normalTargetTicks": {
+          "samples": 10,
+          "mean": 2134.5,
+          "p10": 72,
+          "p50": 2195,
+          "p90": 2749
+        },
+        "eliteTargetTicks": {
+          "samples": 10,
+          "mean": 229,
+          "p10": 0,
+          "p50": 237,
+          "p90": 297
+        },
+        "mvpTargetTicks": {
+          "samples": 10,
+          "mean": 396.7,
+          "p10": 252,
+          "p50": 425,
+          "p90": 489
+        }
+      },
+      "damageConcentration": {
+        "topSourceSharePermille": {
+          "samples": 10,
+          "mean": 378.4,
+          "p10": 327,
+          "p50": 365,
+          "p90": 424
+        }
+      }
+    },
+    {
+      "plan": "guardian",
+      "device": "gamepad",
+      "uniqueSeeds": 10,
+      "wins": 10,
+      "clearSpeed": {
+        "killsAt60": {
+          "samples": 10,
+          "mean": 36.5,
+          "p10": 34,
+          "p50": 37,
+          "p90": 38
+        },
+        "killsAt540": {
+          "samples": 10,
+          "mean": 782.1,
+          "p10": 779,
+          "p50": 782,
+          "p90": 786
+        },
+        "killsAt600": {
+          "samples": 10,
+          "mean": 798,
+          "p10": 798,
+          "p50": 798,
+          "p90": 798
+        },
+        "effectiveAreaClearTick": {
+          "samples": 10,
+          "mean": 1619.2,
+          "p10": 1175,
+          "p50": 1617,
+          "p90": 2112
+        }
+      },
+      "mvpDamage": {
+        "damagePermille": {
+          "samples": 10,
+          "mean": 1000,
+          "p10": 1000,
+          "p50": 1000,
+          "p90": 1000
+        },
+        "ttkSeconds": {
+          "samples": 10,
+          "mean": 90.2,
+          "p10": 76,
+          "p50": 81,
+          "p90": 113
+        }
+      },
+      "survivability": {
+        "minHpPermille": {
+          "samples": 10,
+          "mean": 362.9,
+          "p10": 32,
+          "p50": 373,
+          "p90": 564
+        },
+        "damageTaken": {
+          "samples": 10,
+          "mean": 94416.7,
+          "p10": 84219,
+          "p50": 94656,
+          "p90": 99563
+        },
+        "lowHpSeconds": {
+          "samples": 10,
+          "mean": 4.8,
+          "p10": 0,
+          "p50": 0,
+          "p90": 14.6
+        }
+      },
+      "mobility": {
+        "distanceMetersPerMinute": {
+          "samples": 10,
+          "mean": 263.9,
+          "p10": 260.4,
+          "p50": 264.4,
+          "p90": 266.3
+        }
+      },
+      "control": {
+        "coveragePermille": {
+          "samples": 10,
+          "mean": 5.8,
+          "p10": 1,
+          "p50": 6,
+          "p90": 7
+        },
+        "normalTargetTicks": {
+          "samples": 10,
+          "mean": 2257.1,
+          "p10": 36,
+          "p50": 2485,
+          "p90": 2621
+        },
+        "eliteTargetTicks": {
+          "samples": 10,
+          "mean": 203.9,
+          "p10": 0,
+          "p50": 196,
+          "p90": 337
+        },
+        "mvpTargetTicks": {
+          "samples": 10,
+          "mean": 378.2,
+          "p10": 252,
+          "p50": 318,
+          "p90": 545
+        }
+      },
+      "damageConcentration": {
+        "topSourceSharePermille": {
+          "samples": 10,
+          "mean": 376.9,
+          "p10": 318,
+          "p50": 361,
+          "p90": 438
+        }
+      }
+    },
+    {
+      "plan": "weapon",
+      "device": "keyboard",
+      "uniqueSeeds": 10,
+      "wins": 9,
+      "clearSpeed": {
+        "killsAt60": {
+          "samples": 10,
+          "mean": 34.6,
+          "p10": 31,
+          "p50": 35,
+          "p90": 37
+        },
+        "killsAt540": {
+          "samples": 10,
+          "mean": 755.2,
+          "p10": 505,
+          "p50": 783,
+          "p90": 785
+        },
+        "killsAt600": {
+          "samples": 10,
+          "mean": 768.7,
+          "p10": 505,
+          "p50": 798,
+          "p90": 798
+        },
+        "effectiveAreaClearTick": {
+          "samples": 10,
+          "mean": 1442.7,
+          "p10": 1003,
+          "p50": 1290,
+          "p90": 1947
+        }
+      },
+      "mvpDamage": {
+        "damagePermille": {
+          "samples": 10,
+          "mean": 900,
+          "p10": 0,
+          "p50": 1000,
+          "p90": 1000
+        },
+        "ttkSeconds": {
+          "samples": 9,
+          "mean": 65.6,
+          "p10": 52,
+          "p50": 63,
+          "p90": 81
+        }
+      },
+      "survivability": {
+        "minHpPermille": {
+          "samples": 10,
+          "mean": 415.2,
+          "p10": 0,
+          "p50": 370,
+          "p90": 675
+        },
+        "damageTaken": {
+          "samples": 10,
+          "mean": 86563.3,
+          "p10": 66830,
+          "p50": 89012,
+          "p90": 93530
+        },
+        "lowHpSeconds": {
+          "samples": 10,
+          "mean": 4.1,
+          "p10": 0,
+          "p50": 0,
+          "p90": 13
+        }
+      },
+      "mobility": {
+        "distanceMetersPerMinute": {
+          "samples": 10,
+          "mean": 288.5,
+          "p10": 279.4,
+          "p50": 288,
+          "p90": 292.2
+        }
+      },
+      "control": {
+        "coveragePermille": {
+          "samples": 10,
+          "mean": 0.4,
+          "p10": 0,
+          "p50": 0,
+          "p90": 1
+        },
+        "normalTargetTicks": {
+          "samples": 10,
+          "mean": 31.4,
+          "p10": 0,
+          "p50": 20,
+          "p90": 72
+        },
+        "eliteTargetTicks": {
+          "samples": 10,
+          "mean": 10.8,
+          "p10": 0,
+          "p50": 0,
+          "p90": 36
+        },
+        "mvpTargetTicks": {
+          "samples": 10,
+          "mean": 129.6,
+          "p10": 0,
+          "p50": 72,
+          "p90": 288
+        }
+      },
+      "damageConcentration": {
+        "topSourceSharePermille": {
+          "samples": 10,
+          "mean": 527.3,
+          "p10": 477,
+          "p50": 506,
+          "p90": 577
+        }
+      }
+    },
+    {
+      "plan": "weapon",
+      "device": "touch",
+      "uniqueSeeds": 10,
+      "wins": 8,
+      "clearSpeed": {
+        "killsAt60": {
+          "samples": 10,
+          "mean": 34.3,
+          "p10": 32,
+          "p50": 34,
+          "p90": 37
+        },
+        "killsAt540": {
+          "samples": 10,
+          "mean": 731.2,
+          "p10": 522,
+          "p50": 782,
+          "p90": 785
+        },
+        "killsAt600": {
+          "samples": 10,
+          "mean": 743.1,
+          "p10": 522,
+          "p50": 798,
+          "p90": 798
+        },
+        "effectiveAreaClearTick": {
+          "samples": 10,
+          "mean": 1682.1,
+          "p10": 1051,
+          "p50": 1688,
+          "p90": 1956
+        }
+      },
+      "mvpDamage": {
+        "damagePermille": {
+          "samples": 10,
+          "mean": 800,
+          "p10": 0,
+          "p50": 1000,
+          "p90": 1000
+        },
+        "ttkSeconds": {
+          "samples": 8,
+          "mean": 66.9,
+          "p10": 57,
+          "p50": 66,
+          "p90": 75
+        }
+      },
+      "survivability": {
+        "minHpPermille": {
+          "samples": 10,
+          "mean": 360.8,
+          "p10": 0,
+          "p50": 294,
+          "p90": 661
+        },
+        "damageTaken": {
+          "samples": 10,
+          "mean": 82632.5,
+          "p10": 69771,
+          "p50": 83964,
+          "p90": 88588
+        },
+        "lowHpSeconds": {
+          "samples": 10,
+          "mean": 3.4,
+          "p10": 0,
+          "p50": 0,
+          "p90": 11.3
+        }
+      },
+      "mobility": {
+        "distanceMetersPerMinute": {
+          "samples": 10,
+          "mean": 284.7,
+          "p10": 281,
+          "p50": 284,
+          "p90": 287.2
+        }
+      },
+      "control": {
+        "coveragePermille": {
+          "samples": 10,
+          "mean": 0.2,
+          "p10": 0,
+          "p50": 0,
+          "p90": 1
+        },
+        "normalTargetTicks": {
+          "samples": 10,
+          "mean": 38.4,
+          "p10": 0,
+          "p50": 0,
+          "p90": 126
+        },
+        "eliteTargetTicks": {
+          "samples": 10,
+          "mean": 25.2,
+          "p10": 0,
+          "p50": 0,
+          "p90": 72
+        },
+        "mvpTargetTicks": {
+          "samples": 10,
+          "mean": 90,
+          "p10": 0,
+          "p50": 36,
+          "p90": 144
+        }
+      },
+      "damageConcentration": {
+        "topSourceSharePermille": {
+          "samples": 10,
+          "mean": 531.3,
+          "p10": 475,
+          "p50": 517,
+          "p90": 581
+        }
+      }
+    },
+    {
+      "plan": "weapon",
+      "device": "gamepad",
+      "uniqueSeeds": 10,
+      "wins": 8,
+      "clearSpeed": {
+        "killsAt60": {
+          "samples": 10,
+          "mean": 35.4,
+          "p10": 31,
+          "p50": 36,
+          "p90": 38
+        },
+        "killsAt540": {
+          "samples": 10,
+          "mean": 734.6,
+          "p10": 530,
+          "p50": 782,
+          "p90": 785
+        },
+        "killsAt600": {
+          "samples": 10,
+          "mean": 746.6,
+          "p10": 530,
+          "p50": 798,
+          "p90": 798
+        },
+        "effectiveAreaClearTick": {
+          "samples": 10,
+          "mean": 1797.8,
+          "p10": 1203,
+          "p50": 1678,
+          "p90": 2471
+        }
+      },
+      "mvpDamage": {
+        "damagePermille": {
+          "samples": 10,
+          "mean": 800,
+          "p10": 0,
+          "p50": 1000,
+          "p90": 1000
+        },
+        "ttkSeconds": {
+          "samples": 8,
+          "mean": 64.1,
+          "p10": 54,
+          "p50": 63,
+          "p90": 72
+        }
+      },
+      "survivability": {
+        "minHpPermille": {
+          "samples": 10,
+          "mean": 280,
+          "p10": 0,
+          "p50": 238,
+          "p90": 540
+        },
+        "damageTaken": {
+          "samples": 10,
+          "mean": 87525.3,
+          "p10": 68214,
+          "p50": 91538,
+          "p90": 99288
+        },
+        "lowHpSeconds": {
+          "samples": 10,
+          "mean": 13.1,
+          "p10": 0,
+          "p50": 0,
+          "p90": 32.6
+        }
+      },
+      "mobility": {
+        "distanceMetersPerMinute": {
+          "samples": 10,
+          "mean": 285.1,
+          "p10": 278.3,
+          "p50": 285.5,
+          "p90": 288.5
+        }
+      },
+      "control": {
+        "coveragePermille": {
+          "samples": 10,
+          "mean": 0.4,
+          "p10": 0,
+          "p50": 0,
+          "p90": 1
+        },
+        "normalTargetTicks": {
+          "samples": 10,
+          "mean": 24,
+          "p10": 0,
+          "p50": 0,
+          "p90": 82
+        },
+        "eliteTargetTicks": {
+          "samples": 10,
+          "mean": 21.6,
+          "p10": 0,
+          "p50": 0,
+          "p90": 72
+        },
+        "mvpTargetTicks": {
+          "samples": 10,
+          "mean": 111.6,
+          "p10": 0,
+          "p50": 36,
+          "p90": 252
+        }
+      },
+      "damageConcentration": {
+        "topSourceSharePermille": {
+          "samples": 10,
+          "mean": 538.4,
+          "p10": 499,
+          "p50": 520,
+          "p90": 576
+        }
+      }
+    },
+    {
+      "plan": "fury",
+      "device": "keyboard",
+      "uniqueSeeds": 10,
+      "wins": 8,
+      "clearSpeed": {
+        "killsAt60": {
+          "samples": 10,
+          "mean": 36.3,
+          "p10": 33,
+          "p50": 37,
+          "p90": 38
+        },
+        "killsAt540": {
+          "samples": 10,
+          "mean": 707.5,
+          "p10": 400,
+          "p50": 781,
+          "p90": 785
+        },
+        "killsAt600": {
+          "samples": 10,
+          "mean": 719.3,
+          "p10": 400,
+          "p50": 798,
+          "p90": 798
+        },
+        "effectiveAreaClearTick": {
+          "samples": 10,
+          "mean": 1559.6,
+          "p10": 1035,
+          "p50": 1325,
+          "p90": 1947
+        }
+      },
+      "mvpDamage": {
+        "damagePermille": {
+          "samples": 10,
+          "mean": 800,
+          "p10": 0,
+          "p50": 1000,
+          "p90": 1000
+        },
+        "ttkSeconds": {
+          "samples": 8,
+          "mean": 109.4,
+          "p10": 80,
+          "p50": 104,
+          "p90": 126
+        }
+      },
+      "survivability": {
+        "minHpPermille": {
+          "samples": 10,
+          "mean": 448.3,
+          "p10": 0,
+          "p50": 523,
+          "p90": 605
+        },
+        "damageTaken": {
+          "samples": 10,
+          "mean": 79943.8,
+          "p10": 62592,
+          "p50": 79818,
+          "p90": 85729
+        },
+        "lowHpSeconds": {
+          "samples": 10,
+          "mean": 2.2,
+          "p10": 0,
+          "p50": 0,
+          "p90": 1.1
+        }
+      },
+      "mobility": {
+        "distanceMetersPerMinute": {
+          "samples": 10,
+          "mean": 290.4,
+          "p10": 282.3,
+          "p50": 291.4,
+          "p90": 294
+        }
+      },
+      "control": {
+        "coveragePermille": {
+          "samples": 10,
+          "mean": 3.2,
+          "p10": 0,
+          "p50": 4,
+          "p90": 5
+        },
+        "normalTargetTicks": {
+          "samples": 10,
+          "mean": 1124.5,
+          "p10": 0,
+          "p50": 1405,
+          "p90": 1733
+        },
+        "eliteTargetTicks": {
+          "samples": 10,
+          "mean": 107.7,
+          "p10": 0,
+          "p50": 105,
+          "p90": 183
+        },
+        "mvpTargetTicks": {
+          "samples": 10,
+          "mean": 160.2,
+          "p10": 0,
+          "p50": 147,
+          "p90": 363
+        }
+      },
+      "damageConcentration": {
+        "topSourceSharePermille": {
+          "samples": 10,
+          "mean": 525.7,
+          "p10": 422,
+          "p50": 514,
+          "p90": 576
+        }
+      }
+    },
+    {
+      "plan": "fury",
+      "device": "touch",
+      "uniqueSeeds": 10,
+      "wins": 8,
+      "clearSpeed": {
+        "killsAt60": {
+          "samples": 10,
+          "mean": 35.6,
+          "p10": 34,
+          "p50": 35,
+          "p90": 37
+        },
+        "killsAt540": {
+          "samples": 10,
+          "mean": 736.3,
+          "p10": 387,
+          "p50": 781,
+          "p90": 785
+        },
+        "killsAt600": {
+          "samples": 10,
+          "mean": 756.9,
+          "p10": 387,
+          "p50": 798,
+          "p90": 798
+        },
+        "effectiveAreaClearTick": {
+          "samples": 10,
+          "mean": 1644.6,
+          "p10": 935,
+          "p50": 1650,
+          "p90": 2088
+        }
+      },
+      "mvpDamage": {
+        "damagePermille": {
+          "samples": 10,
+          "mean": 874,
+          "p10": 0,
+          "p50": 1000,
+          "p90": 1000
+        },
+        "ttkSeconds": {
+          "samples": 8,
+          "mean": 107,
+          "p10": 78,
+          "p50": 97,
+          "p90": 126
+        }
+      },
+      "survivability": {
+        "minHpPermille": {
+          "samples": 10,
+          "mean": 455.8,
+          "p10": 0,
+          "p50": 535,
+          "p90": 672
+        },
+        "damageTaken": {
+          "samples": 10,
+          "mean": 80588.5,
+          "p10": 62968,
+          "p50": 71068,
+          "p90": 97359
+        },
+        "lowHpSeconds": {
+          "samples": 10,
+          "mean": 6.2,
+          "p10": 0,
+          "p50": 0,
+          "p90": 15.6
+        }
+      },
+      "mobility": {
+        "distanceMetersPerMinute": {
+          "samples": 10,
+          "mean": 288.9,
+          "p10": 282.8,
+          "p50": 287.7,
+          "p90": 294.3
+        }
+      },
+      "control": {
+        "coveragePermille": {
+          "samples": 10,
+          "mean": 3,
+          "p10": 0,
+          "p50": 4,
+          "p90": 5
+        },
+        "normalTargetTicks": {
+          "samples": 10,
+          "mean": 1325.6,
+          "p10": 0,
+          "p50": 1437,
+          "p90": 1666
+        },
+        "eliteTargetTicks": {
+          "samples": 10,
+          "mean": 115.8,
+          "p10": 0,
+          "p50": 84,
+          "p90": 231
+        },
+        "mvpTargetTicks": {
+          "samples": 10,
+          "mean": 228.6,
+          "p10": 0,
+          "p50": 147,
+          "p90": 528
+        }
+      },
+      "damageConcentration": {
+        "topSourceSharePermille": {
+          "samples": 10,
+          "mean": 524.5,
+          "p10": 431,
+          "p50": 504,
+          "p90": 593
+        }
+      }
+    },
+    {
+      "plan": "fury",
+      "device": "gamepad",
+      "uniqueSeeds": 10,
+      "wins": 7,
+      "clearSpeed": {
+        "killsAt60": {
+          "samples": 10,
+          "mean": 35.5,
+          "p10": 29,
+          "p50": 35,
+          "p90": 38
+        },
+        "killsAt540": {
+          "samples": 10,
+          "mean": 713.8,
+          "p10": 406,
+          "p50": 782,
+          "p90": 784
+        },
+        "killsAt600": {
+          "samples": 10,
+          "mean": 726.3,
+          "p10": 406,
+          "p50": 798,
+          "p90": 798
+        },
+        "effectiveAreaClearTick": {
+          "samples": 10,
+          "mean": 1694.9,
+          "p10": 1175,
+          "p50": 1617,
+          "p90": 2112
+        }
+      },
+      "mvpDamage": {
+        "damagePermille": {
+          "samples": 10,
+          "mean": 760.7,
+          "p10": 0,
+          "p50": 1000,
+          "p90": 1000
+        },
+        "ttkSeconds": {
+          "samples": 7,
+          "mean": 111,
+          "p10": 81,
+          "p50": 118,
+          "p90": 126
+        }
+      },
+      "survivability": {
+        "minHpPermille": {
+          "samples": 10,
+          "mean": 355.9,
+          "p10": 0,
+          "p50": 378,
+          "p90": 637
+        },
+        "damageTaken": {
+          "samples": 10,
+          "mean": 79340.3,
+          "p10": 53984,
+          "p50": 76353,
+          "p90": 98728
+        },
+        "lowHpSeconds": {
+          "samples": 10,
+          "mean": 1.6,
+          "p10": 0,
+          "p50": 0,
+          "p90": 0.7
+        }
+      },
+      "mobility": {
+        "distanceMetersPerMinute": {
+          "samples": 10,
+          "mean": 288.3,
+          "p10": 284.8,
+          "p50": 288,
+          "p90": 289.6
+        }
+      },
+      "control": {
+        "coveragePermille": {
+          "samples": 10,
+          "mean": 3.1,
+          "p10": 0,
+          "p50": 4,
+          "p90": 5
+        },
+        "normalTargetTicks": {
+          "samples": 10,
+          "mean": 1229.4,
+          "p10": 0,
+          "p50": 1430,
+          "p90": 1925
+        },
+        "eliteTargetTicks": {
+          "samples": 10,
+          "mean": 107.1,
+          "p10": 0,
+          "p50": 120,
+          "p90": 168
+        },
+        "mvpTargetTicks": {
+          "samples": 10,
+          "mean": 155.7,
+          "p10": 0,
+          "p50": 72,
+          "p90": 378
+        }
+      },
+      "damageConcentration": {
+        "topSourceSharePermille": {
+          "samples": 10,
+          "mean": 523.9,
+          "p10": 405,
+          "p50": 510,
+          "p90": 596
+        }
+      }
     }
   ],
   "fps": [
     {
       "seed": 1,
       "hashes": [
-        "fcb40dde7ea6edfe",
-        "fcb40dde7ea6edfe",
-        "fcb40dde7ea6edfe"
+        "daf38a2d9ffd9335",
+        "daf38a2d9ffd9335",
+        "daf38a2d9ffd9335"
       ]
     },
     {
       "seed": 2,
       "hashes": [
-        "d8f307e06aa4bb64",
-        "d8f307e06aa4bb64",
-        "d8f307e06aa4bb64"
+        "ac1d0c9f9292c735",
+        "ac1d0c9f9292c735",
+        "ac1d0c9f9292c735"
       ]
     },
     {
       "seed": 3,
       "hashes": [
-        "3f7868aec976c1df",
-        "3f7868aec976c1df",
-        "3f7868aec976c1df"
+        "326a54d35f9680ca",
+        "326a54d35f9680ca",
+        "326a54d35f9680ca"
       ]
     },
     {
       "seed": 4,
       "hashes": [
-        "7a5dcf0ac14525b7",
-        "7a5dcf0ac14525b7",
-        "7a5dcf0ac14525b7"
+        "826eebd61d8c99b0",
+        "826eebd61d8c99b0",
+        "826eebd61d8c99b0"
       ]
     },
     {
       "seed": 5,
       "hashes": [
-        "ac0953f38c36619b",
-        "ac0953f38c36619b",
-        "ac0953f38c36619b"
+        "aca31449b758cfeb",
+        "aca31449b758cfeb",
+        "aca31449b758cfeb"
       ]
     },
     {
       "seed": 6,
       "hashes": [
-        "af0d66def87fcb8d",
-        "af0d66def87fcb8d",
-        "af0d66def87fcb8d"
+        "ea5807c73a31b3ca",
+        "ea5807c73a31b3ca",
+        "ea5807c73a31b3ca"
       ]
     },
     {
       "seed": 7,
       "hashes": [
-        "2a6e874acf2b66c5",
-        "2a6e874acf2b66c5",
-        "2a6e874acf2b66c5"
+        "c7d151a3a45a2604",
+        "c7d151a3a45a2604",
+        "c7d151a3a45a2604"
       ]
     },
     {
       "seed": 8,
       "hashes": [
-        "954237c4711b723a",
-        "954237c4711b723a",
-        "954237c4711b723a"
+        "6d08c1fafbe43867",
+        "6d08c1fafbe43867",
+        "6d08c1fafbe43867"
       ]
     },
     {
       "seed": 9,
       "hashes": [
-        "0331f53cb694a746",
-        "0331f53cb694a746",
-        "0331f53cb694a746"
+        "1378b2d5c663a818",
+        "1378b2d5c663a818",
+        "1378b2d5c663a818"
       ]
     },
     {
       "seed": 10,
       "hashes": [
-        "5b7c816060cdc1fc",
-        "5b7c816060cdc1fc",
-        "5b7c816060cdc1fc"
+        "fe0f96e4cd5bcf03",
+        "fe0f96e4cd5bcf03",
+        "fe0f96e4cd5bcf03"
       ]
     }
   ],
   "grid": [
     {
       "seed": 1,
-      "spawns": 897,
+      "spawns": 919,
       "violations": 0,
       "outcome": "victory"
     },
     {
       "seed": 2,
-      "spawns": 915,
+      "spawns": 906,
       "violations": 0,
       "outcome": "victory"
     },
     {
       "seed": 3,
-      "spawns": 412,
+      "spawns": 405,
       "violations": 0,
       "outcome": "defeat"
     },
     {
       "seed": 4,
-      "spawns": 878,
+      "spawns": 891,
       "violations": 0,
       "outcome": "victory"
     },
@@ -168,31 +1281,31 @@
     },
     {
       "seed": 6,
-      "spawns": 879,
+      "spawns": 906,
       "violations": 0,
       "outcome": "victory"
     },
     {
       "seed": 7,
-      "spawns": 891,
+      "spawns": 612,
       "violations": 0,
-      "outcome": "victory"
+      "outcome": "defeat"
     },
     {
       "seed": 8,
-      "spawns": 883,
+      "spawns": 868,
       "violations": 0,
       "outcome": "victory"
     },
     {
       "seed": 9,
-      "spawns": 842,
+      "spawns": 896,
       "violations": 0,
-      "outcome": "defeat"
+      "outcome": "victory"
     },
     {
       "seed": 10,
-      "spawns": 854,
+      "spawns": 559,
       "violations": 0,
       "outcome": "defeat"
     }
@@ -204,18 +1317,50 @@
       "seed": 1,
       "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 703,
-      "level": 17,
-      "kills": 897,
+      "timeSeconds": 709,
+      "level": 18,
+      "kills": 904,
       "firstAreaClearTick": 1789,
+      "firstAreaClearOfferedTick": 1789,
+      "firstAreaClearSelectedTick": 1789,
+      "firstAreaClearCastTick": 1807,
+      "firstEffectiveAreaClearTick": 1807,
       "firstDraftTick": 1789,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 703,
+      "killsAt60": 37,
+      "killsAt180": 165,
+      "killsAt540": 787,
+      "killsAt600": 798,
+      "bossKillSeconds": 709,
+      "bossTtkSeconds": 109,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 89018,
+      "minHpPermille": 462,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 264627,
+      "controlApplications": {
+        "normal": 384,
+        "elite": 11,
+        "mvp": 11
+      },
+      "controlTargetTicks": {
+        "normal": 2761,
+        "elite": 210,
+        "mvp": 231
+      },
+      "enemyTargetTicks": {
+        "normal": 488201,
+        "elite": 5756,
+        "mvp": 6556
+      },
+      "controlCoveragePermille": 6,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 357,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.guardian",
-      "topDamageTaken": "monster.savage_babe 185"
+      "topDamageTaken": "monster.poporing 161"
     },
     {
       "plan": "guardian",
@@ -223,94 +1368,254 @@
       "seed": 2,
       "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 677,
-      "level": 18,
-      "kills": 871,
+      "timeSeconds": 713,
+      "level": 17,
+      "kills": 904,
       "firstAreaClearTick": 1137,
+      "firstAreaClearOfferedTick": 1137,
+      "firstAreaClearSelectedTick": 1137,
+      "firstAreaClearCastTick": 1243,
+      "firstEffectiveAreaClearTick": 1243,
       "firstDraftTick": 1137,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 677,
+      "killsAt60": 34,
+      "killsAt180": 162,
+      "killsAt540": 781,
+      "killsAt600": 798,
+      "bossKillSeconds": 713,
+      "bossTtkSeconds": 113,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 97912,
+      "minHpPermille": 278,
+      "lowHpTicks": 460,
+      "distanceMmPerMinute": 267063,
+      "controlApplications": {
+        "normal": 431,
+        "elite": 14,
+        "mvp": 13
+      },
+      "controlTargetTicks": {
+        "normal": 2697,
+        "elite": 294,
+        "mvp": 273
+      },
+      "enemyTargetTicks": {
+        "normal": 582851,
+        "elite": 6445,
+        "mvp": 6771
+      },
+      "controlCoveragePermille": 5,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 381,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.guardian",
-      "topDamageTaken": "monster.poporing 171"
+      "topDamageTaken": "monster.poporing 174"
     },
     {
       "plan": "guardian",
       "device": "keyboard",
       "seed": 3,
-      "outcome": "victory",
-      "crashed": null,
-      "timeSeconds": 673,
-      "level": 18,
-      "kills": 863,
-      "firstAreaClearTick": 1519,
-      "firstDraftTick": 1519,
-      "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 673,
-      "spawnsSkipped": 0,
-      "unannouncedHits": 0,
-      "playerMovedBySkills": 0,
-      "keystone": "keystone.guardian",
-      "topDamageTaken": "monster.poporing 152"
-    },
-    {
-      "plan": "guardian",
-      "device": "keyboard",
-      "seed": 4,
-      "outcome": "victory",
-      "crashed": null,
-      "timeSeconds": 691,
-      "level": 18,
-      "kills": 883,
-      "firstAreaClearTick": 1269,
-      "firstDraftTick": 1269,
-      "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 691,
-      "spawnsSkipped": 0,
-      "unannouncedHits": 0,
-      "playerMovedBySkills": 0,
-      "keystone": "keystone.guardian",
-      "topDamageTaken": "boss.mastering 151"
-    },
-    {
-      "plan": "guardian",
-      "device": "keyboard",
-      "seed": 5,
       "outcome": "victory",
       "crashed": null,
       "timeSeconds": 686,
-      "level": 17,
-      "kills": 872,
-      "firstAreaClearTick": 1306,
-      "firstDraftTick": 1306,
+      "level": 18,
+      "kills": 877,
+      "firstAreaClearTick": 1519,
+      "firstAreaClearOfferedTick": 1519,
+      "firstAreaClearSelectedTick": 1519,
+      "firstAreaClearCastTick": 1540,
+      "firstEffectiveAreaClearTick": 1947,
+      "firstDraftTick": 1519,
       "firstDraftHasAreaClear": true,
+      "killsAt60": 40,
+      "killsAt180": 166,
+      "killsAt540": 780,
+      "killsAt600": 798,
       "bossKillSeconds": 686,
+      "bossTtkSeconds": 86,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 79208,
+      "minHpPermille": 622,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 265171,
+      "controlApplications": {
+        "normal": 425,
+        "elite": 12,
+        "mvp": 18
+      },
+      "controlTargetTicks": {
+        "normal": 2607,
+        "elite": 231,
+        "mvp": 469
+      },
+      "enemyTargetTicks": {
+        "normal": 470378,
+        "elite": 5540,
+        "mvp": 5180
+      },
+      "controlCoveragePermille": 7,
+      "topDamageSource": "skill.sw.shield_wave",
+      "topDamageSharePermille": 347,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.guardian",
-      "topDamageTaken": "monster.savage_babe 159"
+      "topDamageTaken": "monster.poporing 191"
+    },
+    {
+      "plan": "guardian",
+      "device": "keyboard",
+      "seed": 4,
+      "outcome": "victory",
+      "crashed": null,
+      "timeSeconds": 677,
+      "level": 17,
+      "kills": 871,
+      "firstAreaClearTick": 1269,
+      "firstAreaClearOfferedTick": 1269,
+      "firstAreaClearSelectedTick": 1269,
+      "firstAreaClearCastTick": 1290,
+      "firstEffectiveAreaClearTick": 1290,
+      "firstDraftTick": 1269,
+      "firstDraftHasAreaClear": true,
+      "killsAt60": 36,
+      "killsAt180": 160,
+      "killsAt540": 761,
+      "killsAt600": 798,
+      "bossKillSeconds": 677,
+      "bossTtkSeconds": 77,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 92680,
+      "minHpPermille": 326,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 268892,
+      "controlApplications": {
+        "normal": 47,
+        "elite": 2,
+        "mvp": 10
+      },
+      "controlTargetTicks": {
+        "normal": 49,
+        "elite": 36,
+        "mvp": 360
+      },
+      "enemyTargetTicks": {
+        "normal": 887353,
+        "elite": 8167,
+        "mvp": 4643
+      },
+      "controlCoveragePermille": 0,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 440,
+      "spawnsSkipped": 0,
+      "unannouncedHits": 0,
+      "playerMovedBySkills": 0,
+      "keystone": "keystone.guardian",
+      "topDamageTaken": "monster.mandragora 258"
+    },
+    {
+      "plan": "guardian",
+      "device": "keyboard",
+      "seed": 5,
+      "outcome": "victory",
+      "crashed": null,
+      "timeSeconds": 697,
+      "level": 18,
+      "kills": 880,
+      "firstAreaClearTick": 1306,
+      "firstAreaClearOfferedTick": 1306,
+      "firstAreaClearSelectedTick": 1306,
+      "firstAreaClearCastTick": 1325,
+      "firstEffectiveAreaClearTick": 1325,
+      "firstDraftTick": 1306,
+      "firstDraftHasAreaClear": true,
+      "killsAt60": 38,
+      "killsAt180": 165,
+      "killsAt540": 780,
+      "killsAt600": 798,
+      "bossKillSeconds": 697,
+      "bossTtkSeconds": 97,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 74020,
+      "minHpPermille": 581,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 265225,
+      "controlApplications": {
+        "normal": 425,
+        "elite": 11,
+        "mvp": 18
+      },
+      "controlTargetTicks": {
+        "normal": 2448,
+        "elite": 197,
+        "mvp": 468
+      },
+      "enemyTargetTicks": {
+        "normal": 452771,
+        "elite": 4155,
+        "mvp": 5795
+      },
+      "controlCoveragePermille": 7,
+      "topDamageSource": "skill.sw.shield_wave",
+      "topDamageSharePermille": 353,
+      "spawnsSkipped": 0,
+      "unannouncedHits": 0,
+      "playerMovedBySkills": 0,
+      "keystone": "keystone.guardian",
+      "topDamageTaken": "monster.poporing 144"
     },
     {
       "plan": "guardian",
       "device": "keyboard",
       "seed": 6,
-      "outcome": "defeat",
+      "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 390,
-      "level": 14,
-      "kills": 455,
+      "timeSeconds": 712,
+      "level": 18,
+      "kills": 897,
       "firstAreaClearTick": 877,
+      "firstAreaClearOfferedTick": 877,
+      "firstAreaClearSelectedTick": 877,
+      "firstAreaClearCastTick": 981,
+      "firstEffectiveAreaClearTick": 2134,
       "firstDraftTick": 877,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": null,
+      "killsAt60": 38,
+      "killsAt180": 163,
+      "killsAt540": 779,
+      "killsAt600": 798,
+      "bossKillSeconds": 712,
+      "bossTtkSeconds": 112,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 112585,
+      "minHpPermille": 160,
+      "lowHpTicks": 1629,
+      "distanceMmPerMinute": 266813,
+      "controlApplications": {
+        "normal": 380,
+        "elite": 11,
+        "mvp": 12
+      },
+      "controlTargetTicks": {
+        "normal": 1868,
+        "elite": 210,
+        "mvp": 252
+      },
+      "enemyTargetTicks": {
+        "normal": 501506,
+        "elite": 4322,
+        "mvp": 6722
+      },
+      "controlCoveragePermille": 5,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 392,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.guardian",
-      "topDamageTaken": "monster.poporing 187"
+      "topDamageTaken": "monster.poporing 250"
     },
     {
       "plan": "guardian",
@@ -318,75 +1623,203 @@
       "seed": 7,
       "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 674,
+      "timeSeconds": 679,
       "level": 18,
-      "kills": 866,
+      "kills": 874,
       "firstAreaClearTick": 1017,
+      "firstAreaClearOfferedTick": 1017,
+      "firstAreaClearSelectedTick": 1017,
+      "firstAreaClearCastTick": 1035,
+      "firstEffectiveAreaClearTick": 1035,
       "firstDraftTick": 1017,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 674,
+      "killsAt60": 34,
+      "killsAt180": 163,
+      "killsAt540": 782,
+      "killsAt600": 798,
+      "bossKillSeconds": 679,
+      "bossTtkSeconds": 79,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 103411,
+      "minHpPermille": 345,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 265169,
+      "controlApplications": {
+        "normal": 395,
+        "elite": 12,
+        "mvp": 16
+      },
+      "controlTargetTicks": {
+        "normal": 2823,
+        "elite": 261,
+        "mvp": 433
+      },
+      "enemyTargetTicks": {
+        "normal": 493775,
+        "elite": 4537,
+        "mvp": 4760
+      },
+      "controlCoveragePermille": 7,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 328,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.guardian",
-      "topDamageTaken": "monster.savage_babe 290"
+      "topDamageTaken": "monster.savage_babe 237"
     },
     {
       "plan": "guardian",
       "device": "keyboard",
       "seed": 8,
-      "outcome": "defeat",
+      "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 404,
-      "level": 14,
-      "kills": 478,
+      "timeSeconds": 683,
+      "level": 17,
+      "kills": 874,
       "firstAreaClearTick": 1375,
+      "firstAreaClearOfferedTick": 1375,
+      "firstAreaClearSelectedTick": 1375,
+      "firstAreaClearCastTick": 1393,
+      "firstEffectiveAreaClearTick": 1801,
       "firstDraftTick": 1375,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": null,
+      "killsAt60": 39,
+      "killsAt180": 164,
+      "killsAt540": 786,
+      "killsAt600": 798,
+      "bossKillSeconds": 683,
+      "bossTtkSeconds": 83,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 93447,
+      "minHpPermille": 541,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 262452,
+      "controlApplications": {
+        "normal": 321,
+        "elite": 7,
+        "mvp": 15
+      },
+      "controlTargetTicks": {
+        "normal": 2087,
+        "elite": 141,
+        "mvp": 390
+      },
+      "enemyTargetTicks": {
+        "normal": 490752,
+        "elite": 4627,
+        "mvp": 4972
+      },
+      "controlCoveragePermille": 5,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 308,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.guardian",
-      "topDamageTaken": "monster.mandragora 144"
+      "topDamageTaken": "monster.savage_babe 229"
     },
     {
       "plan": "guardian",
       "device": "keyboard",
       "seed": 9,
-      "outcome": "defeat",
+      "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 441,
-      "level": 15,
-      "kills": 551,
+      "timeSeconds": 677,
+      "level": 18,
+      "kills": 870,
       "firstAreaClearTick": 1121,
+      "firstAreaClearOfferedTick": 1121,
+      "firstAreaClearSelectedTick": 1121,
+      "firstAreaClearCastTick": 1247,
+      "firstEffectiveAreaClearTick": 1247,
       "firstDraftTick": 1121,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": null,
+      "killsAt60": 37,
+      "killsAt180": 166,
+      "killsAt540": 782,
+      "killsAt600": 798,
+      "bossKillSeconds": 677,
+      "bossTtkSeconds": 77,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 105156,
+      "minHpPermille": 177,
+      "lowHpTicks": 1713,
+      "distanceMmPerMinute": 266575,
+      "controlApplications": {
+        "normal": 542,
+        "elite": 12,
+        "mvp": 20
+      },
+      "controlTargetTicks": {
+        "normal": 2442,
+        "elite": 246,
+        "mvp": 519
+      },
+      "enemyTargetTicks": {
+        "normal": 513978,
+        "elite": 4832,
+        "mvp": 4620
+      },
+      "controlCoveragePermille": 6,
+      "topDamageSource": "skill.sw.shield_wave",
+      "topDamageSharePermille": 443,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.guardian",
-      "topDamageTaken": "monster.poporing 188"
+      "topDamageTaken": "monster.mandragora 206"
     },
     {
       "plan": "guardian",
       "device": "keyboard",
       "seed": 10,
-      "outcome": "victory",
+      "outcome": "defeat",
       "crashed": null,
-      "timeSeconds": 671,
-      "level": 17,
-      "kills": 863,
+      "timeSeconds": 391,
+      "level": 14,
+      "kills": 460,
       "firstAreaClearTick": 1749,
+      "firstAreaClearOfferedTick": 1749,
+      "firstAreaClearSelectedTick": 1749,
+      "firstAreaClearCastTick": 1767,
+      "firstEffectiveAreaClearTick": 1767,
       "firstDraftTick": 1749,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 671,
+      "killsAt60": 35,
+      "killsAt180": 159,
+      "killsAt540": 460,
+      "killsAt600": 460,
+      "bossKillSeconds": null,
+      "bossTtkSeconds": null,
+      "mvpDamagePermille": 0,
+      "damageTaken": 65792,
+      "minHpPermille": 0,
+      "lowHpTicks": 1536,
+      "distanceMmPerMinute": 265697,
+      "controlApplications": {
+        "normal": 224,
+        "elite": 9,
+        "mvp": 0
+      },
+      "controlTargetTicks": {
+        "normal": 852,
+        "elite": 182,
+        "mvp": 0
+      },
+      "enemyTargetTicks": {
+        "normal": 318458,
+        "elite": 3071,
+        "mvp": 0
+      },
+      "controlCoveragePermille": 3,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 457,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.guardian",
-      "topDamageTaken": "monster.poporing 157"
+      "topDamageTaken": "monster.mandragora 157"
     },
     {
       "plan": "guardian",
@@ -394,18 +1827,50 @@
       "seed": 1,
       "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 696,
-      "level": 18,
-      "kills": 893,
+      "timeSeconds": 712,
+      "level": 17,
+      "kills": 906,
       "firstAreaClearTick": 1787,
+      "firstAreaClearOfferedTick": 1787,
+      "firstAreaClearSelectedTick": 1787,
+      "firstAreaClearCastTick": 1805,
+      "firstEffectiveAreaClearTick": 1805,
       "firstDraftTick": 1787,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 696,
+      "killsAt60": 35,
+      "killsAt180": 166,
+      "killsAt540": 786,
+      "killsAt600": 798,
+      "bossKillSeconds": 712,
+      "bossTtkSeconds": 112,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 84344,
+      "minHpPermille": 469,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 264055,
+      "controlApplications": {
+        "normal": 375,
+        "elite": 11,
+        "mvp": 13
+      },
+      "controlTargetTicks": {
+        "normal": 2512,
+        "elite": 189,
+        "mvp": 273
+      },
+      "enemyTargetTicks": {
+        "normal": 490841,
+        "elite": 5405,
+        "mvp": 6733
+      },
+      "controlCoveragePermille": 6,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 365,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.guardian",
-      "topDamageTaken": "monster.savage_babe 211"
+      "topDamageTaken": "boss.mastering 170"
     },
     {
       "plan": "guardian",
@@ -413,18 +1878,50 @@
       "seed": 2,
       "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 682,
-      "level": 17,
-      "kills": 875,
+      "timeSeconds": 716,
+      "level": 18,
+      "kills": 906,
       "firstAreaClearTick": 1220,
+      "firstAreaClearOfferedTick": 1220,
+      "firstAreaClearSelectedTick": 1220,
+      "firstAreaClearCastTick": 1256,
+      "firstEffectiveAreaClearTick": 1256,
       "firstDraftTick": 1220,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 682,
+      "killsAt60": 36,
+      "killsAt180": 161,
+      "killsAt540": 782,
+      "killsAt600": 798,
+      "bossKillSeconds": 716,
+      "bossTtkSeconds": 116,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 104167,
+      "minHpPermille": 309,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 263444,
+      "controlApplications": {
+        "normal": 417,
+        "elite": 12,
+        "mvp": 15
+      },
+      "controlTargetTicks": {
+        "normal": 2074,
+        "elite": 252,
+        "mvp": 315
+      },
+      "enemyTargetTicks": {
+        "normal": 516199,
+        "elite": 6645,
+        "mvp": 6987
+      },
+      "controlCoveragePermille": 5,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 400,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.guardian",
-      "topDamageTaken": "monster.poporing 166"
+      "topDamageTaken": "monster.mandragora 227"
     },
     {
       "plan": "guardian",
@@ -432,18 +1929,50 @@
       "seed": 3,
       "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 679,
-      "level": 18,
-      "kills": 871,
+      "timeSeconds": 685,
+      "level": 17,
+      "kills": 872,
       "firstAreaClearTick": 1514,
+      "firstAreaClearOfferedTick": 1514,
+      "firstAreaClearSelectedTick": 1514,
+      "firstAreaClearCastTick": 1535,
+      "firstEffectiveAreaClearTick": 1946,
       "firstDraftTick": 1514,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 679,
+      "killsAt60": 37,
+      "killsAt180": 164,
+      "killsAt540": 783,
+      "killsAt600": 798,
+      "bossKillSeconds": 685,
+      "bossTtkSeconds": 85,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 77542,
+      "minHpPermille": 596,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 267424,
+      "controlApplications": {
+        "normal": 457,
+        "elite": 12,
+        "mvp": 16
+      },
+      "controlTargetTicks": {
+        "normal": 2749,
+        "elite": 237,
+        "mvp": 425
+      },
+      "enemyTargetTicks": {
+        "normal": 503622,
+        "elite": 4677,
+        "mvp": 5094
+      },
+      "controlCoveragePermille": 7,
+      "topDamageSource": "skill.sw.shield_wave",
+      "topDamageSharePermille": 348,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.guardian",
-      "topDamageTaken": "monster.poporing 146"
+      "topDamageTaken": "monster.poporing 173"
     },
     {
       "plan": "guardian",
@@ -451,18 +1980,50 @@
       "seed": 4,
       "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 691,
-      "level": 18,
-      "kills": 882,
+      "timeSeconds": 679,
+      "level": 17,
+      "kills": 871,
       "firstAreaClearTick": 1077,
+      "firstAreaClearOfferedTick": 1077,
+      "firstAreaClearSelectedTick": 1077,
+      "firstAreaClearCastTick": 1242,
+      "firstEffectiveAreaClearTick": 1242,
       "firstDraftTick": 1077,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 691,
+      "killsAt60": 36,
+      "killsAt180": 164,
+      "killsAt540": 758,
+      "killsAt600": 798,
+      "bossKillSeconds": 679,
+      "bossTtkSeconds": 79,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 100181,
+      "minHpPermille": 237,
+      "lowHpTicks": 500,
+      "distanceMmPerMinute": 266435,
+      "controlApplications": {
+        "normal": 53,
+        "elite": 0,
+        "mvp": 9
+      },
+      "controlTargetTicks": {
+        "normal": 72,
+        "elite": 0,
+        "mvp": 288
+      },
+      "enemyTargetTicks": {
+        "normal": 814219,
+        "elite": 6556,
+        "mvp": 4733
+      },
+      "controlCoveragePermille": 0,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 444,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.guardian",
-      "topDamageTaken": "monster.savage_babe 184"
+      "topDamageTaken": "monster.mandragora 242"
     },
     {
       "plan": "guardian",
@@ -470,18 +2031,50 @@
       "seed": 5,
       "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 683,
+      "timeSeconds": 697,
       "level": 18,
-      "kills": 867,
+      "kills": 881,
       "firstAreaClearTick": 1309,
+      "firstAreaClearOfferedTick": 1309,
+      "firstAreaClearSelectedTick": 1309,
+      "firstAreaClearCastTick": 1703,
+      "firstEffectiveAreaClearTick": 2111,
       "firstDraftTick": 1309,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 683,
+      "killsAt60": 37,
+      "killsAt180": 164,
+      "killsAt540": 785,
+      "killsAt600": 798,
+      "bossKillSeconds": 697,
+      "bossTtkSeconds": 97,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 82556,
+      "minHpPermille": 669,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 263633,
+      "controlApplications": {
+        "normal": 405,
+        "elite": 11,
+        "mvp": 16
+      },
+      "controlTargetTicks": {
+        "normal": 2432,
+        "elite": 261,
+        "mvp": 426
+      },
+      "enemyTargetTicks": {
+        "normal": 468265,
+        "elite": 5076,
+        "mvp": 5817
+      },
+      "controlCoveragePermille": 7,
+      "topDamageSource": "skill.sw.shield_wave",
+      "topDamageSharePermille": 335,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.guardian",
-      "topDamageTaken": "monster.poporing 197"
+      "topDamageTaken": "boss.mastering 171"
     },
     {
       "plan": "guardian",
@@ -489,127 +2082,147 @@
       "seed": 6,
       "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 704,
+      "timeSeconds": 714,
       "level": 18,
-      "kills": 892,
+      "kills": 902,
       "firstAreaClearTick": 883,
+      "firstAreaClearOfferedTick": 883,
+      "firstAreaClearSelectedTick": 883,
+      "firstAreaClearCastTick": 935,
+      "firstEffectiveAreaClearTick": 935,
       "firstDraftTick": 883,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 704,
+      "killsAt60": 34,
+      "killsAt180": 163,
+      "killsAt540": 779,
+      "killsAt600": 798,
+      "bossKillSeconds": 714,
+      "bossTtkSeconds": 114,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 94827,
+      "minHpPermille": 567,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 260206,
+      "controlApplications": {
+        "normal": 464,
+        "elite": 13,
+        "mvp": 12
+      },
+      "controlTargetTicks": {
+        "normal": 2168,
+        "elite": 231,
+        "mvp": 252
+      },
+      "enemyTargetTicks": {
+        "normal": 506862,
+        "elite": 4927,
+        "mvp": 6830
+      },
+      "controlCoveragePermille": 5,
+      "topDamageSource": "skill.sw.shield_wave",
+      "topDamageSharePermille": 392,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.guardian",
-      "topDamageTaken": "monster.savage_babe 247"
+      "topDamageTaken": "monster.mandragora 194"
     },
     {
       "plan": "guardian",
       "device": "touch",
       "seed": 7,
-      "outcome": "defeat",
+      "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 390,
-      "level": 14,
-      "kills": 457,
+      "timeSeconds": 678,
+      "level": 18,
+      "kills": 874,
       "firstAreaClearTick": 1047,
+      "firstAreaClearOfferedTick": 1047,
+      "firstAreaClearSelectedTick": 1047,
+      "firstAreaClearCastTick": 1620,
+      "firstEffectiveAreaClearTick": 1620,
       "firstDraftTick": 1047,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": null,
+      "killsAt60": 36,
+      "killsAt180": 161,
+      "killsAt540": 780,
+      "killsAt600": 798,
+      "bossKillSeconds": 678,
+      "bossTtkSeconds": 78,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 83622,
+      "minHpPermille": 492,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 260509,
+      "controlApplications": {
+        "normal": 395,
+        "elite": 10,
+        "mvp": 19
+      },
+      "controlTargetTicks": {
+        "normal": 2918,
+        "elite": 204,
+        "mvp": 489
+      },
+      "enemyTargetTicks": {
+        "normal": 471161,
+        "elite": 4177,
+        "mvp": 4659
+      },
+      "controlCoveragePermille": 8,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 327,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.guardian",
-      "topDamageTaken": "monster.mandragora 170"
+      "topDamageTaken": "monster.mandragora 148"
     },
     {
       "plan": "guardian",
       "device": "touch",
       "seed": 8,
-      "outcome": "defeat",
-      "crashed": null,
-      "timeSeconds": 398,
-      "level": 14,
-      "kills": 465,
-      "firstAreaClearTick": 1367,
-      "firstDraftTick": 1367,
-      "firstDraftHasAreaClear": true,
-      "bossKillSeconds": null,
-      "spawnsSkipped": 0,
-      "unannouncedHits": 0,
-      "playerMovedBySkills": 0,
-      "keystone": "keystone.guardian",
-      "topDamageTaken": "monster.mandragora 138"
-    },
-    {
-      "plan": "guardian",
-      "device": "touch",
-      "seed": 9,
-      "outcome": "victory",
-      "crashed": null,
-      "timeSeconds": 681,
-      "level": 18,
-      "kills": 872,
-      "firstAreaClearTick": 2070,
-      "firstDraftTick": 2070,
-      "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 681,
-      "spawnsSkipped": 0,
-      "unannouncedHits": 0,
-      "playerMovedBySkills": 0,
-      "keystone": "keystone.guardian",
-      "topDamageTaken": "monster.poporing 197"
-    },
-    {
-      "plan": "guardian",
-      "device": "touch",
-      "seed": 10,
       "outcome": "victory",
       "crashed": null,
       "timeSeconds": 679,
-      "level": 17,
+      "level": 18,
       "kills": 872,
-      "firstAreaClearTick": 1220,
-      "firstDraftTick": 1220,
+      "firstAreaClearTick": 1367,
+      "firstAreaClearOfferedTick": 1367,
+      "firstAreaClearSelectedTick": 1367,
+      "firstAreaClearCastTick": 1385,
+      "firstEffectiveAreaClearTick": 1793,
+      "firstDraftTick": 1367,
       "firstDraftHasAreaClear": true,
+      "killsAt60": 36,
+      "killsAt180": 163,
+      "killsAt540": 786,
+      "killsAt600": 798,
       "bossKillSeconds": 679,
-      "spawnsSkipped": 0,
-      "unannouncedHits": 0,
-      "playerMovedBySkills": 0,
-      "keystone": "keystone.guardian",
-      "topDamageTaken": "monster.savage_babe 150"
-    },
-    {
-      "plan": "guardian",
-      "device": "gamepad",
-      "seed": 1,
-      "outcome": "victory",
-      "crashed": null,
-      "timeSeconds": 700,
-      "level": 18,
-      "kills": 895,
-      "firstAreaClearTick": 1784,
-      "firstDraftTick": 1784,
-      "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 700,
-      "spawnsSkipped": 0,
-      "unannouncedHits": 0,
-      "playerMovedBySkills": 0,
-      "keystone": "keystone.guardian",
-      "topDamageTaken": "boss.mastering 141"
-    },
-    {
-      "plan": "guardian",
-      "device": "gamepad",
-      "seed": 2,
-      "outcome": "victory",
-      "crashed": null,
-      "timeSeconds": 677,
-      "level": 18,
-      "kills": 867,
-      "firstAreaClearTick": 1220,
-      "firstDraftTick": 1220,
-      "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 677,
+      "bossTtkSeconds": 79,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 94802,
+      "minHpPermille": 451,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 262511,
+      "controlApplications": {
+        "normal": 371,
+        "elite": 14,
+        "mvp": 16
+      },
+      "controlTargetTicks": {
+        "normal": 2195,
+        "elite": 297,
+        "mvp": 435
+      },
+      "enemyTargetTicks": {
+        "normal": 461405,
+        "elite": 5074,
+        "mvp": 4749
+      },
+      "controlCoveragePermille": 6,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 327,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
@@ -618,22 +2231,258 @@
     },
     {
       "plan": "guardian",
-      "device": "gamepad",
-      "seed": 3,
+      "device": "touch",
+      "seed": 9,
       "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 680,
+      "timeSeconds": 679,
       "level": 18,
-      "kills": 870,
-      "firstAreaClearTick": 1504,
-      "firstDraftTick": 1504,
+      "kills": 871,
+      "firstAreaClearTick": 2070,
+      "firstAreaClearOfferedTick": 2070,
+      "firstAreaClearSelectedTick": 2070,
+      "firstAreaClearCastTick": 2088,
+      "firstEffectiveAreaClearTick": 2088,
+      "firstDraftTick": 2070,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 680,
+      "killsAt60": 37,
+      "killsAt180": 162,
+      "killsAt540": 782,
+      "killsAt600": 798,
+      "bossKillSeconds": 679,
+      "bossTtkSeconds": 79,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 109657,
+      "minHpPermille": 220,
+      "lowHpTicks": 2185,
+      "distanceMmPerMinute": 265915,
+      "controlApplications": {
+        "normal": 503,
+        "elite": 17,
+        "mvp": 19
+      },
+      "controlTargetTicks": {
+        "normal": 2293,
+        "elite": 366,
+        "mvp": 488
+      },
+      "enemyTargetTicks": {
+        "normal": 526079,
+        "elite": 5942,
+        "mvp": 4729
+      },
+      "controlCoveragePermille": 6,
+      "topDamageSource": "skill.sw.shield_wave",
+      "topDamageSharePermille": 424,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.guardian",
-      "topDamageTaken": "monster.poporing 146"
+      "topDamageTaken": "monster.poporing 190"
+    },
+    {
+      "plan": "guardian",
+      "device": "touch",
+      "seed": 10,
+      "outcome": "victory",
+      "crashed": null,
+      "timeSeconds": 682,
+      "level": 18,
+      "kills": 873,
+      "firstAreaClearTick": 1220,
+      "firstAreaClearOfferedTick": 1220,
+      "firstAreaClearSelectedTick": 1220,
+      "firstAreaClearCastTick": 1242,
+      "firstEffectiveAreaClearTick": 1650,
+      "firstDraftTick": 1220,
+      "firstDraftHasAreaClear": true,
+      "killsAt60": 37,
+      "killsAt180": 162,
+      "killsAt540": 780,
+      "killsAt600": 798,
+      "bossKillSeconds": 682,
+      "bossTtkSeconds": 82,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 101038,
+      "minHpPermille": 19,
+      "lowHpTicks": 5575,
+      "distanceMmPerMinute": 269571,
+      "controlApplications": {
+        "normal": 504,
+        "elite": 12,
+        "mvp": 21
+      },
+      "controlTargetTicks": {
+        "normal": 1932,
+        "elite": 253,
+        "mvp": 576
+      },
+      "enemyTargetTicks": {
+        "normal": 492238,
+        "elite": 5246,
+        "mvp": 4933
+      },
+      "controlCoveragePermille": 5,
+      "topDamageSource": "skill.sw.shield_wave",
+      "topDamageSharePermille": 422,
+      "spawnsSkipped": 0,
+      "unannouncedHits": 0,
+      "playerMovedBySkills": 0,
+      "keystone": "keystone.guardian",
+      "topDamageTaken": "monster.poporing 205"
+    },
+    {
+      "plan": "guardian",
+      "device": "gamepad",
+      "seed": 1,
+      "outcome": "victory",
+      "crashed": null,
+      "timeSeconds": 713,
+      "level": 18,
+      "kills": 911,
+      "firstAreaClearTick": 1784,
+      "firstAreaClearOfferedTick": 1784,
+      "firstAreaClearSelectedTick": 1784,
+      "firstAreaClearCastTick": 1802,
+      "firstEffectiveAreaClearTick": 1802,
+      "firstDraftTick": 1784,
+      "firstDraftHasAreaClear": true,
+      "killsAt60": 34,
+      "killsAt180": 164,
+      "killsAt540": 786,
+      "killsAt600": 798,
+      "bossKillSeconds": 713,
+      "bossTtkSeconds": 113,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 85293,
+      "minHpPermille": 490,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 264367,
+      "controlApplications": {
+        "normal": 413,
+        "elite": 11,
+        "mvp": 15
+      },
+      "controlTargetTicks": {
+        "normal": 2607,
+        "elite": 210,
+        "mvp": 294
+      },
+      "enemyTargetTicks": {
+        "normal": 485922,
+        "elite": 5653,
+        "mvp": 6768
+      },
+      "controlCoveragePermille": 6,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 359,
+      "spawnsSkipped": 0,
+      "unannouncedHits": 0,
+      "playerMovedBySkills": 0,
+      "keystone": "keystone.guardian",
+      "topDamageTaken": "monster.savage_babe 157"
+    },
+    {
+      "plan": "guardian",
+      "device": "gamepad",
+      "seed": 2,
+      "outcome": "victory",
+      "crashed": null,
+      "timeSeconds": 722,
+      "level": 18,
+      "kills": 909,
+      "firstAreaClearTick": 1220,
+      "firstAreaClearOfferedTick": 1220,
+      "firstAreaClearSelectedTick": 1220,
+      "firstAreaClearCastTick": 1258,
+      "firstEffectiveAreaClearTick": 1258,
+      "firstDraftTick": 1220,
+      "firstDraftHasAreaClear": true,
+      "killsAt60": 34,
+      "killsAt180": 164,
+      "killsAt540": 782,
+      "killsAt600": 798,
+      "bossKillSeconds": 722,
+      "bossTtkSeconds": 122,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 99563,
+      "minHpPermille": 434,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 262225,
+      "controlApplications": {
+        "normal": 399,
+        "elite": 9,
+        "mvp": 12
+      },
+      "controlTargetTicks": {
+        "normal": 2446,
+        "elite": 147,
+        "mvp": 252
+      },
+      "enemyTargetTicks": {
+        "normal": 524902,
+        "elite": 5796,
+        "mvp": 7311
+      },
+      "controlCoveragePermille": 5,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 406,
+      "spawnsSkipped": 0,
+      "unannouncedHits": 0,
+      "playerMovedBySkills": 0,
+      "keystone": "keystone.guardian",
+      "topDamageTaken": "monster.mandragora 196"
+    },
+    {
+      "plan": "guardian",
+      "device": "gamepad",
+      "seed": 3,
+      "outcome": "victory",
+      "crashed": null,
+      "timeSeconds": 686,
+      "level": 18,
+      "kills": 874,
+      "firstAreaClearTick": 1504,
+      "firstAreaClearOfferedTick": 1504,
+      "firstAreaClearSelectedTick": 1504,
+      "firstAreaClearCastTick": 1949,
+      "firstEffectiveAreaClearTick": 2461,
+      "firstDraftTick": 1504,
+      "firstDraftHasAreaClear": true,
+      "killsAt60": 40,
+      "killsAt180": 167,
+      "killsAt540": 782,
+      "killsAt600": 798,
+      "bossKillSeconds": 686,
+      "bossTtkSeconds": 86,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 93377,
+      "minHpPermille": 590,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 264601,
+      "controlApplications": {
+        "normal": 371,
+        "elite": 14,
+        "mvp": 14
+      },
+      "controlTargetTicks": {
+        "normal": 2419,
+        "elite": 339,
+        "mvp": 384
+      },
+      "enemyTargetTicks": {
+        "normal": 468981,
+        "elite": 4732,
+        "mvp": 5151
+      },
+      "controlCoveragePermille": 7,
+      "topDamageSource": "skill.sw.shield_wave",
+      "topDamageSharePermille": 318,
+      "spawnsSkipped": 0,
+      "unannouncedHits": 0,
+      "playerMovedBySkills": 0,
+      "keystone": "keystone.guardian",
+      "topDamageTaken": "monster.poporing 246"
     },
     {
       "plan": "guardian",
@@ -641,18 +2490,50 @@
       "seed": 4,
       "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 680,
-      "level": 18,
-      "kills": 873,
+      "timeSeconds": 678,
+      "level": 17,
+      "kills": 871,
       "firstAreaClearTick": 1074,
+      "firstAreaClearOfferedTick": 1074,
+      "firstAreaClearSelectedTick": 1074,
+      "firstAreaClearCastTick": 1242,
+      "firstEffectiveAreaClearTick": 1242,
       "firstDraftTick": 1074,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 680,
+      "killsAt60": 37,
+      "killsAt180": 161,
+      "killsAt540": 781,
+      "killsAt600": 798,
+      "bossKillSeconds": 678,
+      "bossTtkSeconds": 78,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 107040,
+      "minHpPermille": 32,
+      "lowHpTicks": 876,
+      "distanceMmPerMinute": 265740,
+      "controlApplications": {
+        "normal": 53,
+        "elite": 0,
+        "mvp": 8
+      },
+      "controlTargetTicks": {
+        "normal": 36,
+        "elite": 0,
+        "mvp": 288
+      },
+      "enemyTargetTicks": {
+        "normal": 630962,
+        "elite": 7385,
+        "mvp": 4662
+      },
+      "controlCoveragePermille": 1,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 414,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.guardian",
-      "topDamageTaken": "monster.savage_babe 170"
+      "topDamageTaken": "monster.mandragora 230"
     },
     {
       "plan": "guardian",
@@ -660,18 +2541,50 @@
       "seed": 5,
       "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 690,
+      "timeSeconds": 685,
       "level": 18,
-      "kills": 874,
+      "kills": 867,
       "firstAreaClearTick": 1306,
+      "firstAreaClearOfferedTick": 1306,
+      "firstAreaClearSelectedTick": 1306,
+      "firstAreaClearCastTick": 1704,
+      "firstEffectiveAreaClearTick": 2112,
       "firstDraftTick": 1306,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 690,
+      "killsAt60": 38,
+      "killsAt180": 160,
+      "killsAt540": 779,
+      "killsAt600": 798,
+      "bossKillSeconds": 685,
+      "bossTtkSeconds": 85,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 85042,
+      "minHpPermille": 564,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 260414,
+      "controlApplications": {
+        "normal": 408,
+        "elite": 12,
+        "mvp": 21
+      },
+      "controlTargetTicks": {
+        "normal": 2621,
+        "elite": 246,
+        "mvp": 545
+      },
+      "enemyTargetTicks": {
+        "normal": 457869,
+        "elite": 4490,
+        "mvp": 5093
+      },
+      "controlCoveragePermille": 7,
+      "topDamageSource": "skill.sw.shield_wave",
+      "topDamageSharePermille": 361,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.guardian",
-      "topDamageTaken": "boss.mastering 165"
+      "topDamageTaken": "monster.savage_babe 189"
     },
     {
       "plan": "guardian",
@@ -679,13 +2592,45 @@
       "seed": 6,
       "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 706,
+      "timeSeconds": 704,
       "level": 18,
-      "kills": 895,
+      "kills": 892,
       "firstAreaClearTick": 1599,
+      "firstAreaClearOfferedTick": 1599,
+      "firstAreaClearSelectedTick": 1599,
+      "firstAreaClearCastTick": 1617,
+      "firstEffectiveAreaClearTick": 1617,
       "firstDraftTick": 1599,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 706,
+      "killsAt60": 37,
+      "killsAt180": 161,
+      "killsAt540": 780,
+      "killsAt600": 798,
+      "bossKillSeconds": 704,
+      "bossTtkSeconds": 104,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 94656,
+      "minHpPermille": 303,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 265045,
+      "controlApplications": {
+        "normal": 439,
+        "elite": 10,
+        "mvp": 12
+      },
+      "controlTargetTicks": {
+        "normal": 2522,
+        "elite": 171,
+        "mvp": 252
+      },
+      "enemyTargetTicks": {
+        "normal": 493284,
+        "elite": 4340,
+        "mvp": 6259
+      },
+      "controlCoveragePermille": 6,
+      "topDamageSource": "skill.sw.shield_wave",
+      "topDamageSharePermille": 373,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
@@ -698,18 +2643,50 @@
       "seed": 7,
       "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 673,
+      "timeSeconds": 681,
       "level": 18,
-      "kills": 866,
+      "kills": 875,
       "firstAreaClearTick": 1047,
+      "firstAreaClearOfferedTick": 1047,
+      "firstAreaClearSelectedTick": 1047,
+      "firstAreaClearCastTick": 1622,
+      "firstEffectiveAreaClearTick": 1622,
       "firstDraftTick": 1047,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 673,
+      "killsAt60": 35,
+      "killsAt180": 162,
+      "killsAt540": 781,
+      "killsAt600": 798,
+      "bossKillSeconds": 681,
+      "bossTtkSeconds": 81,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 96342,
+      "minHpPermille": 373,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 263015,
+      "controlApplications": {
+        "normal": 372,
+        "elite": 10,
+        "mvp": 13
+      },
+      "controlTargetTicks": {
+        "normal": 2640,
+        "elite": 196,
+        "mvp": 318
+      },
+      "enemyTargetTicks": {
+        "normal": 444299,
+        "elite": 4495,
+        "mvp": 4843
+      },
+      "controlCoveragePermille": 7,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 321,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.guardian",
-      "topDamageTaken": "monster.savage_babe 212"
+      "topDamageTaken": "boss.mastering 197"
     },
     {
       "plan": "guardian",
@@ -717,18 +2694,50 @@
       "seed": 8,
       "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 668,
-      "level": 18,
-      "kills": 860,
+      "timeSeconds": 678,
+      "level": 17,
+      "kills": 868,
       "firstAreaClearTick": 1642,
+      "firstAreaClearOfferedTick": 1642,
+      "firstAreaClearSelectedTick": 1642,
+      "firstAreaClearCastTick": 1660,
+      "firstEffectiveAreaClearTick": 1660,
       "firstDraftTick": 1642,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 668,
+      "killsAt60": 38,
+      "killsAt180": 160,
+      "killsAt540": 786,
+      "killsAt600": 798,
+      "bossKillSeconds": 678,
+      "bossTtkSeconds": 78,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 99365,
+      "minHpPermille": 55,
+      "lowHpTicks": 2013,
+      "distanceMmPerMinute": 260500,
+      "controlApplications": {
+        "normal": 375,
+        "elite": 8,
+        "mvp": 15
+      },
+      "controlTargetTicks": {
+        "normal": 2305,
+        "elite": 126,
+        "mvp": 405
+      },
+      "enemyTargetTicks": {
+        "normal": 490327,
+        "elite": 5398,
+        "mvp": 4666
+      },
+      "controlCoveragePermille": 6,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 335,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.guardian",
-      "topDamageTaken": "monster.savage_babe 169"
+      "topDamageTaken": "monster.mandragora 164"
     },
     {
       "plan": "guardian",
@@ -736,18 +2745,50 @@
       "seed": 9,
       "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 684,
+      "timeSeconds": 679,
       "level": 18,
-      "kills": 874,
+      "kills": 871,
       "firstAreaClearTick": 1114,
+      "firstAreaClearOfferedTick": 1114,
+      "firstAreaClearSelectedTick": 1114,
+      "firstAreaClearCastTick": 1243,
+      "firstEffectiveAreaClearTick": 1243,
       "firstDraftTick": 1114,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 684,
+      "killsAt60": 37,
+      "killsAt180": 162,
+      "killsAt540": 782,
+      "killsAt600": 798,
+      "bossKillSeconds": 679,
+      "bossTtkSeconds": 79,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 99270,
+      "minHpPermille": 485,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 266299,
+      "controlApplications": {
+        "normal": 539,
+        "elite": 13,
+        "mvp": 15
+      },
+      "controlTargetTicks": {
+        "normal": 2490,
+        "elite": 267,
+        "mvp": 375
+      },
+      "enemyTargetTicks": {
+        "normal": 541458,
+        "elite": 5348,
+        "mvp": 4729
+      },
+      "controlCoveragePermille": 6,
+      "topDamageSource": "skill.sw.shield_wave",
+      "topDamageSharePermille": 438,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.guardian",
-      "topDamageTaken": "monster.savage_babe 243"
+      "topDamageTaken": "monster.poporing 217"
     },
     {
       "plan": "guardian",
@@ -755,18 +2796,50 @@
       "seed": 10,
       "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 678,
-      "level": 17,
-      "kills": 870,
+      "timeSeconds": 676,
+      "level": 18,
+      "kills": 864,
       "firstAreaClearTick": 1157,
+      "firstAreaClearOfferedTick": 1157,
+      "firstAreaClearSelectedTick": 1157,
+      "firstAreaClearCastTick": 1175,
+      "firstEffectiveAreaClearTick": 1175,
       "firstDraftTick": 1157,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 678,
+      "killsAt60": 35,
+      "killsAt180": 164,
+      "killsAt540": 782,
+      "killsAt600": 798,
+      "bossKillSeconds": 676,
+      "bossTtkSeconds": 76,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 84219,
+      "minHpPermille": 303,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 266520,
+      "controlApplications": {
+        "normal": 513,
+        "elite": 16,
+        "mvp": 24
+      },
+      "controlTargetTicks": {
+        "normal": 2485,
+        "elite": 337,
+        "mvp": 669
+      },
+      "enemyTargetTicks": {
+        "normal": 510623,
+        "elite": 6918,
+        "mvp": 4556
+      },
+      "controlCoveragePermille": 7,
+      "topDamageSource": "skill.sw.shield_wave",
+      "topDamageSharePermille": 444,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.guardian",
-      "topDamageTaken": "monster.poporing 164"
+      "topDamageTaken": "monster.mandragora 152"
     },
     {
       "plan": "weapon",
@@ -774,18 +2847,50 @@
       "seed": 1,
       "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 664,
-      "level": 17,
+      "timeSeconds": 663,
+      "level": 18,
       "kills": 857,
       "firstAreaClearTick": 1789,
+      "firstAreaClearOfferedTick": 1789,
+      "firstAreaClearSelectedTick": 1789,
+      "firstAreaClearCastTick": 1810,
+      "firstEffectiveAreaClearTick": 2131,
       "firstDraftTick": 1789,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 664,
+      "killsAt60": 36,
+      "killsAt180": 167,
+      "killsAt540": 779,
+      "killsAt600": 798,
+      "bossKillSeconds": 663,
+      "bossTtkSeconds": 63,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 96410,
+      "minHpPermille": 202,
+      "lowHpTicks": 782,
+      "distanceMmPerMinute": 286450,
+      "controlApplications": {
+        "normal": 34,
+        "elite": 0,
+        "mvp": 8
+      },
+      "controlTargetTicks": {
+        "normal": 0,
+        "elite": 0,
+        "mvp": 288
+      },
+      "enemyTargetTicks": {
+        "normal": 507343,
+        "elite": 3804,
+        "mvp": 3770
+      },
+      "controlCoveragePermille": 1,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 542,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.weapon",
-      "topDamageTaken": "monster.mandragora 145"
+      "topDamageTaken": "monster.savage_babe 198"
     },
     {
       "plan": "weapon",
@@ -793,18 +2898,50 @@
       "seed": 2,
       "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 657,
+      "timeSeconds": 668,
       "level": 18,
-      "kills": 851,
+      "kills": 860,
       "firstAreaClearTick": 1137,
+      "firstAreaClearOfferedTick": 1137,
+      "firstAreaClearSelectedTick": 1137,
+      "firstAreaClearCastTick": 1243,
+      "firstEffectiveAreaClearTick": 1243,
       "firstDraftTick": 1137,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 657,
+      "killsAt60": 35,
+      "killsAt180": 167,
+      "killsAt540": 782,
+      "killsAt600": 798,
+      "bossKillSeconds": 668,
+      "bossTtkSeconds": 68,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 89012,
+      "minHpPermille": 675,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 290474,
+      "controlApplications": {
+        "normal": 27,
+        "elite": 2,
+        "mvp": 6
+      },
+      "controlTargetTicks": {
+        "normal": 30,
+        "elite": 36,
+        "mvp": 216
+      },
+      "enemyTargetTicks": {
+        "normal": 474016,
+        "elite": 3241,
+        "mvp": 4089
+      },
+      "controlCoveragePermille": 1,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 500,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.weapon",
-      "topDamageTaken": "monster.savage_babe 222"
+      "topDamageTaken": "monster.mandragora 168"
     },
     {
       "plan": "weapon",
@@ -812,18 +2949,50 @@
       "seed": 3,
       "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 655,
-      "level": 18,
+      "timeSeconds": 658,
+      "level": 17,
       "kills": 848,
       "firstAreaClearTick": 1519,
+      "firstAreaClearOfferedTick": 1519,
+      "firstAreaClearSelectedTick": 1519,
+      "firstAreaClearCastTick": 1540,
+      "firstEffectiveAreaClearTick": 1947,
       "firstDraftTick": 1519,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 655,
+      "killsAt60": 38,
+      "killsAt180": 167,
+      "killsAt540": 783,
+      "killsAt600": 798,
+      "bossKillSeconds": 658,
+      "bossTtkSeconds": 58,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 92268,
+      "minHpPermille": 499,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 287557,
+      "controlApplications": {
+        "normal": 41,
+        "elite": 1,
+        "mvp": 4
+      },
+      "controlTargetTicks": {
+        "normal": 36,
+        "elite": 36,
+        "mvp": 144
+      },
+      "enemyTargetTicks": {
+        "normal": 472838,
+        "elite": 3196,
+        "mvp": 3487
+      },
+      "controlCoveragePermille": 0,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 506,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.weapon",
-      "topDamageTaken": "monster.poporing 179"
+      "topDamageTaken": "monster.mandragora 187"
     },
     {
       "plan": "weapon",
@@ -831,18 +3000,50 @@
       "seed": 4,
       "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 682,
-      "level": 17,
+      "timeSeconds": 681,
+      "level": 18,
       "kills": 872,
       "firstAreaClearTick": 1269,
+      "firstAreaClearOfferedTick": 1269,
+      "firstAreaClearSelectedTick": 1269,
+      "firstAreaClearCastTick": 1290,
+      "firstEffectiveAreaClearTick": 1290,
       "firstDraftTick": 1269,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 682,
+      "killsAt60": 31,
+      "killsAt180": 168,
+      "killsAt540": 785,
+      "killsAt600": 798,
+      "bossKillSeconds": 681,
+      "bossTtkSeconds": 81,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 93530,
+      "minHpPermille": 367,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 289454,
+      "controlApplications": {
+        "normal": 0,
+        "elite": 0,
+        "mvp": 0
+      },
+      "controlTargetTicks": {
+        "normal": 0,
+        "elite": 0,
+        "mvp": 0
+      },
+      "enemyTargetTicks": {
+        "normal": 511309,
+        "elite": 4971,
+        "mvp": 4876
+      },
+      "controlCoveragePermille": 0,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 577,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.weapon",
-      "topDamageTaken": "monster.savage_babe 216"
+      "topDamageTaken": "monster.savage_babe 195"
     },
     {
       "plan": "weapon",
@@ -850,18 +3051,50 @@
       "seed": 5,
       "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 668,
+      "timeSeconds": 660,
       "level": 18,
-      "kills": 857,
+      "kills": 852,
       "firstAreaClearTick": 1306,
+      "firstAreaClearOfferedTick": 1306,
+      "firstAreaClearSelectedTick": 1306,
+      "firstAreaClearCastTick": 1327,
+      "firstEffectiveAreaClearTick": 1327,
       "firstDraftTick": 1306,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 668,
+      "killsAt60": 37,
+      "killsAt180": 166,
+      "killsAt540": 785,
+      "killsAt600": 798,
+      "bossKillSeconds": 660,
+      "bossTtkSeconds": 60,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 66830,
+      "minHpPermille": 690,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 288880,
+      "controlApplications": {
+        "normal": 25,
+        "elite": 0,
+        "mvp": 2
+      },
+      "controlTargetTicks": {
+        "normal": 62,
+        "elite": 0,
+        "mvp": 72
+      },
+      "enemyTargetTicks": {
+        "normal": 438342,
+        "elite": 3207,
+        "mvp": 3591
+      },
+      "controlCoveragePermille": 0,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 477,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.weapon",
-      "topDamageTaken": "monster.savage_babe 180"
+      "topDamageTaken": "monster.poporing 136"
     },
     {
       "plan": "weapon",
@@ -869,18 +3102,50 @@
       "seed": 6,
       "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 658,
-      "level": 17,
-      "kills": 850,
+      "timeSeconds": 670,
+      "level": 18,
+      "kills": 863,
       "firstAreaClearTick": 877,
+      "firstAreaClearOfferedTick": 877,
+      "firstAreaClearSelectedTick": 877,
+      "firstAreaClearCastTick": 1003,
+      "firstEffectiveAreaClearTick": 1003,
       "firstDraftTick": 877,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 658,
+      "killsAt60": 35,
+      "killsAt180": 166,
+      "killsAt540": 781,
+      "killsAt600": 798,
+      "bossKillSeconds": 670,
+      "bossTtkSeconds": 70,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 79469,
+      "minHpPermille": 616,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 292216,
+      "controlApplications": {
+        "normal": 25,
+        "elite": 0,
+        "mvp": 6
+      },
+      "controlTargetTicks": {
+        "normal": 94,
+        "elite": 0,
+        "mvp": 216
+      },
+      "enemyTargetTicks": {
+        "normal": 450687,
+        "elite": 1960,
+        "mvp": 4219
+      },
+      "controlCoveragePermille": 1,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 504,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.weapon",
-      "topDamageTaken": "monster.savage_babe 159"
+      "topDamageTaken": "monster.savage_babe 140"
     },
     {
       "plan": "weapon",
@@ -892,28 +3157,41 @@
       "level": 15,
       "kills": 505,
       "firstAreaClearTick": 1017,
+      "firstAreaClearOfferedTick": 1017,
+      "firstAreaClearSelectedTick": 1017,
+      "firstAreaClearCastTick": 1038,
+      "firstEffectiveAreaClearTick": 1038,
       "firstDraftTick": 1017,
       "firstDraftHasAreaClear": true,
+      "killsAt60": 31,
+      "killsAt180": 165,
+      "killsAt540": 505,
+      "killsAt600": 505,
       "bossKillSeconds": null,
-      "spawnsSkipped": 0,
-      "unannouncedHits": 0,
-      "playerMovedBySkills": 0,
-      "keystone": "keystone.weapon",
-      "topDamageTaken": "monster.poporing 198"
-    },
-    {
-      "plan": "weapon",
-      "device": "keyboard",
-      "seed": 8,
-      "outcome": "victory",
-      "crashed": null,
-      "timeSeconds": 659,
-      "level": 17,
-      "kills": 854,
-      "firstAreaClearTick": 1375,
-      "firstDraftTick": 1375,
-      "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 659,
+      "bossTtkSeconds": null,
+      "mvpDamagePermille": 0,
+      "damageTaken": 79971,
+      "minHpPermille": 0,
+      "lowHpTicks": 1688,
+      "distanceMmPerMinute": 279362,
+      "controlApplications": {
+        "normal": 25,
+        "elite": 1,
+        "mvp": 0
+      },
+      "controlTargetTicks": {
+        "normal": 0,
+        "elite": 36,
+        "mvp": 0
+      },
+      "enemyTargetTicks": {
+        "normal": 332130,
+        "elite": 2032,
+        "mvp": 0
+      },
+      "controlCoveragePermille": 0,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 562,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
@@ -923,21 +3201,104 @@
     {
       "plan": "weapon",
       "device": "keyboard",
-      "seed": 9,
+      "seed": 8,
       "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 656,
+      "timeSeconds": 652,
       "level": 18,
-      "kills": 848,
-      "firstAreaClearTick": 1121,
-      "firstDraftTick": 1121,
+      "kills": 847,
+      "firstAreaClearTick": 1375,
+      "firstAreaClearOfferedTick": 1375,
+      "firstAreaClearSelectedTick": 1375,
+      "firstAreaClearCastTick": 1472,
+      "firstEffectiveAreaClearTick": 1472,
+      "firstDraftTick": 1375,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 656,
+      "killsAt60": 35,
+      "killsAt180": 163,
+      "killsAt540": 786,
+      "killsAt600": 798,
+      "bossKillSeconds": 652,
+      "bossTtkSeconds": 52,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 91959,
+      "minHpPermille": 429,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 288044,
+      "controlApplications": {
+        "normal": 24,
+        "elite": 0,
+        "mvp": 2
+      },
+      "controlTargetTicks": {
+        "normal": 72,
+        "elite": 0,
+        "mvp": 72
+      },
+      "enemyTargetTicks": {
+        "normal": 478606,
+        "elite": 3786,
+        "mvp": 3131
+      },
+      "controlCoveragePermille": 0,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 486,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.weapon",
-      "topDamageTaken": "monster.mandragora 191"
+      "topDamageTaken": "monster.poporing 191"
+    },
+    {
+      "plan": "weapon",
+      "device": "keyboard",
+      "seed": 9,
+      "outcome": "victory",
+      "crashed": null,
+      "timeSeconds": 657,
+      "level": 18,
+      "kills": 848,
+      "firstAreaClearTick": 1121,
+      "firstAreaClearOfferedTick": 1121,
+      "firstAreaClearSelectedTick": 1121,
+      "firstAreaClearCastTick": 1206,
+      "firstEffectiveAreaClearTick": 1206,
+      "firstDraftTick": 1121,
+      "firstDraftHasAreaClear": true,
+      "killsAt60": 34,
+      "killsAt180": 169,
+      "killsAt540": 783,
+      "killsAt600": 798,
+      "bossKillSeconds": 657,
+      "bossTtkSeconds": 57,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 85052,
+      "minHpPermille": 304,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 287665,
+      "controlApplications": {
+        "normal": 32,
+        "elite": 0,
+        "mvp": 8
+      },
+      "controlTargetTicks": {
+        "normal": 20,
+        "elite": 0,
+        "mvp": 288
+      },
+      "enemyTargetTicks": {
+        "normal": 470318,
+        "elite": 3268,
+        "mvp": 3410
+      },
+      "controlCoveragePermille": 1,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 520,
+      "spawnsSkipped": 0,
+      "unannouncedHits": 0,
+      "playerMovedBySkills": 0,
+      "keystone": "keystone.weapon",
+      "topDamageTaken": "monster.savage_babe 162"
     },
     {
       "plan": "weapon",
@@ -949,33 +3310,97 @@
       "level": 18,
       "kills": 871,
       "firstAreaClearTick": 1749,
+      "firstAreaClearOfferedTick": 1749,
+      "firstAreaClearSelectedTick": 1749,
+      "firstAreaClearCastTick": 1770,
+      "firstEffectiveAreaClearTick": 1770,
       "firstDraftTick": 1749,
       "firstDraftHasAreaClear": true,
+      "killsAt60": 34,
+      "killsAt180": 161,
+      "killsAt540": 783,
+      "killsAt600": 798,
       "bossKillSeconds": 681,
+      "bossTtkSeconds": 81,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 91132,
+      "minHpPermille": 370,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 294792,
+      "controlApplications": {
+        "normal": 0,
+        "elite": 0,
+        "mvp": 0
+      },
+      "controlTargetTicks": {
+        "normal": 0,
+        "elite": 0,
+        "mvp": 0
+      },
+      "enemyTargetTicks": {
+        "normal": 502573,
+        "elite": 3451,
+        "mvp": 4833
+      },
+      "controlCoveragePermille": 0,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 599,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.weapon",
-      "topDamageTaken": "monster.poporing 182"
+      "topDamageTaken": "monster.poporing 185"
     },
     {
       "plan": "weapon",
       "device": "touch",
       "seed": 1,
-      "outcome": "victory",
+      "outcome": "defeat",
       "crashed": null,
-      "timeSeconds": 666,
-      "level": 18,
-      "kills": 857,
+      "timeSeconds": 428,
+      "level": 15,
+      "kills": 522,
       "firstAreaClearTick": 1787,
+      "firstAreaClearOfferedTick": 1787,
+      "firstAreaClearSelectedTick": 1787,
+      "firstAreaClearCastTick": 1816,
+      "firstEffectiveAreaClearTick": 1816,
       "firstDraftTick": 1787,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 666,
+      "killsAt60": 32,
+      "killsAt180": 162,
+      "killsAt540": 522,
+      "killsAt600": 522,
+      "bossKillSeconds": null,
+      "bossTtkSeconds": null,
+      "mvpDamagePermille": 0,
+      "damageTaken": 83964,
+      "minHpPermille": 0,
+      "lowHpTicks": 678,
+      "distanceMmPerMinute": 289813,
+      "controlApplications": {
+        "normal": 23,
+        "elite": 0,
+        "mvp": 0
+      },
+      "controlTargetTicks": {
+        "normal": 36,
+        "elite": 0,
+        "mvp": 0
+      },
+      "enemyTargetTicks": {
+        "normal": 367372,
+        "elite": 4294,
+        "mvp": 0
+      },
+      "controlCoveragePermille": 0,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 582,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.weapon",
-      "topDamageTaken": "monster.mandragora 248"
+      "topDamageTaken": "monster.mandragora 230"
     },
     {
       "plan": "weapon",
@@ -983,18 +3408,50 @@
       "seed": 2,
       "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 670,
+      "timeSeconds": 672,
       "level": 18,
-      "kills": 861,
+      "kills": 865,
       "firstAreaClearTick": 1220,
+      "firstAreaClearOfferedTick": 1220,
+      "firstAreaClearSelectedTick": 1220,
+      "firstAreaClearCastTick": 1256,
+      "firstEffectiveAreaClearTick": 1256,
       "firstDraftTick": 1220,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 670,
+      "killsAt60": 33,
+      "killsAt180": 166,
+      "killsAt540": 783,
+      "killsAt600": 798,
+      "bossKillSeconds": 672,
+      "bossTtkSeconds": 72,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 85846,
+      "minHpPermille": 511,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 284026,
+      "controlApplications": {
+        "normal": 28,
+        "elite": 0,
+        "mvp": 10
+      },
+      "controlTargetTicks": {
+        "normal": 46,
+        "elite": 0,
+        "mvp": 360
+      },
+      "enemyTargetTicks": {
+        "normal": 461409,
+        "elite": 3426,
+        "mvp": 4315
+      },
+      "controlCoveragePermille": 1,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 514,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.weapon",
-      "topDamageTaken": "monster.mandragora 197"
+      "topDamageTaken": "monster.mandragora 171"
     },
     {
       "plan": "weapon",
@@ -1002,18 +3459,50 @@
       "seed": 3,
       "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 654,
+      "timeSeconds": 657,
       "level": 18,
       "kills": 847,
       "firstAreaClearTick": 1514,
+      "firstAreaClearOfferedTick": 1514,
+      "firstAreaClearSelectedTick": 1514,
+      "firstAreaClearCastTick": 1535,
+      "firstEffectiveAreaClearTick": 1946,
       "firstDraftTick": 1514,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 654,
+      "killsAt60": 37,
+      "killsAt180": 167,
+      "killsAt540": 782,
+      "killsAt600": 798,
+      "bossKillSeconds": 657,
+      "bossTtkSeconds": 57,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 76919,
+      "minHpPermille": 525,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 282682,
+      "controlApplications": {
+        "normal": 39,
+        "elite": 2,
+        "mvp": 3
+      },
+      "controlTargetTicks": {
+        "normal": 0,
+        "elite": 72,
+        "mvp": 108
+      },
+      "enemyTargetTicks": {
+        "normal": 449098,
+        "elite": 3200,
+        "mvp": 3417
+      },
+      "controlCoveragePermille": 0,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 475,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.weapon",
-      "topDamageTaken": "monster.savage_babe 135"
+      "topDamageTaken": "monster.poporing 167"
     },
     {
       "plan": "weapon",
@@ -1022,17 +3511,49 @@
       "outcome": "victory",
       "crashed": null,
       "timeSeconds": 675,
-      "level": 17,
+      "level": 18,
       "kills": 864,
       "firstAreaClearTick": 1077,
+      "firstAreaClearOfferedTick": 1077,
+      "firstAreaClearSelectedTick": 1077,
+      "firstAreaClearCastTick": 1242,
+      "firstEffectiveAreaClearTick": 1242,
       "firstDraftTick": 1077,
       "firstDraftHasAreaClear": true,
+      "killsAt60": 34,
+      "killsAt180": 166,
+      "killsAt540": 783,
+      "killsAt600": 798,
       "bossKillSeconds": 675,
+      "bossTtkSeconds": 75,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 96629,
+      "minHpPermille": 294,
+      "lowHpTicks": 11,
+      "distanceMmPerMinute": 284571,
+      "controlApplications": {
+        "normal": 0,
+        "elite": 0,
+        "mvp": 0
+      },
+      "controlTargetTicks": {
+        "normal": 0,
+        "elite": 0,
+        "mvp": 0
+      },
+      "enemyTargetTicks": {
+        "normal": 481551,
+        "elite": 3001,
+        "mvp": 4470
+      },
+      "controlCoveragePermille": 0,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 564,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.weapon",
-      "topDamageTaken": "monster.poporing 205"
+      "topDamageTaken": "monster.savage_babe 209"
     },
     {
       "plan": "weapon",
@@ -1040,18 +3561,50 @@
       "seed": 5,
       "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 655,
+      "timeSeconds": 666,
       "level": 18,
-      "kills": 847,
+      "kills": 854,
       "firstAreaClearTick": 1309,
+      "firstAreaClearOfferedTick": 1309,
+      "firstAreaClearSelectedTick": 1309,
+      "firstAreaClearCastTick": 1821,
+      "firstEffectiveAreaClearTick": 1821,
       "firstDraftTick": 1309,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 655,
+      "killsAt60": 39,
+      "killsAt180": 167,
+      "killsAt540": 784,
+      "killsAt600": 798,
+      "bossKillSeconds": 666,
+      "bossTtkSeconds": 66,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 69771,
+      "minHpPermille": 694,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 284813,
+      "controlApplications": {
+        "normal": 25,
+        "elite": 1,
+        "mvp": 1
+      },
+      "controlTargetTicks": {
+        "normal": 126,
+        "elite": 36,
+        "mvp": 36
+      },
+      "enemyTargetTicks": {
+        "normal": 463074,
+        "elite": 3846,
+        "mvp": 3956
+      },
+      "controlCoveragePermille": 0,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 517,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.weapon",
-      "topDamageTaken": "monster.savage_babe 137"
+      "topDamageTaken": "boss.mastering 130"
     },
     {
       "plan": "weapon",
@@ -1059,18 +3612,50 @@
       "seed": 6,
       "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 664,
+      "timeSeconds": 667,
       "level": 18,
-      "kills": 856,
+      "kills": 857,
       "firstAreaClearTick": 883,
+      "firstAreaClearOfferedTick": 883,
+      "firstAreaClearSelectedTick": 883,
+      "firstAreaClearCastTick": 1051,
+      "firstEffectiveAreaClearTick": 1051,
       "firstDraftTick": 883,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 664,
+      "killsAt60": 34,
+      "killsAt180": 167,
+      "killsAt540": 785,
+      "killsAt600": 798,
+      "bossKillSeconds": 667,
+      "bossTtkSeconds": 67,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 73826,
+      "minHpPermille": 661,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 286146,
+      "controlApplications": {
+        "normal": 26,
+        "elite": 1,
+        "mvp": 4
+      },
+      "controlTargetTicks": {
+        "normal": 140,
+        "elite": 36,
+        "mvp": 144
+      },
+      "enemyTargetTicks": {
+        "normal": 482863,
+        "elite": 2741,
+        "mvp": 3994
+      },
+      "controlCoveragePermille": 1,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 503,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.weapon",
-      "topDamageTaken": "monster.poporing 196"
+      "topDamageTaken": "monster.mandragora 190"
     },
     {
       "plan": "weapon",
@@ -1082,9 +3667,41 @@
       "level": 15,
       "kills": 525,
       "firstAreaClearTick": 1047,
+      "firstAreaClearOfferedTick": 1047,
+      "firstAreaClearSelectedTick": 1047,
+      "firstAreaClearCastTick": 1084,
+      "firstEffectiveAreaClearTick": 1956,
       "firstDraftTick": 1047,
       "firstDraftHasAreaClear": true,
+      "killsAt60": 36,
+      "killsAt180": 165,
+      "killsAt540": 525,
+      "killsAt600": 525,
       "bossKillSeconds": null,
+      "bossTtkSeconds": null,
+      "mvpDamagePermille": 0,
+      "damageTaken": 79091,
+      "minHpPermille": 0,
+      "lowHpTicks": 692,
+      "distanceMmPerMinute": 280999,
+      "controlApplications": {
+        "normal": 26,
+        "elite": 1,
+        "mvp": 0
+      },
+      "controlTargetTicks": {
+        "normal": 36,
+        "elite": 36,
+        "mvp": 0
+      },
+      "enemyTargetTicks": {
+        "normal": 346954,
+        "elite": 3477,
+        "mvp": 0
+      },
+      "controlCoveragePermille": 0,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 543,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
@@ -1095,20 +3712,52 @@
       "plan": "weapon",
       "device": "touch",
       "seed": 8,
-      "outcome": "defeat",
+      "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 473,
-      "level": 15,
-      "kills": 632,
+      "timeSeconds": 660,
+      "level": 17,
+      "kills": 854,
       "firstAreaClearTick": 1367,
+      "firstAreaClearOfferedTick": 1367,
+      "firstAreaClearSelectedTick": 1367,
+      "firstAreaClearCastTick": 1471,
+      "firstEffectiveAreaClearTick": 1471,
       "firstDraftTick": 1367,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": null,
+      "killsAt60": 32,
+      "killsAt180": 162,
+      "killsAt540": 785,
+      "killsAt600": 798,
+      "bossKillSeconds": 660,
+      "bossTtkSeconds": 60,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 86382,
+      "minHpPermille": 227,
+      "lowHpTicks": 224,
+      "distanceMmPerMinute": 283324,
+      "controlApplications": {
+        "normal": 23,
+        "elite": 0,
+        "mvp": 3
+      },
+      "controlTargetTicks": {
+        "normal": 0,
+        "elite": 0,
+        "mvp": 108
+      },
+      "enemyTargetTicks": {
+        "normal": 466059,
+        "elite": 4270,
+        "mvp": 3604
+      },
+      "controlCoveragePermille": 0,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 496,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.weapon",
-      "topDamageTaken": "monster.mandragora 198"
+      "topDamageTaken": "monster.mandragora 166"
     },
     {
       "plan": "weapon",
@@ -1116,18 +3765,50 @@
       "seed": 9,
       "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 660,
-      "level": 18,
-      "kills": 850,
+      "timeSeconds": 658,
+      "level": 17,
+      "kills": 848,
       "firstAreaClearTick": 2070,
+      "firstAreaClearOfferedTick": 2070,
+      "firstAreaClearSelectedTick": 2070,
+      "firstAreaClearCastTick": 2253,
+      "firstEffectiveAreaClearTick": 2574,
       "firstDraftTick": 2070,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 660,
+      "killsAt60": 34,
+      "killsAt180": 166,
+      "killsAt540": 781,
+      "killsAt600": 798,
+      "bossKillSeconds": 658,
+      "bossTtkSeconds": 58,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 88588,
+      "minHpPermille": 261,
+      "lowHpTicks": 415,
+      "distanceMmPerMinute": 283172,
+      "controlApplications": {
+        "normal": 21,
+        "elite": 2,
+        "mvp": 4
+      },
+      "controlTargetTicks": {
+        "normal": 0,
+        "elite": 72,
+        "mvp": 144
+      },
+      "enemyTargetTicks": {
+        "normal": 513297,
+        "elite": 3186,
+        "mvp": 3472
+      },
+      "controlCoveragePermille": 0,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 538,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.weapon",
-      "topDamageTaken": "monster.poporing 190"
+      "topDamageTaken": "monster.savage_babe 190"
     },
     {
       "plan": "weapon",
@@ -1135,18 +3816,50 @@
       "seed": 10,
       "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 673,
+      "timeSeconds": 680,
       "level": 18,
-      "kills": 863,
+      "kills": 871,
       "firstAreaClearTick": 1220,
+      "firstAreaClearOfferedTick": 1220,
+      "firstAreaClearSelectedTick": 1220,
+      "firstAreaClearCastTick": 1296,
+      "firstEffectiveAreaClearTick": 1688,
       "firstDraftTick": 1220,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 673,
+      "killsAt60": 32,
+      "killsAt180": 161,
+      "killsAt540": 782,
+      "killsAt600": 798,
+      "bossKillSeconds": 680,
+      "bossTtkSeconds": 80,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 85309,
+      "minHpPermille": 435,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 287233,
+      "controlApplications": {
+        "normal": 0,
+        "elite": 0,
+        "mvp": 0
+      },
+      "controlTargetTicks": {
+        "normal": 0,
+        "elite": 0,
+        "mvp": 0
+      },
+      "enemyTargetTicks": {
+        "normal": 522336,
+        "elite": 4131,
+        "mvp": 4828
+      },
+      "controlCoveragePermille": 0,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 581,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.weapon",
-      "topDamageTaken": "monster.poporing 173"
+      "topDamageTaken": "monster.mandragora 163"
     },
     {
       "plan": "weapon",
@@ -1158,14 +3871,46 @@
       "level": 18,
       "kills": 857,
       "firstAreaClearTick": 1784,
+      "firstAreaClearOfferedTick": 1784,
+      "firstAreaClearSelectedTick": 1784,
+      "firstAreaClearCastTick": 1809,
+      "firstEffectiveAreaClearTick": 1809,
       "firstDraftTick": 1784,
       "firstDraftHasAreaClear": true,
+      "killsAt60": 33,
+      "killsAt180": 166,
+      "killsAt540": 782,
+      "killsAt600": 798,
       "bossKillSeconds": 663,
+      "bossTtkSeconds": 63,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 92164,
+      "minHpPermille": 55,
+      "lowHpTicks": 1822,
+      "distanceMmPerMinute": 288496,
+      "controlApplications": {
+        "normal": 30,
+        "elite": 2,
+        "mvp": 3
+      },
+      "controlTargetTicks": {
+        "normal": 0,
+        "elite": 36,
+        "mvp": 108
+      },
+      "enemyTargetTicks": {
+        "normal": 528178,
+        "elite": 4201,
+        "mvp": 3773
+      },
+      "controlCoveragePermille": 0,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 558,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.weapon",
-      "topDamageTaken": "monster.poporing 199"
+      "topDamageTaken": "monster.savage_babe 188"
     },
     {
       "plan": "weapon",
@@ -1173,18 +3918,50 @@
       "seed": 2,
       "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 661,
-      "level": 18,
-      "kills": 858,
+      "timeSeconds": 668,
+      "level": 17,
+      "kills": 859,
       "firstAreaClearTick": 1220,
+      "firstAreaClearOfferedTick": 1220,
+      "firstAreaClearSelectedTick": 1220,
+      "firstAreaClearCastTick": 1258,
+      "firstEffectiveAreaClearTick": 1258,
       "firstDraftTick": 1220,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 661,
+      "killsAt60": 33,
+      "killsAt180": 167,
+      "killsAt540": 778,
+      "killsAt600": 798,
+      "bossKillSeconds": 668,
+      "bossTtkSeconds": 68,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 74257,
+      "minHpPermille": 456,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 287285,
+      "controlApplications": {
+        "normal": 26,
+        "elite": 2,
+        "mvp": 7
+      },
+      "controlTargetTicks": {
+        "normal": 31,
+        "elite": 72,
+        "mvp": 252
+      },
+      "enemyTargetTicks": {
+        "normal": 461961,
+        "elite": 3739,
+        "mvp": 4071
+      },
+      "controlCoveragePermille": 1,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 502,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.weapon",
-      "topDamageTaken": "monster.savage_babe 191"
+      "topDamageTaken": "monster.mandragora 183"
     },
     {
       "plan": "weapon",
@@ -1192,18 +3969,50 @@
       "seed": 3,
       "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 655,
+      "timeSeconds": 654,
       "level": 18,
-      "kills": 846,
+      "kills": 848,
       "firstAreaClearTick": 1504,
+      "firstAreaClearOfferedTick": 1504,
+      "firstAreaClearSelectedTick": 1504,
+      "firstAreaClearCastTick": 1949,
+      "firstEffectiveAreaClearTick": 3168,
       "firstDraftTick": 1504,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 655,
+      "killsAt60": 37,
+      "killsAt180": 168,
+      "killsAt540": 783,
+      "killsAt600": 798,
+      "bossKillSeconds": 654,
+      "bossTtkSeconds": 54,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 98225,
+      "minHpPermille": 238,
+      "lowHpTicks": 207,
+      "distanceMmPerMinute": 284534,
+      "controlApplications": {
+        "normal": 43,
+        "elite": 1,
+        "mvp": 9
+      },
+      "controlTargetTicks": {
+        "normal": 0,
+        "elite": 0,
+        "mvp": 324
+      },
+      "enemyTargetTicks": {
+        "normal": 475194,
+        "elite": 3838,
+        "mvp": 3252
+      },
+      "controlCoveragePermille": 1,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 499,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.weapon",
-      "topDamageTaken": "monster.poporing 198"
+      "topDamageTaken": "monster.mandragora 247"
     },
     {
       "plan": "weapon",
@@ -1215,14 +4024,46 @@
       "level": 18,
       "kills": 864,
       "firstAreaClearTick": 1074,
+      "firstAreaClearOfferedTick": 1074,
+      "firstAreaClearSelectedTick": 1074,
+      "firstAreaClearCastTick": 1242,
+      "firstEffectiveAreaClearTick": 1242,
       "firstDraftTick": 1074,
       "firstDraftHasAreaClear": true,
+      "killsAt60": 36,
+      "killsAt180": 164,
+      "killsAt540": 785,
+      "killsAt600": 798,
       "bossKillSeconds": 672,
+      "bossTtkSeconds": 72,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 99288,
+      "minHpPermille": 424,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 285513,
+      "controlApplications": {
+        "normal": 0,
+        "elite": 0,
+        "mvp": 0
+      },
+      "controlTargetTicks": {
+        "normal": 0,
+        "elite": 0,
+        "mvp": 0
+      },
+      "enemyTargetTicks": {
+        "normal": 499889,
+        "elite": 3548,
+        "mvp": 4341
+      },
+      "controlCoveragePermille": 0,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 576,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.weapon",
-      "topDamageTaken": "monster.mandragora 272"
+      "topDamageTaken": "monster.mandragora 191"
     },
     {
       "plan": "weapon",
@@ -1230,18 +4071,50 @@
       "seed": 5,
       "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 658,
+      "timeSeconds": 664,
       "level": 17,
-      "kills": 848,
+      "kills": 854,
       "firstAreaClearTick": 1306,
+      "firstAreaClearOfferedTick": 1306,
+      "firstAreaClearSelectedTick": 1306,
+      "firstAreaClearCastTick": 1824,
+      "firstEffectiveAreaClearTick": 1824,
       "firstDraftTick": 1306,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 658,
+      "killsAt60": 37,
+      "killsAt180": 163,
+      "killsAt540": 785,
+      "killsAt600": 798,
+      "bossKillSeconds": 664,
+      "bossTtkSeconds": 64,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 91538,
+      "minHpPermille": 540,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 285635,
+      "controlApplications": {
+        "normal": 28,
+        "elite": 0,
+        "mvp": 5
+      },
+      "controlTargetTicks": {
+        "normal": 91,
+        "elite": 0,
+        "mvp": 180
+      },
+      "enemyTargetTicks": {
+        "normal": 454885,
+        "elite": 2798,
+        "mvp": 3830
+      },
+      "controlCoveragePermille": 1,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 506,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.weapon",
-      "topDamageTaken": "monster.savage_babe 150"
+      "topDamageTaken": "monster.savage_babe 169"
     },
     {
       "plan": "weapon",
@@ -1249,18 +4122,50 @@
       "seed": 6,
       "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 668,
+      "timeSeconds": 663,
       "level": 18,
-      "kills": 861,
+      "kills": 856,
       "firstAreaClearTick": 1599,
+      "firstAreaClearOfferedTick": 1599,
+      "firstAreaClearSelectedTick": 1599,
+      "firstAreaClearCastTick": 1620,
+      "firstEffectiveAreaClearTick": 1620,
       "firstDraftTick": 1599,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 668,
+      "killsAt60": 38,
+      "killsAt180": 164,
+      "killsAt540": 786,
+      "killsAt600": 798,
+      "bossKillSeconds": 663,
+      "bossTtkSeconds": 63,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 104869,
+      "minHpPermille": 61,
+      "lowHpTicks": 2400,
+      "distanceMmPerMinute": 284174,
+      "controlApplications": {
+        "normal": 23,
+        "elite": 1,
+        "mvp": 6
+      },
+      "controlTargetTicks": {
+        "normal": 82,
+        "elite": 36,
+        "mvp": 216
+      },
+      "enemyTargetTicks": {
+        "normal": 482843,
+        "elite": 3240,
+        "mvp": 3759
+      },
+      "controlCoveragePermille": 1,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 520,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.weapon",
-      "topDamageTaken": "monster.savage_babe 150"
+      "topDamageTaken": "monster.savage_babe 196"
     },
     {
       "plan": "weapon",
@@ -1272,9 +4177,41 @@
       "level": 15,
       "kills": 552,
       "firstAreaClearTick": 1047,
+      "firstAreaClearOfferedTick": 1047,
+      "firstAreaClearSelectedTick": 1047,
+      "firstAreaClearCastTick": 1083,
+      "firstEffectiveAreaClearTick": 2471,
       "firstDraftTick": 1047,
       "firstDraftHasAreaClear": true,
+      "killsAt60": 36,
+      "killsAt180": 167,
+      "killsAt540": 552,
+      "killsAt600": 552,
       "bossKillSeconds": null,
+      "bossTtkSeconds": null,
+      "mvpDamagePermille": 0,
+      "damageTaken": 72329,
+      "minHpPermille": 0,
+      "lowHpTicks": 1955,
+      "distanceMmPerMinute": 280074,
+      "controlApplications": {
+        "normal": 26,
+        "elite": 0,
+        "mvp": 0
+      },
+      "controlTargetTicks": {
+        "normal": 36,
+        "elite": 0,
+        "mvp": 0
+      },
+      "enemyTargetTicks": {
+        "normal": 362479,
+        "elite": 2924,
+        "mvp": 0
+      },
+      "controlCoveragePermille": 0,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 563,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
@@ -1287,32 +4224,147 @@
       "seed": 8,
       "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 652,
-      "level": 18,
-      "kills": 845,
+      "timeSeconds": 654,
+      "level": 17,
+      "kills": 848,
       "firstAreaClearTick": 1642,
+      "firstAreaClearOfferedTick": 1642,
+      "firstAreaClearSelectedTick": 1642,
+      "firstAreaClearCastTick": 1705,
+      "firstEffectiveAreaClearTick": 1705,
       "firstDraftTick": 1642,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 652,
+      "killsAt60": 38,
+      "killsAt180": 161,
+      "killsAt540": 784,
+      "killsAt600": 798,
+      "bossKillSeconds": 654,
+      "bossTtkSeconds": 54,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 93414,
+      "minHpPermille": 481,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 285941,
+      "controlApplications": {
+        "normal": 21,
+        "elite": 2,
+        "mvp": 1
+      },
+      "controlTargetTicks": {
+        "normal": 0,
+        "elite": 72,
+        "mvp": 36
+      },
+      "enemyTargetTicks": {
+        "normal": 494462,
+        "elite": 3751,
+        "mvp": 3258
+      },
+      "controlCoveragePermille": 0,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 499,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.weapon",
-      "topDamageTaken": "monster.savage_babe 111"
+      "topDamageTaken": "monster.savage_babe 179"
     },
     {
       "plan": "weapon",
       "device": "gamepad",
       "seed": 9,
-      "outcome": "victory",
+      "outcome": "defeat",
       "crashed": null,
-      "timeSeconds": 659,
-      "level": 17,
-      "kills": 853,
+      "timeSeconds": 429,
+      "level": 15,
+      "kills": 530,
       "firstAreaClearTick": 1114,
+      "firstAreaClearOfferedTick": 1114,
+      "firstAreaClearSelectedTick": 1114,
+      "firstAreaClearCastTick": 1203,
+      "firstEffectiveAreaClearTick": 1203,
       "firstDraftTick": 1114,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 659,
+      "killsAt60": 35,
+      "killsAt180": 167,
+      "killsAt540": 530,
+      "killsAt600": 530,
+      "bossKillSeconds": null,
+      "bossTtkSeconds": null,
+      "mvpDamagePermille": 0,
+      "damageTaken": 68214,
+      "minHpPermille": 0,
+      "lowHpTicks": 1480,
+      "distanceMmPerMinute": 278259,
+      "controlApplications": {
+        "normal": 11,
+        "elite": 0,
+        "mvp": 0
+      },
+      "controlTargetTicks": {
+        "normal": 0,
+        "elite": 0,
+        "mvp": 0
+      },
+      "enemyTargetTicks": {
+        "normal": 366327,
+        "elite": 1845,
+        "mvp": 0
+      },
+      "controlCoveragePermille": 0,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 598,
+      "spawnsSkipped": 0,
+      "unannouncedHits": 0,
+      "playerMovedBySkills": 0,
+      "keystone": "keystone.weapon",
+      "topDamageTaken": "monster.mandragora 243"
+    },
+    {
+      "plan": "weapon",
+      "device": "gamepad",
+      "seed": 10,
+      "outcome": "victory",
+      "crashed": null,
+      "timeSeconds": 675,
+      "level": 18,
+      "kills": 865,
+      "firstAreaClearTick": 1157,
+      "firstAreaClearOfferedTick": 1157,
+      "firstAreaClearSelectedTick": 1157,
+      "firstAreaClearCastTick": 1286,
+      "firstEffectiveAreaClearTick": 1678,
+      "firstDraftTick": 1157,
+      "firstDraftHasAreaClear": true,
+      "killsAt60": 31,
+      "killsAt180": 162,
+      "killsAt540": 781,
+      "killsAt600": 798,
+      "bossKillSeconds": 675,
+      "bossTtkSeconds": 75,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 80955,
+      "minHpPermille": 545,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 290853,
+      "controlApplications": {
+        "normal": 0,
+        "elite": 0,
+        "mvp": 0
+      },
+      "controlTargetTicks": {
+        "normal": 0,
+        "elite": 0,
+        "mvp": 0
+      },
+      "enemyTargetTicks": {
+        "normal": 476931,
+        "elite": 3597,
+        "mvp": 4507
+      },
+      "controlCoveragePermille": 0,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 563,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
@@ -1320,42 +4372,55 @@
       "topDamageTaken": "monster.poporing 175"
     },
     {
-      "plan": "weapon",
-      "device": "gamepad",
-      "seed": 10,
-      "outcome": "defeat",
-      "crashed": null,
-      "timeSeconds": 425,
-      "level": 14,
-      "kills": 514,
-      "firstAreaClearTick": 1157,
-      "firstDraftTick": 1157,
-      "firstDraftHasAreaClear": true,
-      "bossKillSeconds": null,
-      "spawnsSkipped": 0,
-      "unannouncedHits": 0,
-      "playerMovedBySkills": 0,
-      "keystone": "keystone.weapon",
-      "topDamageTaken": "monster.mandragora 174"
-    },
-    {
       "plan": "fury",
       "device": "keyboard",
       "seed": 1,
       "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 697,
+      "timeSeconds": 728,
       "level": 18,
-      "kills": 894,
+      "kills": 922,
       "firstAreaClearTick": 1789,
+      "firstAreaClearOfferedTick": 1789,
+      "firstAreaClearSelectedTick": 1789,
+      "firstAreaClearCastTick": 1807,
+      "firstEffectiveAreaClearTick": 1807,
       "firstDraftTick": 1789,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 697,
+      "killsAt60": 37,
+      "killsAt180": 166,
+      "killsAt540": 784,
+      "killsAt600": 798,
+      "bossKillSeconds": 728,
+      "bossTtkSeconds": 128,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 83184,
+      "minHpPermille": 554,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 283678,
+      "controlApplications": {
+        "normal": 194,
+        "elite": 6,
+        "mvp": 12
+      },
+      "controlTargetTicks": {
+        "normal": 1332,
+        "elite": 105,
+        "mvp": 252
+      },
+      "enemyTargetTicks": {
+        "normal": 461597,
+        "elite": 4312,
+        "mvp": 7689
+      },
+      "controlCoveragePermille": 4,
+      "topDamageSource": "skill.sw.magnum_break",
+      "topDamageSharePermille": 562,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.fury",
-      "topDamageTaken": "monster.savage_babe 157"
+      "topDamageTaken": "boss.mastering 179"
     },
     {
       "plan": "fury",
@@ -1364,12 +4429,248 @@
       "outcome": "victory",
       "crashed": null,
       "timeSeconds": 726,
-      "level": 18,
+      "level": 17,
       "kills": 915,
       "firstAreaClearTick": 1137,
+      "firstAreaClearOfferedTick": 1137,
+      "firstAreaClearSelectedTick": 1137,
+      "firstAreaClearCastTick": 1243,
+      "firstEffectiveAreaClearTick": 1243,
       "firstDraftTick": 1137,
       "firstDraftHasAreaClear": true,
+      "killsAt60": 34,
+      "killsAt180": 163,
+      "killsAt540": 781,
+      "killsAt600": 798,
       "bossKillSeconds": 726,
+      "bossTtkSeconds": 126,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 95145,
+      "minHpPermille": 572,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 291469,
+      "controlApplications": {
+        "normal": 0,
+        "elite": 0,
+        "mvp": 0
+      },
+      "controlTargetTicks": {
+        "normal": 0,
+        "elite": 0,
+        "mvp": 0
+      },
+      "enemyTargetTicks": {
+        "normal": 497695,
+        "elite": 5200,
+        "mvp": 7534
+      },
+      "controlCoveragePermille": 0,
+      "topDamageSource": "skill.sw.magnum_break",
+      "topDamageSharePermille": 576,
+      "spawnsSkipped": 0,
+      "unannouncedHits": 0,
+      "playerMovedBySkills": 0,
+      "keystone": "keystone.fury",
+      "topDamageTaken": "monster.poporing 183"
+    },
+    {
+      "plan": "fury",
+      "device": "keyboard",
+      "seed": 3,
+      "outcome": "victory",
+      "crashed": null,
+      "timeSeconds": 721,
+      "level": 18,
+      "kills": 907,
+      "firstAreaClearTick": 1519,
+      "firstAreaClearOfferedTick": 1519,
+      "firstAreaClearSelectedTick": 1519,
+      "firstAreaClearCastTick": 1540,
+      "firstEffectiveAreaClearTick": 1947,
+      "firstDraftTick": 1519,
+      "firstDraftHasAreaClear": true,
+      "killsAt60": 38,
+      "killsAt180": 165,
+      "killsAt540": 785,
+      "killsAt600": 798,
+      "bossKillSeconds": 721,
+      "bossTtkSeconds": 121,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 78720,
+      "minHpPermille": 592,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 294014,
+      "controlApplications": {
+        "normal": 0,
+        "elite": 0,
+        "mvp": 0
+      },
+      "controlTargetTicks": {
+        "normal": 0,
+        "elite": 0,
+        "mvp": 0
+      },
+      "enemyTargetTicks": {
+        "normal": 507412,
+        "elite": 6222,
+        "mvp": 7251
+      },
+      "controlCoveragePermille": 0,
+      "topDamageSource": "skill.sw.magnum_break",
+      "topDamageSharePermille": 610,
+      "spawnsSkipped": 0,
+      "unannouncedHits": 0,
+      "playerMovedBySkills": 0,
+      "keystone": "keystone.fury",
+      "topDamageTaken": "monster.poporing 149"
+    },
+    {
+      "plan": "fury",
+      "device": "keyboard",
+      "seed": 4,
+      "outcome": "victory",
+      "crashed": null,
+      "timeSeconds": 695,
+      "level": 18,
+      "kills": 883,
+      "firstAreaClearTick": 1269,
+      "firstAreaClearOfferedTick": 1269,
+      "firstAreaClearSelectedTick": 1269,
+      "firstAreaClearCastTick": 1290,
+      "firstEffectiveAreaClearTick": 1290,
+      "firstDraftTick": 1269,
+      "firstDraftHasAreaClear": true,
+      "killsAt60": 34,
+      "killsAt180": 161,
+      "killsAt540": 781,
+      "killsAt600": 798,
+      "bossKillSeconds": 695,
+      "bossTtkSeconds": 95,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 85729,
+      "minHpPermille": 644,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 291470,
+      "controlApplications": {
+        "normal": 23,
+        "elite": 2,
+        "mvp": 6
+      },
+      "controlTargetTicks": {
+        "normal": 0,
+        "elite": 72,
+        "mvp": 216
+      },
+      "enemyTargetTicks": {
+        "normal": 485023,
+        "elite": 5116,
+        "mvp": 5682
+      },
+      "controlCoveragePermille": 1,
+      "topDamageSource": "skill.sw.magnum_break",
+      "topDamageSharePermille": 514,
+      "spawnsSkipped": 0,
+      "unannouncedHits": 0,
+      "playerMovedBySkills": 0,
+      "keystone": "keystone.fury",
+      "topDamageTaken": "monster.savage_babe 181"
+    },
+    {
+      "plan": "fury",
+      "device": "keyboard",
+      "seed": 5,
+      "outcome": "victory",
+      "crashed": null,
+      "timeSeconds": 695,
+      "level": 18,
+      "kills": 879,
+      "firstAreaClearTick": 1306,
+      "firstAreaClearOfferedTick": 1306,
+      "firstAreaClearSelectedTick": 1306,
+      "firstAreaClearCastTick": 1325,
+      "firstEffectiveAreaClearTick": 1325,
+      "firstDraftTick": 1306,
+      "firstDraftHasAreaClear": true,
+      "killsAt60": 38,
+      "killsAt180": 163,
+      "killsAt540": 782,
+      "killsAt600": 798,
+      "bossKillSeconds": 695,
+      "bossTtkSeconds": 95,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 73992,
+      "minHpPermille": 511,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 293805,
+      "controlApplications": {
+        "normal": 230,
+        "elite": 10,
+        "mvp": 17
+      },
+      "controlTargetTicks": {
+        "normal": 1708,
+        "elite": 183,
+        "mvp": 456
+      },
+      "enemyTargetTicks": {
+        "normal": 439927,
+        "elite": 4195,
+        "mvp": 5707
+      },
+      "controlCoveragePermille": 5,
+      "topDamageSource": "skill.sw.magnum_break",
+      "topDamageSharePermille": 422,
+      "spawnsSkipped": 0,
+      "unannouncedHits": 0,
+      "playerMovedBySkills": 0,
+      "keystone": "keystone.fury",
+      "topDamageTaken": "boss.mastering 125"
+    },
+    {
+      "plan": "fury",
+      "device": "keyboard",
+      "seed": 6,
+      "outcome": "victory",
+      "crashed": null,
+      "timeSeconds": 726,
+      "level": 18,
+      "kills": 914,
+      "firstAreaClearTick": 877,
+      "firstAreaClearOfferedTick": 877,
+      "firstAreaClearSelectedTick": 877,
+      "firstAreaClearCastTick": 981,
+      "firstEffectiveAreaClearTick": 2134,
+      "firstDraftTick": 877,
+      "firstDraftHasAreaClear": true,
+      "killsAt60": 38,
+      "killsAt180": 160,
+      "killsAt540": 781,
+      "killsAt600": 798,
+      "bossKillSeconds": 726,
+      "bossTtkSeconds": 126,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 85322,
+      "minHpPermille": 482,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 290794,
+      "controlApplications": {
+        "normal": 252,
+        "elite": 7,
+        "mvp": 8
+      },
+      "controlTargetTicks": {
+        "normal": 1733,
+        "elite": 147,
+        "mvp": 168
+      },
+      "enemyTargetTicks": {
+        "normal": 493889,
+        "elite": 4522,
+        "mvp": 7557
+      },
+      "controlCoveragePermille": 4,
+      "topDamageSource": "skill.sw.magnum_break",
+      "topDamageSharePermille": 488,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
@@ -1379,97 +4680,53 @@
     {
       "plan": "fury",
       "device": "keyboard",
-      "seed": 3,
-      "outcome": "victory",
-      "crashed": null,
-      "timeSeconds": 725,
-      "level": 17,
-      "kills": 913,
-      "firstAreaClearTick": 1519,
-      "firstDraftTick": 1519,
-      "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 725,
-      "spawnsSkipped": 0,
-      "unannouncedHits": 0,
-      "playerMovedBySkills": 0,
-      "keystone": "keystone.fury",
-      "topDamageTaken": "monster.poporing 208"
-    },
-    {
-      "plan": "fury",
-      "device": "keyboard",
-      "seed": 4,
-      "outcome": "victory",
-      "crashed": null,
-      "timeSeconds": 701,
-      "level": 18,
-      "kills": 890,
-      "firstAreaClearTick": 1269,
-      "firstDraftTick": 1269,
-      "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 701,
-      "spawnsSkipped": 0,
-      "unannouncedHits": 0,
-      "playerMovedBySkills": 0,
-      "keystone": "keystone.fury",
-      "topDamageTaken": "boss.mastering 147"
-    },
-    {
-      "plan": "fury",
-      "device": "keyboard",
-      "seed": 5,
-      "outcome": "victory",
-      "crashed": null,
-      "timeSeconds": 694,
-      "level": 18,
-      "kills": 874,
-      "firstAreaClearTick": 2425,
-      "firstDraftTick": 1306,
-      "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 694,
-      "spawnsSkipped": 0,
-      "unannouncedHits": 0,
-      "playerMovedBySkills": 0,
-      "keystone": "keystone.fury",
-      "topDamageTaken": "monster.savage_babe 164"
-    },
-    {
-      "plan": "fury",
-      "device": "keyboard",
-      "seed": 6,
-      "outcome": "victory",
-      "crashed": null,
-      "timeSeconds": 688,
-      "level": 18,
-      "kills": 877,
-      "firstAreaClearTick": 3026,
-      "firstDraftTick": 877,
-      "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 688,
-      "spawnsSkipped": 0,
-      "unannouncedHits": 0,
-      "playerMovedBySkills": 0,
-      "keystone": "keystone.fury",
-      "topDamageTaken": "boss.mastering 155"
-    },
-    {
-      "plan": "fury",
-      "device": "keyboard",
       "seed": 7,
-      "outcome": "victory",
+      "outcome": "defeat",
       "crashed": null,
-      "timeSeconds": 706,
-      "level": 18,
-      "kills": 896,
+      "timeSeconds": 379,
+      "level": 13,
+      "kills": 409,
       "firstAreaClearTick": 1017,
+      "firstAreaClearOfferedTick": 1017,
+      "firstAreaClearSelectedTick": 1017,
+      "firstAreaClearCastTick": 1035,
+      "firstEffectiveAreaClearTick": 1035,
       "firstDraftTick": 1017,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 706,
+      "killsAt60": 33,
+      "killsAt180": 161,
+      "killsAt540": 409,
+      "killsAt600": 409,
+      "bossKillSeconds": null,
+      "bossTtkSeconds": null,
+      "mvpDamagePermille": 0,
+      "damageTaken": 71376,
+      "minHpPermille": 0,
+      "lowHpTicks": 1253,
+      "distanceMmPerMinute": 294931,
+      "controlApplications": {
+        "normal": 208,
+        "elite": 9,
+        "mvp": 0
+      },
+      "controlTargetTicks": {
+        "normal": 1678,
+        "elite": 183,
+        "mvp": 0
+      },
+      "enemyTargetTicks": {
+        "normal": 430228,
+        "elite": 5540,
+        "mvp": 0
+      },
+      "controlCoveragePermille": 4,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 558,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.fury",
-      "topDamageTaken": "monster.savage_babe 223"
+      "topDamageTaken": "monster.mandragora 185"
     },
     {
       "plan": "fury",
@@ -1477,18 +4734,50 @@
       "seed": 8,
       "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 698,
+      "timeSeconds": 680,
       "level": 18,
-      "kills": 892,
+      "kills": 873,
       "firstAreaClearTick": 1375,
+      "firstAreaClearOfferedTick": 1375,
+      "firstAreaClearSelectedTick": 1375,
+      "firstAreaClearCastTick": 1393,
+      "firstEffectiveAreaClearTick": 1801,
       "firstDraftTick": 1375,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 698,
+      "killsAt60": 39,
+      "killsAt180": 165,
+      "killsAt540": 784,
+      "killsAt600": 798,
+      "bossKillSeconds": 680,
+      "bossTtkSeconds": 80,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 83560,
+      "minHpPermille": 523,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 282286,
+      "controlApplications": {
+        "normal": 205,
+        "elite": 6,
+        "mvp": 13
+      },
+      "controlTargetTicks": {
+        "normal": 1632,
+        "elite": 156,
+        "mvp": 363
+      },
+      "enemyTargetTicks": {
+        "normal": 432337,
+        "elite": 4828,
+        "mvp": 4778
+      },
+      "controlCoveragePermille": 5,
+      "topDamageSource": "skill.sw.magnum_break",
+      "topDamageSharePermille": 462,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.fury",
-      "topDamageTaken": "boss.mastering 132"
+      "topDamageTaken": "monster.poporing 189"
     },
     {
       "plan": "fury",
@@ -1496,37 +4785,101 @@
       "seed": 9,
       "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 689,
+      "timeSeconds": 704,
       "level": 18,
-      "kills": 881,
-      "firstAreaClearTick": 1926,
+      "kills": 896,
+      "firstAreaClearTick": 1121,
+      "firstAreaClearOfferedTick": 1121,
+      "firstAreaClearSelectedTick": 1121,
+      "firstAreaClearCastTick": 1247,
+      "firstEffectiveAreaClearTick": 1247,
       "firstDraftTick": 1121,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 689,
+      "killsAt60": 37,
+      "killsAt180": 164,
+      "killsAt540": 788,
+      "killsAt600": 798,
+      "bossKillSeconds": 704,
+      "bossTtkSeconds": 104,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 79818,
+      "minHpPermille": 605,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 290162,
+      "controlApplications": {
+        "normal": 222,
+        "elite": 7,
+        "mvp": 8
+      },
+      "controlTargetTicks": {
+        "normal": 1405,
+        "elite": 147,
+        "mvp": 147
+      },
+      "enemyTargetTicks": {
+        "normal": 452091,
+        "elite": 4529,
+        "mvp": 6228
+      },
+      "controlCoveragePermille": 4,
+      "topDamageSource": "skill.sw.magnum_break",
+      "topDamageSharePermille": 496,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.fury",
-      "topDamageTaken": "monster.savage_babe 146"
+      "topDamageTaken": "monster.poporing 167"
     },
     {
       "plan": "fury",
       "device": "keyboard",
       "seed": 10,
-      "outcome": "victory",
+      "outcome": "defeat",
       "crashed": null,
-      "timeSeconds": 687,
-      "level": 18,
-      "kills": 881,
-      "firstAreaClearTick": 2928,
+      "timeSeconds": 372,
+      "level": 13,
+      "kills": 400,
+      "firstAreaClearTick": 1749,
+      "firstAreaClearOfferedTick": 1749,
+      "firstAreaClearSelectedTick": 1749,
+      "firstAreaClearCastTick": 1767,
+      "firstEffectiveAreaClearTick": 1767,
       "firstDraftTick": 1749,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 687,
+      "killsAt60": 35,
+      "killsAt180": 156,
+      "killsAt540": 400,
+      "killsAt600": 400,
+      "bossKillSeconds": null,
+      "bossTtkSeconds": null,
+      "mvpDamagePermille": 0,
+      "damageTaken": 62592,
+      "minHpPermille": 0,
+      "lowHpTicks": 63,
+      "distanceMmPerMinute": 291395,
+      "controlApplications": {
+        "normal": 209,
+        "elite": 4,
+        "mvp": 0
+      },
+      "controlTargetTicks": {
+        "normal": 1757,
+        "elite": 84,
+        "mvp": 0
+      },
+      "enemyTargetTicks": {
+        "normal": 357199,
+        "elite": 5300,
+        "mvp": 0
+      },
+      "controlCoveragePermille": 5,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 569,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.fury",
-      "topDamageTaken": "boss.mastering 143"
+      "topDamageTaken": "monster.mandragora 195"
     },
     {
       "plan": "fury",
@@ -1534,18 +4887,50 @@
       "seed": 1,
       "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 697,
+      "timeSeconds": 728,
       "level": 18,
-      "kills": 894,
+      "kills": 927,
       "firstAreaClearTick": 1787,
+      "firstAreaClearOfferedTick": 1787,
+      "firstAreaClearSelectedTick": 1787,
+      "firstAreaClearCastTick": 1805,
+      "firstEffectiveAreaClearTick": 1805,
       "firstDraftTick": 1787,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 697,
+      "killsAt60": 35,
+      "killsAt180": 166,
+      "killsAt540": 781,
+      "killsAt600": 798,
+      "bossKillSeconds": 728,
+      "bossTtkSeconds": 128,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 68596,
+      "minHpPermille": 489,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 287684,
+      "controlApplications": {
+        "normal": 194,
+        "elite": 5,
+        "mvp": 9
+      },
+      "controlTargetTicks": {
+        "normal": 1459,
+        "elite": 105,
+        "mvp": 189
+      },
+      "enemyTargetTicks": {
+        "normal": 468156,
+        "elite": 6202,
+        "mvp": 7689
+      },
+      "controlCoveragePermille": 4,
+      "topDamageSource": "skill.sw.magnum_break",
+      "topDamageSharePermille": 565,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.fury",
-      "topDamageTaken": "monster.poporing 150"
+      "topDamageTaken": "boss.mastering 143"
     },
     {
       "plan": "fury",
@@ -1557,14 +4942,46 @@
       "level": 18,
       "kills": 915,
       "firstAreaClearTick": 1220,
+      "firstAreaClearOfferedTick": 1220,
+      "firstAreaClearSelectedTick": 1220,
+      "firstAreaClearCastTick": 1256,
+      "firstEffectiveAreaClearTick": 1256,
       "firstDraftTick": 1220,
       "firstDraftHasAreaClear": true,
+      "killsAt60": 34,
+      "killsAt180": 166,
+      "killsAt540": 779,
+      "killsAt600": 798,
       "bossKillSeconds": 724,
+      "bossTtkSeconds": 124,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 69787,
+      "minHpPermille": 765,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 287226,
+      "controlApplications": {
+        "normal": 0,
+        "elite": 0,
+        "mvp": 0
+      },
+      "controlTargetTicks": {
+        "normal": 0,
+        "elite": 0,
+        "mvp": 0
+      },
+      "enemyTargetTicks": {
+        "normal": 486464,
+        "elite": 3808,
+        "mvp": 7456
+      },
+      "controlCoveragePermille": 0,
+      "topDamageSource": "skill.sw.magnum_break",
+      "topDamageSharePermille": 593,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.fury",
-      "topDamageTaken": "monster.poporing 153"
+      "topDamageTaken": "monster.poporing 132"
     },
     {
       "plan": "fury",
@@ -1573,17 +4990,49 @@
       "outcome": "victory",
       "crashed": null,
       "timeSeconds": 720,
-      "level": 17,
-      "kills": 905,
+      "level": 18,
+      "kills": 906,
       "firstAreaClearTick": 1514,
+      "firstAreaClearOfferedTick": 1514,
+      "firstAreaClearSelectedTick": 1514,
+      "firstAreaClearCastTick": 1535,
+      "firstEffectiveAreaClearTick": 1946,
       "firstDraftTick": 1514,
       "firstDraftHasAreaClear": true,
+      "killsAt60": 39,
+      "killsAt180": 165,
+      "killsAt540": 784,
+      "killsAt600": 798,
       "bossKillSeconds": 720,
+      "bossTtkSeconds": 120,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 62968,
+      "minHpPermille": 571,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 287778,
+      "controlApplications": {
+        "normal": 0,
+        "elite": 0,
+        "mvp": 0
+      },
+      "controlTargetTicks": {
+        "normal": 0,
+        "elite": 0,
+        "mvp": 0
+      },
+      "enemyTargetTicks": {
+        "normal": 582205,
+        "elite": 6166,
+        "mvp": 7173
+      },
+      "controlCoveragePermille": 0,
+      "topDamageSource": "skill.sw.magnum_break",
+      "topDamageSharePermille": 604,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.fury",
-      "topDamageTaken": "monster.poporing 190"
+      "topDamageTaken": "boss.mastering 162"
     },
     {
       "plan": "fury",
@@ -1591,18 +5040,50 @@
       "seed": 4,
       "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 692,
-      "level": 17,
-      "kills": 883,
+      "timeSeconds": 697,
+      "level": 18,
+      "kills": 889,
       "firstAreaClearTick": 1077,
+      "firstAreaClearOfferedTick": 1077,
+      "firstAreaClearSelectedTick": 1077,
+      "firstAreaClearCastTick": 1242,
+      "firstEffectiveAreaClearTick": 1242,
       "firstDraftTick": 1077,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 692,
+      "killsAt60": 34,
+      "killsAt180": 162,
+      "killsAt540": 786,
+      "killsAt600": 798,
+      "bossKillSeconds": 697,
+      "bossTtkSeconds": 97,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 82343,
+      "minHpPermille": 535,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 294346,
+      "controlApplications": {
+        "normal": 27,
+        "elite": 1,
+        "mvp": 4
+      },
+      "controlTargetTicks": {
+        "normal": 60,
+        "elite": 36,
+        "mvp": 144
+      },
+      "enemyTargetTicks": {
+        "normal": 504565,
+        "elite": 5297,
+        "mvp": 5794
+      },
+      "controlCoveragePermille": 0,
+      "topDamageSource": "skill.sw.magnum_break",
+      "topDamageSharePermille": 516,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.fury",
-      "topDamageTaken": "monster.savage_babe 171"
+      "topDamageTaken": "monster.savage_babe 174"
     },
     {
       "plan": "fury",
@@ -1610,18 +5091,50 @@
       "seed": 5,
       "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 692,
+      "timeSeconds": 695,
       "level": 18,
-      "kills": 875,
-      "firstAreaClearTick": 2556,
+      "kills": 880,
+      "firstAreaClearTick": 1309,
+      "firstAreaClearOfferedTick": 1309,
+      "firstAreaClearSelectedTick": 1309,
+      "firstAreaClearCastTick": 1703,
+      "firstEffectiveAreaClearTick": 2111,
       "firstDraftTick": 1309,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 692,
+      "killsAt60": 37,
+      "killsAt180": 161,
+      "killsAt540": 784,
+      "killsAt600": 798,
+      "bossKillSeconds": 695,
+      "bossTtkSeconds": 95,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 68819,
+      "minHpPermille": 672,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 289987,
+      "controlApplications": {
+        "normal": 232,
+        "elite": 7,
+        "mvp": 23
+      },
+      "controlTargetTicks": {
+        "normal": 1666,
+        "elite": 177,
+        "mvp": 657
+      },
+      "enemyTargetTicks": {
+        "normal": 461566,
+        "elite": 5427,
+        "mvp": 5707
+      },
+      "controlCoveragePermille": 5,
+      "topDamageSource": "skill.sw.magnum_break",
+      "topDamageSharePermille": 431,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.fury",
-      "topDamageTaken": "miniboss.vocal:sound-cone 156"
+      "topDamageTaken": "boss.mastering 167"
     },
     {
       "plan": "fury",
@@ -1629,37 +5142,101 @@
       "seed": 6,
       "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 694,
-      "level": 18,
-      "kills": 880,
-      "firstAreaClearTick": 2902,
+      "timeSeconds": 726,
+      "level": 17,
+      "kills": 914,
+      "firstAreaClearTick": 883,
+      "firstAreaClearOfferedTick": 883,
+      "firstAreaClearSelectedTick": 883,
+      "firstAreaClearCastTick": 935,
+      "firstEffectiveAreaClearTick": 935,
       "firstDraftTick": 883,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 694,
+      "killsAt60": 34,
+      "killsAt180": 165,
+      "killsAt540": 783,
+      "killsAt600": 798,
+      "bossKillSeconds": 726,
+      "bossTtkSeconds": 126,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 97359,
+      "minHpPermille": 332,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 285936,
+      "controlApplications": {
+        "normal": 235,
+        "elite": 11,
+        "mvp": 11
+      },
+      "controlTargetTicks": {
+        "normal": 1366,
+        "elite": 231,
+        "mvp": 231
+      },
+      "enemyTargetTicks": {
+        "normal": 508295,
+        "elite": 5791,
+        "mvp": 7578
+      },
+      "controlCoveragePermille": 4,
+      "topDamageSource": "skill.sw.magnum_break",
+      "topDamageSharePermille": 501,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.fury",
-      "topDamageTaken": "monster.poporing 188"
+      "topDamageTaken": "boss.mastering 167"
     },
     {
       "plan": "fury",
       "device": "touch",
       "seed": 7,
-      "outcome": "victory",
+      "outcome": "defeat",
       "crashed": null,
-      "timeSeconds": 696,
-      "level": 18,
-      "kills": 889,
+      "timeSeconds": 367,
+      "level": 13,
+      "kills": 387,
       "firstAreaClearTick": 1047,
+      "firstAreaClearOfferedTick": 1047,
+      "firstAreaClearSelectedTick": 1047,
+      "firstAreaClearCastTick": 1620,
+      "firstEffectiveAreaClearTick": 1620,
       "firstDraftTick": 1047,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 696,
+      "killsAt60": 34,
+      "killsAt180": 162,
+      "killsAt540": 387,
+      "killsAt600": 387,
+      "bossKillSeconds": null,
+      "bossTtkSeconds": null,
+      "mvpDamagePermille": 0,
+      "damageTaken": 71068,
+      "minHpPermille": 0,
+      "lowHpTicks": 937,
+      "distanceMmPerMinute": 291515,
+      "controlApplications": {
+        "normal": 211,
+        "elite": 8,
+        "mvp": 0
+      },
+      "controlTargetTicks": {
+        "normal": 1515,
+        "elite": 168,
+        "mvp": 0
+      },
+      "enemyTargetTicks": {
+        "normal": 405043,
+        "elite": 5625,
+        "mvp": 0
+      },
+      "controlCoveragePermille": 4,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 566,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.fury",
-      "topDamageTaken": "boss.mastering 131"
+      "topDamageTaken": "monster.mandragora 276"
     },
     {
       "plan": "fury",
@@ -1667,18 +5244,50 @@
       "seed": 8,
       "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 692,
+      "timeSeconds": 678,
       "level": 18,
-      "kills": 883,
+      "kills": 872,
       "firstAreaClearTick": 1367,
+      "firstAreaClearOfferedTick": 1367,
+      "firstAreaClearSelectedTick": 1367,
+      "firstAreaClearCastTick": 1385,
+      "firstEffectiveAreaClearTick": 1793,
       "firstDraftTick": 1367,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 692,
+      "killsAt60": 36,
+      "killsAt180": 164,
+      "killsAt540": 785,
+      "killsAt600": 798,
+      "bossKillSeconds": 678,
+      "bossTtkSeconds": 78,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 75167,
+      "minHpPermille": 557,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 282839,
+      "controlApplications": {
+        "normal": 184,
+        "elite": 6,
+        "mvp": 18
+      },
+      "controlTargetTicks": {
+        "normal": 1437,
+        "elite": 84,
+        "mvp": 528
+      },
+      "enemyTargetTicks": {
+        "normal": 439394,
+        "elite": 5448,
+        "mvp": 4657
+      },
+      "controlCoveragePermille": 5,
+      "topDamageSource": "skill.sw.magnum_break",
+      "topDamageSharePermille": 467,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.fury",
-      "topDamageTaken": "boss.mastering 180"
+      "topDamageTaken": "monster.poporing 146"
     },
     {
       "plan": "fury",
@@ -1688,35 +5297,99 @@
       "crashed": null,
       "timeSeconds": 688,
       "level": 18,
-      "kills": 877,
-      "firstAreaClearTick": 2503,
+      "kills": 882,
+      "firstAreaClearTick": 2070,
+      "firstAreaClearOfferedTick": 2070,
+      "firstAreaClearSelectedTick": 2070,
+      "firstAreaClearCastTick": 2088,
+      "firstEffectiveAreaClearTick": 2088,
       "firstDraftTick": 2070,
       "firstDraftHasAreaClear": true,
+      "killsAt60": 36,
+      "killsAt180": 166,
+      "killsAt540": 781,
+      "killsAt600": 798,
       "bossKillSeconds": 688,
+      "bossTtkSeconds": 88,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 84392,
+      "minHpPermille": 637,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 285188,
+      "controlApplications": {
+        "normal": 184,
+        "elite": 4,
+        "mvp": 7
+      },
+      "controlTargetTicks": {
+        "normal": 1512,
+        "elite": 84,
+        "mvp": 147
+      },
+      "enemyTargetTicks": {
+        "normal": 454349,
+        "elite": 3728,
+        "mvp": 5297
+      },
+      "controlCoveragePermille": 4,
+      "topDamageSource": "skill.sw.magnum_break",
+      "topDamageSharePermille": 504,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.fury",
-      "topDamageTaken": "monster.mandragora 112"
+      "topDamageTaken": "boss.mastering 197"
     },
     {
       "plan": "fury",
       "device": "touch",
       "seed": 10,
-      "outcome": "victory",
+      "outcome": "defeat",
       "crashed": null,
-      "timeSeconds": 698,
-      "level": 18,
-      "kills": 890,
-      "firstAreaClearTick": 3172,
+      "timeSeconds": 702,
+      "level": 17,
+      "kills": 891,
+      "firstAreaClearTick": 1220,
+      "firstAreaClearOfferedTick": 1220,
+      "firstAreaClearSelectedTick": 1220,
+      "firstAreaClearCastTick": 1242,
+      "firstEffectiveAreaClearTick": 1650,
       "firstDraftTick": 1220,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 698,
+      "killsAt60": 37,
+      "killsAt180": 157,
+      "killsAt540": 713,
+      "killsAt600": 798,
+      "bossKillSeconds": null,
+      "bossTtkSeconds": null,
+      "mvpDamagePermille": 740,
+      "damageTaken": 125386,
+      "minHpPermille": 0,
+      "lowHpTicks": 2785,
+      "distanceMmPerMinute": 296486,
+      "controlApplications": {
+        "normal": 531,
+        "elite": 14,
+        "mvp": 15
+      },
+      "controlTargetTicks": {
+        "normal": 4241,
+        "elite": 273,
+        "mvp": 390
+      },
+      "enemyTargetTicks": {
+        "normal": 1217470,
+        "elite": 13184,
+        "mvp": 6121
+      },
+      "controlCoveragePermille": 4,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 498,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.fury",
-      "topDamageTaken": "monster.poporing 191"
+      "topDamageTaken": "monster.mandragora 216"
     },
     {
       "plan": "fury",
@@ -1724,18 +5397,50 @@
       "seed": 1,
       "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 699,
+      "timeSeconds": 718,
       "level": 18,
-      "kills": 895,
+      "kills": 913,
       "firstAreaClearTick": 1784,
+      "firstAreaClearOfferedTick": 1784,
+      "firstAreaClearSelectedTick": 1784,
+      "firstAreaClearCastTick": 1802,
+      "firstEffectiveAreaClearTick": 1802,
       "firstDraftTick": 1784,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 699,
+      "killsAt60": 34,
+      "killsAt180": 166,
+      "killsAt540": 782,
+      "killsAt600": 798,
+      "bossKillSeconds": 718,
+      "bossTtkSeconds": 118,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 62801,
+      "minHpPermille": 660,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 287271,
+      "controlApplications": {
+        "normal": 215,
+        "elite": 6,
+        "mvp": 13
+      },
+      "controlTargetTicks": {
+        "normal": 1430,
+        "elite": 126,
+        "mvp": 273
+      },
+      "enemyTargetTicks": {
+        "normal": 445087,
+        "elite": 6683,
+        "mvp": 7093
+      },
+      "controlCoveragePermille": 4,
+      "topDamageSource": "skill.sw.magnum_break",
+      "topDamageSharePermille": 560,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.fury",
-      "topDamageTaken": "boss.mastering 137"
+      "topDamageTaken": "boss.mastering 119"
     },
     {
       "plan": "fury",
@@ -1747,14 +5452,46 @@
       "level": 18,
       "kills": 915,
       "firstAreaClearTick": 1220,
+      "firstAreaClearOfferedTick": 1220,
+      "firstAreaClearSelectedTick": 1220,
+      "firstAreaClearCastTick": 1258,
+      "firstEffectiveAreaClearTick": 1258,
       "firstDraftTick": 1220,
       "firstDraftHasAreaClear": true,
+      "killsAt60": 34,
+      "killsAt180": 163,
+      "killsAt540": 782,
+      "killsAt600": 798,
       "bossKillSeconds": 725,
+      "bossTtkSeconds": 125,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 98728,
+      "minHpPermille": 369,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 288593,
+      "controlApplications": {
+        "normal": 0,
+        "elite": 0,
+        "mvp": 0
+      },
+      "controlTargetTicks": {
+        "normal": 0,
+        "elite": 0,
+        "mvp": 0
+      },
+      "enemyTargetTicks": {
+        "normal": 521551,
+        "elite": 6335,
+        "mvp": 7529
+      },
+      "controlCoveragePermille": 0,
+      "topDamageSource": "skill.sw.magnum_break",
+      "topDamageSharePermille": 596,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.fury",
-      "topDamageTaken": "monster.poporing 167"
+      "topDamageTaken": "monster.poporing 222"
     },
     {
       "plan": "fury",
@@ -1762,37 +5499,101 @@
       "seed": 3,
       "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 707,
+      "timeSeconds": 726,
       "level": 18,
-      "kills": 896,
+      "kills": 913,
       "firstAreaClearTick": 1504,
+      "firstAreaClearOfferedTick": 1504,
+      "firstAreaClearSelectedTick": 1504,
+      "firstAreaClearCastTick": 1949,
+      "firstEffectiveAreaClearTick": 3218,
       "firstDraftTick": 1504,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 707,
+      "killsAt60": 39,
+      "killsAt180": 159,
+      "killsAt540": 783,
+      "killsAt600": 798,
+      "bossKillSeconds": 726,
+      "bossTtkSeconds": 126,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 82349,
+      "minHpPermille": 494,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 289585,
+      "controlApplications": {
+        "normal": 0,
+        "elite": 0,
+        "mvp": 0
+      },
+      "controlTargetTicks": {
+        "normal": 0,
+        "elite": 0,
+        "mvp": 0
+      },
+      "enemyTargetTicks": {
+        "normal": 484214,
+        "elite": 4277,
+        "mvp": 7536
+      },
+      "controlCoveragePermille": 0,
+      "topDamageSource": "skill.sw.magnum_break",
+      "topDamageSharePermille": 606,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.fury",
-      "topDamageTaken": "monster.poporing 192"
+      "topDamageTaken": "monster.poporing 191"
     },
     {
       "plan": "fury",
       "device": "gamepad",
       "seed": 4,
-      "outcome": "victory",
+      "outcome": "defeat",
       "crashed": null,
-      "timeSeconds": 685,
-      "level": 18,
-      "kills": 874,
+      "timeSeconds": 665,
+      "level": 17,
+      "kills": 857,
       "firstAreaClearTick": 1074,
+      "firstAreaClearOfferedTick": 1074,
+      "firstAreaClearSelectedTick": 1074,
+      "firstAreaClearCastTick": 1242,
+      "firstEffectiveAreaClearTick": 1242,
       "firstDraftTick": 1074,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 685,
+      "killsAt60": 29,
+      "killsAt180": 162,
+      "killsAt540": 784,
+      "killsAt600": 798,
+      "bossKillSeconds": null,
+      "bossTtkSeconds": null,
+      "mvpDamagePermille": 607,
+      "damageTaken": 107920,
+      "minHpPermille": 0,
+      "lowHpTicks": 5,
+      "distanceMmPerMinute": 292701,
+      "controlApplications": {
+        "normal": 25,
+        "elite": 0,
+        "mvp": 2
+      },
+      "controlTargetTicks": {
+        "normal": 38,
+        "elite": 0,
+        "mvp": 72
+      },
+      "enemyTargetTicks": {
+        "normal": 511671,
+        "elite": 4989,
+        "mvp": 3875
+      },
+      "controlCoveragePermille": 0,
+      "topDamageSource": "skill.sw.magnum_break",
+      "topDamageSharePermille": 531,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.fury",
-      "topDamageTaken": "monster.mandragora 164"
+      "topDamageTaken": "boss.mastering:bounce-ring 158"
     },
     {
       "plan": "fury",
@@ -1800,18 +5601,50 @@
       "seed": 5,
       "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 694,
+      "timeSeconds": 697,
       "level": 18,
-      "kills": 875,
-      "firstAreaClearTick": 2705,
+      "kills": 881,
+      "firstAreaClearTick": 1306,
+      "firstAreaClearOfferedTick": 1306,
+      "firstAreaClearSelectedTick": 1306,
+      "firstAreaClearCastTick": 1704,
+      "firstEffectiveAreaClearTick": 2112,
       "firstDraftTick": 1306,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 694,
+      "killsAt60": 38,
+      "killsAt180": 167,
+      "killsAt540": 783,
+      "killsAt600": 798,
+      "bossKillSeconds": 697,
+      "bossTtkSeconds": 97,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 79726,
+      "minHpPermille": 562,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 287167,
+      "controlApplications": {
+        "normal": 259,
+        "elite": 10,
+        "mvp": 15
+      },
+      "controlTargetTicks": {
+        "normal": 1925,
+        "elite": 234,
+        "mvp": 435
+      },
+      "enemyTargetTicks": {
+        "normal": 457673,
+        "elite": 4073,
+        "mvp": 5790
+      },
+      "controlCoveragePermille": 6,
+      "topDamageSource": "skill.sw.magnum_break",
+      "topDamageSharePermille": 405,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.fury",
-      "topDamageTaken": "monster.poporing 127"
+      "topDamageTaken": "monster.savage_babe 169"
     },
     {
       "plan": "fury",
@@ -1819,37 +5652,101 @@
       "seed": 6,
       "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 681,
+      "timeSeconds": 732,
       "level": 18,
-      "kills": 871,
-      "firstAreaClearTick": 2889,
+      "kills": 920,
+      "firstAreaClearTick": 1599,
+      "firstAreaClearOfferedTick": 1599,
+      "firstAreaClearSelectedTick": 1599,
+      "firstAreaClearCastTick": 1617,
+      "firstEffectiveAreaClearTick": 1617,
       "firstDraftTick": 1599,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 681,
+      "killsAt60": 37,
+      "killsAt180": 164,
+      "killsAt540": 781,
+      "killsAt600": 798,
+      "bossKillSeconds": 732,
+      "bossTtkSeconds": 132,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 91385,
+      "minHpPermille": 378,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 287273,
+      "controlApplications": {
+        "normal": 243,
+        "elite": 9,
+        "mvp": 11
+      },
+      "controlTargetTicks": {
+        "normal": 1197,
+        "elite": 168,
+        "mvp": 231
+      },
+      "enemyTargetTicks": {
+        "normal": 509784,
+        "elite": 5104,
+        "mvp": 7920
+      },
+      "controlCoveragePermille": 3,
+      "topDamageSource": "skill.sw.magnum_break",
+      "topDamageSharePermille": 489,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.fury",
-      "topDamageTaken": "monster.poporing 170"
+      "topDamageTaken": "monster.poporing 190"
     },
     {
       "plan": "fury",
       "device": "gamepad",
       "seed": 7,
-      "outcome": "victory",
+      "outcome": "defeat",
       "crashed": null,
-      "timeSeconds": 698,
-      "level": 18,
-      "kills": 891,
+      "timeSeconds": 378,
+      "level": 13,
+      "kills": 406,
       "firstAreaClearTick": 1047,
+      "firstAreaClearOfferedTick": 1047,
+      "firstAreaClearSelectedTick": 1047,
+      "firstAreaClearCastTick": 1622,
+      "firstEffectiveAreaClearTick": 1622,
       "firstDraftTick": 1047,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 698,
+      "killsAt60": 35,
+      "killsAt180": 164,
+      "killsAt540": 406,
+      "killsAt600": 406,
+      "bossKillSeconds": null,
+      "bossTtkSeconds": null,
+      "mvpDamagePermille": 0,
+      "damageTaken": 53984,
+      "minHpPermille": 0,
+      "lowHpTicks": 936,
+      "distanceMmPerMinute": 289073,
+      "controlApplications": {
+        "normal": 218,
+        "elite": 8,
+        "mvp": 0
+      },
+      "controlTargetTicks": {
+        "normal": 1571,
+        "elite": 162,
+        "mvp": 0
+      },
+      "enemyTargetTicks": {
+        "normal": 424798,
+        "elite": 5870,
+        "mvp": 0
+      },
+      "controlCoveragePermille": 4,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 557,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.fury",
-      "topDamageTaken": "monster.poporing 149"
+      "topDamageTaken": "miniboss.vocal:sound-cone 142"
     },
     {
       "plan": "fury",
@@ -1857,18 +5754,50 @@
       "seed": 8,
       "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 694,
+      "timeSeconds": 681,
       "level": 18,
-      "kills": 884,
+      "kills": 874,
       "firstAreaClearTick": 1642,
+      "firstAreaClearOfferedTick": 1642,
+      "firstAreaClearSelectedTick": 1642,
+      "firstAreaClearCastTick": 1660,
+      "firstEffectiveAreaClearTick": 1660,
       "firstDraftTick": 1642,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 694,
+      "killsAt60": 38,
+      "killsAt180": 166,
+      "killsAt540": 780,
+      "killsAt600": 798,
+      "bossKillSeconds": 681,
+      "bossTtkSeconds": 81,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 72672,
+      "minHpPermille": 637,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 284801,
+      "controlApplications": {
+        "normal": 220,
+        "elite": 7,
+        "mvp": 13
+      },
+      "controlTargetTicks": {
+        "normal": 1708,
+        "elite": 156,
+        "mvp": 378
+      },
+      "enemyTargetTicks": {
+        "normal": 450964,
+        "elite": 3888,
+        "mvp": 4877
+      },
+      "controlCoveragePermille": 5,
+      "topDamageSource": "skill.sw.magnum_break",
+      "topDamageSharePermille": 475,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.fury",
-      "topDamageTaken": "boss.mastering 131"
+      "topDamageTaken": "boss.mastering 160"
     },
     {
       "plan": "fury",
@@ -1876,37 +5805,101 @@
       "seed": 9,
       "outcome": "victory",
       "crashed": null,
-      "timeSeconds": 694,
+      "timeSeconds": 698,
       "level": 18,
-      "kills": 884,
-      "firstAreaClearTick": 1920,
+      "kills": 891,
+      "firstAreaClearTick": 1114,
+      "firstAreaClearOfferedTick": 1114,
+      "firstAreaClearSelectedTick": 1114,
+      "firstAreaClearCastTick": 1243,
+      "firstEffectiveAreaClearTick": 1243,
       "firstDraftTick": 1114,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 694,
+      "killsAt60": 36,
+      "killsAt180": 165,
+      "killsAt540": 784,
+      "killsAt600": 798,
+      "bossKillSeconds": 698,
+      "bossTtkSeconds": 98,
+      "mvpDamagePermille": 1000,
+      "damageTaken": 76353,
+      "minHpPermille": 459,
+      "lowHpTicks": 0,
+      "distanceMmPerMinute": 288287,
+      "controlApplications": {
+        "normal": 208,
+        "elite": 6,
+        "mvp": 8
+      },
+      "controlTargetTicks": {
+        "normal": 1587,
+        "elite": 105,
+        "mvp": 168
+      },
+      "enemyTargetTicks": {
+        "normal": 465678,
+        "elite": 3506,
+        "mvp": 5854
+      },
+      "controlCoveragePermille": 4,
+      "topDamageSource": "skill.sw.magnum_break",
+      "topDamageSharePermille": 510,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.fury",
-      "topDamageTaken": "monster.savage_babe 143"
+      "topDamageTaken": "boss.mastering 172"
     },
     {
       "plan": "fury",
       "device": "gamepad",
       "seed": 10,
-      "outcome": "victory",
+      "outcome": "defeat",
       "crashed": null,
-      "timeSeconds": 681,
-      "level": 18,
-      "kills": 871,
-      "firstAreaClearTick": 3380,
+      "timeSeconds": 426,
+      "level": 14,
+      "kills": 473,
+      "firstAreaClearTick": 1157,
+      "firstAreaClearOfferedTick": 1157,
+      "firstAreaClearSelectedTick": 1157,
+      "firstAreaClearCastTick": 1175,
+      "firstEffectiveAreaClearTick": 1175,
       "firstDraftTick": 1157,
       "firstDraftHasAreaClear": true,
-      "bossKillSeconds": 681,
+      "killsAt60": 35,
+      "killsAt180": 155,
+      "killsAt540": 473,
+      "killsAt600": 473,
+      "bossKillSeconds": null,
+      "bossTtkSeconds": null,
+      "mvpDamagePermille": 0,
+      "damageTaken": 67485,
+      "minHpPermille": 0,
+      "lowHpTicks": 41,
+      "distanceMmPerMinute": 288039,
+      "controlApplications": {
+        "normal": 285,
+        "elite": 6,
+        "mvp": 0
+      },
+      "controlTargetTicks": {
+        "normal": 2838,
+        "elite": 120,
+        "mvp": 0
+      },
+      "enemyTargetTicks": {
+        "normal": 556929,
+        "elite": 9136,
+        "mvp": 0
+      },
+      "controlCoveragePermille": 5,
+      "topDamageSource": "skill.sw.basic_slash",
+      "topDamageSharePermille": 510,
       "spawnsSkipped": 0,
       "unannouncedHits": 0,
       "playerMovedBySkills": 0,
       "keystone": "keystone.fury",
-      "topDamageTaken": "boss.mastering 149"
+      "topDamageTaken": "monster.mandragora 243"
     }
   ]
 }

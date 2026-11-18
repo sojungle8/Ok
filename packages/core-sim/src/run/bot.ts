@@ -11,7 +11,7 @@ const DIR24: readonly (readonly [number, number])[] = Array.from({ length: 24 },
   return [Math.trunc((x * TRIG_SCALE) / n), Math.trunc((y * TRIG_SCALE) / n)] as const;
 });
 import type { RunContent } from "./content.ts";
-import type { DraftOption } from "./draft.ts";
+import { isAreaClear, type DraftOption } from "./draft.ts";
 import { hits } from "./geometry.ts";
 import type { RunInput, RunState } from "./run.ts";
 
@@ -221,7 +221,13 @@ export function botIntent(c: RunContent, st: RunState): { x: number; y: number }
 /** Full bot command for one step (draft handling + movement), before adapter quantisation. */
 export function botCommand(c: RunContent, st: RunState, plan: BuildPlan, sequence: number, adapt: (x: number, y: number) => { moveX: number; moveY: number }): RunInput {
   const base = { tick: st.tick, sequence };
-  if (st.phase === "draft" && st.draft) return { ...base, moveX: 0, moveY: 0, draftIndex: chooseDraft(plan, st.draft.options) };
+  if (st.phase === "draft" && st.draft) {
+    const hasAreaClear = st.player.active.some((slot) => isAreaClear(c, slot.id));
+    const early = !hasAreaClear && st.runTick < c.player.guaranteedEarly.beforeTick
+      ? st.draft.options.findIndex((option) => option.kind === "new-active" && isAreaClear(c, option.id))
+      : -1;
+    return { ...base, moveX: 0, moveY: 0, draftIndex: early >= 0 ? early : chooseDraft(plan, st.draft.options) };
+  }
   if (st.phase === "keystone-confirm") return { ...base, moveX: 0, moveY: 0, confirm: true };
   const intent = botIntent(c, st);
   return { ...base, ...adapt(intent.x, intent.y) };

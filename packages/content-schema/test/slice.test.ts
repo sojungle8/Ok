@@ -13,7 +13,7 @@ describe("vertical-slice content compile", () => {
     expect(c.skills["skill.sw.basic_slash"]?.geometry).toEqual({ shape: "sector", rangeMm: 1800, halfAngleDeg: 50 });
     expect(c.skills["skill.sw.basic_slash"]?.perRank.hitLimit).toEqual([3, 3, 4, 4, 5]);
     expect(c.skills["skill.sw.magnum_break"]).toMatchObject({ designOrigin: "official-name-adapted", fanGameAdaptation: true, officialSource: { id: 7, constant: "SM_MAGNUM" } });
-    expect(c.skills["skill.sw.shield_wave"]).toMatchObject({ designOrigin: "original-survivor-adaptation", fanGameAdaptation: true, officialSource: null });
+    expect(c.skills["skill.sw.shield_wave"]).toMatchObject({ designOrigin: "original-survivor-adaptation", fanGameAdaptation: true, officialSource: null, minimumTargets: 3 });
     expect(c.monsters["monster.poring"]).toMatchObject({ hp: 1800, speedMmPerTick: 30, contactDamage: 500, xp: 1 });
     expect(c.monsters["elite.poring"]).toMatchObject({ hp: 21600, contactDamage: 1000, xp: 20 });
     expect(c.monsters["boss.mastering"]?.attacks.map((a) => a.kind)).toEqual(["hop-slam", "summon", "bounce-ring", "harden"]);

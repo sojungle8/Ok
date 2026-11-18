@@ -1,15 +1,28 @@
 import { describe, expect, it } from "vitest";
 import { FakeClock } from "@ro-survivor/testkit";
 import {
-  botCommand, checkpoint, createRun, FixedStepClock, generateDraft, eligibleOptions, optionKey, restore, Rng, runHash, stepRun, buildView, type DraftOption, type RunState,
+  botCommand, checkpoint, createRun, FixedStepClock, generateDraft, eligibleOptions, optionKey, restore, Rng, RUN_CHECKPOINT_SCHEMA_VERSION, runHash, stepRun, buildView, type BuildPlan, type DraftOption, type Enemy, type RunState,
 } from "@ro-survivor/core-sim";
 import { playRun, sliceConfig, sliceContent as c } from "./slice-fixture.ts";
+import { allAcceptanceGatesPass } from "./acceptance-lib.ts";
 
 /** Advance with the bot until `until(st)` or `limit` steps. */
 function advance(st: RunState, plan: "guardian" | "weapon" | "fury", seed: number, until: (s: RunState) => boolean, limit = 60 * 60 * 15): void {
   const cfg = sliceConfig(seed, plan);
   let seq = st.lastSequence + 1;
   for (let i = 0; i < limit && !until(st); i += 1) stepRun(st, cfg, botCommand(c, st, plan, seq++, (x, y) => ({ moveX: x, moveY: y })));
+}
+
+function testEnemy(st: RunState, type: string, id: number, dx: number, dy: number, hp?: number): Enemy {
+  const def = c.monsters[type];
+  if (!def) throw new Error(`missing test monster ${type}`);
+  const maxHp = hp ?? def.hp;
+  return {
+    id, type, x: st.player.x + dx, y: st.player.y + dy, hp: maxHp, maxHp, radius: def.radiusMm,
+    stunUntil: 0, playerControlUntil: 0, contactReadyAt: 0, armorDebuff: 0, moveDebuff: 1000, debuffUntil: 0,
+    fx: 0, fy: -100_000_000, attackReadyAt: def.attacks.map(() => Number.MAX_SAFE_INTEGER), dashUntil: 0, dashDx: 0, dashDy: 0,
+    hardenUntil: 0, hardenUsed: 0, projectileReadyAt: Number.MAX_SAFE_INTEGER, hopsLeft: 0,
+  };
 }
 
 describe("run simulation: determinism", () => {
@@ -36,6 +49,13 @@ describe("run simulation: determinism", () => {
   });
 });
 
+describe("acceptance gate wiring", () => {
+  it("fails closed when any gate is false", () => {
+    expect(allAcceptanceGatesPass({ noCrash: true, effectiveAreaClearWithin60s: true })).toBe(true);
+    expect(allAcceptanceGatesPass({ noCrash: true, effectiveAreaClearWithin60s: false })).toBe(false);
+  });
+});
+
 describe("run simulation: rules", () => {
   it("an area-clear skill is offered before tick 3600 on 10 seeds", () => {
     for (let seed = 1; seed <= 10; seed += 1) {
@@ -46,24 +66,91 @@ describe("run simulation: rules", () => {
     }
   });
 
+  it("offers, selects, casts and effectively hits with area clear before 60 seconds", () => {
+    for (const plan of ["guardian", "weapon", "fury"] satisfies BuildPlan[]) {
+      for (let seed = 1; seed <= 10; seed += 1) {
+        const st = createRun(sliceConfig(seed, plan));
+        advance(st, plan, seed, (s) => s.stats.firstEffectiveAreaClearTick >= 0 || s.runTick >= 3600);
+        const ticks = [st.stats.firstAreaClearOfferedTick, st.stats.firstAreaClearSelectedTick, st.stats.firstAreaClearCastTick, st.stats.firstEffectiveAreaClearTick];
+        expect(ticks.every((tick) => tick >= 0 && tick < 3600), `${plan} seed ${seed}: ${ticks.join(",")}`).toBe(true);
+        expect(ticks).toEqual([...ticks].sort((a, b) => a - b));
+      }
+    }
+  });
+
   it("automatic skills never move the player", () => {
     const cfg = sliceConfig(3, "fury");
     const st = createRun(cfg);
     st.player.active = ["skill.sw.magnum_break", "skill.sw.bash", "skill.sw.shield_wave", "skill.sw.endure"].map((id) => ({ id, rank: 3, readyAt: 0 }));
     const { x, y } = st.player;
-    let fired = 0;
     const skillEvents: Extract<RunState["events"][number], { type: "skill" }>[] = [];
     for (let t = 0; t < 2400 && st.phase === "running"; t += 1) {
       stepRun(st, cfg, { tick: st.tick, sequence: t, moveX: 0, moveY: 0 });
       const events = st.events.filter((e): e is Extract<RunState["events"][number], { type: "skill" }> => e.type === "skill");
-      fired += events.length;
       skillEvents.push(...events);
       expect([st.player.x, st.player.y]).toEqual([x, y]);
     }
-    expect(fired).toBeGreaterThan(20);
+    expect(skillEvents.length).toBeGreaterThan(0);
     expect(skillEvents.some((e) => e.source === "skill.sw.endure" && e.geometry === null)).toBe(true);
     expect(skillEvents.every((e) => e.vfxCue === e.source && e.geomId.startsWith(`player:${e.source}:`))).toBe(true);
     expect(skillEvents.every((e) => Number.isInteger(e.origin.xMm) && Number.isInteger(e.origin.yMm) && Number.isInteger(e.rank))).toBe(true);
+  });
+
+  it("requires three targets for Shield Wave and counts only player-applied control", () => {
+    const cfg = sliceConfig(1, "guardian");
+    const st = createRun(cfg);
+    st.firedEvents.fill(true);
+    st.waveLastSpawn.fill(Number.MAX_SAFE_INTEGER);
+    st.player.basicReadyAt = Number.MAX_SAFE_INTEGER;
+    st.player.active = [{ id: "skill.sw.shield_wave", rank: 1, readyAt: 0 }];
+    st.enemies = [-900, 0, 900].map((dx, index) => testEnemy(st, "monster.poring", 100 + index, dx, -2500, 10_000));
+    for (let sequence = 0; sequence < 40; sequence += 1) stepRun(st, cfg, { tick: st.tick, sequence, moveX: 0, moveY: 0 });
+    expect(st.stats.playerControlApplications.normal).toBeGreaterThanOrEqual(3);
+    expect(st.stats.playerControlTargetTicks.normal).toBeGreaterThan(0);
+
+    const windup = createRun(cfg);
+    windup.firedEvents.fill(true);
+    windup.waveLastSpawn.fill(Number.MAX_SAFE_INTEGER);
+    windup.player.basicReadyAt = Number.MAX_SAFE_INTEGER;
+    const charger = testEnemy(windup, "monster.savage_babe", 200, 0, -3000, 10_000);
+    charger.projectileReadyAt = 0;
+    windup.enemies = [charger];
+    stepRun(windup, cfg, { tick: windup.tick, sequence: 0, moveX: 0, moveY: 0 });
+    expect(charger.stunUntil).toBeGreaterThan(windup.runTick);
+    expect(charger.playerControlUntil).toBe(0);
+    expect(windup.stats.playerControlTargetTicks.normal).toBe(0);
+  });
+
+  it("tracks effective dealt and taken damage without overkill", () => {
+    const cfg = sliceConfig(1, "guardian");
+    const st = createRun(cfg);
+    st.firedEvents.fill(true);
+    st.waveLastSpawn.fill(Number.MAX_SAFE_INTEGER);
+    st.player.basicReadyAt = Number.MAX_SAFE_INTEGER;
+    st.player.active = [{ id: "skill.sw.magnum_break", rank: 1, readyAt: 0 }];
+    st.enemies = [-200, 0, 200].map((dx, index) => testEnemy(st, "monster.poring", 300 + index, dx, -800, 1));
+    for (let sequence = 0; sequence < 30 && st.phase === "running"; sequence += 1) stepRun(st, cfg, { tick: st.tick, sequence, moveX: 0, moveY: 0 });
+    expect(st.stats.effectiveDamageBySource["skill.sw.magnum_break"]).toBe(3);
+    expect(st.stats.damageBySource["skill.sw.magnum_break"]).toBeGreaterThan(3);
+
+    const hurt = createRun(cfg);
+    hurt.firedEvents.fill(true);
+    hurt.waveLastSpawn.fill(Number.MAX_SAFE_INTEGER);
+    hurt.player.basicReadyAt = Number.MAX_SAFE_INTEGER;
+    hurt.player.hp = 1;
+    hurt.enemies = [testEnemy(hurt, "monster.poring", 400, 0, 0, 10_000)];
+    stepRun(hurt, cfg, { tick: hurt.tick, sequence: 0, moveX: 0, moveY: 0 });
+    expect(hurt.stats.effectiveDamageTakenBySource["monster.poring"]).toBe(1);
+    expect(hurt.stats.damageTakenBySource["monster.poring"]).toBeGreaterThan(1);
+  });
+
+  it("caps MVP telemetry at the spawned boss HP", () => {
+    const st = playRun(1, "guardian");
+    expect(st.phase).toBe("victory");
+    expect(st.stats.bossType).toBe("boss.mastering");
+    expect(st.stats.bossMaxHp).toBeGreaterThan(0);
+    expect(Object.values(st.stats.mvpDamageBySource).reduce((sum, damage) => sum + damage, 0)).toBe(st.stats.damageToMvp);
+    expect(st.stats.damageToMvp).toBe(st.stats.bossMaxHp);
   });
 
   it("every telegraph / projectile hit references a geometry ID that was announced", () => {
@@ -153,13 +240,23 @@ describe("checkpoints", () => {
     advance(a, "guardian", 8, (s) => s.runTick >= 1800 && s.phase === "running");
     const cp = checkpoint(a);
     expect(cp).not.toBeNull();
+    expect((JSON.parse(cp as string) as { schemaVersion: number }).schemaVersion).toBe(RUN_CHECKPOINT_SCHEMA_VERSION);
     const b = restore(cp as string);
     advance(a, "guardian", 8, (s) => s.tick >= 5400);
     advance(b, "guardian", 8, (s) => s.tick >= 5400);
     expect(runHash(b)).toBe(runHash(a));
     advance(a, "guardian", 8, (s) => s.phase === "draft");
     expect(checkpoint(a)).toBeNull();
-    expect(() => restore(JSON.stringify({ ...JSON.parse(cp as string), phase: "draft" }))).toThrow(/running/u);
+    const envelope = JSON.parse(cp as string) as { schemaVersion: number; state: Record<string, unknown> };
+    expect(() => restore(JSON.stringify({ ...envelope, state: { ...envelope.state, phase: "draft" } }))).toThrow(/running/u);
+    expect(() => restore(JSON.stringify(envelope.state))).toThrow(/schema version/u);
+    expect(() => restore(JSON.stringify({ ...envelope, schemaVersion: 999 }))).toThrow(/schema version/u);
+    const stats = envelope.state.stats as Record<string, unknown>;
+    const missingTelemetry = { ...stats };
+    delete missingTelemetry.effectiveDamageBySource;
+    expect(() => restore(JSON.stringify({ ...envelope, state: { ...envelope.state, stats: missingTelemetry } }))).toThrow(/effectiveDamageBySource/u);
+    const emptyRoles = { ...stats, playerControlApplications: {} };
+    expect(() => restore(JSON.stringify({ ...envelope, state: { ...envelope.state, stats: emptyRoles } }))).toThrow(/playerControlApplications/u);
   });
 });
 

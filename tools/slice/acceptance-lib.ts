@@ -1,5 +1,5 @@
 import { FakeClock } from "@ro-survivor/testkit";
-import { createRun, FixedStepClock, botCommand, runHash, stepRun, type BuildPlan, type RunState } from "@ro-survivor/core-sim";
+import { createRun, FixedStepClock, botCommand, isAreaClear, runHash, stepRun, type BalanceRole, type BuildPlan, type RunState } from "@ro-survivor/core-sim";
 import { intentThroughDevice, type DeviceKind } from "@ro-survivor/input";
 import { playRun, sliceConfig, sliceContent } from "./slice-fixture.ts";
 
@@ -13,14 +13,38 @@ export interface RunRow {
   level: number;
   kills: number;
   firstAreaClearTick: number;
+  firstAreaClearOfferedTick: number;
+  firstAreaClearSelectedTick: number;
+  firstAreaClearCastTick: number;
+  firstEffectiveAreaClearTick: number;
   firstDraftTick: number;
   firstDraftHasAreaClear: boolean;
+  killsAt60: number;
+  killsAt180: number;
+  killsAt540: number;
+  killsAt600: number;
   bossKillSeconds: number | null;
+  bossTtkSeconds: number | null;
+  mvpDamagePermille: number;
+  damageTaken: number;
+  minHpPermille: number;
+  lowHpTicks: number;
+  distanceMmPerMinute: number;
+  controlApplications: Record<BalanceRole, number>;
+  controlTargetTicks: Record<BalanceRole, number>;
+  enemyTargetTicks: Record<BalanceRole, number>;
+  controlCoveragePermille: number;
+  topDamageSource: string;
+  topDamageSharePermille: number;
   spawnsSkipped: number;
   unannouncedHits: number;
   playerMovedBySkills: number;
   keystone: string | null;
   topDamageTaken: string;
+}
+
+export function allAcceptanceGatesPass(gates: Readonly<Record<string, boolean>>): boolean {
+  return Object.values(gates).every(Boolean);
 }
 
 /** Play one run through a device adapter and collect acceptance facts. Never throws. */
@@ -30,6 +54,7 @@ export function acceptanceRun(seed: number, plan: BuildPlan, device: DeviceKind)
   let firstDraftHasAreaClear = false;
   let movedBySkills = 0;
   let last: { x: number; y: number; moved: boolean } | null = null;
+  const killsAt: Record<60 | 180 | 540 | 600, number> = { 60: -1, 180: -1, 540: -1, 600: -1 };
   let st: RunState | null = null;
   let crashed: string | null = null;
   try {
@@ -37,8 +62,9 @@ export function acceptanceRun(seed: number, plan: BuildPlan, device: DeviceKind)
       for (const e of s.events) if ((e.type === "telegraph" || e.type === "projectile") && e.geomId) announced.add(e.geomId);
       if (s.phase === "draft" && firstDraftTick < 0 && s.draft) {
         firstDraftTick = s.runTick;
-        firstDraftHasAreaClear = s.draft.options.some((o) => o.id === "skill.sw.magnum_break" || o.id === "skill.sw.shield_wave");
+        firstDraftHasAreaClear = s.draft.options.some((o) => isAreaClear(sliceContent, o.id));
       }
+      for (const second of [60, 180, 540, 600] as const) if (killsAt[second] < 0 && s.runTick >= second * 60) killsAt[second] = s.stats.kills;
       // With zero movement input the player position must not change (skills never move the player).
       if (last && input.moveX === 0 && input.moveY === 0 && (s.player.x !== last.x || s.player.y !== last.y)) movedBySkills += 1;
       last = { x: s.player.x, y: s.player.y, moved: false };
@@ -47,7 +73,12 @@ export function acceptanceRun(seed: number, plan: BuildPlan, device: DeviceKind)
     crashed = err instanceof Error ? err.message : String(err);
   }
   const s = st;
-  const taken = s ? Object.entries(s.stats.damageTakenBySource).sort((a, b) => b[1] - a[1])[0] : undefined;
+  const taken = s ? Object.entries(s.stats.effectiveDamageTakenBySource).sort((a, b) => b[1] - a[1])[0] : undefined;
+  const zeroRoles = (): Record<BalanceRole, number> => ({ normal: 0, elite: 0, mvp: 0 });
+  const roleSum = (x: Record<BalanceRole, number>): number => x.normal + x.elite + x.mvp;
+  const damage = s ? Object.entries(s.stats.effectiveDamageBySource).sort((a, b) => b[1] - a[1]) : [];
+  const totalDamage = damage.reduce((sum, [, value]) => sum + value, 0);
+  if (s) for (const second of [60, 180, 540, 600] as const) if (killsAt[second] < 0) killsAt[second] = s.stats.kills;
   return {
     plan, device, seed,
     outcome: s?.phase ?? "crash",
@@ -56,9 +87,29 @@ export function acceptanceRun(seed: number, plan: BuildPlan, device: DeviceKind)
     level: s?.player.level ?? 0,
     kills: s?.stats.kills ?? 0,
     firstAreaClearTick: s?.stats.firstAreaClearTick ?? -1,
+    firstAreaClearOfferedTick: s?.stats.firstAreaClearOfferedTick ?? -1,
+    firstAreaClearSelectedTick: s?.stats.firstAreaClearSelectedTick ?? -1,
+    firstAreaClearCastTick: s?.stats.firstAreaClearCastTick ?? -1,
+    firstEffectiveAreaClearTick: s?.stats.firstEffectiveAreaClearTick ?? -1,
     firstDraftTick,
     firstDraftHasAreaClear,
+    killsAt60: killsAt[60] < 0 ? 0 : killsAt[60],
+    killsAt180: killsAt[180] < 0 ? 0 : killsAt[180],
+    killsAt540: killsAt[540] < 0 ? 0 : killsAt[540],
+    killsAt600: killsAt[600] < 0 ? 0 : killsAt[600],
     bossKillSeconds: s && s.stats.bossKillTick >= 0 ? Math.round(s.stats.bossKillTick / 60) : null,
+    bossTtkSeconds: s && s.stats.bossKillTick >= 0 && s.stats.bossSpawnTick >= 0 ? Math.round((s.stats.bossKillTick - s.stats.bossSpawnTick) / 60) : null,
+    mvpDamagePermille: s && s.stats.bossMaxHp > 0 ? Math.min(1000, Math.round((s.stats.damageToMvp * 1000) / s.stats.bossMaxHp)) : 0,
+    damageTaken: s ? Object.values(s.stats.effectiveDamageTakenBySource).reduce((sum, value) => sum + value, 0) : 0,
+    minHpPermille: s?.stats.minHpPermille ?? 0,
+    lowHpTicks: s?.stats.lowHpTicks ?? 0,
+    distanceMmPerMinute: s && s.runTick > 0 ? Math.round((s.stats.distanceTravelledMm * 3600) / s.runTick) : 0,
+    controlApplications: s ? { ...s.stats.playerControlApplications } : zeroRoles(),
+    controlTargetTicks: s ? { ...s.stats.playerControlTargetTicks } : zeroRoles(),
+    enemyTargetTicks: s ? { ...s.stats.enemyTargetTicks } : zeroRoles(),
+    controlCoveragePermille: s && roleSum(s.stats.enemyTargetTicks) > 0 ? Math.round((roleSum(s.stats.playerControlTargetTicks) * 1000) / roleSum(s.stats.enemyTargetTicks)) : 0,
+    topDamageSource: damage[0]?.[0] ?? "-",
+    topDamageSharePermille: totalDamage > 0 ? Math.round(((damage[0]?.[1] ?? 0) * 1000) / totalDamage) : 0,
     spawnsSkipped: s?.stats.spawnsSkipped ?? 0,
     unannouncedHits: s ? s.stats.telegraphHits.filter((h) => !announced.has(h.geomId)).length : 0,
     playerMovedBySkills: movedBySkills,
