@@ -3,7 +3,7 @@
  * logical ID from the local gateway and checked; any failure (missing, unreadable, invalid) blocks the
  * world with asset ID + canonical path. Nothing is substituted.
  */
-import type { AssetWhitelist } from "@ro-survivor/asset-contracts";
+import { FORMAL_SKILL_AUDIO_IDS, type AssetWhitelist } from "@ro-survivor/asset-contracts";
 import { MissingAssetsError, missingWhitelisted, type MissingAsset } from "../requirements.ts";
 import {
   bakeModel, buildGroundBuffers, buildModelInstances, buildWaterBuffers, sceneRequiredIds, shadowParams, soundPlacements,
@@ -46,7 +46,7 @@ export interface FormalSceneData {
   water: Map<string, ImageLike>;
   /** Water surface over the selected GND cells only (null when the RSW has no water). */
   waterCells: WaterBuffers | null;
-  /** Original audio bytes by asset ID (BGM 12 + ambient WAVs). */
+  /** Original audio bytes by asset ID (BGM 12 + ambient and skill WAVs). */
   audio: Map<string, ArrayBuffer>;
 }
 
@@ -110,7 +110,7 @@ export async function loadFormalScene(gateway: FormalGatewayLike, decoders: Form
         fail(id, `derived image unavailable: ${reasonOf(err)}`);
       }
     }),
-    ...req.source.map(async (id) => {
+    ...[...req.source, ...FORMAL_SKILL_AUDIO_IDS].map(async (id) => {
       try {
         const bytes = await gateway.getBinary(id);
         if (scene.water?.frames.includes(id)) water.set(id, await decoders.image(new Uint8Array(bytes), "image/jpeg"));

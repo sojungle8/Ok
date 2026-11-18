@@ -1,6 +1,6 @@
 import { isFilesystemContainer, type WhitelistRow } from "@ro-survivor/content-schema";
 import type { AssetReader } from "@ro-survivor/asset-gateway";
-import { parseAct, parseGat, parseGnd, parsePalette, parseRsw, parseSpr } from "@ro-survivor/ro-format-runtime";
+import { parseAct, parseGat, parseGnd, parsePalette, parseRsw, parseSpr, readWavInfo } from "@ro-survivor/ro-format-runtime";
 
 export interface AuditRow {
   assetId: string;
@@ -61,8 +61,8 @@ export function auditWhitelist(rows: readonly WhitelistRow[], reader: AssetReade
         if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) checks.push("PASS JPEG SOI");
         else fail("JPEG SOI marker missing");
       } else if (ext === "wav") {
-        if (String.fromCharCode(...bytes.subarray(8, 12)) === "WAVE") checks.push("PASS WAV RIFF/WAVE");
-        else fail("WAV header not recognised");
+        const wav = readWavInfo(bytes);
+        checks.push(`PASS WAV ${wav.audioFormat}: ${wav.channels}ch ${wav.sampleRate}Hz ${wav.bitsPerSample}bit ${wav.durationMs}ms`);
       } else if (ext === "mp3") {
         const id3 = bytes[0] === 0x49 && bytes[1] === 0x44 && bytes[2] === 0x33;
         const sync = bytes[0] === 0xff && ((bytes[1] ?? 0) & 0xe0) === 0xe0;

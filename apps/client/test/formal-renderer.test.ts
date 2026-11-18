@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
+import { FORMAL_SKILL_AUDIO_IDS } from "@ro-survivor/asset-contracts";
+import type { RunEvent } from "@ro-survivor/core-sim";
 import { resolveClientBuild } from "../build-info.ts";
 import { checkPlayerLayers } from "../src/game/assets.ts";
 import { FormalAudio, prepareFormalAudio, type AudioContextLike } from "../src/game/formal/audio.ts";
@@ -242,6 +244,42 @@ describe("formal audio: BGM 12 + RSW-positioned WAVs, autoplay gate", () => {
     await expect(new FormalAudio(bad, data()).prepare()).rejects.toThrow(/EncodingError/u);
   });
 
+  it("maps authoritative skill/hit events to official one-shot WAVs only", async () => {
+    const d = data();
+    for (const id of FORMAL_SKILL_AUDIO_IDS) d.audio.set(id, new ArrayBuffer(8));
+    const { ctx } = fakeCtx("running");
+    const a = new FormalAudio(ctx, d);
+    await a.prepare();
+    expect(a.tryStart()).toBe(true);
+    a.playEvents([
+      { type: "skill", source: "skill.sw.bash" } as RunEvent,
+      { type: "hit", source: "skill.sw.basic_slash" } as RunEvent,
+      { type: "hit", source: "skill.sw.bash" } as RunEvent,
+      { type: "skill", source: "skill.sw.basic_slash" } as RunEvent,
+    ]);
+    expect(a.sources.slice(-2).map((s) => [s.assetId, s.source.loop])).toEqual([
+      ["audio.skill.sw.bash", false],
+      ["audio.hit.physical", false],
+    ]);
+  });
+
+  it("throttles dense repeated cues across frames so mobile audio voices stay bounded", async () => {
+    const d = data();
+    for (const id of FORMAL_SKILL_AUDIO_IDS) d.audio.set(id, new ArrayBuffer(8));
+    let now = 1_000;
+    const { ctx } = fakeCtx("running");
+    const a = new FormalAudio(ctx, d, () => now);
+    await a.prepare();
+    expect(a.tryStart()).toBe(true);
+    const hit = [{ type: "hit", source: "skill.sw.basic_slash" } as RunEvent];
+    a.playEvents(hit);
+    a.playEvents(hit);
+    expect(a.sources.filter((entry) => entry.assetId === "audio.hit.physical")).toHaveLength(1);
+    now += 55;
+    a.playEvents(hit);
+    expect(a.sources.filter((entry) => entry.assetId === "audio.hit.physical")).toHaveLength(2);
+  });
+
   it("stops sources and closes the context at most once during repeated cleanup", async () => {
     const { ctx } = fakeCtx("running");
     let stopped = 0;
@@ -305,7 +343,7 @@ describe("formal / fixture graph separation", () => {
 });
 
 describe("audio decode failure names the exact asset (never defaults to BGM)", () => {
-  const ids = ["bgm.prt_fild08", "map.prt_fild08.ambient_sound.001", "map.prt_fild08.ambient_sound.002", "map.prt_fild08.ambient_sound.003", "map.prt_fild08.ambient_sound.004"];
+  const ids = ["bgm.prt_fild08", "map.prt_fild08.ambient_sound.001", "map.prt_fild08.ambient_sound.002", "map.prt_fild08.ambient_sound.003", "map.prt_fild08.ambient_sound.004", ...FORMAL_SKILL_AUDIO_IDS];
   it.each(ids)("%s fails to decode -> blocked with that ID and its canonical path", async (failing) => {
     const audioMap = new Map(ids.map((id, i) => [id, new ArrayBuffer(i + 1)]));
     const { ctx } = fakeCtx("running");

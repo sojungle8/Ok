@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
+import { CANONICAL_WHITELIST_SHA256, UI_PROFILE_ID } from "@ro-survivor/asset-contracts";
 import { compileSliceContent } from "@ro-survivor/content-schema";
 import { flowTransition, type BuildPlan, type FlowEvent, type FlowState, type RunState } from "@ro-survivor/core-sim";
 import { IndexedDbBackend, idempotencyKey, recordPending, settle, settleAllPending, type CharacterRecord, type RunResult } from "@ro-survivor/persistence";
@@ -7,7 +8,8 @@ import { connectFormalGateway, FIXTURE_BUILD, type GatewayConnection } from "./g
 import { loadFormalAssets, type LoadedAssets } from "./game/assets.ts";
 import { FormalAudio, prepareFormalAudio, type AudioContextLike } from "./game/formal/audio.ts";
 import { installFormalFonts, type InstalledFormalFonts } from "./game/formal/fonts.ts";
-import { disposeFormalScene } from "./game/formal/load.ts";
+import { disposeFormalScene, type FormalDecoders } from "./game/formal/load.ts";
+import { loadFormalUiAssets, type FormalUiAssets } from "./game/formal/ui.ts";
 import { FormalWorld, nearestTexture, OfficialShadowLayer } from "./game/formal/world.ts";
 import { MissingAssetsError, type MissingAsset } from "./game/requirements.ts";
 import type { GroundData } from "./game/renderer.ts";
@@ -19,6 +21,7 @@ import { DraftModal } from "./screens/Draft.tsx";
 import { Hud } from "./screens/Hud.tsx";
 import { ResultsScreen } from "./screens/Results.tsx";
 import { loadSettings, saveSettings, type Settings } from "./settings.ts";
+import { RoCharacterSelectShell, RoStageSelectShell, RoTitleShell } from "./ui/ro/index.ts";
 
 const content = compileSliceContent(JSON.parse(seedJson));
 const params = new URLSearchParams(location.search);
@@ -27,6 +30,12 @@ const autoplay = FIXTURE_BUILD && params.get("autoplay") ? (params.get("autoplay
 const speed = Number(params.get("speed") ?? 1);
 const manualDraft = autoplay !== null && params.get("manualDraft") === "1";
 const PROFILE = "local-profile";
+
+const shellDecoders: FormalDecoders = {
+  async image(bytes, type) {
+    return createImageBitmap(new Blob([bytes as Uint8Array<ArrayBuffer>], { type }), { imageOrientation: "none", premultiplyAlpha: "none" });
+  },
+};
 
 declare global {
   interface Window {
@@ -53,10 +62,14 @@ export function App() {
   const [st, setSt] = useState<RunState | null>(null);
   const [results, setResults] = useState<{ result: RunResult; applied: boolean; character: CharacterRecord | null } | null>(null);
   const [settings, setSettings] = useState<Settings>(loadSettings);
+  const [shellUi, setShellUi] = useState<FormalUiAssets | null>(null);
+  const [shellUiStatus, setShellUiStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [shellUiError, setShellUiError] = useState("");
   const [debug, setDebug] = useState(false);
   const [audioGate, setAudioGate] = useState(false);
   const audio = useRef<FormalAudio | null>(null);
   const fonts = useRef<InstalledFormalFonts | null>(null);
+  const shellFonts = useRef<InstalledFormalFonts | null>(null);
   /** Test-fixture builds only: world factory from the dynamically imported fixture module. */
   const fixtureWorld = useRef<((g: GroundData) => WorldLayer) | null>(null);
   const db = useRef<IndexedDbBackend | null>(null);
@@ -71,7 +84,8 @@ export function App() {
   const inRunScreen = flow.screen === "running" || flow.screen === "draft-paused" || flow.screen === "boss-intro" || flow.screen === "victory" || flow.screen === "defeat";
   const worldSurface = inRunScreen || (flow.screen === "results" && assets !== null && st !== null);
   const fixturePresentation = FIXTURE_BUILD && conn?.ok === true && conn.health.fixture;
-  const showDeveloperHeader = !(inRunScreen || flow.screen === "results") || fixturePresentation || params.get("dev") === "1";
+  const formalPreRun = !FIXTURE_BUILD && (flow.screen === "title" || flow.screen === "character-select" || flow.screen === "stage-select");
+  const showDeveloperHeader = params.get("dev") === "1" || fixturePresentation || (!formalPreRun && !(inRunScreen || flow.screen === "results"));
   // The run lives as long as the flow stays inside one run; phase changes must not restart it.
   const runKey = worldSurface && "runSeed" in flow ? `${flow.stage}:${flow.runSeed}` : null;
   const send = useCallback((e: FlowEvent) => setFlow((s) => flowTransition(s, e)), []);
@@ -97,6 +111,49 @@ export function App() {
     })();
     return () => { cancelled = true; };
   }, [send]);
+
+  // Pre-run formal screens use the verified original RO window/button registry too. Load that
+  // narrow UI closure as soon as the local gateway is known, before the player can enter the
+  // character or stage selectors. Synthetic fixture builds intentionally keep their test shell.
+  useEffect(() => {
+    if (!conn?.ok || conn.health.fixture) {
+      setShellUiStatus("idle");
+      return;
+    }
+    let cancelled = false;
+    let nextUi: FormalUiAssets | null = null;
+    let nextFonts: InstalledFormalFonts | null = null;
+    setShellUiStatus("loading");
+    setShellUiError("");
+    void (async () => {
+      try {
+        nextUi = await loadFormalUiAssets(conn.client, shellDecoders, whitelist, {
+          profileId: UI_PROFILE_ID,
+          whitelistSha256: CANONICAL_WHITELIST_SHA256,
+        });
+        nextFonts = await installFormalFonts(nextUi, whitelist);
+        if (cancelled) {
+          nextFonts.dispose();
+          nextUi.dispose();
+          return;
+        }
+        shellFonts.current?.dispose();
+        shellFonts.current = nextFonts;
+        setShellUi(nextUi);
+        setShellUiStatus("ready");
+      } catch (err) {
+        nextFonts?.dispose();
+        nextUi?.dispose();
+        if (!cancelled) {
+          setShellUiError(err instanceof Error ? err.message : String(err));
+          setShellUiStatus("error");
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [conn]);
 
   // Loading: formal RO assets only; any gap stops with canonical paths.
   useEffect(() => {
@@ -167,7 +224,12 @@ export function App() {
   useEffect(() => () => {
     audio.current?.dispose();
     fonts.current?.dispose();
+    shellFonts.current?.dispose();
   }, []);
+
+  useEffect(() => () => {
+    shellUi?.dispose();
+  }, [shellUi]);
 
   // Running: create renderer + session once the canvas exists.
   useEffect(() => {
@@ -188,6 +250,7 @@ export function App() {
     const s = new RunSession(content, runSeed, r, {
       onFrame: (state) => {
         setSt({ ...state });
+        a?.playEvents(state.events);
         a?.setListener(state.player.x / 1000, world.heightAt(state.player.x / 1000, state.player.y / 1000), -state.player.y / 1000);
         const screen = flowRef.current.screen;
         const want = state.phase === "draft" || state.phase === "keystone-confirm" ? "draft-paused" : state.phase === "boss-intro" ? "boss-intro" : state.phase === "victory" || state.phase === "defeat" ? state.phase : "running";
@@ -309,7 +372,13 @@ export function App() {
 
   const inRun = inRunScreen;
   return (
-    <main class={`app screen-${flow.screen}`} data-screen={flow.screen}>
+    <main
+      class={`app screen-${flow.screen}`}
+      data-screen={flow.screen}
+      data-build-id={__BUILD_ID__}
+      data-build-profile={__BUILD_PROFILE__}
+      data-audio-state={inRun ? (audioGate ? "blocked" : "started") : undefined}
+    >
       {worldSurface ? <canvas ref={canvas} class="world" data-testid="world" /> : null}
       {showDeveloperHeader ? <header class="hud" data-dev-overlay={inRunScreen ? "true" : undefined}>
         <h1 data-testid="project-name">RO Survivor Fan Game</h1>
@@ -323,32 +392,41 @@ export function App() {
       </header> : null}
 
       {flow.screen === "title" ? (
-        <section class="panel" data-testid="title">
-          <button class="primary" onClick={() => send({ type: "start" })} data-testid="start">開始</button>
-          <fieldset class="settings">
-            <legend>設定</legend>
-            <label><input type="checkbox" checked={settings.flash} onChange={(e) => updateSettings({ ...settings, flash: (e.target as HTMLInputElement).checked })} /> 閃光</label>
-            <label><input type="checkbox" checked={settings.shake} onChange={(e) => updateSettings({ ...settings, shake: (e.target as HTMLInputElement).checked })} /> 震動</label>
-            <label><input type="checkbox" checked={settings.damageNumbers} onChange={(e) => updateSettings({ ...settings, damageNumbers: (e.target as HTMLInputElement).checked })} /> 傷害數字</label>
-            <label><input type="checkbox" checked={settings.colorBlind} onChange={(e) => updateSettings({ ...settings, colorBlind: (e.target as HTMLInputElement).checked })} /> 色弱友善預警</label>
-            <label>特效透明度 <input type="range" min="0.2" max="1" step="0.1" value={settings.effectOpacity} onInput={(e) => updateSettings({ ...settings, effectOpacity: Number((e.target as HTMLInputElement).value) })} /></label>
-            <small>首領預警不受任何設定影響。</small>
-          </fieldset>
-        </section>
+        shellUi ? <RoTitleShell rasters={shellUi.rasters} settings={settings} onSettings={updateSettings} onStart={() => send({ type: "start" })} />
+          : FIXTURE_BUILD ? (
+            <section class="panel" data-testid="title">
+              <button class="primary" onClick={() => send({ type: "start" })} data-testid="start">開始</button>
+              <p>TEST FIXTURE：正式版會載入原始 RO 視窗素材。</p>
+            </section>
+          ) : (
+            <section class="panel blocked" data-testid="title" data-testid-state={shellUiStatus}>
+              <h2>載入 RO 介面</h2>
+              <p>{shellUiStatus === "error" ? `原始 RO 介面素材無法載入：${shellUiError}` : conn?.ok === false ? conn.reason : "正在驗證本機 RO 視窗與按鈕素材…"}</p>
+            </section>
+          )
       ) : null}
       {flow.screen === "character-select" ? (
-        <section class="panel" data-testid="character-select">
-          <h2>選擇職業</h2>
-          <button class="card" onClick={() => send({ type: "choose-character", job: "job.swordsman" })} data-testid="job-swordsman">劍士</button>
-          <button onClick={() => send({ type: "back" })}>返回</button>
-        </section>
+        shellUi ? <RoCharacterSelectShell rasters={shellUi.rasters} onChoose={() => send({ type: "choose-character", job: "job.swordsman" })} onBack={() => send({ type: "back" })} />
+          : FIXTURE_BUILD ? (
+            <section class="panel" data-testid="character-select">
+              <h2>選擇職業</h2>
+              <button class="card" onClick={() => send({ type: "choose-character", job: "job.swordsman" })} data-testid="job-swordsman">劍士</button>
+              <button onClick={() => send({ type: "back" })}>返回</button>
+            </section>
+          ) : <section class="panel blocked" data-testid="character-select"><p>原始 RO 介面素材尚未就緒。</p><button onClick={() => send({ type: "back" })}>返回</button></section>
       ) : null}
       {flow.screen === "stage-select" ? (
-        <section class="panel" data-testid="stage-select">
-          <h2>選擇關卡</h2>
-          <button class="card" onClick={() => send({ type: "choose-stage", stage: "stage.prt_fild08.slice", runSeed: Number(params.get("seed") ?? (crypto.getRandomValues(new Uint32Array(1))[0] ?? 1)) })} data-testid="stage-prt_fild08">普隆德拉原野（10 分鐘）</button>
-          <button onClick={() => send({ type: "back" })}>返回</button>
-        </section>
+        shellUi ? <RoStageSelectShell
+          rasters={shellUi.rasters}
+          onChoose={() => send({ type: "choose-stage", stage: "stage.prt_fild08.slice", runSeed: Number(params.get("seed") ?? (crypto.getRandomValues(new Uint32Array(1))[0] ?? 1)) })}
+          onBack={() => send({ type: "back" })}
+        /> : FIXTURE_BUILD ? (
+          <section class="panel" data-testid="stage-select">
+            <h2>選擇關卡</h2>
+            <button class="card" onClick={() => send({ type: "choose-stage", stage: "stage.prt_fild08.slice", runSeed: Number(params.get("seed") ?? (crypto.getRandomValues(new Uint32Array(1))[0] ?? 1)) })} data-testid="stage-prt_fild08">普隆德拉原野（10 分鐘）</button>
+            <button onClick={() => send({ type: "back" })}>返回</button>
+          </section>
+        ) : <section class="panel blocked" data-testid="stage-select"><p>原始 RO 介面素材尚未就緒。</p><button onClick={() => send({ type: "back" })}>返回</button></section>
       ) : null}
       {flow.screen === "loading" ? (
         <section class="panel" data-testid="loading">

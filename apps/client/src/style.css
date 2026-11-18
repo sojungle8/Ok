@@ -65,6 +65,7 @@ html, body, #app { margin: 0; height: 100%; overflow: hidden; background: var(--
 @media (max-width: 480px) {
   .hud { font-size: 12px; padding: 8px 10px; }
   .hud .keys { display: none; }
+  .stick { bottom: calc(env(safe-area-inset-bottom) + 56px); }
 }
 .game.stopped { background: var(--hud-bg); overflow: auto; }
 .stopped .hud { position: static; margin: max(16px, env(safe-area-inset-top)) auto 0; pointer-events: auto; }
@@ -93,7 +94,7 @@ button:focus-visible, .card.focused { outline: 3px solid var(--accent); outline-
 .fixture-run-hud .fixture-slots span.ready { background: rgba(74,144,217,.6); }
 
 /* Formal HUD: layout and text only. All visible surfaces, gauges and icons are verified RO rasters. */
-.ro-run-hud { --ro-ui-scale: 1; position: absolute; z-index: 2; inset: 0; pointer-events: none; color: #171717; font-family: "RO SCDream", "Noto Sans TC", sans-serif; font-size: 11px; }
+.ro-run-hud { --ro-ui-scale: 1.2; position: absolute; z-index: 2; inset: 0; pointer-events: none; color: #171717; font-family: "RO SCDream", "Noto Sans TC", sans-serif; font-size: 11px; }
 .ro-basic-anchor { position: absolute; top: calc(env(safe-area-inset-top) + 8px); left: calc(env(safe-area-inset-left) + 8px); width: 280px; height: 120px; transform: scale(var(--ro-ui-scale)); transform-origin: top left; }
 .ro-basic-info { position: absolute; inset: 0; width: 280px; }
 .ro-basic-info > .ro-primitive { position: absolute !important; inset: 0; }
@@ -123,8 +124,8 @@ button:focus-visible, .card.focused { outline: 3px solid var(--accent); outline-
 .ro-basic-anchor.is-minimized { height: 34px; }
 .ro-basic-anchor.is-minimized .ro-basic-info-full, .ro-basic-anchor.is-minimized .ro-basic-menu { display: none; }
 .ro-basic-anchor.is-minimized .ro-basic-info-mini { display: block; }
-.ro-stage-status { position: absolute; top: calc(env(safe-area-inset-top) + 8px); left: 50%; transform: translateX(-50%) scale(var(--ro-ui-scale)); transform-origin: top center; }
-.ro-title-strip { width: 180px; height: 17px; }
+.ro-stage-status { position: absolute; top: calc(env(safe-area-inset-top) + 8px); left: 50%; width: 180px; display: grid; gap: 2px; transform: translateX(-50%) scale(var(--ro-ui-scale)); transform-origin: top center; }
+.ro-title-strip { position: relative; width: 180px; height: 17px; }
 .ro-title-strip > .ro-primitive { position: absolute !important; inset: 0; }
 .ro-title-strip > span { position: absolute; z-index: 1; inset: 1px 8px 0; overflow: hidden; text-align: center; white-space: nowrap; line-height: 15px; }
 .ro-shortcut { position: absolute; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 8px); transform: translateX(-50%) scale(var(--ro-ui-scale)); transform-origin: bottom center; width: 280px; height: 34px; }
@@ -138,28 +139,37 @@ button:focus-visible, .card.focused { outline: 3px solid var(--accent); outline-
 .ro-shortcut-hotkey { left: 1px; top: 0; }
 .ro-shortcut-rank { right: 1px; bottom: 0; }
 .ro-shortcut-cooldown { left: 9px; top: 8px; font-size: 10px; font-weight: 600; }
-.ro-minimap { position: absolute; top: calc(env(safe-area-inset-top) + 8px); right: calc(env(safe-area-inset-right) + 8px); width: 128px; height: 128px; overflow: hidden; transform: scale(var(--ro-ui-scale)); transform-origin: top right; }
+.ro-right-rail { position: absolute; top: calc(env(safe-area-inset-top) + 8px); right: calc(env(safe-area-inset-right) + 8px); width: 180px; transform: scale(var(--ro-ui-scale)); transform-origin: top right; }
+.ro-damage-stats { width: 180px; display: grid; gap: 1px; }
+.ro-damage-heading > span { font-weight: 600; }
+.ro-damage-row > span { padding-inline: 10px; text-align: left; }
+.ro-minimap { position: relative; width: 128px; height: 128px; margin: 4px 0 0 52px; overflow: hidden; }
 .ro-minimap-map, .ro-minimap-arrow { position: absolute; }
 .ro-minimap-map > .ro-primitive, .ro-minimap-arrow > .ro-primitive { position: relative !important; }
 .ro-minimap-arrow { z-index: 1; transform-origin: 6px 6px; }
 .ro-minimap-controls { position: absolute; z-index: 2; top: 2px; right: 2px; display: grid; gap: 2px; }
-.ro-boss-status { position: absolute; top: calc(env(safe-area-inset-top) + 30px); left: 50%; transform: translateX(-50%) scale(var(--ro-ui-scale)); transform-origin: top center; width: 180px; height: 28px; }
+.ro-boss-status { position: absolute; top: calc(env(safe-area-inset-top) + 52px); left: 50%; transform: translateX(-50%) scale(var(--ro-ui-scale)); transform-origin: top center; width: 180px; height: 28px; }
 .ro-boss-status .ro-title-strip { position: absolute; inset: 0 auto auto 0; }
 .ro-boss-gauge { position: absolute; left: 0; top: 18px; }
-.ro-boss-alert { position: absolute; top: calc(env(safe-area-inset-top) + 62px); left: 50%; transform: translateX(-50%) scale(var(--ro-ui-scale)); transform-origin: top center; }
-@media (min-width: 1600px) and (min-height: 900px) {
-  .ro-run-hud { --ro-ui-scale: 2; }
+.ro-boss-alert { position: absolute; top: calc(env(safe-area-inset-top) + 84px); left: 50%; transform: translateX(-50%) scale(var(--ro-ui-scale)); transform-origin: top center; }
+@media (max-width: 1024px) {
+  .ro-run-hud { --ro-ui-scale: 1; }
+}
+@media (min-width: 1440px) and (min-height: 760px) {
+  .ro-run-hud { --ro-ui-scale: 1.4; }
 }
 @media (max-width: 640px) {
+  .ro-run-hud { --ro-ui-scale: .9; }
   .ro-basic-anchor { height: 34px; }
   .ro-basic-info-full { display: none; }
   .ro-basic-info-mini { display: block; }
   .ro-basic-menu { display: none; }
-  .ro-stage-status { top: calc(env(safe-area-inset-top) + 48px); }
-  .ro-shortcut { top: calc(env(safe-area-inset-top) + 72px); bottom: auto; }
-  .ro-minimap { top: calc(env(safe-area-inset-top) + 112px); }
-  .ro-boss-status { top: calc(env(safe-area-inset-top) + 244px); }
-  .ro-boss-alert { top: calc(env(safe-area-inset-top) + 276px); }
+  .ro-stage-status { top: calc(env(safe-area-inset-top) + 44px); }
+  .ro-shortcut { bottom: calc(env(safe-area-inset-bottom) + 8px); }
+  .ro-right-rail { top: calc(env(safe-area-inset-top) + 82px); }
+  .ro-damage-stats .ro-damage-row:nth-child(n+4) { display: none; }
+  .ro-boss-status { top: calc(env(safe-area-inset-top) + 82px); left: calc(env(safe-area-inset-left) + 8px); transform: scale(var(--ro-ui-scale)); transform-origin: top left; }
+  .ro-boss-alert { top: calc(env(safe-area-inset-top) + 114px); left: calc(env(safe-area-inset-left) + 8px); transform: scale(var(--ro-ui-scale)); transform-origin: top left; }
 }
 .banner { position: fixed; z-index: 3; left: 50%; top: 30%; transform: translateX(-50%); padding: 8px 16px; background: rgba(0,0,0,.65); color: #fff; border-radius: 8px; }
 .banner.big { font-size: 28px; font-weight: 700; }

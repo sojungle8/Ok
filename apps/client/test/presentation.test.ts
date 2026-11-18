@@ -124,7 +124,7 @@ describe("event-driven combat presentation", () => {
     expect(p.shake(11, true)).not.toEqual({ x: 0, z: 0 });
     expect(p.shake(11, false)).toEqual({ x: 0, z: 0 });
     expect(formatDamage(1)).toBe("1");
-    expect(formatDamage(1800)).toBe("18");
+    expect(formatDamage(1800)).toBe("1800");
   });
 
   it("starts ACT during wind-up and keeps animation time continuous through resolve", () => {
@@ -203,10 +203,11 @@ describe("combat overlay lifecycle", () => {
     const host = new FakeElement();
     const doc = { createElement: () => new FakeElement() };
     const overlay = new CombatOverlay(host as unknown as HTMLElement, doc as unknown as Pick<Document, "createElement">);
-    const cue: DamageCue = { id: 1, kind: "enemy", amount: 1234, xMm: 0, yMm: 0, visualScale: 1, startMs: 0, endMs: 720 };
+    const cue: DamageCue = { id: 1, kind: "enemy", emphasis: "heavy", amount: 1200, xMm: 0, yMm: 0, visualScale: 1, startMs: 0, endMs: 820 };
     overlay.syncDamage([cue], 10, true, () => ({ x: 20, y: 30, visible: true }));
     expect(overlay.damageNodeCount).toBe(1);
-    expect((overlay.root as unknown as FakeElement).children.at(-1)?.textContent).toBe("13");
+    expect((overlay.root as unknown as FakeElement).children.at(-1)?.textContent).toBe("1200");
+    expect((overlay.root as unknown as FakeElement).children.at(-1)?.className).toContain("combat-damage--heavy");
     overlay.syncDamage([cue], 20, false, () => ({ x: 20, y: 30, visible: true }));
     expect(overlay.damageNodeCount).toBe(0);
     overlay.dispose();

@@ -22,6 +22,7 @@
     "assets:verify-sources": "node tools/assets/verify-sources.ts",
     "local:old-trees": "node tools/local/old-trees.ts",
     "e2e:smoke": "node tools/e2e/run-all.mjs",
+    "e2e:formal-local": "node tools/e2e/formal-local.mjs",
     "dev": "pnpm --filter @ro-survivor/client dev",
     "ci:local": "pnpm lint && pnpm typecheck && pnpm test && pnpm slice:acceptance:check && pnpm build && pnpm rights:check && pnpm assets:test-synthetic && pnpm assets:validate-handoff && pnpm skills:validate-vfx",
     "maint:cp949-generate": "node tools/cp949/generate.ts",

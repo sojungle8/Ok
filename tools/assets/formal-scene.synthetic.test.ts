@@ -80,7 +80,15 @@ describe("formal scene loader on the real derived contract (synthetic sources)",
     expect(derivedScene.water.cells).toBeLessThan(32 * 32);
     expect(s.waterCells?.cells).toBe(derivedScene.water.cells);
     expect(s.waterCells?.positions.length).toBe(derivedScene.water.cells * 6 * 3);
-    expect(s.audio.size).toBe(5);
+    expect(s.audio.size).toBe(11); // BGM + 4 RSW ambience + 6 official hit/skill WAVs
+    expect([...s.audio.keys()].filter((id) => id.startsWith("audio.")).sort()).toEqual([
+      "audio.hit.physical",
+      "audio.skill.sw.bash",
+      "audio.skill.sw.endure",
+      "audio.skill.sw.magnum_break",
+      "audio.skill.sw.provoke",
+      "audio.skill.sw.shield_wave",
+    ]);
     expect(s.sounds.map((x) => x.assetId).sort()).toEqual(["map.prt_fild08.ambient_sound.001", "map.prt_fild08.ambient_sound.002", "map.prt_fild08.ambient_sound.003", "map.prt_fild08.ambient_sound.004"]);
   });
 

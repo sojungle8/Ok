@@ -2,10 +2,10 @@
   "autoplay": {
     "flowSeen": [
       "running",
-      "defeat",
+      "victory",
       "results"
     ],
-    "outcome": "defeat",
+    "outcome": "victory",
     "applied": true,
     "settledText": "已結算（本機 IndexedDB）",
     "resultSurface": {
@@ -19,12 +19,12 @@
     "before": {
       "runResults": 1,
       "pendingResults": 0,
-      "inventory": 0
+      "inventory": 2
     },
     "after": {
       "runResults": 1,
       "pendingResults": 0,
-      "inventory": 0
+      "inventory": 2
     },
     "errors": [],
     "pass": true
@@ -49,7 +49,7 @@
   },
   "keyboard": {
     "x0": 32500,
-    "x1": 36616,
+    "x1": 36700,
     "errors": [],
     "pass": true
   }

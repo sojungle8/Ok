@@ -3,7 +3,7 @@ import { hashState, type HashValue } from "../hash.ts";
 import { DIR12, DIR16, TRIG_SCALE } from "../trig.ts";
 import type { InputCommand } from "../sim.ts";
 import type { BossAttackDef, Geometry, MonsterDef, RunContent, SkillDef } from "./content.ts";
-import { DEFENSE_IDS, generateDraft, isAreaClear, type BuildView, type DraftOption } from "./draft.ts";
+import { DEFENSE_IDS, generateDraft, isAreaClear, optionKey, type BuildView, type DraftOption } from "./draft.ts";
 import { hits, unitToward, type Placed } from "./geometry.ts";
 
 /**
@@ -93,8 +93,54 @@ export interface SkillFiredEvent {
   designOrigin: SkillDef["designOrigin"];
 }
 
+export interface CombatTimingEvent<T extends "attack-windup" | "cast-start"> {
+  type: T;
+  tick: number;
+  source: string;
+  targetId?: number;
+  /** Authoritative gameplay tick when the attack or cast resolves. */
+  resolveTick: number;
+}
+export type CombatTimingRunEvent = CombatTimingEvent<"attack-windup"> | CombatTimingEvent<"cast-start">;
+
+export interface CombatHitEvent<T extends "hit" | "player-hit"> {
+  type: T;
+  tick: number;
+  source: string;
+  geomId?: string;
+  actorId?: number;
+  targetId?: number;
+  /** Post-mitigation damage used by the floating number. May include overkill. */
+  amount: number;
+  /** Damage actually removed from the target's remaining HP. */
+  effectiveAmount?: number;
+  remainingHp?: number;
+  lethal?: boolean;
+}
+export type CombatHitRunEvent = CombatHitEvent<"hit"> | CombatHitEvent<"player-hit">;
+
+export interface XpEvent<T extends "xp-drop" | "xp-merge" | "xp-pickup"> {
+  type: T;
+  tick: number;
+  targetId: number;
+  amount: number;
+  totalValue: number;
+  x: number;
+  y: number;
+}
+export type XpRunEvent = XpEvent<"xp-drop"> | XpEvent<"xp-merge"> | XpEvent<"xp-pickup">;
+
+export interface DraftEvent<T extends "draft-open" | "draft-select"> {
+  type: T;
+  tick: number;
+  source: "level" | "chest" | "keystone";
+  optionKey?: string;
+  optionKeys?: string[];
+}
+export type DraftRunEvent = DraftEvent<"draft-open"> | DraftEvent<"draft-select">;
+
 export interface OtherRunEvent {
-  type: "hit" | "player-hit" | "telegraph" | "projectile" | "kill" | "level-up" | "spawn" | "boss-spawn" | "enrage" | "boss-warning";
+  type: "telegraph" | "projectile" | "kill" | "level-up" | "spawn" | "elite-spawn" | "miniboss-spawn" | "boss-spawn" | "reward-drop" | "enrage" | "boss-warning";
   tick: number;
   source?: string;
   geomId?: string;
@@ -103,7 +149,7 @@ export interface OtherRunEvent {
   targetId?: number;
   amount?: number;
 }
-export type RunEvent = SkillFiredEvent | OtherRunEvent;
+export type RunEvent = SkillFiredEvent | CombatTimingRunEvent | CombatHitRunEvent | XpRunEvent | DraftRunEvent | OtherRunEvent;
 
 export type BalanceRole = "normal" | "elite" | "mvp";
 
@@ -183,6 +229,8 @@ const BASIC_WINDUP = 8;
 const BOSS_INTRO_TICKS = 120;
 const SPAWN_MIN_MM = 13_000;
 const SPAWN_MAX_MM = 16_000;
+const OPENING_BURST_COUNT = 4;
+const OPENING_BURST_RADIUS_MM = 10_500;
 export const RUN_MAX_ENEMIES = 420;
 const ORB_PULL_MM = 260;
 const emptyRoleCounts = (): Record<BalanceRole, number> => ({ normal: 0, elite: 0, mvp: 0 });
@@ -355,7 +403,10 @@ function damageEnemy(c: RunContent, st: RunState, e: Enemy, raw: number, source:
     st.stats.damageToMvp += effective;
     st.stats.mvpDamageBySource[source] = (st.stats.mvpDamageBySource[source] ?? 0) + effective;
   }
-  st.events.push({ type: "hit", tick: st.runTick, source, targetId: e.id, amount: dmg });
+  st.events.push({
+    type: "hit", tick: st.runTick, source, targetId: e.id, amount: dmg,
+    effectiveAmount: effective, remainingHp: Math.max(0, e.hp), lethal: e.hp <= 0,
+  });
 }
 
 function damagePlayer(c: RunContent, st: RunState, raw: number, source: string, geomId?: string, attacker?: Enemy): void {
@@ -375,7 +426,11 @@ function damagePlayer(c: RunContent, st: RunState, raw: number, source: string, 
   p.lastDamagedTick = st.runTick;
   st.stats.damageTakenBySource[source] = (st.stats.damageTakenBySource[source] ?? 0) + dmg;
   st.stats.effectiveDamageTakenBySource[source] = (st.stats.effectiveDamageTakenBySource[source] ?? 0) + effective;
-  st.events.push({ type: "player-hit", tick: st.runTick, source, amount: dmg, ...(geomId ? { geomId } : {}), ...(attacker ? { actorId: attacker.id } : {}) });
+  st.events.push({
+    type: "player-hit", tick: st.runTick, source, amount: dmg, effectiveAmount: effective,
+    remainingHp: p.hp, lethal: p.hp <= 0,
+    ...(geomId ? { geomId } : {}), ...(attacker ? { actorId: attacker.id } : {}),
+  });
   const k = p.keystone ? c.keystones[p.keystone]?.effects : undefined;
   if (attacker && st.runTick < p.endureUntil && k?.counterOnBlockDamage) damageEnemy(c, st, attacker, k.counterOnBlockDamage, "keystone.guardian.counter", p.x, p.y);
 }
@@ -405,6 +460,9 @@ function spawnEnemy(c: RunContent, st: RunState, grid: RunGrid | null | undefine
     };
     st.enemies.push(e);
     st.events.push({ type: def.role === "mvp" ? "boss-spawn" : "spawn", tick: st.runTick, source: type, targetId: e.id });
+    if (def.role === "elite" || def.role === "miniboss") {
+      st.events.push({ type: def.role === "elite" ? "elite-spawn" : "miniboss-spawn", tick: st.runTick, source: type, targetId: e.id });
+    }
     st.stats.maxEnemies = Math.max(st.stats.maxEnemies, st.enemies.length);
     return e;
   }
@@ -417,7 +475,17 @@ function runTimeline(c: RunContent, st: RunState, grid: RunGrid | null | undefin
   c.timeline.forEach((t, i) => {
     if (t.kind === "wave") {
       if (st.runTick < t.fromTick || st.runTick >= t.toTick) return;
-      if ((st.runTick - t.fromTick) % t.spawnEveryTicks !== 0) return;
+      const elapsed = st.runTick - t.fromTick;
+      if (t.fromTick === 0 && elapsed === 0) {
+        // Front-load, rather than add, four scheduled spawns so the opening starts with a readable
+        // on-screen pack. The following three spawn slots are consumed by this burst.
+        for (let n = 0; n < OPENING_BURST_COUNT; n += 1) {
+          spawnEnemy(c, st, grid, t.pool[rng.nextInt(t.pool.length)] as string, rng, { x: st.player.x, y: st.player.y, radius: OPENING_BURST_RADIUS_MM });
+        }
+        return;
+      }
+      if (t.fromTick === 0 && elapsed < t.spawnEveryTicks * OPENING_BURST_COUNT) return;
+      if (elapsed % t.spawnEveryTicks !== 0) return;
       if (st.normalWavePermille < 1000 && rng.nextInt(1000) >= st.normalWavePermille) return;
       spawnEnemy(c, st, grid, t.pool[rng.nextInt(t.pool.length)] as string, rng);
       return;
@@ -720,6 +788,7 @@ function updatePlayerSkills(c: RunContent, st: RunState): void {
       p.basicHitAt = st.runTick + BASIC_WINDUP;
       const interval = p.passive.reduce((m, ps) => m + (c.passives[ps.id]?.perRank.attackIntervalPermille ?? 0) * ps.rank, 1000);
       p.basicReadyAt = st.runTick + Math.max(BASIC_WINDUP + 4, permille(v.cooldown, interval));
+      st.events.push({ type: "attack-windup", tick: st.runTick, source: basic.id, targetId: target.e.id, resolveTick: p.basicHitAt });
     }
   }
   // Active skills: one cast at a time; casting never moves or roots the player.
@@ -746,6 +815,7 @@ function updatePlayerSkills(c: RunContent, st: RunState): void {
       p.castEndAt = st.runTick + v.cast;
       p.castDx = aim.dx;
       p.castDy = aim.dy;
+      st.events.push({ type: "cast-start", tick: st.runTick, source: s.id, resolveTick: p.castEndAt });
     }
     break;
   }
@@ -826,8 +896,14 @@ function addOrb(c: RunContent, st: RunState, x: number, y: number, value: number
       best = o;
     }
   }
-  if (best && (bestD <= r * r || st.orbs.length >= c.progression.maxGroundXpObjects)) best.value += value;
-  else st.orbs.push({ id: st.nextId++, x, y, value });
+  if (best && (bestD <= r * r || st.orbs.length >= c.progression.maxGroundXpObjects)) {
+    best.value += value;
+    st.events.push({ type: "xp-merge", tick: st.runTick, targetId: best.id, amount: value, totalValue: best.value, x: best.x, y: best.y });
+  } else {
+    const orb = { id: st.nextId++, x, y, value };
+    st.orbs.push(orb);
+    st.events.push({ type: "xp-drop", tick: st.runTick, targetId: orb.id, amount: value, totalValue: value, x, y });
+  }
 }
 
 function processDeaths(c: RunContent, st: RunState): void {
@@ -843,7 +919,10 @@ function processDeaths(c: RunContent, st: RunState): void {
     if (def.xp > 0) addOrb(c, st, e.x, e.y, def.xp);
     if (def.pool) st.pools.push({ id: st.nextId++, source: `${e.type}:pool`, x: e.x, y: e.y, radius: def.pool.radiusMm, damagePerSecond: def.pool.damagePerSecond, until: st.runTick + def.pool.durationTicks, nextTick: st.runTick + 30 });
     const reward = rewardFor(c, e.type);
-    if (reward) st.pendingDrafts.push(reward);
+    if (reward) {
+      st.pendingDrafts.push(reward);
+      st.events.push({ type: "reward-drop", tick: st.runTick, source: reward, targetId: e.id });
+    }
     if (e.id === st.bossId) {
       st.stats.bossKillTick = st.runTick;
       st.phase = "victory";
@@ -862,6 +941,7 @@ function collectOrbs(c: RunContent, st: RunState): void {
     const d = Math.sqrt((o.x - p.x) ** 2 + (o.y - p.y) ** 2);
     if (d <= grab) {
       p.xp += o.value;
+      st.events.push({ type: "xp-pickup", tick: st.runTick, targetId: o.id, amount: o.value, totalValue: p.xp, x: o.x, y: o.y });
       continue;
     }
     if (d <= pull) {
@@ -961,6 +1041,7 @@ function openDraft(c: RunContent, st: RunState): void {
   st.draft = { options, source };
   st.phase = "draft";
   st.stats.draftsOffered += 1;
+  st.events.push({ type: "draft-open", tick: st.runTick, source, optionKeys: options.map(optionKey) });
 }
 
 function applyOption(c: RunContent, st: RunState, o: DraftOption): void {
@@ -998,6 +1079,7 @@ function applyOption(c: RunContent, st: RunState, o: DraftOption): void {
     st.levelsSinceNewActive = o.kind === "new-active" ? 0 : st.levelsSinceNewActive + 1;
     st.levelsSinceDefense = DEFENSE_IDS.has(o.id) ? 0 : st.levelsSinceDefense + 1;
   }
+  st.events.push({ type: "draft-select", tick: st.runTick, source, optionKey: optionKey(o) });
   st.draft = null;
   st.pendingKeystone = null;
   st.phase = "running";

@@ -1,5 +1,6 @@
 import type { RunContent, RunState } from "@ro-survivor/core-sim";
-import { RoFormalHud, type RasterRegistry, type RoFormalHudModel, type RoHudSkill } from "../ui/ro/index.ts";
+import { scaleCombatValue } from "../game/combat-format.ts";
+import { formatHudNumber, RoFormalHud, type RasterRegistry, type RoFormalHudModel, type RoHudDamageStat, type RoHudSkill } from "../ui/ro/index.ts";
 
 export interface HudMapExtent {
   widthMm: number;
@@ -23,6 +24,30 @@ export function formalMinimapModel(player: RunState["player"], extent: HudMapExt
     yPermille: clampPermille(1000 - player.y * 1000 / extent.heightMm),
     facingDeg: Math.atan2(player.fx, player.fy) * 180 / Math.PI,
   };
+}
+
+const DAMAGE_LABELS: ReadonlyMap<string, string> = new Map<string, string>([
+  ["skill.sw.basic_slash", "普攻"],
+  ["skill.sw.bash", "狂擊"],
+  ["skill.sw.magnum_break", "怒爆"],
+  ["skill.sw.shield_wave", "盾擊"],
+  ["skill.sw.fatal_blow", "致命攻擊"],
+  ["keystone.guardian.counter", "反擊"],
+]);
+
+function damageLabel(source: string): string {
+  const known = DAMAGE_LABELS.get(source);
+  if (known) return known;
+  const tail = source.split(".").pop() ?? source;
+  return tail.replaceAll("_", " ");
+}
+
+export function formalDamageStats(stats: Pick<RunState["stats"], "effectiveDamageBySource">): RoHudDamageStat[] {
+  return Object.entries(stats.effectiveDamageBySource)
+    .filter(([, value]) => Number.isFinite(value) && value > 0)
+    .sort(([aId, a], [bId, b]) => b - a || aId.localeCompare(bId))
+    .slice(0, 4)
+    .map(([id, value]) => ({ id, label: damageLabel(id), valueText: formatHudNumber(scaleCombatValue(value)) }));
 }
 
 export function Hud({ content, st, rasters = null, mapExtent }: { content: RunContent; st: RunState; rasters?: RasterRegistry | null; mapExtent?: HudMapExtent }) {
@@ -54,6 +79,7 @@ export function Hud({ content, st, rasters = null, mapExtent }: { content: RunCo
           xpNext: need,
           timer: `${String(Math.floor(secs / 60)).padStart(2, "0")}:${String(secs % 60).padStart(2, "0")}`,
           kills: st.stats.kills,
+          damageStats: formalDamageStats(st.stats),
           skills,
           ...(keystone ? { keystone } : {}),
           ...(boss ? { boss: { name: "Mastering", hp: boss.hp, maxHp: boss.maxHp, ...(bossDetail ? { detail: bossDetail } : {}) } } : {}),

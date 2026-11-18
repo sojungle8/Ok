@@ -2,6 +2,19 @@
 
 ## Unreleased — original assets, RO UI and D-032 skills (2026-11-17–18)
 
+- Formal RO entry shell: title, Swordsman selection and `prt_fild08` stage selection now load verified original RO
+  window/button/icon/minimap rasters and original client fonts. Generic panels remain fixture-only, missing UI fails
+  closed and the responsive composition makes no pixel-identical claim.
+- Survivor presentation pass: adds a central timer, effective-damage ranking, right minimap/stat rail, responsive
+  skill bar and larger outlined centi-unit damage numbers; removes fake Zeny, front-loads the first four existing
+  spawn slots and emits deterministic wind-up/hit/XP/draft/elite/reward events without increasing the 420 cap.
+- Canonical whitelist v4: adds six verified original KRO WAVs (physical hit, Bash, Magnum Break, Endure, Provoke and
+  Shield Wave) for 288 rows total, SHA-256
+  `473E82880F91448F004222A9D049CCB67460B61EE37B138FE89FB286E57C9B85`; formal playback remains local-only and
+  no raw audio is committed.
+- Formal-local positive-path harness: adds desktop, phone portrait, tablet portrait and phone landscape coverage,
+  real touch dispatch, formal-audio activation and title/job/stage/game HUD/draft bounds checks. The integrated
+  real-asset run passes all four viewports with movement, audio and zero required-layout overlaps.
 - Combat presentation: connects deterministic hit/skill/kill/player-hit events to original RO ACT attack, cast, hit
   and death slots; preserves final death cues through the results transition; adds bounded damage text, optional
   flash/shake and official per-monster shadow/elite scale. Wind-up and resolve now share one continuous animation

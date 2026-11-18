@@ -1,0 +1,43 @@
+.ro-shell-screen {
+  position: relative;
+  z-index: 2;
+  width: min-content;
+  margin: clamp(14px, 3vh, 32px) auto max(16px, env(safe-area-inset-bottom));
+  color: #171717;
+  font-family: "RO SCDream", "Noto Sans TC", sans-serif;
+  font-size: 13px;
+}
+
+.ro-shell-screen .ro-window > .ro-primitive { position: absolute !important; inset: 0; }
+.ro-shell-screen .ro-window-title { z-index: 1; overflow: hidden; color: #171717; font-size: 11px; font-weight: 600; line-height: 15px; white-space: nowrap; }
+.ro-shell-screen .ro-window-content { z-index: 1; overflow: hidden; }
+.ro-shell-content { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; padding: 16px 14px 10px; }
+.ro-shell-brand { display: grid; gap: 3px; margin: 4px 0 14px; text-align: center; }
+.ro-shell-brand .ro-shell-strong { font-size: 19px; letter-spacing: .06em; }
+.ro-shell-brand span, .ro-shell-choice-preview span, .ro-shell-stage-preview span { color: #4f4b45; font-size: 11px; }
+.ro-shell-screen .ro-three-slice-button { color: #171717; cursor: pointer !important; font-family: inherit; font-size: 12px; }
+.ro-shell-screen .ro-three-slice-button:focus-visible { outline: 2px solid #6c552c !important; outline-offset: 2px; }
+.ro-shell-section-title { width: 100%; margin: 16px 0 5px; font-size: 12px; font-weight: 600; text-align: left; }
+.ro-shell-settings { width: 100%; display: grid; gap: 3px; }
+.ro-shell-setting-row { min-height: 22px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.ro-shell-stepper { display: flex; align-items: center; gap: 5px; }
+.ro-shell-stepper output { min-width: 42px; font-size: 11px; text-align: center; }
+.ro-shell-content > .ro-shell-small { margin-top: auto; color: #5b564d; font-size: 10px; text-align: center; }
+.ro-shell-choice-content { justify-content: center; gap: 14px; }
+.ro-shell-choice-preview, .ro-shell-stage-preview { width: 100%; display: flex; align-items: center; justify-content: center; gap: 14px; }
+.ro-shell-choice-preview > div:last-child, .ro-shell-stage-preview > div:last-child { display: grid; gap: 4px; }
+.ro-shell-choice-preview .ro-shell-strong, .ro-shell-stage-preview .ro-shell-strong { font-size: 16px; }
+.ro-shell-choice-preview .ro-shell-small, .ro-shell-stage-preview .ro-shell-small { color: #5b564d; font-size: 10px; }
+.ro-shell-choice-icon { width: 48px; height: 48px; overflow: hidden; image-rendering: pixelated; }
+.ro-shell-stage-content { justify-content: center; gap: 12px; }
+.ro-shell-map-crop { width: 128px; height: 128px; overflow: hidden; image-rendering: pixelated; }
+
+@media (max-width: 640px) {
+  .screen-title > .hud, .screen-character-select > .hud, .screen-stage-select > .hud { display: none; }
+  .ro-shell-screen { margin-top: max(10px, env(safe-area-inset-top)); font-size: 12px; }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .screen-title > .hud, .screen-character-select > .hud, .screen-stage-select > .hud { display: none; }
+  .ro-shell-screen { margin-top: max(4px, env(safe-area-inset-top)); }
+}

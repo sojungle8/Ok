@@ -15,6 +15,12 @@ export interface RoHudSkill {
   cooldownTicks?: number;
 }
 
+export interface RoHudDamageStat {
+  id: string;
+  label: string;
+  valueText: string;
+}
+
 export interface RoFormalHudModel {
   playerName: string;
   jobName: string;
@@ -25,6 +31,8 @@ export interface RoFormalHudModel {
   xpNext: number;
   timer: string;
   kills: number;
+  currency?: number;
+  damageStats: RoHudDamageStat[];
   keystone?: string;
   skills: RoHudSkill[];
   minimap?: { xPermille: number; yPermille: number; facingDeg: number };
@@ -155,7 +163,7 @@ function RoBasicMenu({ rasters }: { rasters: RasterRegistry }) {
 export function RoBasicInfo({ rasters, model }: { rasters: RasterRegistry; model: RoFormalHudModel }) {
   const [minimized, setMinimized] = useState(false);
   return (
-    <div class={`ro-basic-anchor${minimized ? " is-minimized" : ""}`}>
+    <div class={`ro-basic-anchor${minimized ? " is-minimized" : ""}`} data-testid="ro-basic-info">
       <BasicInfoVariant rasters={rasters} model={model} compact={false} />
       <BasicInfoVariant rasters={rasters} model={model} compact={true} />
       <span class="ro-basic-system ro-basic-system-base">
@@ -212,6 +220,13 @@ export function RoMinimap({ rasters, model }: { rasters: RasterRegistry; model: 
   );
 }
 
+export function formatHudNumber(value: number): string {
+  const safe = Number.isFinite(value) ? Math.max(0, Math.round(value)) : 0;
+  if (safe >= 1_000_000) return `${Math.floor(safe / 100_000) / 10}M`;
+  if (safe >= 1_000) return `${Math.floor(safe / 100) / 10}K`;
+  return String(safe);
+}
+
 export function RoShortcut({ rasters, skills }: { rasters: RasterRegistry; skills: RoHudSkill[] }) {
   return (
     <div class="ro-shortcut" data-testid="ro-shortcut">
@@ -242,7 +257,38 @@ function RoTitleStrip({ rasters, text, testId, className = "" }: { rasters: Rast
 }
 
 export function RoStageStatus({ rasters, model }: { rasters: RasterRegistry; model: RoFormalHudModel }) {
-  return <RoTitleStrip rasters={rasters} text={`${model.timer}  擊殺 ${model.kills}`} testId="timer" className="ro-stage-status" />;
+  return (
+    <div class="ro-stage-status" aria-label="關卡進度">
+      <RoTitleStrip rasters={rasters} text={`${model.timer}  擊殺 ${model.kills}`} testId="timer" className="ro-stage-timer" />
+      {model.currency === undefined ? null : <RoTitleStrip rasters={rasters} text={`Zeny ${formatHudNumber(model.currency)}`} testId="currency" className="ro-stage-currency" />}
+    </div>
+  );
+}
+
+export function RoDamageStats({ rasters, stats }: { rasters: RasterRegistry; stats: RoHudDamageStat[] }) {
+  const visible = stats.slice(0, 4);
+  return (
+    <div class="ro-damage-stats" data-testid="damage-stats" aria-label="傷害統計">
+      <RoTitleStrip rasters={rasters} text="傷害統計" className="ro-damage-heading" />
+      {visible.length > 0 ? visible.map((stat, index) => (
+        <RoTitleStrip
+          key={stat.id}
+          rasters={rasters}
+          text={`${index + 1}. ${stat.label}  ${stat.valueText}`}
+          className="ro-damage-row"
+        />
+      )) : <RoTitleStrip rasters={rasters} text="尚無傷害" className="ro-damage-row" />}
+    </div>
+  );
+}
+
+export function RoRightRail({ rasters, model }: { rasters: RasterRegistry; model: RoFormalHudModel }) {
+  return (
+    <div class="ro-right-rail" data-testid="ro-right-rail">
+      <RoDamageStats rasters={rasters} stats={model.damageStats} />
+      {model.minimap ? <RoMinimap rasters={rasters} model={model.minimap} /> : null}
+    </div>
+  );
 }
 
 export function RoBossStatus({ rasters, boss }: { rasters: RasterRegistry; boss: NonNullable<RoFormalHudModel["boss"]> }) {
@@ -262,7 +308,7 @@ export function RoFormalHud({ rasters, model }: { rasters: RasterRegistry; model
       <RoBasicInfo rasters={rasters} model={model} />
       <RoStageStatus rasters={rasters} model={model} />
       <RoShortcut rasters={rasters} skills={model.skills} />
-      {model.minimap ? <RoMinimap rasters={rasters} model={model.minimap} /> : null}
+      <RoRightRail rasters={rasters} model={model} />
       {model.boss ? <RoBossStatus rasters={rasters} boss={model.boss} /> : null}
       {model.alert ? <RoTitleStrip rasters={rasters} text={model.alert.text} testId={model.alert.testId} className="ro-boss-alert" /> : null}
     </div>

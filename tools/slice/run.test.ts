@@ -80,6 +80,100 @@ describe("acceptance gate wiring", () => {
 });
 
 describe("run simulation: rules", () => {
+  it("emits an authoritative basic-attack windup and hit cadence", () => {
+    const cfg = sliceConfig(1, "guardian");
+    const st = createRun(cfg);
+    st.firedEvents.fill(true);
+    st.waveLastSpawn.fill(Number.MAX_SAFE_INTEGER);
+    st.player.active = [];
+    st.enemies = [testEnemy(st, "monster.poring", 90, 0, -1200, 1_000_000)];
+    const windups: Extract<RunState["events"][number], { type: "attack-windup" }>[] = [];
+    const strikes: Extract<RunState["events"][number], { type: "skill" }>[] = [];
+    const hits: Extract<RunState["events"][number], { type: "hit" }>[] = [];
+    for (let sequence = 0; sequence < 150; sequence += 1) {
+      stepRun(st, cfg, { tick: st.tick, sequence, moveX: 0, moveY: 0 });
+      windups.push(...st.events.filter((event): event is Extract<RunState["events"][number], { type: "attack-windup" }> => event.type === "attack-windup"));
+      strikes.push(...st.events.filter((event): event is Extract<RunState["events"][number], { type: "skill" }> => event.type === "skill" && event.source === c.player.basicSkillId));
+      hits.push(...st.events.filter((event): event is Extract<RunState["events"][number], { type: "hit" }> => event.type === "hit" && event.source === c.player.basicSkillId));
+    }
+    expect(windups.length).toBeGreaterThanOrEqual(3);
+    expect(windups.every((event) => event.resolveTick - event.tick === 8 && event.targetId === 90)).toBe(true);
+    expect(windups.slice(1).every((event, index) => event.tick - (windups[index]?.tick ?? 0) === (c.skills[c.player.basicSkillId]?.cooldownTicks ?? 0))).toBe(true);
+    expect(strikes.map((event) => event.tick)).toEqual(windups.map((event) => event.resolveTick));
+    expect(hits).toHaveLength(strikes.length);
+    expect(hits.every((event) => event.amount > 0
+      && (event.effectiveAmount ?? 0) > 0
+      && event.lethal !== true
+      && (event.remainingHp ?? 0) > 0)).toBe(true);
+  });
+
+  it("front-loads four real enemies inside the 11 m opening view proxy without adding spawn slots", () => {
+    const cfg = sliceConfig(1, "guardian");
+    const st = createRun(cfg);
+    stepRun(st, cfg, { tick: st.tick, sequence: 0, moveX: 0, moveY: 0 });
+    expect(st.enemies).toHaveLength(4);
+    expect(st.enemies.every((enemy) => Math.hypot(enemy.x - st.player.x, enemy.y - st.player.y) <= 10_500)).toBe(true);
+    for (let sequence = 1; sequence < 200; sequence += 1) stepRun(st, cfg, { tick: st.tick, sequence, moveX: 0, moveY: 0 });
+    expect(st.stats.kills + st.enemies.length).toBe(4);
+  });
+
+  it("emits XP drop, merge and pickup events without changing deterministic orb limits", () => {
+    const cfg = sliceConfig(1, "guardian");
+    const st = createRun(cfg);
+    st.firedEvents.fill(true);
+    st.waveLastSpawn.fill(Number.MAX_SAFE_INTEGER);
+    st.player.basicReadyAt = Number.MAX_SAFE_INTEGER;
+    st.enemies = [
+      testEnemy(st, "monster.poring", 91, 3000, 0, 0),
+      testEnemy(st, "monster.poring", 92, 3100, 0, 0),
+    ];
+    stepRun(st, cfg, { tick: st.tick, sequence: 0, moveX: 0, moveY: 0 });
+    const drop = st.events.find((event): event is Extract<RunState["events"][number], { type: "xp-drop" }> => event.type === "xp-drop");
+    const merge = st.events.find((event): event is Extract<RunState["events"][number], { type: "xp-merge" }> => event.type === "xp-merge");
+    expect(drop).toMatchObject({ amount: 1, totalValue: 1 });
+    expect(merge).toMatchObject({ targetId: drop?.targetId, amount: 1, totalValue: 2 });
+    expect(st.orbs).toHaveLength(1);
+
+    const orb = st.orbs[0];
+    if (!orb) throw new Error("expected merged XP orb");
+    orb.x = st.player.x;
+    orb.y = st.player.y;
+    stepRun(st, cfg, { tick: st.tick, sequence: 1, moveX: 0, moveY: 0 });
+    expect(st.events.find((event) => event.type === "xp-pickup")).toMatchObject({ targetId: orb.id, amount: 2, totalValue: 2 });
+    expect(st.orbs).toHaveLength(0);
+  });
+
+  it("emits deterministic draft-open and draft-select contracts", () => {
+    const cfg = sliceConfig(7, "fury");
+    const st = createRun(cfg);
+    st.pendingDrafts.push("level");
+    stepRun(st, cfg, { tick: st.tick, sequence: 0, moveX: 0, moveY: 0 });
+    const opened = st.events.find((event): event is Extract<RunState["events"][number], { type: "draft-open" }> => event.type === "draft-open");
+    expect(opened?.source).toBe("level");
+    expect(opened?.optionKeys).toHaveLength(c.progression.choiceCount);
+    const selected = opened?.optionKeys?.[0];
+    stepRun(st, cfg, { tick: st.tick, sequence: 1, moveX: 0, moveY: 0, draftIndex: 0 });
+    expect(st.events.find((event) => event.type === "draft-select")).toMatchObject({ source: "level", optionKey: selected });
+  });
+
+  it("marks the 2:00 elite, 5:00 miniboss, 7:00 elite, 9:00 warning, 10:00 boss and 12:00 enrage nodes", () => {
+    const cfg = sliceConfig(3, "guardian");
+    const st = createRun(cfg);
+    let sequence = 0;
+    const at = (tick: number): RunState["events"] => {
+      st.runTick = tick;
+      st.phase = "running";
+      stepRun(st, cfg, { tick: st.tick, sequence: sequence++, moveX: 0, moveY: 0 });
+      return [...st.events];
+    };
+    expect(at(120 * 60)).toContainEqual(expect.objectContaining({ type: "elite-spawn", source: "elite.poring" }));
+    expect(at(300 * 60)).toContainEqual(expect.objectContaining({ type: "miniboss-spawn", source: "miniboss.vocal" }));
+    expect(at(420 * 60)).toContainEqual(expect.objectContaining({ type: "elite-spawn", source: "elite.poporing" }));
+    expect(at(540 * 60)).toContainEqual(expect.objectContaining({ type: "boss-warning" }));
+    expect(at(600 * 60)).toContainEqual(expect.objectContaining({ type: "boss-spawn", source: "boss.mastering" }));
+    expect(at(720 * 60)).toContainEqual(expect.objectContaining({ type: "enrage" }));
+  });
+
   it("an area-clear skill is offered before tick 3600 on 10 seeds", () => {
     for (let seed = 1; seed <= 10; seed += 1) {
       const st = createRun(sliceConfig(seed, "guardian"));
@@ -97,6 +191,7 @@ describe("run simulation: rules", () => {
         const ticks = [st.stats.firstAreaClearOfferedTick, st.stats.firstAreaClearSelectedTick, st.stats.firstAreaClearCastTick, st.stats.firstEffectiveAreaClearTick];
         expect(ticks.every((tick) => tick >= 0 && tick < 3600), `${plan} seed ${seed}: ${ticks.join(",")}`).toBe(true);
         expect(ticks).toEqual([...ticks].sort((a, b) => a - b));
+        expect(st.stats.firstAreaClearCastTick - st.stats.firstAreaClearSelectedTick, `${plan} seed ${seed}`).toBeLessThanOrEqual(180);
       }
     }
   });
@@ -185,11 +280,12 @@ describe("run simulation: rules", () => {
     for (const h of st.stats.telegraphHits) expect(announced.has(h.geomId)).toBe(true);
   });
 
-  it("spawns stay outside the camera (>= 13 m from the player)", () => {
+  it("scheduled spawns after the opening burst stay outside the camera (>= 13 m from the player)", () => {
     let checked = 0;
     playRun(6, "fury", undefined, (s) => {
       for (const e of s.events) {
         if (e.type !== "spawn" && e.type !== "boss-spawn") continue;
+        if (e.tick < 200) continue; // the first four scheduled slots are front-loaded into the 11 m opening proxy
         if (e.source === "monster.poring" && s.enemies.some((x) => x.type === "boss.mastering")) continue; // boss summons
         const en = s.enemies.find((x) => x.id === e.targetId);
         if (!en) continue;

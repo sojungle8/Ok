@@ -2,9 +2,10 @@
 
 Current phase: **Phase 2 — 劍士單人垂直切片: deterministic game and real-RO formal world running locally; verified-raster RO HUD and human/device acceptance still in progress (Phase 2 not complete)**.
 
-Phase 1 real-asset gate is now **LOCAL_PASS for the pinned KRO 2021 client**: source hashes, 282/282 whitelist audit,
+Phase 1 real-asset gate is now **LOCAL_PASS for the pinned KRO 2021 client**: source hashes, 288/288 whitelist audit,
 full extraction and formal desktop/mobile browser smoke passed on 2026-11-18. The run displayed original RO
-`prt_fild08` GND/RSM/water, four-layer Swordsman, 12 monster sets, official shadow and original audio, with no
+`prt_fild08` GND/RSM/water, four-layer Swordsman, 12 monster sets, official shadow, original BGM/ambient audio and
+six official hit/skill WAVs, with no
 placeholder fallback. Derived files and screenshots remain ignored under `.local-assets` / `reports/local`.
 
 RO UI is still **in progress**, with the visible run HUD, formal level-up/keystone draft and results window now
@@ -17,7 +18,10 @@ and four-state buttons
 from verified rasters. Desktop, phone portrait, tablet portrait and landscape viewports stay within bounds; formal
 mode hides developer HUD and drawn joystick art, and results retain a visibly frozen real-RO world. Profile
 `KRO2021_CLASSIC_V0_FAN` remains `DISCOVERED` and exact original-client placement metrics remain `DEFERRED_LOCAL`;
-title and character/stage selection are not RO-complete and no pixel-identical claim is made.
+The title, Swordsman selection and `prt_fild08` stage selection now use verified original RO window/button/icon/
+minimap rasters in an original responsive composition. Their four-viewport positive-path gate passes original-asset
+loading, keyboard/real-touch movement, formal-audio activation, draft selection and required layout non-overlap;
+the reference profile remains placement-unlocked and no pixel-identical claim is made.
 
 ## Phase 2 (cloud) — summary
 
@@ -31,8 +35,8 @@ Evidence: `reports/vertical-slice-acceptance.md` (headless, `pnpm slice:acceptan
 | Same hash at 15 / 30 / 60 FPS | CLOUD_PASS (10 seeds, 60 s) |
 | Settlement closed 20 times mid-way: no duplicate items / XP | CLOUD_PASS (unit, fault injection) + browser: one settlement, reload does not duplicate |
 | A full run with touch only / gamepad only | Simulation CLOUD_PASS via device quantisation; browser: drafts by key / touch tap / gamepad A pass · real devices DEFERRED_LOCAL |
-| Audio buses, voice limits, boss warning priority | Rules CLOUD_PASS (unit) · playback blocked by missing audio rows (GAP-004) |
-| Formal screen (real RO assets) | LOCAL_PASS: original world/actors/shadow/audio plus verified-raster RO HUD, draft and results at desktop, phone, tablet and landscape viewports; title/selection screens and human physical-device play stay open |
+| Audio buses, voice limits, boss warning priority | Rules CLOUD_PASS (unit) · original BGM + 4 ambient WAVs + official physical-hit/Bash/Magnum Break/Endure/Provoke/Shield Wave playback integrated; remaining monster/death/boss/town audio stays open (GAP-004) |
+| Formal screen (real RO assets) | LOCAL_PASS for verified-raster title/job/stage, world/actors/shadow/audio, HUD, draft and results at desktop, phone, tablet and landscape viewports; keyboard/real-touch movement and audio start pass; human physical-device play stays open |
 
 Balance tuning T-01…T-10 is layered on the seed (D-024/D-039); see the acceptance report. T-10 uses real
 simulation enemies: all 90 runs pass separate whole-map and 11 m near-player density gates with peak 186,
@@ -63,7 +67,7 @@ Details, gates and local commands: `reports/phase1/PHASE1-ACCEPTANCE.md`; perfor
 | Clean-room parsers (SPR 1.x–2.1, ACT 2.0–2.5, PAL, GAT, GND, RSW 1.2–2.1, GRF 0x200 incl. header-DES/MIXCRYPT) | CLOUD_PASS synthetic · LOCAL_PASS on the pinned real client |
 | Loopback gateway + HttpAssetGatewayClient | CLOUD_PASS (synthetic GRF) |
 | **Formal-screen rule (D-022):** only original RO assets; missing assets stop the game and list canonical paths | CLOUD_PASS: formal build without a gateway is blocked (no world canvas); a formal build refuses a synthetic gateway; unit tests list missing canonical paths (`smoke-A/B.json`, `apps/client/test`) |
-| audit-whitelist / extract --profile fan-local / dev:fan-local | LOCAL_PASS: 282/282 real source rows; 351 local derived files; formal gateway/client start successfully |
+| audit-whitelist / extract --profile fan-local / dev:fan-local | LOCAL_PASS: 288/288 real source rows; full local extraction includes the six official hit/skill WAVs; formal gateway/client start successfully |
 | Contact sheets (6 slots × 8 directions, pivot, shadow), UV-mirror dedupe | CLOUD_PASS synthetic; real actor/monster animation rendered in the formal browser, detailed human sheet review still open |
 | Arena: player + 50 Porings, 1 spawn/s, collision, keyboard + mobile pointer joystick, RenderSnapshot | CLOUD_PASS headless/fixture + LOCAL_PASS real formal desktop/mobile smoke; real phone/tablet hardware still open |
 | 15/30/60 FPS identical 60 s hash | CLOUD_PASS (`4dbb7aa405a98e3b`) |
@@ -139,7 +143,7 @@ Counts are taken from the runner output of run #5 and a clean local `pnpm instal
 ## Next minimal step
 
 Continue the bounded Swordsman D-032 slice: approve and connect the first manually authored skill bitmap only after
-the provenance/style review, then finish title, character selection and stage selection with verified RO rasters and
-run dedicated clear, MVP, survival, mobility and control scenarios plus human/device review. Existing geometry and
-text feedback are combat readability overlays, not finished skill art; the current game is a stronger playable
-vertical slice, not a completed RO Survivors replica.
+the provenance/style review. Add the remaining monster/death/boss/town audio, run dedicated clear, MVP, survival,
+mobility and control scenarios, and do physical phone/tablet/desktop review. Existing geometry and text feedback are
+combat readability overlays, not finished skill art; the current game is a stronger playable vertical slice, not a
+completed RO Survivors replica.

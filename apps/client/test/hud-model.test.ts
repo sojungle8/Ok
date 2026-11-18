@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RunState } from "@ro-survivor/core-sim";
-import { formalHudSkills, formalMinimapModel } from "../src/screens/Hud.tsx";
+import { formalDamageStats, formalHudSkills, formalMinimapModel } from "../src/screens/Hud.tsx";
 
 const player = {
   basicRank: 3,
@@ -31,5 +31,23 @@ describe("formal HUD view model", () => {
       facingDeg: 90,
     });
     expect(formalMinimapModel(player, { widthMm: 0, heightMm: 400_000 })).toBeUndefined();
+  });
+
+  it("sorts and labels the four strongest damage sources for the compact panel", () => {
+    expect(formalDamageStats({
+      effectiveDamageBySource: {
+        "skill.sw.bash": 800,
+        "skill.sw.basic_slash": 1200,
+        "skill.sw.magnum_break": 2400,
+        "keystone.guardian.counter": 400,
+        "skill.future.ice_bolt": 600,
+        invalid: Number.NaN,
+      },
+    })).toEqual([
+      { id: "skill.sw.magnum_break", label: "怒爆", valueText: "2.4K" },
+      { id: "skill.sw.basic_slash", label: "普攻", valueText: "1.2K" },
+      { id: "skill.sw.bash", label: "狂擊", valueText: "800" },
+      { id: "skill.future.ice_bolt", label: "ice bolt", valueText: "600" },
+    ]);
   });
 });

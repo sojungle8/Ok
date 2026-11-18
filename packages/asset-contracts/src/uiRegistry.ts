@@ -1,10 +1,10 @@
 /**
  * Canonical RO UI registry of profile KRO2021_CLASSIC_V0_FAN: the 108 UI rows of
- * fan-local-asset-whitelist-v3-282.csv (SHA-256 63EA6798B842AA6DCC65B00E09D3BBD88AA74467BC75594B5A9490F0C5C6A4DB), fixed in code so a reduced,
+ * fan-local-asset-whitelist-v3-282.csv; the full canonical whitelist is v4 (v3 + 6 official WAVs), fixed in code so a reduced,
  * extended or drifted whitelist cannot redefine the UI closure. Generated from the canonical CSV;
  * `tools/assets/ui-registry.test.ts` checks it against the file.
  */
-export const CANONICAL_WHITELIST_SHA256 = "63EA6798B842AA6DCC65B00E09D3BBD88AA74467BC75594B5A9490F0C5C6A4DB";
+export const CANONICAL_WHITELIST_SHA256 = "473E82880F91448F004222A9D049CCB67460B61EE37B138FE89FB286E57C9B85";
 /** SHA-256 of the 108 sorted UI asset IDs joined by "\n". */
 export const UI_ENTRY_SET_SHA256 = "BB41DADAC15D9142D2147C391A45B54A6F53AD20B0670CFCBC6E7EA39782351D";
 export const UI_REGISTRY_COUNT = 108;

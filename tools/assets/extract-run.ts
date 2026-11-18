@@ -123,7 +123,7 @@ function extractInto(rows: readonly WhitelistRow[], reader: AssetReader, outDir:
   // Contract identity first: a wrong lock or whitelist means nothing is extracted.
   const contract: SceneMissing[] = [];
   if (identity.lockId !== reader.lockId) contract.push({ assetId: null, container: "contract", canonicalPath: "identity.lockId", reason: `lockId ${JSON.stringify(identity.lockId)} is not the verified lock ${JSON.stringify(reader.lockId)}` });
-  if (identity.whitelistSha256.toUpperCase() !== CANONICAL_WHITELIST_SHA256) contract.push({ assetId: null, container: "contract", canonicalPath: "identity.whitelistSha256", reason: `whitelist SHA-256 ${identity.whitelistSha256} is not the canonical v3 ${CANONICAL_WHITELIST_SHA256}` });
+  if (identity.whitelistSha256.toUpperCase() !== CANONICAL_WHITELIST_SHA256) contract.push({ assetId: null, container: "contract", canonicalPath: "identity.whitelistSha256", reason: `whitelist SHA-256 ${identity.whitelistSha256} is not canonical ${CANONICAL_WHITELIST_SHA256}` });
   if (contract.length > 0) throw new SceneExtractionError(contract);
   const byId = new Map(rows.map((r) => [r.asset_id, r]));
   const manifest: ExtractManifest = {

@@ -1,12 +1,15 @@
 import type { Enemy, RunContent, RunState } from "@ro-survivor/core-sim";
 import type { Settings } from "../settings.ts";
+import { damageEmphasis, formatDamage, type DamageEmphasis } from "./combat-format.ts";
 import type { Slot, SpriteSheet } from "./sprites.ts";
 import "./presentation.css";
+
+export { COMBAT_DISPLAY_SCALE, damageEmphasis, formatDamage } from "./combat-format.ts";
 
 const HIT_MS = 180;
 const ATTACK_MS = 220;
 const CAST_FOLLOW_MS = 220;
-const DAMAGE_MS = 720;
+const DAMAGE_MS = 820;
 const MAX_DAMAGE_CUES = 96;
 const TICK_MS = 1000 / 60;
 
@@ -36,6 +39,7 @@ export interface DeathCue extends ActorSnapshot {
 export interface DamageCue {
   id: number;
   kind: "enemy" | "player";
+  emphasis: DamageEmphasis;
   amount: number;
   xMm: number;
   yMm: number;
@@ -82,10 +86,6 @@ export function animationDuration(sheet: SpriteSheet, slot: Slot, direction: num
   const animation = sheet.data.slots[slot].directions[direction] ?? sheet.data.slots[slot].directions[0];
   const frames = Math.max(1, animation?.frames.length ?? 1);
   return Math.max(240, Math.min(1600, frames * Math.max(1, animation?.delayMs ?? 100)));
-}
-
-export function formatDamage(amount: number): string {
-  return String(Math.max(1, Math.ceil(amount / 100)));
 }
 
 /**
@@ -155,9 +155,9 @@ export class CombatPresentationState {
       if (!settings.flash) return;
       if (!this.#flash || strength >= this.#flash.strength || nowMs >= this.#flash.endMs) this.#flash = { ...pulse(duration), kind, strength };
     };
-    const addDamage = (kind: DamageCue["kind"], amount: number | undefined, at: Pick<ActorSnapshot, "xMm" | "yMm" | "visualScale">): void => {
+    const addDamage = (kind: DamageCue["kind"], amount: number | undefined, at: Pick<ActorSnapshot, "xMm" | "yMm" | "visualScale">, lethal = false): void => {
       if (!settings.damageNumbers || amount === undefined) return;
-      this.damage.push({ id: this.#nextDamageId++, kind, amount, xMm: at.xMm, yMm: at.yMm, visualScale: at.visualScale, startMs: nowMs, endMs: nowMs + DAMAGE_MS });
+      this.damage.push({ id: this.#nextDamageId++, kind, emphasis: damageEmphasis(amount, lethal), amount, xMm: at.xMm, yMm: at.yMm, visualScale: at.visualScale, startMs: nowMs, endMs: nowMs + DAMAGE_MS });
       if (this.damage.length > MAX_DAMAGE_CUES) this.damage.splice(0, this.damage.length - MAX_DAMAGE_CUES);
     };
 
@@ -166,7 +166,7 @@ export class CombatPresentationState {
         const target = actor(event.targetId);
         if (!target) continue;
         this.enemyHits.set(target.id, pulse(HIT_MS));
-        addDamage("enemy", event.amount, target);
+        addDamage("enemy", event.amount, target, event.lethal);
       } else if (event.type === "player-hit") {
         this.#playerHit = pulse(HIT_MS);
         const attacker = actor(event.actorId);
@@ -176,7 +176,7 @@ export class CombatPresentationState {
             ? { startMs: current.startMs, endMs: Math.max(current.endMs, nowMs + ATTACK_MS) }
             : pulse(ATTACK_MS));
         }
-        addDamage("player", event.amount, { xMm: st.player.x, yMm: st.player.y, visualScale: 1 });
+        addDamage("player", event.amount, { xMm: st.player.x, yMm: st.player.y, visualScale: 1 }, event.lethal);
         shake(0.2, 180);
         flash("player", 0.2, 120);
       } else if (event.type === "kill") {
@@ -323,7 +323,7 @@ export class CombatOverlay {
       let node = this.#nodes.get(cue.id);
       if (!node) {
         node = this.#doc.createElement("span");
-        node.className = `combat-damage combat-damage--${cue.kind}`;
+        node.className = `combat-damage combat-damage--${cue.kind} combat-damage--${cue.emphasis}`;
         node.textContent = formatDamage(cue.amount);
         this.root.append(node);
         this.#nodes.set(cue.id, node);

@@ -29,7 +29,7 @@
 | `public-client-artifacts.csv` | ready | 被分析的公開 client 指紋；不含原始碼 |
 | `ASSET-AUDIT.md` | ready | 首版素材的解包、格式、命名陷阱、地圖與 parser 驗收證據 |
 | `VALIDATION.md` | ready | JSON／CSV／路徑／引用／權利掃描與交付 hash |
-| `fan-local-asset-whitelist.csv` | ready | 48 筆 GRF／BGM 白名單；含 CP949 路徑、URI、raw bytes hex、bytes、ACT 版本與地圖 hash |
+| `fan-local-asset-whitelist.csv` | ready | Canonical v4：288 筆本機 RO 素材白名單（v3 282 + 6 筆官方 hit／skill WAV），SHA-256 `473E82880F91448F004222A9D049CCB67460B61EE37B138FE89FB286E57C9B85`；含 CP949 路徑、URI、raw bytes hex、bytes、ACT 版本與地圖／音訊 hash |
 | `vertical-slice-content-seed.json` | ready | 劍士、8 個技能候選、4 被動、3 流派、10 普通怪、2 菁英、Vocal、Mastering 與 10 分鐘波次 |
 
 兩個檔案已完成唯讀核對。Claude 可從 Phase 0 開始；Phase 1 只能讀白名單列出的素材，新增任何路徑都要先交回 Codex 重新核對。

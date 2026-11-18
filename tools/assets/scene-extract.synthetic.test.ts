@@ -12,7 +12,7 @@ import { startGateway } from "@ro-survivor/asset-gateway";
 import { extractCommand, MANIFEST_FILE, MISSING_REPORT, runExtraction, type ExtractManifest, type PublishFs } from "./extract-run.ts";
 import { extractScene, SceneExtractionError } from "./scene-extract.ts";
 import { CANONICAL_WHITELIST_SHA256 } from "@ro-survivor/asset-contracts";
-/** Verified lock of the reader + canonical v3 whitelist hash (synthetic run). */
+/** Verified lock of the reader + canonical v4 whitelist hash (synthetic run). */
 const identityOf = (r: { lockId: string }) => ({ lockId: r.lockId, whitelistSha256: CANONICAL_WHITELIST_SHA256 });
 import { buildSyntheticSources } from "./synthetic-sources.ts";
 
@@ -64,7 +64,8 @@ describe("Commit B scene extraction (synthetic structural fixture — not RO evi
     expect(scene.textures.filter((t) => t.format === "bmp")).toHaveLength(65);
     expect(scene.textures.filter((t) => t.format === "jpg" && t.derived.file === null)).toHaveLength(32); // original bytes, no re-encode
     expect(scene.textures.every((t) => t.filter === "nearest")).toBe(true);
-    expect(scene.audio.map((a) => a.format).sort()).toEqual(["mp3", "wav", "wav", "wav", "wav"]);
+    expect(scene.audio.filter((a) => a.format === "mp3")).toHaveLength(1);
+    expect(scene.audio.filter((a) => a.format === "wav")).toHaveLength(10);
     const shadow = JSON.parse(readFileSync(join(out, "common.shadow.act.json"), "utf8")) as { actions: { frames: { layers: { color: number[] }[] }[] }[] };
     expect(shadow.actions[0]?.frames[0]?.layers[0]?.color[3]).toBe(128);
     const gnd = JSON.parse(readFileSync(join(out, "map.prt_fild08.gnd.json"), "utf8")) as { lightmap: { count: number; atlas: { file: string } }; surfaces: { u: number[] }; cubes: { heights: number[] } };
@@ -173,7 +174,7 @@ describe("Commit B scene extraction (synthetic structural fixture — not RO evi
     const ids = (pred: (r: WhitelistRow) => boolean) => rows.filter(pred).map((r) => r.asset_id);
     const expected = [
       "map.prt_fild08.rsw", "map.prt_fild08.gnd", "bgm.prt_fild08", "common.shadow.spr", "common.shadow.act",
-      ...ids((r) => ["map_model", "map_model_texture", "map_ground_texture", "map_water_texture", "map_ambient_sound"].includes(r.category)),
+      ...ids((r) => ["map_model", "map_model_texture", "map_ground_texture", "map_water_texture", "map_ambient_sound", "skill_sound"].includes(r.category)),
     ].sort();
     for (const file of ["map.prt_fild08.rsw.json", "reports/prt_fild08-closure.json"]) expect([...fromOf(file)].sort(), file).toEqual(expected);
     for (const file of ["reports/prt_fild08-dependencies.json", "reports/prt_fild08-closure.json"]) {

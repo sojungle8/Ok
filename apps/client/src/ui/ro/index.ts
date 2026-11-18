@@ -4,3 +4,4 @@ export * from "./primitives.tsx";
 export * from "./hud.tsx";
 export * from "./dialog.tsx";
 export * from "./results.tsx";
+export * from "./shell.tsx";

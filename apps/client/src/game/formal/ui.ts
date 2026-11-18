@@ -64,7 +64,7 @@ export async function loadFormalUiAssets(
 ): Promise<FormalUiAssets> {
   // 1. Contract identity, before any UI asset is requested.
   if (expected.profileId !== UI_PROFILE_ID) throw contractError("profileId", `UI profile ${expected.profileId} is not accepted (only ${UI_PROFILE_ID})`);
-  if (expected.whitelistSha256.toUpperCase() !== CANONICAL_WHITELIST_SHA256) throw contractError("whitelistSha256", `client whitelist ${expected.whitelistSha256} is not the canonical v3 ${CANONICAL_WHITELIST_SHA256}`);
+  if (expected.whitelistSha256.toUpperCase() !== CANONICAL_WHITELIST_SHA256) throw contractError("whitelistSha256", `client whitelist ${expected.whitelistSha256} is not canonical ${CANONICAL_WHITELIST_SHA256}`);
   const health = await gateway.health();
   const id = health.derived;
   if (!id) throw contractError("derived", "gateway has no ready derived manifest");

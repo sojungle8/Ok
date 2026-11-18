@@ -6,9 +6,9 @@
 
 - JSON 解析：PASS。
 - CSV 解析：PASS。
-- 素材列：282；`asset_id` 282 個且唯一（canonical v3 = v2 174 rows + `ro-ui-original-assets.csv` 108 筆 RO UI rows，Codex 2026-11-17 授權更新 hash）。
-- 每筆 `data.grf` 的 CP949 raw hex → canonical path round trip：279 筆適用列全部 PASS（另 3 筆 filesystem rows：`bgm.prt_fild08` 為 filesystem BGM、`ui.font.scdream4/6` 為 `filesystem:System`，沒有 raw hex，不適用）。
-- 每筆 normalized request URI → canonical path round trip：282 筆全部 PASS。
+- 素材列：288；`asset_id` 288 個且唯一（canonical v4 = v3 282 rows + 6 筆官方 RO 技能／命中 WAV）。
+- 每筆 GRF 的 CP949 raw hex → canonical path round trip：285 筆適用列全部 PASS（另 3 筆 filesystem rows：`bgm.prt_fild08` 為 filesystem BGM、`ui.font.scdream4/6` 為 `filesystem:System`，沒有 raw hex，不適用）。
+- 每筆 normalized request URI → canonical path round trip：288 筆全部 PASS。
 - RO UI rows：108 筆，全部 `required=true`、帶 SHA-256，`notes` 以 `profile=KRO2021_CLASSIC_V0_FAN;` 開頭。
 - 內容 seed：8 skills、4 passives、3 keystones、10 normal、2 elite、1 miniboss、1 MVP。
 - 關卡 timeline 的 entity／pool reference：PASS。
@@ -23,7 +23,7 @@
 
 | 檔案 | SHA-256 |
 | --- | --- |
-| `fan-local-asset-whitelist.csv` | `63EA6798B842AA6DCC65B00E09D3BBD88AA74467BC75594B5A9490F0C5C6A4DB` |
+| `fan-local-asset-whitelist.csv` | `473E82880F91448F004222A9D049CCB67460B61EE37B138FE89FB286E57C9B85` |
 | `vertical-slice-content-seed.json` | `564F580207054898876A549B6BF67CA904A366E10D491949D0CFFC576BDF6EEC` |
 | `reference-snapshot-2026-11-17.json` | `65B8764394D20FEEDE5406BA6108D237155D238E1FA0C4387B30F5E2E80D4096` |
 | `../reference-ledger.csv` | `B22FD4AD7F2605AF3F72E82B660323748AA9E031C4C7BF57ACF5FA43BBFC8077` |

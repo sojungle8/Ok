@@ -59,17 +59,17 @@ for (const name of ["chromium", "webkit"]) {
       const errors = [];
       page.on("pageerror", (e) => errors.push(String(e)));
       await page.goto(url);
-      const buildId = (await page.getByTestId("build-id").innerText()).trim();
-      const profile = (await page.getByTestId("build-profile").innerText()).trim();
-      const title = (await page.getByTestId("project-name").innerText()).trim();
-      let ok = title === "RO Survivor Fan Game" && profile === "fan-local" && /\+[0-9a-f]{12}\.\d{8}$|^ci-/.test(buildId);
+      const main = page.locator("main.app");
+      const buildId = (await main.getAttribute("data-build-id")) ?? "";
+      const profile = (await main.getAttribute("data-build-profile")) ?? "";
+      let ok = profile === "fan-local" && /\+[0-9a-f]{12}\.\d{8}$|^ci-/.test(buildId);
       const detail = {};
       if (expect === "blocked") {
-        await page.getByTestId("start").click({ timeout: 15_000 });
-        await page.getByTestId("job-swordsman").click();
-        await page.getByTestId("stage-prt_fild08").click();
-        await page.getByTestId("blocked").waitFor({ timeout: 15_000 });
-        detail.reason = (await page.getByTestId("blocked-reason").innerText()).trim();
+        // Formal mode now fails closed before its original RO shell is available, so there is
+        // intentionally no clickable substitute title/job/stage flow.
+        const blockedTitle = page.getByTestId("title");
+        await blockedTitle.waitFor({ timeout: 30_000 });
+        detail.reason = (await blockedTitle.innerText()).trim();
         detail.worldCanvas = await page.getByTestId("world").count();
         detail.missingRows = await page.locator("[data-testid=missing-assets] tbody tr").count();
         ok = ok && detail.worldCanvas === 0 && (!process.env.SMOKE_REASON || detail.reason.includes(process.env.SMOKE_REASON));

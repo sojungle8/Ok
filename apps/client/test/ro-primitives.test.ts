@@ -11,7 +11,7 @@ import { tmpdir } from "node:os";
 import { mintRasterSet, RasterIssuanceError, type MintItem } from "../src/game/formal/rasterMint.ts";
 import { loadFormalUiAssets } from "../src/game/formal/ui.ts";
 import * as roPublic from "../src/ui/ro/index.ts";
-import { formalHudAssetIds, isVerifiedRaster, planButton, planGauge, planMinimap, planRaster, planSlot, planThreeSlice, planThreeSliceButton, planWindow, RO_BUTTON_CHROME_IDS, roSkillIconId, RoButton, RoFormalHud, RoGauge, RoRaster, RoSlot, RoThreeSlice, RoThreeSliceButton, type RoFormalHudModel, type VerifiedRaster } from "../src/ui/ro/index.ts";
+import { formalHudAssetIds, formatHudNumber, isVerifiedRaster, planButton, planGauge, planMinimap, planRaster, planSlot, planThreeSlice, planThreeSliceButton, planWindow, RO_BUTTON_CHROME_IDS, roSkillIconId, RoButton, RoFormalHud, RoGauge, RoRaster, RoSlot, RoThreeSlice, RoThreeSliceButton, type RoFormalHudModel, type VerifiedRaster } from "../src/ui/ro/index.ts";
 import { codeRefs, externalRuntimeImports, FORBIDDEN, guardGraph, isRealBrandModule, isRealMintSource, mintUsage, moduleGraph, REAL_MINT, REAL_RASTER, relPosix, scanFormalVisual } from "./visual-guard.ts";
 
 /**
@@ -920,6 +920,11 @@ describe("formal RO HUD composition", () => {
     xpNext: 100,
     timer: "03:20",
     kills: 42,
+    currency: 42,
+    damageStats: [
+      { id: "skill.sw.magnum_break", label: "怒爆", valueText: "12500" },
+      { id: "skill.sw.basic_slash", label: "普攻", valueText: "3200" },
+    ],
     keystone: "guardian",
     minimap: { xPermille: 500, yPermille: 500, facingDeg: 90 },
     skills: [
@@ -950,6 +955,10 @@ describe("formal RO HUD composition", () => {
       "ui.skill.sm_recovery.icon",
     ]);
     expect(roSkillIconId("skill.future.unreviewed")).toBeNull();
+  });
+
+  it("keeps HUD counters compact without changing their underlying values", () => {
+    expect([formatHudNumber(18), formatHudNumber(12500), formatHudNumber(Number.NaN)]).toEqual(["18", "12.5K", "0"]);
   });
 
   it("plans original BasicInfo controls, menu, minimap, gauge, title, shortcut and icons", async () => {

@@ -5,7 +5,7 @@
  * and fails closed: if any dependency is unresolved, unreadable or malformed, nothing is marked ready
  * and each problem is reported by logical asset ID + container + canonical CP949 path.
  */
-import { AssetWhitelist, dependencyCanonicalPath, resolveMapClosure, waterTexturePaths } from "@ro-survivor/asset-contracts";
+import { AssetWhitelist, dependencyCanonicalPath, FORMAL_SKILL_AUDIO_IDS, resolveMapClosure, waterTexturePaths } from "@ro-survivor/asset-contracts";
 import type { WhitelistRow } from "@ro-survivor/content-schema";
 import type { AssetReader } from "@ro-survivor/asset-gateway";
 import {
@@ -222,8 +222,8 @@ export function extractScene(rows: readonly WhitelistRow[], reader: AssetReader,
     shadowOutputs = { png: encodePng(width, height, atlas, DERIVED_MARKER), json: JSON.stringify(meta) };
   }
 
-  // Audio: BGM 12 + RSW ambient WAVs stay the original bytes, served by logical ID; metadata only here.
-  const audioIds = [SCENE_BGM, ...rsw.soundFiles.map((f) => list.idForCanonicalPath(dependencyCanonicalPath("wav", f))).filter((x): x is string => x !== null)];
+  // Audio stays as original bytes; extraction validates BGM, ambient and required skill WAV metadata.
+  const audioIds = [SCENE_BGM, ...rsw.soundFiles.map((f) => list.idForCanonicalPath(dependencyCanonicalPath("wav", f))).filter((x): x is string => x !== null), ...FORMAL_SKILL_AUDIO_IDS];
   const audio: { assetId: string; format: "mp3" | "wav"; bytes: number; sha256: string; wav: ReturnType<typeof readWavInfo> | null }[] = [];
   for (const id of [...new Set(audioIds)]) {
     const src = read(id);
@@ -291,7 +291,7 @@ export function extractScene(rows: readonly WhitelistRow[], reader: AssetReader,
   const summary: SceneSummary = {
     rswVersion: rsw.version, gndVersion: gnd.version, groundTextures: new Set(gnd.textures).size, lightmaps: gnd.lightmap.count, surfaces: gnd.surfaces.length,
     uniqueModels: models.size, placements: rsw.models.length, modelTextures: modelTextures.length, waterType: rsw.waterType, waterFrames: waterIds.length, waterCells,
-    ambientSounds: audio.filter((a) => a.format === "wav").length, shadowLayerAlpha: shadowAlpha,
+    ambientSounds: new Set(rsw.soundFiles).size, shadowLayerAlpha: shadowAlpha,
   };
   return { outputs, summary, closureIds: closure.ids, inputs: sceneFrom };
 }

@@ -21,6 +21,16 @@ export const FORMAL_MAP_CORE_PATHS: Readonly<Record<(typeof FORMAL_MAP_CORE)[num
 };
 export const FORMAL_SHADOW = ["common.shadow.spr", "common.shadow.act"] as const;
 export const FORMAL_BGM = "bgm.prt_fild08";
+/** Official RO WAVs used by the Swordsman vertical slice. Values are whitelist asset IDs. */
+export const FORMAL_SKILL_AUDIO = {
+  hit: "audio.hit.physical",
+  "skill.sw.bash": "audio.skill.sw.bash",
+  "skill.sw.magnum_break": "audio.skill.sw.magnum_break",
+  "skill.sw.endure": "audio.skill.sw.endure",
+  "skill.sw.provoke": "audio.skill.sw.provoke",
+  "skill.sw.shield_wave": "audio.skill.sw.shield_wave",
+} as const;
+export const FORMAL_SKILL_AUDIO_IDS = [...new Set(Object.values(FORMAL_SKILL_AUDIO))];
 const CLOSURE_CATEGORIES = new Set(["map_ground_texture", "map_model", "map_model_texture", "map_water_texture", "map_ambient_sound"]);
 
 export interface MissingAssetRef {
@@ -40,6 +50,7 @@ export function formalRequiredIds(list: AssetWhitelist): string[] {
     ...FORMAL_MAP_CORE,
     ...closure,
     FORMAL_BGM,
+    ...FORMAL_SKILL_AUDIO_IDS,
     ...FORMAL_SHADOW,
   ];
 }

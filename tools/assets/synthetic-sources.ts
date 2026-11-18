@@ -179,6 +179,8 @@ export function buildSyntheticSources(dir: string, realRows: readonly WhitelistR
   cat("map_model_texture").forEach((r, i) => content.set(r.asset_id, writeBmp24(8, 8, (x, y) => ((x + y + i) % 5 === 0 ? [255, 0, 255] : [(x * 31 + i * 7) & 255, (y * 29 + i * 3) & 255, (i * 41) & 255]))));
   cat("map_water_texture").forEach((r, i) => content.set(r.asset_id, writeJpegHeader(128, 128, 300 + i)));
   cat("map_ambient_sound").forEach((r, i) => content.set(r.asset_id, writeWav(syntheticBytes(500 + i, 256))));
+  // Synthetic WAVs exercise the skill-audio contract without shipping or deriving any RO audio.
+  cat("skill_sound").forEach((r, i) => content.set(r.asset_id, writeWav(syntheticBytes(700 + i, 320))));
   // Official-shadow stand-in: one action, one frame, translucent ellipse (alpha 128 in the ACT colour).
   const shadowIdx = new Uint8Array(16 * 8).map((_, k) => (((k % 16) - 7.5) ** 2 / 64 + (Math.floor(k / 16) - 3.5) ** 2 / 16 <= 1 ? 1 : 0));
   content.set("common.shadow.spr", writeSpr({ indexed: [{ width: 16, height: 8, indices: shadowIdx }], palette: syntheticPalette(9) }));
