@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "activeSnapshotId": "ro-reference-2026-11-18-taipei",
+  "snapshots": [
+    {
+      "id": "ro-reference-2026-11-17-taipei",
+      "observedAt": "2026-11-17T13:35:00+08:00",
+      "path": "docs/product-plan/handoff/reference-snapshot-2026-11-17.json",
+      "bytes": 8281,
+      "sha256": "65B8764394D20FEEDE5406BA6108D237155D238E1FA0C4387B30F5E2E80D4096",
+      "status": "superseded"
+    },
+    {
+      "id": "ro-reference-2026-11-18-taipei",
+      "observedAt": "2026-11-18T22:45:00+08:00",
+      "path": "docs/product-plan/handoff/reference-snapshot-2026-11-18.json",
+      "bytes": 9360,
+      "sha256": "C1B4BD6C7F57FB267986C82979C4E4ECD42DE081CC9AC5459174F7EAF839C9BB",
+      "status": "active"
+    }
+  ],
+  "ledgerSegments": [
+    {
+      "path": "docs/product-plan/reference-ledger.csv",
+      "bytes": 7624,
+      "sha256": "B22FD4AD7F2605AF3F72E82B660323748AA9E031C4C7BF57ACF5FA43BBFC8077",
+      "rowCount": 20,
+      "status": "locked-base"
+    },
+    {
+      "path": "docs/product-plan/handoff/reference-ledger-delta-2026-11-18.csv",
+      "bytes": 5126,
+      "sha256": "AF2FB41D3B41A736D68DCDD5E401FC2A9BDE832543F98F321587BDE25E0FF942",
+      "rowCount": 13,
+      "status": "active-delta"
+    }
+  ],
+  "integrationPlan": "docs/product-plan/10-PUBLIC-VARIANT-INTEGRATION.md",
+  "rules": {
+    "appendOnly": true,
+    "productionNetworkFetch": false,
+    "announcementAutoImport": false,
+    "acceptedFanLocalDecisionRequired": true
+  }
+}

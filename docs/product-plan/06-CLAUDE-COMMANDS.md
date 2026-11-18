@@ -23,9 +23,10 @@ C:\Users\user\Documents\ChatGPT\量化交易系統\docs\ro-survivors-cleanroom\0
 C:\Users\user\Documents\ChatGPT\量化交易系統\docs\ro-survivors-cleanroom\07-REFERENCE-LEDGER.md
 C:\Users\user\Documents\ChatGPT\量化交易系統\docs\ro-survivors-cleanroom\08-PUBLIC-CODE-OBSERVATIONS.md
 C:\Users\user\Documents\ChatGPT\量化交易系統\docs\ro-survivors-cleanroom\09-GITHUB-CLOUD-WORKFLOW.md
+C:\Users\user\Documents\ChatGPT\量化交易系統\docs\ro-survivors-cleanroom\10-PUBLIC-VARIANT-INTEGRATION.md
 C:\Users\user\Documents\ChatGPT\量化交易系統\docs\ro-survivors-cleanroom\handoff\README.md
 C:\Users\user\Documents\ChatGPT\量化交易系統\docs\ro-survivors-cleanroom\handoff\ASSET-AUDIT.md
-C:\Users\user\Documents\ChatGPT\量化交易系統\docs\ro-survivors-cleanroom\handoff\reference-snapshot-2026-11-17.json
+C:\Users\user\Documents\ChatGPT\量化交易系統\docs\ro-survivors-cleanroom\handoff\reference-index.json
 C:\Users\user\Documents\ChatGPT\量化交易系統\docs\ro-survivors-cleanroom\handoff\public-client-artifacts.csv
 C:\Users\user\Documents\ChatGPT\量化交易系統\docs\ro-survivors-cleanroom\handoff\fan-local-asset-whitelist.csv
 C:\Users\user\Documents\ChatGPT\量化交易系統\docs\ro-survivors-cleanroom\handoff\vertical-slice-content-seed.json

@@ -1,6 +1,6 @@
 # RO 倖存者研究與技術來源
 
-資料截點為 2026-11-17。RO Survivors 與 HANS 仍快速更新；版本數字、交易規則與內容量只代表查閱當時。實作規格以本計畫重新整理的內容資料為準，不在 runtime 抓取其他遊戲網站。
+最新資料截點為 2026-11-18；2026-11-17 的鎖定快照仍保留。RO Survivors 與 HANS 仍快速更新；版本數字、交易規則與內容量只代表查閱當時。實作規格以本計畫重新整理的內容資料為準，不在 runtime 抓取其他遊戲網站。
 
 # 第一手作品來源
 
@@ -13,7 +13,9 @@
 | [作者 Reddit 首發與更新串](https://www.reddit.com/r/RagnarokOnline/comments/1xmyhng/ro_survivors_a_free_browser_survivors_game_with/) | 作者第一手加玩家回覆；2026-11-03 起 | 初版內容、手機記憶體優化、平衡、多人主機負載與實際回饋 |
 | [HANS 主站](https://ro.hans-webgametw.com/) | HANS 自己的版本與公告 | HANS 功能清單及版本差異；不能證明取得原作者授權 |
 | [HANS Credits](https://ro.hans-webgametw.com/credits.html) | HANS 第一手自述 | HANS 明載「改作自 RO Survivors」、繁中化、多人伺服器與營運 |
-| [HANS 公開版本公告 JSON](https://ro.hans-webgametw.com/hans-news.json) | HANS 第一手；2026-11-17 查閱 | V0.13.1、同步官方 0.7.2 的版本線索與當期改動 |
+| [HANS 公開版本公告 JSON](https://ro.hans-webgametw.com/hans-news.json) | HANS 第一手；2026-11-18 查閱 | V0.13.5；節慶雙王／闖入者、改名、待選升級保存、聊天泡泡及營運限制；只保存我方摘要與 response hash |
+| [HANS 即時公告](https://ro.hans-webgametw.com/api/notice) | HANS 第一手；2026-11-18 rev 29 | 六周目、新章節／爬塔方向、拾取計數、信件到期與穩定性修正；不鏡像公告全文 |
+| [官方／HANS 公開狀態](https://ro-survivors.com/status.json)／[HANS status](https://ro.hans-webgametw.com/status.json)／[HANS guest status](https://ro.hans-webgametw.com/api/guest-status) | 公開 read-only 狀態端點 | 只記錄來源健康度與時間點，不成為 runtime 功能旗標或爬取許可 |
 | [官方 PWA Manifest](https://ro-survivors.com/app-manifest.json)／[HANS Manifest](https://ro.hans-webgametw.com/app-manifest.json) | 公開 app metadata | 語言、scope、start URL、standalone、方向與 icon |
 | `handoff/public-client-artifacts.csv` | Codex 於 2026-11-17 計算的非保存式指紋 | 官網公開 client 的 URL、bytes、ETag、Last-Modified、SHA-256；不含原始碼 |
 

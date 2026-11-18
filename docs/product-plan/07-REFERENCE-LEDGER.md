@@ -51,7 +51,7 @@
 1. 查閱 `SOURCES.md` 的第一手來源。
 2. 記錄目前原作與 HANS 顯示版本、公告日期與重要功能變化。
 3. 搜尋近七天中文與海外玩家回饋，至少各一個來源；沒有新資料就記錄「checked-no-material-change」，不要編造更新。
-4. 把新觀察加入 `reference-ledger.csv`，並在需要時產生新的日期版 `handoff/reference-snapshot-YYYY-MM-DD.json`。
+4. 舊 ledger 與 snapshot 一律不覆寫。把新觀察放入日期版 `handoff/reference-ledger-delta-YYYY-MM-DD.csv`，需要時產生新的 `handoff/reference-snapshot-YYYY-MM-DD.json`，再以 hash 更新 `handoff/reference-index.json`。
 5. 只把會改變本 Phase 需求或驗收的項目轉入 `RISKS.md`／`DECISIONS.md`。
 
 Claude 在 Phase 開始前只讀取上述交付物。如果資料不足，應提交缺口清單，不自行研究外站。
@@ -117,7 +117,7 @@ Codex 可以建立 `pnpm reference:check`，但功能只限：
 
 # 台帳檔案
 
-- 本企劃目錄的 `reference-ledger.csv`：目前正式觀察紀錄；Phase 0 複製後放到 `docs/reference/reference-ledger.csv`。
+- 本企劃目錄的 `reference-ledger.csv`：2026-11-17 鎖定基線；後續日期版 delta 由 `handoff/reference-index.json` 列出，讀取時合併但不改寫舊檔。
 - `docs/reference/source-checks.jsonl`：低頻頁面檢查結果。
 - `docs/reference/playtest-observations/`：自己的錄影時間點與量測摘要；不提交他人完整影片。
 - `docs/reference/decisions/`：只有會影響設計的整理結論。

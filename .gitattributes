@@ -3,6 +3,9 @@
 /docs/product-plan/handoff/fan-local-asset-whitelist.csv text eol=lf
 /docs/product-plan/handoff/vertical-slice-content-seed.json text eol=lf
 /docs/product-plan/handoff/reference-snapshot-2026-11-17.json text eol=lf
+/docs/product-plan/handoff/reference-snapshot-2026-11-18.json text eol=lf
+/docs/product-plan/handoff/reference-ledger-delta-2026-11-18.csv text eol=lf
+/docs/product-plan/handoff/reference-index.json text eol=lf
 /docs/product-plan/reference-ledger.csv text eol=lf
 
 # Generated table compared byte-for-byte with the generator output (tools/cp949); keep LF on every OS.

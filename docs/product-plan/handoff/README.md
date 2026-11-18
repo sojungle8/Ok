@@ -4,10 +4,10 @@
 
 ## 使用順序
 
-1. 讀 `../00-START-HERE.md` 至 `../09-GITHUB-CLOUD-WORKFLOW.md`；若在 GitHub 雲端工作，以 09 的路徑與驗收覆寫規則為準。
-2. 驗證 `reference-snapshot-2026-11-17.json` 可解析。
+1. 讀 `../00-START-HERE.md` 至 `../10-PUBLIC-VARIANT-INTEGRATION.md`；若在 GitHub 雲端工作，以 09 的路徑與驗收覆寫規則為準，公開版本資料則依 10 的隔離規則。
+2. 驗證 `reference-index.json`，依 `activeSnapshotId` 讀取 active snapshot；不得靠檔名排序猜最新版。
 3. 讀 `public-client-artifacts.csv`，只用 hash 判斷研究版本，不下載對應檔案。
-4. 讀 `../reference-ledger.csv`，只採用 `review_status=reviewed` 的觀察。
+4. 依 `reference-index.json` 讀取全部 ledger segments，跨 segment 檢查 `observation_id` 唯一，只採用 `review_status=reviewed` 的觀察。
 5. Phase 1 前讀 `fan-local-asset-whitelist.csv`；只解析白名單路徑。
 6. 同時讀 `ASSET-AUDIT.md`，依 parser 與 gateway 驗收條件產生證據。
 7. 讀 `VALIDATION.md`，確認交付物 hash 沒有在傳遞途中改變。
@@ -25,7 +25,10 @@
 
 | 檔案 | 狀態 | 用途 |
 | --- | --- | --- |
-| `reference-snapshot-2026-11-17.json` | ready | 官網、攻略、玩家回饋與我方需求的機器可讀快照 |
+| `reference-index.json` | ready-data／schema integration pending | Active snapshot 與 append-only ledger segments 的路徑、bytes、SHA-256 及列數 |
+| `reference-snapshot-2026-11-17.json` | locked／superseded | 第一版官網、攻略、玩家回饋與我方需求快照；保留原 hash，不覆寫 |
+| `reference-snapshot-2026-11-18.json` | active／ready-data | 官方基準、HANS V0.13.5／notice rev 29 與三層 variant 決策的最新快照 |
+| `reference-ledger-delta-2026-11-18.csv` | active／ready-data | 13 筆新增公開觀察；不改寫原 20-row ledger |
 | `public-client-artifacts.csv` | ready | 被分析的公開 client 指紋；不含原始碼 |
 | `ASSET-AUDIT.md` | ready | 首版素材的解包、格式、命名陷阱、地圖與 parser 驗收證據 |
 | `VALIDATION.md` | ready | JSON／CSV／路徑／引用／權利掃描與交付 hash |
