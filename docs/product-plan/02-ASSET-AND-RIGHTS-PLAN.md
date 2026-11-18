@@ -204,6 +204,20 @@ assets/raw-audio/
 
 `unknown-quarantine` 永遠不能進入任何遊戲建置。
 
+## Survivors 技能原創素材例外
+
+正式畫面的角色、怪物／MVP、NPC、地圖、UI、BGM／音效與非技能場景物件仍必須來自白名單內的本機 RO 原素材。為了讓一般 RO 技能能在高密度怪潮中清楚表達，本作只對「倖存者化技能 VFX」開放 `original-project-owned`：投射物、命中動畫、地面效果及技能動畫可以原創，但不能藉此替換人物、怪物、地圖、介面或音樂。
+
+每筆原創技能素材除一般 manifest 欄位外，還必須記錄：
+
+- `owner`、原始作者／委製者、建立日期與可供本專案使用及修改的授權證據；
+- 可編輯來源檔的 Git 外保存位置、輸出檔 SHA-256，以及產生輸出的可重現步驟；
+- `licenseClass: original-project-owned`、對應的技能 ID、用途（projectile／impact／ground-effect／animation）與 `fan-game-adaptation: true`；
+- RO 風格審閱結果：像素密度、有限色盤、輪廓、對比、nearest-neighbour 與大量敵人時的可讀性；
+- 明確聲明不是 RO 官方素材，也不是從 RO Survivors／HANS 的截圖、bundle、影片裁圖或封閉資源衍生。
+
+AI 生成素材仍不得進入正式建置。若使用官方 RO 技能名稱或圖示，manifest 必須把「官方原素材」與「本作原創機制／VFX」分成不同 asset record，避免把改編效果冒充原技能。這項例外在 D-032 鎖定，且不放寬 D-022 的其他素材規則。
+
 # 素材施工流程
 
 ## Step 1 固定來源

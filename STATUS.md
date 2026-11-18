@@ -1,10 +1,15 @@
 # STATUS
 
-Current phase: **Phase 2 — 劍士單人垂直切片: headless game + automated acceptance done; formal-screen play and human/device checks DEFERRED_LOCAL (Phase 2 not complete)**.
-Phase 1 real-asset gates are still DEFERRED_LOCAL (and Phase 2 was started on explicit user instruction before them).
-Phase 1 original assets / RO UI: **RO UI reference/implementation in progress.** Commit A (v2, 174 rows) and UI-A
-(v3, 282 rows; profile `KRO2021_CLASSIC_V0_FAN` DISCOVERED, metrics DEFERRED_LOCAL) are contracts only; UI-B and later
-wait for Codex to mark the profile LOCKED. Real-local verification of both is DEFERRED_LOCAL (`docs/product-plan/ui/README.md`).
+Current phase: **Phase 2 — 劍士單人垂直切片: deterministic game and real-RO formal world running locally; verified-raster RO HUD and human/device acceptance still in progress (Phase 2 not complete)**.
+
+Phase 1 real-asset gate is now **LOCAL_PASS for the pinned KRO 2021 client**: source hashes, 282/282 whitelist audit,
+full extraction and formal desktop/mobile browser smoke passed on 2026-11-18. The run displayed original RO
+`prt_fild08` GND/RSM/water, four-layer Swordsman, 12 monster sets, official shadow and original audio, with no
+placeholder fallback. Derived files and screenshots remain ignored under `.local-assets` / `reports/local`.
+
+RO UI is still **in progress**. All 108 original UI assets are locally verified and extracted; the fail-closed loader
+and verified-raster primitives exist. Profile `KRO2021_CLASSIC_V0_FAN` remains `DISCOVERED` and exact original-client
+placement metrics remain `DEFERRED_LOCAL`; therefore no pixel-identical layout claim is made yet.
 
 ## Phase 2 (cloud) — summary
 
@@ -19,9 +24,11 @@ Evidence: `reports/vertical-slice-acceptance.md` (headless, `pnpm slice:acceptan
 | Settlement closed 20 times mid-way: no duplicate items / XP | CLOUD_PASS (unit, fault injection) + browser: one settlement, reload does not duplicate |
 | A full run with touch only / gamepad only | Simulation CLOUD_PASS via device quantisation; browser: drafts by key / touch tap / gamepad A pass · real devices DEFERRED_LOCAL |
 | Audio buses, voice limits, boss warning priority | Rules CLOUD_PASS (unit) · playback blocked by missing audio rows (GAP-004) |
-| Formal screen (real RO assets) | Blocked until GAP-002 / D-025 confirmation (D-022) |
+| Formal screen (real RO assets) | LOCAL_PASS: desktop and 390×844 browser smoke show original map, four-layer actor, monsters, shadow and audio gate; visible RO HUD completion and human device play remain open |
 
 Balance tuning T-01…T-09 is layered on the seed (D-024); see the acceptance report.
+
+Product rule D-032 is **SPEC_LOCKED / NOT IMPLEMENTED YET**: future jobs may use project-owned RO-style VFX only for redesigned Survivors skills, while characters, monsters/MVPs, NPCs, maps, formal UI and audio remain original-RO-only. Every job must pass the first-60-second area-clear gate and the clear-speed / MVP-damage / survivability / mobility / control balance matrix across multiple seeds. No additional job or skill asset work has started under this rule.
 
 ---
 
@@ -35,19 +42,19 @@ Details, gates and local commands: `reports/phase1/PHASE1-ACCEPTANCE.md`; perfor
 
 | Area | Status |
 | --- | --- |
-| Clean-room parsers (SPR 1.x–2.1, ACT 2.0–2.5, PAL, GAT, GND, RSW 1.2–2.1, GRF 0x200) | CLOUD_PASS on synthetic files · real files DEFERRED_LOCAL |
+| Clean-room parsers (SPR 1.x–2.1, ACT 2.0–2.5, PAL, GAT, GND, RSW 1.2–2.1, GRF 0x200 incl. header-DES/MIXCRYPT) | CLOUD_PASS synthetic · LOCAL_PASS on the pinned real client |
 | Loopback gateway + HttpAssetGatewayClient | CLOUD_PASS (synthetic GRF) |
 | **Formal-screen rule (D-022):** only original RO assets; missing assets stop the game and list canonical paths | CLOUD_PASS: formal build without a gateway is blocked (no world canvas); a formal build refuses a synthetic gateway; unit tests list missing canonical paths (`smoke-A/B.json`, `apps/client/test`) |
-| audit-whitelist / extract --profile fan-local / dev:fan-local | CLOUD_PASS on synthetic sources (48/48 audit) · real DEFERRED_LOCAL |
-| Contact sheets (6 slots × 8 directions, pivot, shadow), UV-mirror dedupe | CLOUD_PASS synthetic · human review of real sheets DEFERRED_LOCAL |
-| Arena: player + 50 Porings, 1 spawn/s, collision, WASD + joystick, RenderSnapshot | CLOUD_PASS (headless; browser run only in the test-fixture build, `smoke-C.json`) |
+| audit-whitelist / extract --profile fan-local / dev:fan-local | LOCAL_PASS: 282/282 real source rows; 351 local derived files; formal gateway/client start successfully |
+| Contact sheets (6 slots × 8 directions, pivot, shadow), UV-mirror dedupe | CLOUD_PASS synthetic; real actor/monster animation rendered in the formal browser, detailed human sheet review still open |
+| Arena: player + 50 Porings, 1 spawn/s, collision, keyboard + mobile pointer joystick, RenderSnapshot | CLOUD_PASS headless/fixture + LOCAL_PASS real formal desktop/mobile smoke; real phone/tablet hardware still open |
 | 15/30/60 FPS identical 60 s hash | CLOUD_PASS (`4dbb7aa405a98e3b`) |
-| prt_fild08 ground textures, RSM models, instanced map props | NOT DONE: not whitelisted (GAP-002). Under D-022 the formal arena stops and lists them |
-| Actor ground shadows | Off: RO shadow sprite not whitelisted (GAP-003) |
+| prt_fild08 ground textures, RSM models, instanced map props | LOCAL_PASS: original GND textures/lightmaps, 23 RSM types / 570 placements, water and dependencies extracted and rendered |
+| Actor ground shadows | LOCAL_PASS: official `shadow.spr/.act`, alpha 128; no drawn ellipse |
 | 250 enemies @60 FPS desktop / phone 30 FPS | Emulated 4x CPU at 30 FPS: pass · real GPU / phone DEFERRED_LOCAL |
 | Derived files only in `.local-assets` | CLOUD_PASS (marker + rights:check tests) |
 
-Test counts: see the latest `pnpm ci:local` / Actions run (105 unit/integration, 71 synthetic at the D-022 change).
+Latest pre-document code gate on Windows: `pnpm ci:local` passed with 34 test files / 368 tests, 17 synthetic files / 183 tests, `rights:check` PASS and 23/23 handoff checks. GitHub Actions run #43 for `1144a06` also succeeded: <https://github.com/sojungle8/Ok/actions/runs/44213231042>.
 
 ---
 
