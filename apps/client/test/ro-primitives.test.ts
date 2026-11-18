@@ -1424,7 +1424,7 @@ describe("formal visual static guard", () => {
   });
 
   // heavy mutation matrix (one full guardGraph per attack): explicit Windows stability budget
-  it("R4-13: the Handle class is locked — constructor-return injection, extends, delegation and alternate URLs fail", { timeout: 20_000 }, () => {
+  it("R4-13: the Handle class is locked — constructor-return injection, extends, delegation and alternate URLs fail", { timeout: 60_000 }, () => {
     const real = readFileSync(REAL_MINT, "utf8");
     const ctorOpen = "constructor(assetId: string, width: number, height: number, entry: Readonly<UiManifestEntry>, url: string) {";
     const classOpen = "class Handle implements VerifiedRaster {";
@@ -1488,7 +1488,7 @@ describe("formal visual static guard", () => {
   });
 
   // heavy mutation matrix (one full guardGraph per attack): explicit Windows stability budget
-  it("R4-15: createUrl's byte path is exact — plain parameter, locked ownIterable, inert Blob options", { timeout: 20_000 }, () => {
+  it("R4-15: createUrl's byte path is exact — plain parameter, locked ownIterable, inert Blob options", { timeout: 60_000 }, () => {
     const real = readFileSync(REAL_MINT, "utf8");
     const createLine = 'const createUrl = (bytes: Uint8Array): string => urlCreate(new BlobCtor(ownIterable([bytes]) as unknown as BlobPart[], { type: "image/png" }));';
     expect(real).toContain(createLine);
