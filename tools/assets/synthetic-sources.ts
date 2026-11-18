@@ -26,7 +26,6 @@ function frameImage(shape: Shape, dir: number, frame: number, group: string): { 
   for (let y = 0; y < shape.h; y += 1) for (let x = 0; x < shape.w; x += 1) indices[y * shape.w + x] = shape.draw(x, y, dir, frame, group);
   return { width: shape.w, height: shape.h, indices };
 }
-
 function body(w: number, h: number, colour: number): Shape {
   return {
     w, h,
@@ -47,7 +46,6 @@ function body(w: number, h: number, colour: number): Shape {
     },
   };
 }
-
 function overlay(w: number, h: number, colour: number, kind: "hair" | "weapon" | "shield"): Shape {
   return {
     w, h,
@@ -200,7 +198,20 @@ export function buildSyntheticSources(dir: string, realRows: readonly WhitelistR
   actVersion.set("ui.cursor.act", "2.5");
 
   const rows: WhitelistRow[] = [];
-  const grfEntries: { rawName: Uint8Array; data: Uint8Array }[] = [];
+  const grfEntries: { rawName: Uint8Array; data: Uint8Array; flags: number }[] = [];
+  // Representative encrypted entries so the full synthetic pipeline exercises GRF 0x200 decryption:
+  // every other ACT is FILE|HEADER (0x05); every other SPR / BMP / PAL / RSM / JPG / WAV is FILE|MIXCRYPT
+  // (0x03); the rest stay plain (0x01), so both paths are covered.
+  const encryptedFlags: Record<string, number> = { act: 0x05, spr: 0x03, bmp: 0x03, pal: 0x03, rsm: 0x03, jpg: 0x03, wav: 0x03 };
+  const seenByExt = new Map<string, number>();
+  const flagsFor = (path: string): number => {
+    const ext = /\.([a-z0-9]+)$/iu.exec(path)?.[1]?.toLowerCase() ?? "";
+    const f = encryptedFlags[ext];
+    if (f === undefined) return 0x01;
+    const n = seenByExt.get(ext) ?? 0;
+    seenByExt.set(ext, n + 1);
+    return n % 2 === 0 ? f : 0x01;
+  };
   let bgm: Uint8Array | null = null;
   const systemFiles: { relPath: string; data: Uint8Array }[] = [];
   for (const r of realRows) {
@@ -217,7 +228,7 @@ export function buildSyntheticSources(dir: string, realRows: readonly WhitelistR
     }
     const data = content.get(r.asset_id);
     if (!data) throw new Error(`no synthetic content for ${r.asset_id}`);
-    grfEntries.push({ rawName: hexToBytes(r.raw_name_hex), data });
+    grfEntries.push({ rawName: hexToBytes(r.raw_name_hex), data, flags: flagsFor(r.canonical_cp949_path) });
     rows.push({ ...r, bytes: data.length, sha256: r.sha256 === "" ? "" : sha(data), act_version: actVersion.get(r.asset_id) ?? r.act_version, act_actions: r.act_actions === "" ? "" : String(Number(r.act_actions)) });
   }
   // Keep the synthetic ACT action counts aligned with the real whitelist counts.

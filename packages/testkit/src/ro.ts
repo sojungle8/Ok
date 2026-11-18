@@ -28,7 +28,6 @@ class Writer {
   zeros(n: number): this { for (let i = 0; i < n; i += 1) this.u8(0); return this; }
   done(): Uint8Array { return Uint8Array.from(this.#parts); }
 }
-
 const ascii = (s: string): Uint8Array => Uint8Array.from([...s].map((c) => c.charCodeAt(0)));
 
 export interface SyntheticSprFrame { width: number; height: number; indices: Uint8Array }
@@ -190,17 +189,123 @@ export function writeRsw(opts: {
   return w.done();
 }
 
-/** GRF 0x200 with zlib-compressed entries; names are raw CP949 byte strings. */
-export function writeGrf(entries: { rawName: Uint8Array; data: Uint8Array; flags?: number }[]): Uint8Array {
+// ---------------------------------------------------------------- GRF entry encryption (test-side)
+// An independent implementation of the GRF 0x200 entry encryption used only to *produce* synthetic
+// ciphertext. It deliberately shares no code with the production decryptor
+// (packages/ro-format-runtime/src/grf-crypt.ts): it works on 64-bit BigInt blocks. The tables are the
+// public FIPS 46-3 DES tables; the transform is Gravity's keyless single-round DES (an involution).
+const T_IP = [58, 50, 42, 34, 26, 18, 10, 2, 60, 52, 44, 36, 28, 20, 12, 4, 62, 54, 46, 38, 30, 22, 14, 6, 64, 56, 48, 40, 32, 24, 16, 8, 57, 49, 41, 33, 25, 17, 9, 1, 59, 51, 43, 35, 27, 19, 11, 3, 61, 53, 45, 37, 29, 21, 13, 5, 63, 55, 47, 39, 31, 23, 15, 7];
+const T_E = [32, 1, 2, 3, 4, 5, 4, 5, 6, 7, 8, 9, 8, 9, 10, 11, 12, 13, 12, 13, 14, 15, 16, 17, 16, 17, 18, 19, 20, 21, 20, 21, 22, 23, 24, 25, 24, 25, 26, 27, 28, 29, 28, 29, 30, 31, 32, 1];
+const T_P = [16, 7, 20, 21, 29, 12, 28, 17, 1, 15, 23, 26, 5, 18, 31, 10, 2, 8, 24, 14, 32, 27, 3, 9, 19, 13, 30, 6, 22, 11, 4, 25];
+const T_S = [
+  "e4d12fb83a6c5907 0f74e2d1a6cb9538 41e8d62bfc973a50 fc8249175b3ea06d",
+  "f18e6b34972dc05a 3d47f28ec01a69b5 0e7ba4d158c6932f d8a13f42b67c05e9",
+  "a09e63f51dc7b428 d709346a285ecbf1 d6498f30b12c5ae7 1ad069874fe3b52c",
+  "7de3069a1285bc4f d8b56f03472c1ae9 a690cb7df13e5284 3f06a1d8945bc72e",
+  "2c417ab6853fd0e9 eb2c47d150fa3986 421bad78f9c5630e b8c71e2d6f09a453",
+  "c1af92680d34e75b af427c9561de0b38 9ef528c3704a1db6 432c95fabe17608d",
+  "4b2ef08d3c975a61 d0b7491ae35c2f86 14bdc37eaf680592 6bd814a7950fe23c",
+  "d2846fb1a93e50c7 1fd8a374c56b0e92 7b419ce206adf358 21e74a8dfc90356b",
+].map((rows) => rows.split(" ").map((r) => [...r].map((c) => parseInt(c, 16))));
+const toBig = (b: Uint8Array, at: number): bigint => {
+  let v = 0n;
+  for (let i = 0; i < 8; i += 1) v = (v << 8n) | BigInt(b[at + i] as number);
+  return v;
+};
+/** Permute: output bit i (MSB first, 1-based) = input bit table[i] of an `inBits`-wide value. */
+const perm = (v: bigint, table: readonly number[], inBits: number): bigint => table.reduce((acc, src) => (acc << 1n) | ((v >> BigInt(inBits - src)) & 1n), 0n);
+function invPerm(table: readonly number[]): number[] {
+  const inv = new Array<number>(table.length);
+  table.forEach((src, i) => {
+    inv[src - 1] = i + 1;
+  });
+  return inv;
+}
+const T_FP = invPerm(T_IP);
+/** The keyless single-round DES transform on one 64-bit block (its own inverse). */
+function gravityDes(block: bigint): bigint {
+  const x = perm(block, T_IP, 64);
+  const l = x >> 32n;
+  const r = x & 0xffffffffn;
+  const e = perm(r, T_E, 32);
+  let s = 0n;
+  for (let k = 0; k < 8; k += 1) {
+    const six = Number((e >> BigInt(42 - k * 6)) & 0x3fn);
+    const row = ((six & 0x20) >> 4) | (six & 1);
+    s = (s << 4n) | BigInt((T_S[k] as number[][])[row]?.[(six >> 1) & 0xf] as number);
+  }
+  const f = perm(s, T_P, 32);
+  return perm(((l ^ f) << 32n) | r, T_FP, 64);
+}
+const SUBST = new Map<number, number>([[0x00, 0x2b], [0x01, 0x68], [0x48, 0x77], [0x60, 0xff], [0x6c, 0x80], [0xb9, 0xc0], [0xeb, 0xfe]].flatMap(([a, b]) => [[a as number, b as number], [b as number, a as number]]));
+/** Synthetic GRF entry encryption (inverse of the reader): "mixcrypt" (flags 0x03) or "header" (0x05). */
+export function encryptGrfEntry(aligned: Uint8Array, mode: "mixcrypt" | "header", compressedSize: number): Uint8Array {
+  if (aligned.length % 8 !== 0) throw new Error("aligned length must be a multiple of 8");
+  const out = new Uint8Array(aligned);
+  const desAt = (i: number) => {
+    const v = gravityDes(toBig(out, i * 8));
+    for (let k = 0; k < 8; k += 1) out[i * 8 + k] = Number((v >> BigInt(56 - k * 8)) & 0xffn);
+  };
+  const n = out.length / 8;
+  for (let i = 0; i < Math.min(20, n); i += 1) desAt(i);
+  if (mode === "header") return out;
+  const digits = `${compressedSize}`.length;
+  const cycle = digits < 3 ? 1 : digits < 5 ? digits + 1 : digits < 7 ? digits + 9 : digits + 15;
+  let j = 0;
+  for (let i = 20; i < n; i += 1) {
+    if (i % cycle === 0) {
+      desAt(i);
+      continue;
+    }
+    if (j > 0 && j % 7 === 0) {
+      // the inverse of the reader's de-shuffle
+      const p = out.slice(i * 8, i * 8 + 8);
+      out.set([p[3], p[4], p[5], p[0], p[1], p[6], p[2], SUBST.get(p[7] as number) ?? p[7]] as number[], i * 8);
+    }
+    j += 1;
+  }
+  return out;
+}
+
+/** One synthetic GRF entry. `flags` 0x03 / 0x05 encrypt; overrides build malformed archives on purpose. */
+export interface GrfEntrySpec {
+  rawName: Uint8Array;
+  data: Uint8Array;
+  flags?: number;
+  /** Store the bytes uncompressed (compressedSize === realSize) instead of deflating them. */
+  store?: boolean;
+  /** Padding bytes appended to reach the aligned size (default zeros). */
+  pad?: number;
+  /** Raw table-field overrides (written as-is; the data blob still follows the normal layout). */
+  override?: Partial<{ compressedSize: number; alignedSize: number; realSize: number; offset: number; flags: number }>;
+  /** Replace the stored blob (after encryption) — e.g. corrupt ciphertext. */
+  mutateBlob?: (blob: Uint8Array) => Uint8Array;
+}
+
+/**
+ * GRF 0x200 archive; names are raw CP949 byte strings. Entries are deflated (or stored with `store`,
+ * and automatically when deflate would not shrink them, so compressedSize === realSize always means
+ * stored bytes). Encrypted entries (flags 0x03 / 0x05) are padded to a multiple of 8 and encrypted with
+ * the independent test-side implementation; the next entry's offset advances by the aligned size.
+ */
+export function writeGrf(entries: GrfEntrySpec[]): Uint8Array {
   const blobs: Uint8Array[] = [];
   const table = new Writer();
   let offset = 0;
   for (const e of entries) {
-    const packed = deflateSync(e.data);
-    const aligned = packed.length;
-    table.bytes(e.rawName).u8(0).u32(packed.length).u32(aligned).u32(e.data.length).u8(e.flags ?? 1).u32(offset);
-    blobs.push(packed);
-    offset += aligned;
+    const flags = e.flags ?? 1;
+    const deflated = e.store ? e.data : deflateSync(e.data);
+    const packed = !e.store && deflated.length >= e.data.length ? e.data : deflated;
+    const encrypted = flags === 0x03 || flags === 0x05;
+    const aligned = encrypted ? Math.ceil(packed.length / 8) * 8 : packed.length;
+    let blob: Uint8Array = new Uint8Array(aligned).fill(e.pad ?? 0);
+    blob.set(packed);
+    if (encrypted) blob = encryptGrfEntry(blob, flags === 0x03 ? "mixcrypt" : "header", packed.length);
+    if (e.mutateBlob) blob = e.mutateBlob(blob);
+    const o = e.override ?? {};
+    table.bytes(e.rawName).u8(0).u32(o.compressedSize ?? packed.length).u32(o.alignedSize ?? aligned).u32(o.realSize ?? e.data.length).u8(o.flags ?? flags).u32(o.offset ?? offset);
+    blobs.push(blob);
+    offset += blob.length;
   }
   const tableBytes = table.done();
   const tablePacked = deflateSync(tableBytes);

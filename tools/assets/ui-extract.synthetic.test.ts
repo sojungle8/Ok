@@ -143,7 +143,7 @@ describe("UI-B1 extraction + FormalUiAssetLoader (synthetic)", () => {
     }
   });
 
-  it("cursor: atlas frames, ACT actions/layers verbatim and UI-A hotspots inside their frames", () => {
+  it("cursor: atlas frames, ACT actions/layers verbatim and pointer origins derived from ACT", () => {
     const { rows, reader, out } = sources();
     runExtraction(rows, reader, out, { identity: identityOf(reader) });
     const spr = JSON.parse(readFileSync(join(out, "ui.cursor.spr.json"), "utf8")) as { frames: { w: number; h: number; index: number }[] };
@@ -161,7 +161,11 @@ describe("UI-B1 extraction + FormalUiAssetLoader (synthetic)", () => {
       const l = a.frames[0]?.layers[0];
       const f = spr.frames[l?.sprIndex ?? -1];
       const h = act.hotspots[i];
-      expect(f && h && h.x >= 0 && h.y >= 0 && h.x < f.w && h.y < f.h, `action ${i}`).toBe(true);
+      expect(h, `action ${i}`).toEqual({
+        action: i,
+        x: Math.round((f?.w ?? 0) / 2 - (l?.x ?? 0)),
+        y: Math.round((f?.h ?? 0) / 2 - (l?.y ?? 0)),
+      });
     });
   });
 
@@ -263,6 +267,9 @@ describe("UI-B1 extraction + FormalUiAssetLoader (synthetic)", () => {
     ["a wrong-action hotspot", "ui.cursor.act.json", (j: Record<string, unknown>) => {
       (j.hotspots as { action: number }[])[13] = { ...(j.hotspots as object[])[13], action: 20 };
     }, "not exactly 0..13"],
+    ["a pointer origin that differs from the ACT", "ui.cursor.act.json", (j: Record<string, unknown>) => {
+      (j.hotspots as { x: number }[])[3] = { ...(j.hotspots as object[])[3], x: 999 };
+    }, "differs from ACT"],
   ] as const)("cursor validation rejects %s", async (_label, file, mutate, reason) => {
     const { rows, reader, out, lock } = sources();
     runExtraction(rows, reader, out, { identity: identityOf(reader) });

@@ -14,6 +14,23 @@ export interface UiManifestReport {
   issues: { assetId: string; container: string; canonicalPath: string; issue: string }[];
 }
 
+/**
+ * Convert each cursor action's first ACT layer into its pointer-origin offset. These offsets are
+ * signed and deliberately are not bounded by the sprite rectangle: the unmodified KRO cursor ACT
+ * uses an off-frame offset for states such as LOCK (for example y=85).
+ */
+export function deriveCursorHotspots(
+  actions: readonly { frames: readonly { layers: readonly { x: number; y: number; sprIndex: number }[] }[] }[],
+  frames: readonly { width: number; height: number }[],
+): { action: number; x: number; y: number }[] {
+  return actions.map((act, i) => {
+    const layer = act.frames[0]?.layers[0];
+    const f = layer ? frames[layer.sprIndex] : undefined;
+    if (!layer || !f) throw new Error(`action ${i}: no first-frame layer with a sprite`);
+    return { action: i, x: Math.round(f.width / 2 - layer.x), y: Math.round(f.height / 2 - layer.y) };
+  });
+}
+
 function bmpHeader(bytes: Uint8Array): { width: number; height: number; bpp: number } {
   if (bytes[0] !== 0x42 || bytes[1] !== 0x4d) throw new Error("BMP signature missing");
   const v = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
@@ -77,16 +94,7 @@ export function buildUiManifest(rows: readonly WhitelistRow[], reader: AssetRead
         if (row.act_version !== "" && a.version !== row.act_version) throw new Error(`ACT ${a.version} != whitelist ${row.act_version}`);
         if (row.act_actions !== "" && a.actions.length !== Number(row.act_actions)) throw new Error(`ACT actions ${a.actions.length} != whitelist ${row.act_actions}`);
         const frames = sprDims.get(row.asset_id.replace(/\.act$/u, "")) ?? [];
-        const hotspots = a.actions.map((act, i) => {
-          const layer = act.frames[0]?.layers[0];
-          const f = layer ? frames[layer.sprIndex] : undefined;
-          if (!layer || !f) throw new Error(`action ${i}: no first-frame layer with a sprite`);
-          // ACT layer offset is the sprite centre relative to the pointer; the hotspot is its inverse.
-          const x = Math.floor(f.width / 2) - layer.x;
-          const y = Math.floor(f.height / 2) - layer.y;
-          if (x < 0 || y < 0 || x >= f.width || y >= f.height) throw new Error(`action ${i}: hotspot (${x},${y}) outside ${f.width}x${f.height}`);
-          return { action: i, x, y };
-        });
+        const hotspots = deriveCursorHotspots(a.actions, frames);
         entry = { ...base, format: "act", native_width: null, native_height: null, cursor_hotspot_or_null: c.role === "cursor" ? hotspots : null, transparent_key_or_alpha_mode: "not-applicable" };
       } else if (ext === "otf") {
         if (String.fromCharCode(...read.bytes.subarray(0, 4)) !== "OTTO") throw new Error("OpenType CFF signature OTTO missing");

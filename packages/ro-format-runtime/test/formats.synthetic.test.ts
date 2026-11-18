@@ -15,7 +15,6 @@ const dirs: { dispose(): void }[] = [];
 afterEach(() => {
   while (dirs.length) dirs.pop()?.dispose();
 });
-
 function indexedFrame(w: number, h: number, seed: number) {
   const indices = syntheticBytes(seed, w * h).map((b) => (b % 5 === 0 ? 0 : b));
   return { width: w, height: h, indices };
@@ -154,22 +153,29 @@ describe("GAT / GND / RSW (synthetic)", () => {
 });
 
 describe("GRF 0x200 (synthetic archive)", () => {
-  it("looks entries up by raw CP949 hex, inflates on demand and refuses encrypted entries", () => {
+  it("looks entries up by raw CP949 hex and reads exact 0x01 / 0x03 / 0x05 entries; 0x07 is refused at read", () => {
     const d = createTempDir("grf-");
     dirs.push(d);
     const n1 = encodeCp949("data\\sprite\\몬스터\\poring.spr");
     const n2 = encodeCp949("data\\prt_fild08.gat");
+    const n3 = encodeCp949("data\\sprite\\mixed.spr");
+    const n4 = encodeCp949("data\\sprite\\header.act");
+    const n5 = encodeCp949("data\\secret.bin");
     const data1 = syntheticBytes(11, 5000);
+    const data3 = syntheticBytes(13, 3000);
+    const data4 = syntheticBytes(14, 700);
     const p = join(d.root, "synthetic.grf");
-    writeFileSync(p, writeGrf([{ rawName: n1, data: data1 }, { rawName: n2, data: syntheticBytes(12, 100) }, { rawName: encodeCp949("data\\secret.bin"), data: syntheticBytes(13, 10), flags: 3 }]));
+    writeFileSync(p, writeGrf([{ rawName: n1, data: data1 }, { rawName: n2, data: syntheticBytes(12, 100) }, { rawName: n3, data: data3, flags: 0x03 }, { rawName: n4, data: data4, flags: 0x05 }, { rawName: n5, data: syntheticBytes(15, 10), flags: 0x07 }]));
     const grf = openGrf(p);
     try {
-      expect(grf.fileCount).toBe(3);
+      expect(grf.fileCount).toBe(5);
       const e = grf.byRawHex.get(bytesToHex(n1));
       expect(e?.name).toBe("data\\sprite\\몬스터\\poring.spr");
       expect([...grf.read(e as never)]).toEqual([...data1]);
-      const enc = grf.byRawHex.get(bytesToHex(encodeCp949("data\\secret.bin")));
-      expect(() => grf.read(enc as never)).toThrow(/encrypted/u);
+      expect([...grf.read(grf.byRawHex.get(bytesToHex(n3)) as never)]).toEqual([...data3]);
+      expect([...grf.read(grf.byRawHex.get(bytesToHex(n4)) as never)]).toEqual([...data4]);
+      // opening succeeds; the unsupported flag is refused lazily, at read, with context
+      expect(() => grf.read(grf.byRawHex.get(bytesToHex(n5)) as never)).toThrow(/flags 0x07\) \[flags\]/u);
     } finally {
       grf.close();
     }

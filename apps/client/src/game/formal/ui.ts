@@ -168,7 +168,8 @@ export async function loadFormalUiAssets(
   }));
 
   // 4. Cursor: atlas rects inside the atlas and unique; every non-empty layer of every frame of every
-  //    action references an atlas frame; hotspots exactly one per action 0..n-1, inside that action's frame.
+  //    action references an atlas frame. Pointer-origin offsets are exactly one per action 0..n-1 and
+  //    must match the official ACT layer. They may intentionally lie outside the sprite rectangle.
   const s = spr as DerivedCursorSpr | null;
   const a = act as DerivedCursorAct | null;
   const atlas = atlasImage as ImageLike | null;
@@ -195,7 +196,10 @@ export async function loadFormalUiAssets(
     for (const h of a.hotspots) {
       const l = a.actions[h.action]?.frames[0]?.layers[0];
       const f = l ? frameOf(l.sprType, l.sprIndex) : undefined;
-      if (!f || h.x < 0 || h.y < 0 || h.x >= f.w || h.y >= f.h) failRow("ui.cursor.act", `action ${h.action}: hotspot (${h.x},${h.y}) outside its frame`);
+      if (!f || !l) continue;
+      const expectedX = Math.round(f.w / 2 - l.x);
+      const expectedY = Math.round(f.h / 2 - l.y);
+      if (h.x !== expectedX || h.y !== expectedY) failRow("ui.cursor.act", `action ${h.action}: pointer origin (${h.x},${h.y}) differs from ACT (${expectedX},${expectedY})`);
     }
   } else {
     if (!s && !missing.some((m) => m.assetId === "ui.cursor.spr")) failRow("ui.cursor.spr", "cursor atlas not loaded");

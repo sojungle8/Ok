@@ -6,7 +6,7 @@ import { createAssetReader } from "@ro-survivor/asset-gateway";
 import { uiManifestSchema } from "@ro-survivor/content-schema";
 import { createTempDir } from "@ro-survivor/testkit";
 import { buildSyntheticSources } from "./synthetic-sources.ts";
-import { buildUiManifest } from "./ui-manifest-lib.ts";
+import { buildUiManifest, deriveCursorHotspots } from "./ui-manifest-lib.ts";
 
 const repoRoot = resolve(import.meta.dirname, "../..");
 const realRows = AssetWhitelist.fromCsv(readFileSync(join(repoRoot, "docs/product-plan/handoff/fan-local-asset-whitelist.csv"), "utf8")).rows();
@@ -26,7 +26,7 @@ function setup() {
 const meta = { lockId: "synthetic", whitelistSha256: "A".repeat(64) };
 
 describe("assets:ui-manifest (synthetic structural fixture)", () => {
-  it("108 UI entries, schema-valid, native sizes equal the declared sizes, cursor hotspots in bounds", () => {
+  it("108 UI entries, schema-valid, native sizes equal the declared sizes, cursor origins derived from ACT", () => {
     const { rows, reader } = setup();
     const { manifest, report } = buildUiManifest(rows, reader, meta);
     expect(report.issues).toEqual([]);
@@ -37,6 +37,11 @@ describe("assets:ui-manifest (synthetic structural fixture)", () => {
     expect(e("ui.cursor.act")?.cursor_hotspot_or_null?.[0]).toEqual({ action: 0, x: 2, y: 3 });
     expect(e("ui.font.scdream4")).toMatchObject({ format: "otf", source_container: "filesystem:System" });
     expect(Object.values(report.categories).reduce((a, c) => a + c.found, 0)).toBe(108);
+  });
+
+  it("keeps an official-style cursor origin outside the sprite instead of rejecting or clamping it", () => {
+    const actions = [{ frames: [{ layers: [{ x: 0, y: -80, sprIndex: 0 }] }] }];
+    expect(deriveCursorHotspots(actions, [{ width: 14, height: 10 }])).toEqual([{ action: 0, x: 7, y: 85 }]);
   });
 
   it("a native size that differs from the declared size is reported with its canonical path", () => {
