@@ -14,6 +14,7 @@ import {
 import { BillboardBatch } from "./renderer.ts";
 import type { SpriteSheet } from "./sprites.ts";
 import type { WorldLayer } from "./terrain.ts";
+import { ENDURE_EFFECT_ID } from "./formal/skillEffects.ts";
 
 /**
  * Renders a RunState read-only. Actors use RO sprite sheets only (D-022). The world (formal: original
@@ -53,7 +54,11 @@ export class RunRenderer {
       this.#shadowScales.set(type, officialShadowScale(content, type));
     }
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: "high-performance" });
-    if (world.skillEffects) canvas.dataset.roSkillFxSource = world.skillEffects.sourceAssetId;
+    if (world.skillEffects) {
+      canvas.dataset.roSkillFxSource = world.skillEffects.sourceAssetId;
+      canvas.dataset.roSkillFxSources = world.skillEffects.sourceAssetIds.join(",");
+      canvas.dataset.roEndureFxSource = world.skillEffects.sourceAssetIds.find((id) => id === ENDURE_EFFECT_ID) ?? "";
+    }
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.setClearColor(0x1d1b18);
     this.#player = new BillboardBatch(player, 1);
@@ -168,8 +173,11 @@ export class RunRenderer {
     this.camera.updateMatrixWorld();
     const right = new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld, 0);
     const up = new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld, 1);
-    this.world.skillEffects?.update(presentMs, this.#heightAt, right, up, this.settings.effectOpacity);
-    if (this.world.skillEffects) this.renderer.domElement.dataset.roSkillFxActive = String(this.world.skillEffects.activeCount);
+    this.world.skillEffects?.update(presentMs, p.x, p.y, this.#heightAt, right, up, this.settings.effectOpacity);
+    if (this.world.skillEffects) {
+      this.renderer.domElement.dataset.roSkillFxActive = String(this.world.skillEffects.shieldWaveActiveCount);
+      this.renderer.domElement.dataset.roEndureFxActive = String(this.world.skillEffects.endureActiveCount);
+    }
     const playerAnimation = this.#presentation.playerAnimation(st, presentMs, presentMs);
     this.#player.set(0, px, py, pz, playerAnimation.slot, dir(p.fx, p.fy), playerAnimation.timeMs);
     this.#player.commit(1, right, up);
@@ -268,7 +276,10 @@ export class RunRenderer {
     this.#overlay?.dispose();
     this.world.dispose();
     delete this.renderer.domElement.dataset.roSkillFxSource;
+    delete this.renderer.domElement.dataset.roSkillFxSources;
     delete this.renderer.domElement.dataset.roSkillFxActive;
+    delete this.renderer.domElement.dataset.roEndureFxSource;
+    delete this.renderer.domElement.dataset.roEndureFxActive;
     this.renderer.dispose();
   }
 }

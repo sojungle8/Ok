@@ -34,8 +34,19 @@ try {
   playwright = createRequire(import.meta.url)("playwright");
 } catch {
   const bundledRoot = resolve(dirname(process.execPath), "../node_modules");
+  const npmCli = [
+    join(dirname(process.execPath), "node_modules/npm/bin/npm-cli.js"),
+    resolve(dirname(process.execPath), "../lib/node_modules/npm/bin/npm-cli.js"),
+    resolve(dirname(process.execPath), "../node_modules/npm/bin/npm-cli.js"),
+  ].find((candidate) => existsSync(candidate));
+  const npmGlobalRoot = () => {
+    if (!npmCli) {
+      throw new Error("formal-local: cannot locate npm-cli.js; set PLAYWRIGHT_GLOBAL_ROOT to the directory containing playwright");
+    }
+    return execFileSync(node24, [npmCli, "root", "-g"], { encoding: "utf8" }).trim();
+  };
   const globalRoot = process.env.PLAYWRIGHT_GLOBAL_ROOT
-    ?? (existsSync(join(bundledRoot, "playwright")) ? bundledRoot : execFileSync("npm", ["root", "-g"], { encoding: "utf8" }).trim());
+    ?? (existsSync(join(bundledRoot, "playwright")) ? bundledRoot : npmGlobalRoot());
   playwright = createRequire(join(globalRoot, "noop.js"))("playwright");
 }
 
@@ -341,7 +352,73 @@ try {
       null,
       { timeout: 10_000 },
     );
-    await page.waitForTimeout(1800);
+
+    // Endure uses its own deterministic skill event and the verified original 64x64 TGA-derived
+    // image. It follows the live player position, then the bounded presentation must expire.
+    const endureFxSource = await page.getByTestId("world").getAttribute("data-ro-endure-fx-source");
+    await page.waitForFunction(
+      () => Number(document.querySelector('[data-testid="world"]')?.getAttribute("data-ro-endure-fx-active") ?? "0") === 0,
+      null,
+      { timeout: 10_000 },
+    );
+    const endureProbe = await page.evaluate(() => {
+      const state = window.__run?.();
+      if (!state) return { injected: false };
+      window.__roEndureProbeRestore = {
+        active: structuredClone(state.player.active),
+        passive: structuredClone(state.player.passive),
+        keystone: state.player.keystone,
+        basicReadyAt: state.player.basicReadyAt,
+        basicHitAt: state.player.basicHitAt,
+        castSlot: state.player.castSlot,
+        castEndAt: state.player.castEndAt,
+        castDx: state.player.castDx,
+        castDy: state.player.castDy,
+        lastDamagedTick: state.player.lastDamagedTick,
+        endureUntil: state.player.endureUntil,
+        endureReduction: state.player.endureReduction,
+      };
+      state.player.active = [{ id: "skill.sw.endure", rank: 3, readyAt: state.runTick }];
+      state.player.passive = [];
+      state.player.keystone = null;
+      state.player.basicReadyAt = Number.MAX_SAFE_INTEGER;
+      state.player.basicHitAt = -1;
+      state.player.castSlot = -1;
+      state.player.lastDamagedTick = state.runTick;
+      return { injected: true };
+    });
+    await page.waitForFunction(
+      () => Number(document.querySelector('[data-testid="world"]')?.getAttribute("data-ro-endure-fx-active") ?? "0") > 0,
+      null,
+      { timeout: 10_000 },
+    );
+    // The source-alpha cue intentionally fades in from zero. Wait past the transparent first frame
+    // before taking visual evidence, then prove that its single bounded slot is still active.
+    await page.waitForTimeout(220);
+    await page.waitForFunction(
+      () => Number(document.querySelector('[data-testid="world"]')?.getAttribute("data-ro-endure-fx-active") ?? "0") === 1,
+      null,
+      { timeout: 10_000 },
+    );
+    const endureFxEvidence = await page.evaluate(() => ({
+      active: Number(document.querySelector('[data-testid="world"]')?.getAttribute("data-ro-endure-fx-active") ?? "0"),
+    }));
+    const endureFxScreenshot = join(out, `formal-${viewport.tag}-endure.png`);
+    await page.screenshot({ path: endureFxScreenshot });
+    await page.evaluate(() => {
+      const state = window.__run?.();
+      const restore = window.__roEndureProbeRestore;
+      if (!state || !restore) return;
+      Object.assign(state.player, structuredClone(restore));
+      delete window.__roEndureProbeRestore;
+    });
+    await page.waitForFunction(
+      () => Number(document.querySelector('[data-testid="world"]')?.getAttribute("data-ro-endure-fx-active") ?? "0") === 0,
+      null,
+      { timeout: 10_000 },
+    );
+    const endureExpired = true;
+    await page.waitForTimeout(900);
 
     const surface = {
       world: await page.getByTestId("world").count(),
@@ -394,6 +471,10 @@ try {
       && shieldProbe.enemyCount === 3
       && shieldFxEvidence.active > 0
       && shieldFxEvidence.hitDamage > 0
+      && endureFxSource === "effect.skill.sw.endure"
+      && endureProbe.injected === true
+      && endureFxEvidence.active === 1
+      && endureExpired
       && mobileControl.count === 1
       && mobileControl.visible === viewport.touch
       && mobileControl.coarsePointer === viewport.touch
@@ -418,7 +499,7 @@ try {
       && layout.overlapPairs.length === 0
       && layout.noPageOverflow
       && errors.length === 0;
-    results.push({ viewport: viewport.tag, size: `${viewport.width}x${viewport.height}`, buildId, moved, audioStarted, shieldFxSource, shieldProbe, shieldFxEvidence, mobileControl, shellLayouts, surface, draftLayout, layout, canceledRequests, errors, draftScreenshot: draftScreenshot.slice(root.length + 1), shieldFxScreenshot: shieldFxScreenshot.slice(root.length + 1), screenshot: screenshot.slice(root.length + 1), status: pass ? "PASS" : "FAIL" });
+    results.push({ viewport: viewport.tag, size: `${viewport.width}x${viewport.height}`, buildId, moved, audioStarted, shieldFxSource, shieldProbe, shieldFxEvidence, endureFxSource, endureProbe, endureFxEvidence, endureExpired, mobileControl, shellLayouts, surface, draftLayout, layout, canceledRequests, errors, draftScreenshot: draftScreenshot.slice(root.length + 1), shieldFxScreenshot: shieldFxScreenshot.slice(root.length + 1), endureFxScreenshot: endureFxScreenshot.slice(root.length + 1), screenshot: screenshot.slice(root.length + 1), status: pass ? "PASS" : "FAIL" });
     await context.close();
   }
 } finally {

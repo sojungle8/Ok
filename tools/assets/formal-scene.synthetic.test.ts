@@ -117,6 +117,7 @@ describe("formal scene loader on the real derived contract (synthetic sources)",
   it.each([
     ["effect.skill.sw.shield_wave.projectile.png", "effect.skill.sw.shield_wave.projectile"],
     ["effect.skill.sw.endure.json", "effect.skill.sw.endure"],
+    ["effect.skill.sw.endure.png", "effect.skill.sw.endure"],
   ])("a missing official effect output %s blocks the world by canonical source path", async (file, id) => {
     const { client, whitelist, out } = await setup();
     rmSync(join(out, file));

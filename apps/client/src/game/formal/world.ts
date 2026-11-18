@@ -68,7 +68,7 @@ export class FormalWorld implements WorldLayer {
     this.#data = data;
     this.heightAt = gatHeightAt(gat);
     this.skillEffects = new OfficialSkillEffectLayer(data, makeTexture);
-    this.object.add(this.skillEffects.mesh);
+    this.object.add(this.skillEffects.object);
     const tex = new Map<string, THREE.Texture>();
     const textureOf = (id: string): THREE.Texture => {
       let t = tex.get(id);
@@ -169,7 +169,7 @@ export class FormalWorld implements WorldLayer {
   }
 
   dispose(): void {
-    this.object.remove(this.skillEffects.mesh);
+    this.object.remove(this.skillEffects.object);
     this.skillEffects.dispose();
     this.object.traverse((o) => {
       if (o instanceof THREE.Mesh) {

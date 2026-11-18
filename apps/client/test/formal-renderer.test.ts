@@ -15,7 +15,7 @@ import {
 } from "../src/game/formal/contract.ts";
 import type { FormalSceneData } from "../src/game/formal/load.ts";
 import { FormalWorld, OfficialShadowLayer, type TextureFactory } from "../src/game/formal/world.ts";
-import { SHIELD_WAVE_EFFECT_ID } from "../src/game/formal/skillEffects.ts";
+import { ENDURE_EFFECT_ID, SHIELD_WAVE_EFFECT_ID } from "../src/game/formal/skillEffects.ts";
 import type { SheetData } from "../src/game/sprites.ts";
 
 // Minimal golden derived contract (2×2 GND, one model placed twice, 32 water frames, one sound).
@@ -61,6 +61,13 @@ const shieldEffect: DerivedSkillEffectTexture = {
   alpha: { mode: "ro-color-key", keyedPixels: 1 },
   derived: { file: `${SHIELD_WAVE_EFFECT_ID}.png`, sha256: "4".repeat(64), width: 64, height: 64 }, filter: "nearest",
 };
+const endureEffect: DerivedSkillEffectTexture = {
+  rights: "fan-local-derived", converterVersion: 3, assetId: ENDURE_EFFECT_ID,
+  source: { canonicalPath: "data\\texture\\effect\\endure.tga", bytes: 16428, sha256: "5".repeat(64) },
+  kind: "texture", format: "tga", width: 64, height: 64, bitsPerPixel: 32,
+  alpha: { mode: "source-alpha" },
+  derived: { file: `${ENDURE_EFFECT_ID}.png`, sha256: "6".repeat(64), width: 64, height: 64 }, filter: "nearest",
+};
 function data(): FormalSceneData {
   const models = new Map([["model.m", model]]);
   const images = new Map<string, { width: number; height: number; tag: string }>([
@@ -71,7 +78,8 @@ function data(): FormalSceneData {
     scene, gnd, ground: buildGroundBuffers(gnd), models, baked: new Map([["model.m", bakeModel(model)]]), instances: buildModelInstances(scene, gnd, models),
     shadow, shadowParams: shadowParams(shadow), sounds: soundPlacements(scene, gnd), images,
     water: new Map(frames.map((f) => [f, img(128, 128, f)])), waterCells: buildWaterBuffers(gnd, 1), audio: new Map([["bgm.prt_fild08", new ArrayBuffer(4)], ["wav.1", new ArrayBuffer(4)]]),
-    effects: new Map([[SHIELD_WAVE_EFFECT_ID, shieldEffect]]), effectImages: new Map([[SHIELD_WAVE_EFFECT_ID, img(64, 64, "shield-wave")]]),
+    effects: new Map([[SHIELD_WAVE_EFFECT_ID, shieldEffect], [ENDURE_EFFECT_ID, endureEffect]]),
+    effectImages: new Map([[SHIELD_WAVE_EFFECT_ID, img(64, 64, "shield-wave")], [ENDURE_EFFECT_ID, img(64, 64, "endure")]]),
   };
 }
 const gat = { width: 4, height: 4, types: "0".repeat(16), cellHeights: new Array<number>(16).fill(0) };
@@ -110,6 +118,8 @@ describe("formal ground: GND texture UVs + vertex colour + embedded lightmap (st
     expect(JSON.stringify(w.object.children.map((c) => c.userData))).not.toContain("fixture");
     expect(w.skillEffects.sourceAssetId).toBe(SHIELD_WAVE_EFFECT_ID);
     expect(w.skillEffects.mesh.userData).toMatchObject({ formal: "skill-effect", sourceAssetId: SHIELD_WAVE_EFFECT_ID });
+    expect(w.skillEffects.endureMesh.userData).toMatchObject({ formal: "skill-effect", sourceAssetId: ENDURE_EFFECT_ID });
+    expect(w.skillEffects.object.children).toEqual([w.skillEffects.mesh, w.skillEffects.endureMesh]);
   });
 });
 

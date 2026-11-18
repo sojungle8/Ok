@@ -4,9 +4,13 @@ import type { GroundData } from "./renderer.ts";
 
 export interface WorldSkillEffectLayer {
   readonly sourceAssetId: string;
+  readonly sourceAssetIds: readonly string[];
+  readonly object: THREE.Object3D;
   readonly activeCount: number;
+  readonly shieldWaveActiveCount: number;
+  readonly endureActiveCount: number;
   ingest(events: readonly RunEvent[], nowMs: number): void;
-  update(nowMs: number, heightAt: (xm: number, ym: number) => number, right: THREE.Vector3, up: THREE.Vector3, effectOpacity: number): void;
+  update(nowMs: number, playerXmm: number, playerYmm: number, heightAt: (xm: number, ym: number) => number, right: THREE.Vector3, up: THREE.Vector3, effectOpacity: number): void;
   dispose(): void;
 }
 

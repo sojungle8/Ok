@@ -1,13 +1,18 @@
 import * as THREE from "three";
+import type { DerivedSkillEffectTexture } from "@ro-survivor/asset-contracts";
 import type { RunEvent } from "@ro-survivor/core-sim";
 import type { WorldSkillEffectLayer } from "../terrain.ts";
-import type { FormalSceneData } from "./load.ts";
+import type { FormalSceneData, ImageLike } from "./load.ts";
 import type { TextureFactory } from "./world.ts";
 
 export const SHIELD_WAVE_EFFECT_ID = "effect.skill.sw.shield_wave.projectile";
 export const SHIELD_WAVE_CAPACITY = 32;
 export const SHIELD_WAVE_MAX_PER_CAST = 10;
+export const ENDURE_EFFECT_ID = "effect.skill.sw.endure";
+export const ENDURE_CAPACITY = 1;
+export const ENDURE_DURATION_MS = 900;
 const SHIELD_WAVE_SOURCE = "skill.sw.shield_wave";
+const ENDURE_SOURCE = "skill.sw.endure";
 const TICK_MS = 1000 / 60;
 
 export interface ShieldWaveCue {
@@ -32,6 +37,18 @@ export interface ShieldWaveSample {
   visible: boolean;
 }
 
+export interface EndureCue {
+  geomId: string;
+  startMs: number;
+  endMs: number;
+}
+
+export interface EndureSample {
+  opacity: number;
+  scale: number;
+  visible: boolean;
+}
+
 function normalizedDirection(x: number, y: number): [number, number] {
   const length = Math.hypot(x, y);
   return length > 0 ? [x / length, y / length] : [0, -1];
@@ -53,6 +70,19 @@ export function sampleShieldWaveCue(cue: ShieldWaveCue, nowMs: number): ShieldWa
     arcM: 0.35 * 4 * progress * (1 - progress),
     rotation: cue.spinPhase + progress * Math.PI * 4,
     opacity: fade,
+    visible: nowMs >= cue.startMs && nowMs < cue.endMs,
+  };
+}
+
+/** Short, independent cast presentation; authoritative buff duration remains simulation-only. */
+export function sampleEndureCue(cue: EndureCue, nowMs: number): EndureSample {
+  const duration = Math.max(1, cue.endMs - cue.startMs);
+  const progress = Math.max(0, Math.min(1, (nowMs - cue.startMs) / duration));
+  const fadeIn = Math.min(1, progress / 0.15);
+  const fadeOut = Math.min(1, (1 - progress) / 0.25);
+  return {
+    opacity: Math.max(0, Math.min(fadeIn, fadeOut)),
+    scale: 0.85 + Math.sin(progress * Math.PI) * 0.2,
     visible: nowMs >= cue.startMs && nowMs < cue.endMs,
   };
 }
@@ -114,6 +144,37 @@ export class ShieldWavePresentation {
   }
 }
 
+/** A single player-bound Endure cue. A new authoritative cast refreshes the one bounded slot. */
+export class EndurePresentation {
+  cue: EndureCue | null = null;
+  #lastEvents: readonly RunEvent[] | null = null;
+
+  ingest(events: readonly RunEvent[], nowMs: number): void {
+    if (events === this.#lastEvents) {
+      this.prune(nowMs);
+      return;
+    }
+    this.#lastEvents = events;
+    const casts = events.filter((event): event is Extract<RunEvent, { type: "skill" }> => event.type === "skill" && event.source === ENDURE_SOURCE);
+    if (casts.length > 0) {
+      const maxTick = events.reduce((max, event) => Math.max(max, event.tick), 0);
+      const cast = casts.reduce((latest, candidate) => candidate.tick >= latest.tick ? candidate : latest);
+      const startMs = nowMs - Math.max(0, maxTick - cast.tick) * TICK_MS;
+      this.cue = { geomId: cast.geomId, startMs, endMs: startMs + ENDURE_DURATION_MS };
+    }
+    this.prune(nowMs);
+  }
+
+  prune(nowMs: number): void {
+    if (this.cue && nowMs >= this.cue.endMs) this.cue = null;
+  }
+
+  clear(): void {
+    this.cue = null;
+    this.#lastEvents = null;
+  }
+}
+
 const EFFECT_VERT = /* glsl */ `
 attribute float aRotation;
 attribute float aOpacity;
@@ -145,63 +206,137 @@ void main() {
   #include <colorspace_fragment>
 }`;
 
-/** One original-RO texture, one instanced draw, no per-cast GPU resource creation. */
-export class OfficialSkillEffectLayer implements WorldSkillEffectLayer {
-  readonly sourceAssetId = SHIELD_WAVE_EFFECT_ID;
-  readonly mesh: THREE.InstancedMesh;
-  readonly material: THREE.ShaderMaterial;
-  readonly presentation = new ShieldWavePresentation();
-  readonly #rotation: THREE.InstancedBufferAttribute;
-  readonly #opacity: THREE.InstancedBufferAttribute;
-  readonly #texture: THREE.Texture;
-  readonly #matrix = new THREE.Matrix4();
-  #disposed = false;
+interface EffectGpu {
+  mesh: THREE.InstancedMesh;
+  material: THREE.ShaderMaterial;
+  rotation: THREE.InstancedBufferAttribute;
+  opacity: THREE.InstancedBufferAttribute;
+  texture: THREE.Texture;
+}
 
-  constructor(data: FormalSceneData, makeTexture: TextureFactory) {
-    const meta = data.effects.get(SHIELD_WAVE_EFFECT_ID);
-    const image = data.effectImages.get(SHIELD_WAVE_EFFECT_ID);
-    if (!meta || meta.kind !== "texture" || meta.format !== "bmp") throw new Error(`${SHIELD_WAVE_EFFECT_ID}: verified BMP metadata not loaded`);
-    const textureMeta = meta;
-    if (textureMeta.width !== 64 || textureMeta.height !== 64 || image?.width !== 64 || image.height !== 64) {
-      throw new Error(`${SHIELD_WAVE_EFFECT_ID}: expected verified 64x64 image`);
-    }
-    this.#texture = makeTexture(image, {});
-    const geometry = new THREE.PlaneGeometry(1, 1);
-    this.#rotation = new THREE.InstancedBufferAttribute(new Float32Array(SHIELD_WAVE_CAPACITY), 1);
-    this.#opacity = new THREE.InstancedBufferAttribute(new Float32Array(SHIELD_WAVE_CAPACITY), 1);
-    for (const attribute of [this.#rotation, this.#opacity]) attribute.setUsage(THREE.DynamicDrawUsage);
-    geometry.setAttribute("aRotation", this.#rotation);
-    geometry.setAttribute("aOpacity", this.#opacity);
-    this.material = new THREE.ShaderMaterial({
+function requireTexture(
+  data: FormalSceneData,
+  assetId: string,
+  expected: { format: "bmp" | "tga"; bitsPerPixel: 24 | 32; alpha: "ro-color-key" | "source-alpha" },
+): { meta: DerivedSkillEffectTexture; image: ImageLike } {
+  const meta = data.effects.get(assetId);
+  const image = data.effectImages.get(assetId);
+  if (!meta || meta.kind !== "texture" || meta.format !== expected.format) {
+    throw new Error(`${assetId}: verified ${expected.format.toUpperCase()} metadata not loaded`);
+  }
+  if (meta.bitsPerPixel !== expected.bitsPerPixel || meta.alpha.mode !== expected.alpha) {
+    throw new Error(`${assetId}: verified ${expected.bitsPerPixel}-bit ${expected.alpha} metadata required`);
+  }
+  if (meta.width !== 64 || meta.height !== 64 || image?.width !== 64 || image.height !== 64) {
+    throw new Error(`${assetId}: expected verified 64x64 image`);
+  }
+  return { meta, image };
+}
+
+function createEffectGpu(meta: DerivedSkillEffectTexture, image: ImageLike, capacity: number, makeTexture: TextureFactory, assetId: string): EffectGpu {
+  const texture = makeTexture(image, {});
+  let geometry: THREE.PlaneGeometry | null = null;
+  let material: THREE.ShaderMaterial | null = null;
+  try {
+    geometry = new THREE.PlaneGeometry(1, 1);
+    const rotation = new THREE.InstancedBufferAttribute(new Float32Array(capacity), 1);
+    const opacity = new THREE.InstancedBufferAttribute(new Float32Array(capacity), 1);
+    for (const attribute of [rotation, opacity]) attribute.setUsage(THREE.DynamicDrawUsage);
+    geometry.setAttribute("aRotation", rotation);
+    geometry.setAttribute("aOpacity", opacity);
+    material = new THREE.ShaderMaterial({
       vertexShader: EFFECT_VERT,
       fragmentShader: EFFECT_FRAG,
       uniforms: {
-        uMap: { value: this.#texture },
+        uMap: { value: texture },
         uRight: { value: new THREE.Vector3(1, 0, 0) },
         uUp: { value: new THREE.Vector3(0, 1, 0) },
-        uSize: { value: new THREE.Vector2(textureMeta.width * 0.025, textureMeta.height * 0.025) },
+        uSize: { value: new THREE.Vector2(meta.width * 0.025, meta.height * 0.025) },
       },
       transparent: true,
       depthWrite: false,
     });
-    this.mesh = new THREE.InstancedMesh(geometry, this.material, SHIELD_WAVE_CAPACITY);
-    this.mesh.count = 0;
-    this.mesh.renderOrder = 6;
-    this.mesh.frustumCulled = false;
-    this.mesh.userData = { formal: "skill-effect", sourceAssetId: SHIELD_WAVE_EFFECT_ID };
+    const mesh = new THREE.InstancedMesh(geometry, material, capacity);
+    mesh.count = 0;
+    mesh.renderOrder = 6;
+    mesh.frustumCulled = false;
+    mesh.userData = { formal: "skill-effect", sourceAssetId: assetId };
+    return { mesh, material, rotation, opacity, texture };
+  } catch (err) {
+    geometry?.dispose();
+    material?.dispose();
+    texture.dispose();
+    throw err;
+  }
+}
+
+/** Two verified original-RO textures in two bounded instanced draws; no per-cast GPU allocation. */
+export class OfficialSkillEffectLayer implements WorldSkillEffectLayer {
+  readonly sourceAssetId = SHIELD_WAVE_EFFECT_ID;
+  readonly sourceAssetIds = [SHIELD_WAVE_EFFECT_ID, ENDURE_EFFECT_ID] as const;
+  readonly object = new THREE.Group();
+  readonly mesh: THREE.InstancedMesh;
+  readonly material: THREE.ShaderMaterial;
+  readonly endureMesh: THREE.InstancedMesh;
+  readonly endureMaterial: THREE.ShaderMaterial;
+  readonly presentation = new ShieldWavePresentation();
+  readonly endurePresentation = new EndurePresentation();
+  readonly #rotation: THREE.InstancedBufferAttribute;
+  readonly #opacity: THREE.InstancedBufferAttribute;
+  readonly #texture: THREE.Texture;
+  readonly #endureOpacity: THREE.InstancedBufferAttribute;
+  readonly #endureTexture: THREE.Texture;
+  readonly #matrix = new THREE.Matrix4();
+  #disposed = false;
+
+  constructor(data: FormalSceneData, makeTexture: TextureFactory) {
+    const shieldSource = requireTexture(data, SHIELD_WAVE_EFFECT_ID, { format: "bmp", bitsPerPixel: 24, alpha: "ro-color-key" });
+    const endureSource = requireTexture(data, ENDURE_EFFECT_ID, { format: "tga", bitsPerPixel: 32, alpha: "source-alpha" });
+    const shield = createEffectGpu(shieldSource.meta, shieldSource.image, SHIELD_WAVE_CAPACITY, makeTexture, SHIELD_WAVE_EFFECT_ID);
+    let endure: EffectGpu;
+    try {
+      endure = createEffectGpu(endureSource.meta, endureSource.image, ENDURE_CAPACITY, makeTexture, ENDURE_EFFECT_ID);
+    } catch (err) {
+      shield.mesh.geometry.dispose();
+      shield.material.dispose();
+      shield.texture.dispose();
+      throw err;
+    }
+    this.mesh = shield.mesh;
+    this.material = shield.material;
+    this.#rotation = shield.rotation;
+    this.#opacity = shield.opacity;
+    this.#texture = shield.texture;
+    this.endureMesh = endure.mesh;
+    this.endureMaterial = endure.material;
+    this.#endureOpacity = endure.opacity;
+    this.#endureTexture = endure.texture;
+    this.object.add(this.mesh, this.endureMesh);
   }
 
   get activeCount(): number {
+    return this.mesh.count + this.endureMesh.count;
+  }
+
+  get shieldWaveActiveCount(): number {
     return this.mesh.count;
   }
 
-  ingest(events: readonly RunEvent[], nowMs: number): void {
-    if (!this.#disposed) this.presentation.ingest(events, nowMs);
+  get endureActiveCount(): number {
+    return this.endureMesh.count;
   }
 
-  update(nowMs: number, heightAt: (xm: number, ym: number) => number, right: THREE.Vector3, up: THREE.Vector3, effectOpacity: number): void {
+  ingest(events: readonly RunEvent[], nowMs: number): void {
+    if (this.#disposed) return;
+    this.presentation.ingest(events, nowMs);
+    this.endurePresentation.ingest(events, nowMs);
+  }
+
+  update(nowMs: number, playerXmm: number, playerYmm: number, heightAt: (xm: number, ym: number) => number, right: THREE.Vector3, up: THREE.Vector3, effectOpacity: number): void {
     if (this.#disposed) return;
     this.presentation.prune(nowMs);
+    this.endurePresentation.prune(nowMs);
+    const boundedOpacity = Math.max(0.2, Math.min(1, effectOpacity));
     let count = 0;
     for (const cue of this.presentation.cues) {
       if (count >= SHIELD_WAVE_CAPACITY) break;
@@ -212,7 +347,7 @@ export class OfficialSkillEffectLayer implements WorldSkillEffectLayer {
       this.#matrix.makeTranslation(xm, heightAt(xm, ym) + 0.9 + sample.arcM, -ym);
       this.mesh.setMatrixAt(count, this.#matrix);
       this.#rotation.setX(count, sample.rotation);
-      this.#opacity.setX(count, sample.opacity * Math.max(0.2, Math.min(1, effectOpacity)));
+      this.#opacity.setX(count, sample.opacity * boundedOpacity);
       count += 1;
     }
     this.mesh.count = count;
@@ -221,15 +356,36 @@ export class OfficialSkillEffectLayer implements WorldSkillEffectLayer {
     this.#opacity.needsUpdate = true;
     (this.material.uniforms.uRight as { value: THREE.Vector3 }).value.copy(right);
     (this.material.uniforms.uUp as { value: THREE.Vector3 }).value.copy(up);
+
+    const endureCue = this.endurePresentation.cue;
+    const endureSample = endureCue ? sampleEndureCue(endureCue, nowMs) : null;
+    if (endureSample?.visible) {
+      const xm = playerXmm / 1000;
+      const ym = playerYmm / 1000;
+      this.#matrix.makeTranslation(xm, heightAt(xm, ym) + 0.9, -ym);
+      this.endureMesh.setMatrixAt(0, this.#matrix);
+      this.#endureOpacity.setX(0, endureSample.opacity * boundedOpacity);
+      (this.endureMaterial.uniforms.uSize as { value: THREE.Vector2 }).value.setScalar(64 * 0.025 * endureSample.scale);
+      this.endureMesh.count = 1;
+    } else this.endureMesh.count = 0;
+    this.endureMesh.instanceMatrix.needsUpdate = true;
+    this.#endureOpacity.needsUpdate = true;
+    (this.endureMaterial.uniforms.uRight as { value: THREE.Vector3 }).value.copy(right);
+    (this.endureMaterial.uniforms.uUp as { value: THREE.Vector3 }).value.copy(up);
   }
 
   dispose(): void {
     if (this.#disposed) return;
     this.#disposed = true;
     this.presentation.clear();
+    this.endurePresentation.clear();
     this.mesh.count = 0;
+    this.endureMesh.count = 0;
+    this.object.remove(this.mesh, this.endureMesh);
     this.mesh.geometry.dispose();
+    this.endureMesh.geometry.dispose();
     this.material.dispose();
-    this.#texture.dispose();
+    this.endureMaterial.dispose();
+    for (const texture of new Set([this.#texture, this.#endureTexture])) texture.dispose();
   }
 }

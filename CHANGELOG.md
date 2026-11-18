@@ -15,6 +15,11 @@
   sources; the unparsed STR stays explicitly source-only. Shield Wave is the first connected formal effect: its
   verified 64×64 Shield Boomerang bitmap follows authoritative cast/hit geometry in one bounded instanced renderer
   (10 per cast, 32 total). The four-viewport local gate observes three rendered instances and an actual hit in each run.
+- Endure is the second connected canonical-v5 formal effect. Its verified original 64×64, 32-bit source-alpha TGA
+  follows the current player in one bounded slot; a newer deterministic Endure event refreshes that slot. The
+  independently implemented 900 ms pulse/fade is presentation-only and does not add or redefine a gameplay buff
+  duration, damage or balance rule. The four-viewport real-local gate observes the exact source, one active instance
+  and expiry back to zero.
 - Formal character selection now previews the locally derived original four-layer male Swordsman idle animation
   (body, hair, sword and guard) before loading the map. Its ten sources, palette/layer contract, atlas hash, decoded
   dimensions and 96×108 crop all fail closed; missing or clipped original frames never receive a substitute.

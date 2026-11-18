@@ -16,7 +16,8 @@ placeholder fallback. Derived files and screenshots remain ignored under `.local
 The 12 new original-RO skill-effect sources (7 TGA, 1 STR, 4 BMP) are verified and required. Converter v3 completes
 the real-local extraction/load path (374 outputs overall; 12 effect metadata records and 11 derived PNGs; STR remains
 explicitly source-only). Shield Wave is **LOCAL_PASS** with the verified 64×64 Shield Boomerang bitmap and a bounded
-clean-room motion renderer; Endure, Bash, Magnum Break and Provoke rendering remain open.
+clean-room motion renderer. Endure is also **LOCAL_PASS** with the verified 64×64 source-alpha TGA in one
+player-following slot and a 900 ms presentation-only pulse/fade. Bash, Magnum Break and Provoke rendering remain open.
 
 RO UI is still **in progress**, with the visible run HUD, formal level-up/keystone draft and results window now
 **LOCAL_PASS** (`reports/phase1/UI-B3-LOCAL-ACCEPTANCE.md`, `reports/phase1/UI-B4-DRAFT-LOCAL-ACCEPTANCE.md`,
@@ -46,7 +47,7 @@ Evidence: `reports/vertical-slice-acceptance.md` (headless, `pnpm slice:acceptan
 | Settlement closed 20 times mid-way: no duplicate items / XP | CLOUD_PASS (unit, fault injection) + browser: one settlement, reload does not duplicate |
 | A full run with touch only / gamepad only | Simulation CLOUD_PASS via device quantisation; browser: drafts by key / touch tap / gamepad A pass · real devices DEFERRED_LOCAL |
 | Audio buses, voice limits, boss warning priority | Rules CLOUD_PASS (unit) · original BGM + 4 ambient WAVs + official physical-hit/Bash/Magnum Break/Endure/Provoke/Shield Wave playback integrated; remaining monster/death/boss/town audio stays open (GAP-004) |
-| Formal screen (real RO assets) | LOCAL_PASS for verified-raster title/job/stage, four-layer character preview, world/actors/shadow/audio, HUD, draft, results and an active/hitting Shield Wave at desktop, phone, tablet and landscape viewports; keyboard/real-touch movement and audio start pass; human physical-device play stays open |
+| Formal screen (real RO assets) | LOCAL_PASS for verified-raster title/job/stage, four-layer character preview, world/actors/shadow/audio, HUD, draft, results, an active/hitting Shield Wave and an active/expired player-following Endure at desktop, phone, tablet and landscape viewports; keyboard/real-touch movement and audio start pass; human physical-device play stays open |
 
 Balance tuning T-01…T-10 is layered on the seed (D-024/D-039); see the acceptance report. T-10 uses real
 simulation enemies: all 90 runs pass separate whole-map and 11 m near-player density gates with peak 186,
@@ -60,8 +61,8 @@ four-stage first-60-second gates and the D-032-v0.3 density + clear-speed / MVP-
 control scorecard. The same ten fixed seeds are replayed per
 adapter and remain an initial bot baseline, not final tuning or 30 independent samples. The approved project-owned
 skill-VFX count is still **0**. Canonical v5 instead verifies 12 original KRO effect sources; the derived pipeline is
-complete and Shield Wave is the first formal renderer hookup, while Endure, Bash, Magnum Break and Provoke remain
-open. Characters, monsters/MVPs,
+complete and Shield Wave plus Endure are the first two formal renderer hookups, while Bash, Magnum Break and Provoke
+remain open. Characters, monsters/MVPs,
 NPCs, maps, formal UI and audio remain original-RO-only under D-022; AI or closed-source-derived skill art remains
 forbidden. Dedicated five-scenario balance tests, human/device review and every job beyond Swordsman remain open.
 
@@ -80,7 +81,7 @@ Details, gates and local commands: `reports/phase1/PHASE1-ACCEPTANCE.md`; perfor
 | Clean-room parsers (SPR 1.x–2.1, ACT 2.0–2.5, PAL, GAT, GND, RSW 1.2–2.1, GRF 0x200 incl. header-DES/MIXCRYPT) | CLOUD_PASS synthetic · LOCAL_PASS on the pinned real client |
 | Loopback gateway + HttpAssetGatewayClient | CLOUD_PASS (synthetic GRF) |
 | **Formal-screen rule (D-022):** only original RO assets; missing assets stop the game and list canonical paths | CLOUD_PASS: formal build without a gateway is blocked (no world canvas); a formal build refuses a synthetic gateway; unit tests list missing canonical paths (`smoke-A/B.json`, `apps/client/test`) |
-| audit-whitelist / extract --profile fan-local / dev:fan-local | LOCAL_PASS: 300/300 canonical-v5 rows audited; converter v3 writes 374 local outputs, including 12 effect metadata records / 11 PNGs; formal loading and Shield Wave rendering pass desktop, phone portrait, tablet portrait and phone landscape; four remaining skill renderers stay open |
+| audit-whitelist / extract --profile fan-local / dev:fan-local | LOCAL_PASS: 300/300 canonical-v5 rows audited; converter v3 writes 374 local outputs, including 12 effect metadata records / 11 PNGs; formal loading plus Shield Wave and Endure rendering pass desktop, phone portrait, tablet portrait and phone landscape; three remaining skill renderers stay open |
 | Contact sheets (6 slots × 8 directions, pivot, shadow), UV-mirror dedupe | CLOUD_PASS synthetic; real actor/monster animation rendered in the formal browser, detailed human sheet review still open |
 | Arena: player + 50 Porings, 1 spawn/s, collision, keyboard + mobile pointer joystick, RenderSnapshot | CLOUD_PASS headless/fixture + LOCAL_PASS real formal desktop/mobile smoke; real phone/tablet hardware still open |
 | 15/30/60 FPS identical 60 s hash | CLOUD_PASS (`4dbb7aa405a98e3b`) |
@@ -89,10 +90,10 @@ Details, gates and local commands: `reports/phase1/PHASE1-ACCEPTANCE.md`; perfor
 | 250 enemies @60 FPS desktop / phone 30 FPS | Emulated 4x CPU at 30 FPS: pass · real GPU / phone DEFERRED_LOCAL |
 | Derived files only in `.local-assets` | CLOUD_PASS (marker + rights:check tests) |
 
-Latest code gate on Windows: `pnpm ci:local` passed with 49 test files / 473 tests, 19 synthetic files / 197 tests,
+Latest code gate on Windows: `pnpm ci:local` passed with 49 test files / 480 tests, 19 synthetic files / 198 tests,
 `rights:check`, `reference:validate` (2 snapshots / 2 ledger segments / 33 observations) and 24/24 handoff checks all PASS. Browser gates passed formal blocking/refusal, the fixture
 key/touch/gamepad/settlement flow, and the real-asset desktop/phone/tablet/landscape path with real touch, formal
-audio start, layout checks and active/hitting Shield Wave evidence. The most recent previously published GitHub
+audio start, layout checks, active/hitting Shield Wave evidence and active/expired Endure evidence. The most recent previously published GitHub
 Actions run #52 for `e23466f` succeeded: <https://github.com/sojungle8/Ok/actions/runs/44260234270>.
 
 ---
@@ -155,8 +156,8 @@ Counts are taken from the runner output of run #5 and a clean local `pnpm instal
 
 ## Next minimal step
 
-Continue the bounded Swordsman D-032 slice: connect Endure next, then implement the more complex
-Bash/Magnum/Provoke clean-room renderers (including a bounded STR parser for Provoke). Any future manually authored
+Continue the bounded Swordsman D-032 slice: connect Bash next, then implement Magnum Break and the bounded
+STR-backed Provoke clean-room renderer. Any future manually authored
 bitmap still requires provenance/style review. Add the remaining monster/death/boss/town audio, run dedicated clear, MVP, survival,
 mobility and control scenarios, and do physical phone/tablet/desktop review. Existing geometry and text feedback are
 combat readability overlays, not finished skill art; the current game is a stronger playable vertical slice, not a
