@@ -24,7 +24,7 @@ Evidence: `reports/vertical-slice-acceptance.md` (headless, `pnpm slice:acceptan
 
 | Gate (04 Phase 2) | Status |
 | --- | --- |
-| New player gets area clear within 60 s | Bot proxy CLOUD_PASS (first draft ≤ 2070 ticks, always offers Magnum Break / Shield Wave) · human test DEFERRED_LOCAL |
+| New player gets area clear within 60 s | Bot proxy CLOUD_PASS: latest offered/selected 2070 ticks, cast 2253, effective hit on ≥3 non-MVP targets 3218 (90 runs) · human test DEFERRED_LOCAL |
 | Three builds clear standard difficulty with fixed test equipment | Bot CLOUD_PASS: ≥ 7/10 seeds per build on keyboard / touch / gamepad quantisation (D-027) · human DEFERRED_LOCAL |
 | 10 fixed seeds: no crash, no unreachable spawn, no telegraph misalignment | CLOUD_PASS (90 runs; walled-grid spawn check; every hit carries an announced geometry ID) |
 | Same hash at 15 / 30 / 60 FPS | CLOUD_PASS (10 seeds, 60 s) |
@@ -35,7 +35,14 @@ Evidence: `reports/vertical-slice-acceptance.md` (headless, `pnpm slice:acceptan
 
 Balance tuning T-01…T-09 is layered on the seed (D-024); see the acceptance report.
 
-Product rule D-032 is **SPEC_LOCKED / NOT IMPLEMENTED YET**: future jobs may use project-owned RO-style VFX only for redesigned Survivors skills, while characters, monsters/MVPs, NPCs, maps, formal UI and audio remain original-RO-only. Every job must pass the first-60-second area-clear gate and the clear-speed / MVP-damage / survivability / mobility / control balance matrix across multiple seeds. No additional job or skill asset work has started under this rule.
+Product rule D-032 is **AUTHORIZED / IN PROGRESS**. The first bounded Swordsman slice now has a fail-closed
+project-owned skill-VFX provenance validator, complete skill presentation events (including Endure), multi-tick
+frame event retention, a versioned checkpoint contract, four-stage first-60-second gates and the D-032-v0.1
+clear-speed / MVP-damage / survivability / mobility / control scorecard. The same ten fixed seeds are replayed per
+adapter and remain an initial bot baseline, not final tuning or 30 independent samples. The approved original skill
+VFX count is still **0**: no project-owned bitmap or formal renderer hookup is claimed. Characters, monsters/MVPs,
+NPCs, maps, formal UI and audio remain original-RO-only under D-022; AI or closed-source-derived skill art remains
+forbidden. Dedicated five-scenario balance tests, human/device review and every job beyond Swordsman remain open.
 
 ---
 
@@ -127,6 +134,7 @@ Counts are taken from the runner output of run #5 and a clean local `pnpm instal
 
 ## Next minimal step
 
-Build the title, character selection and stage selection screens from verified original RO rasters, one bounded
-screen at a time, then repeat the four-viewport local gate. D-032 stays specification-only: do not begin the all-job
-skill/VFX redesign until the user explicitly starts that work.
+Continue the bounded Swordsman D-032 slice: connect the event-driven VFX renderer only after the first manually
+authored skill bitmap passes the provenance/style review, then run dedicated clear, MVP, survival, mobility and
+control scenarios plus human/device review. Until then, existing engine geometry is hit/readability feedback, not
+finished skill art. Title, character selection and stage selection remain a parallel RO-raster UI backlog.

@@ -1,6 +1,19 @@
 # Changelog
 
-## Unreleased — Phase 1 original assets and RO UI (2026-11-17)
+## Unreleased — original assets, RO UI and D-032 skills (2026-11-17–18)
+
+- D-032 VFX admission (`98d2933`): adds the fail-closed project-owned skill-VFX schema, manifest validator and CI
+  command. Manual authorship, rights evidence, external editable-source hash, exact reviewed output and RO-style
+  presentation metadata are mandatory; AI, closed-source derivation, traversal, fake/drifted PNGs and unregistered
+  output fail. The valid empty manifest means **0 approved formal skill VFX**; no bitmap art was added.
+- Skill presentation events (`5096a66`): every active skill, including Endure, emits origin, direction, geometry,
+  rank, VFX cue and design origin; all fixed-step events are retained when one render frame advances multiple ticks.
+  Tooltips distinguish official-name fan adaptations from original Survivors adaptations.
+- D-032-v0.1 balance integration (`6fd2b4a`): replaces the offer-only 60-second proxy with offered/selected/cast/effective gates,
+  where an effective area cast hits at least three non-MVP targets. Adds effective (non-overkill) MVP/source damage,
+  survival, actual movement and player-stun-only control telemetry; a versioned fail-closed checkpoint; 10-seed
+  per-adapter p10/p50/p90 scorecards; and check-only recomputation in local/GitHub CI. This is an initial Swordsman
+  bot baseline, not final tuning, independent 30-seed evidence, completed skill art or all-job completion.
 
 - UI-B3 (`a449dd0`, Actions run #45): wires the fail-closed 108-asset UI loader into the formal game; installs the
   two verified client fonts; renders the first visible original-raster BasicInfo, HP/XP gauges, Shortcut, skill icon,
