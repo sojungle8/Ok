@@ -13,6 +13,12 @@ const root = resolve(import.meta.dirname, "../..");
 const node24 = process.env.NODE24 ?? process.execPath;
 const port = 4179;
 const run = (cmd, args, env = {}) => execFileSync(cmd, args, { cwd: root, stdio: "inherit", env: { ...process.env, ...env } });
+// On Windows pnpm is a .cmd shim, which execFileSync cannot launch directly. When this file is
+// entered through `pnpm e2e:smoke`, npm_execpath is the exact pinned pnpm CLI; execute it with the
+// same Node 24 binary so the browser harness is identical on Windows and CI.
+const runPnpm = (args, env = {}) => process.env.npm_execpath
+  ? run(node24, [process.env.npm_execpath, ...args], env)
+  : run("pnpm", args, env);
 const capture = (args, env) => {
   try {
     return { code: 0, out: execFileSync(process.execPath, args, { cwd: root, env: { ...process.env, ...env }, encoding: "utf8" }) };
@@ -36,11 +42,11 @@ const summary = {};
 try {
   const gwUrl = `http://127.0.0.1:${port}`;
   // Formal builds ignore VITE_ALLOW_SYNTHETIC (set here on purpose); only --mode fixture builds dist-test.
-  run("pnpm", ["--filter", "@ro-survivor/client", "build"], { VITE_ASSET_GATEWAY_URL: "", VITE_ALLOW_SYNTHETIC: "1" });
+  runPnpm(["--filter", "@ro-survivor/client", "build"], { VITE_ASSET_GATEWAY_URL: "", VITE_ALLOW_SYNTHETIC: "1" });
   const a = capture(["tools/e2e/smoke.mjs"], { SMOKE_EXPECT: "blocked", SMOKE_TAG: "-A-formal-no-gateway", SMOKE_REASON: "未設定 asset gateway" });
-  run("pnpm", ["--filter", "@ro-survivor/client", "exec", "vite", "build", "--outDir", "dist-formal-gw"], { VITE_ASSET_GATEWAY_URL: gwUrl, VITE_ALLOW_SYNTHETIC: "1" });
+  runPnpm(["--filter", "@ro-survivor/client", "exec", "vite", "build", "--outDir", "dist-formal-gw"], { VITE_ASSET_GATEWAY_URL: gwUrl, VITE_ALLOW_SYNTHETIC: "1" });
   const b = capture(["tools/e2e/smoke.mjs"], { SMOKE_DIST: "apps/client/dist-formal-gw", SMOKE_EXPECT: "blocked", SMOKE_TAG: "-B-formal-refuses-fixture", SMOKE_REASON: "synthetic fixture" });
-  run("pnpm", ["--filter", "@ro-survivor/client", "build:test-fixture"], { VITE_ASSET_GATEWAY_URL: gwUrl });
+  runPnpm(["--filter", "@ro-survivor/client", "build:test-fixture"], { VITE_ASSET_GATEWAY_URL: gwUrl });
   const c = capture(["tools/e2e/flow.mjs"], { FLOW_DIST: "apps/client/dist-test" });
   const d = process.env.SKIP_BENCH ? { code: 0, out: "skipped" } : capture(["tools/e2e/bench.mjs"], { BENCH_DIST: "apps/client/dist-test" });
   // E. formal / fixture graph separation in the built bundles: the fixture-only module (marker) must be
@@ -49,12 +55,9 @@ try {
   const bundleHas = (dir) => readdirSync(join(root, dir, "assets")).some((f) => f.endsWith(".js") && readFileSync(join(root, dir, "assets", f), "utf8").includes(MARKER));
   const sep = { dist: bundleHas("apps/client/dist"), "dist-formal-gw": bundleHas("apps/client/dist-formal-gw"), "dist-test": bundleHas("apps/client/dist-test") };
   console.log(`bundle fixture marker: ${JSON.stringify(sep)}`);
-  // The detached RO primitive library (UI-B2) must not be in any shipped bundle yet.
-  const PRIM = "RO-SURVIVOR-DETACHED-RO-PRIMITIVES";
-  const primIn = (dir) => readdirSync(join(root, dir, "assets")).some((f) => f.endsWith(".js") && readFileSync(join(root, dir, "assets", f), "utf8").includes(PRIM));
-  const prim = ["apps/client/dist", "apps/client/dist-formal-gw", "apps/client/dist-test"].filter(primIn);
-  console.log(`bundle RO primitive marker in: ${JSON.stringify(prim)}`);
-  const e = { code: !sep.dist && !sep["dist-formal-gw"] && sep["dist-test"] && prim.length === 0 ? 0 : 1 };
+  // UI-B3 ships the guarded RO primitives now. E only proves that the fixture-only world module
+  // remains absent from both formal builds and present in the explicitly labelled test build.
+  const e = { code: !sep.dist && !sep["dist-formal-gw"] && sep["dist-test"] ? 0 : 1 };
   Object.assign(summary, { A: a, B: b, C: c, D: { code: d.code }, E: e });
   for (const [k, v] of Object.entries({ A: a, B: b })) writeFileSync(join(root, `reports/phase1/smoke-${k}.json`), v.out.slice(v.out.indexOf("[")));
 } finally {

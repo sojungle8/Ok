@@ -147,6 +147,33 @@ button:focus-visible, .card.focused { outline: 3px solid var(--accent); outline-
 .modal .card .num { font-weight: 700; color: var(--accent); }
 .modal .card ul { margin: 0; padding-left: 18px; font-size: 13px; }
 .modal .row { display: flex; gap: 10px; }
+
+/* Formal survivor draft: layout/text only; every panel, marker, icon and button pixel is a verified RO raster. */
+.ro-draft-dialog { position: fixed; z-index: 5; inset: 0; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; overflow: auto; padding: 8px; color: #171717; font-family: "RO SCDream", "Noto Sans TC", sans-serif; font-size: 11px; line-height: 1.2; }
+.ro-draft-dialog button:focus-visible { outline: none; outline-offset: 0; }
+.ro-draft-title-strip { position: relative; width: 300px; height: 17px; flex: 0 0 17px; }
+.ro-draft-title-strip > .ro-primitive, .ro-draft-chat-body > .ro-primitive, .ro-three-slice-button > .ro-primitive { position: absolute !important; inset: 0; }
+.ro-draft-title-strip > span { position: absolute; z-index: 1; inset: 1px 8px 0; overflow: hidden; text-align: center; white-space: nowrap; line-height: 15px; }
+.ro-draft-heading { flex: 0 0 17px; }
+.ro-draft-options { display: flex; flex: 0 0 auto; gap: 4px; }
+.ro-draft-option { position: relative; width: 300px; height: 101px; flex: 0 0 300px; }
+.ro-draft-chat-body { position: relative; width: 300px; height: 84px; }
+.ro-draft-chat-content { position: absolute; z-index: 1; inset: 0; overflow: hidden; }
+.ro-draft-icon { position: absolute; left: 10px; top: 9px; width: 24px; height: 24px; }
+.ro-draft-icon > .ro-primitive, .ro-draft-selection > .ro-primitive { position: absolute !important; inset: 0; }
+.ro-draft-selection { position: absolute; left: 8px; top: 31px; width: 28px; height: 15px; }
+.ro-draft-kind { position: absolute; left: 44px; top: 7px; font-weight: 600; }
+.ro-draft-lines { position: absolute; left: 44px; top: 22px; width: 160px; height: 56px; overflow: hidden; font-size: 9px; line-height: 13px; }
+.ro-draft-lines > span { display: block; overflow: hidden; white-space: nowrap; }
+.ro-draft-action { position: absolute; right: 6px; bottom: 4px; width: 88px; height: 40px; }
+.ro-three-slice-button { color: #171717; font-family: "RO SCDream", "Noto Sans TC", sans-serif; font-size: 10px; }
+.ro-three-slice-button-label { z-index: 1; overflow: hidden; white-space: nowrap; }
+.ro-draft-confirm-message { position: absolute; left: 20px; right: 20px; top: 10px; text-align: center; }
+.ro-draft-confirm-actions { position: absolute; left: 36px; bottom: 4px; display: flex; gap: 4px; height: 40px; }
+@media (max-width: 960px) {
+  .ro-draft-options { flex-direction: column; }
+  .ro-draft-option { flex-basis: 101px; }
+}
 /* In-run header: compact so it never covers the HP / XP bars (full mobile layouts are Phase 3). */
 .screen-running .hud, .screen-draft-paused .hud, .screen-boss-intro .hud, .screen-victory .hud, .screen-defeat .hud { top: auto; bottom: max(12px, env(safe-area-inset-bottom)); left: auto; right: max(12px, env(safe-area-inset-right)); max-width: 300px; padding: 6px 10px; font-size: 11px; opacity: 0.85; }
 @media (max-width: 640px) {

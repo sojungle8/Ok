@@ -11,7 +11,7 @@ import { tmpdir } from "node:os";
 import { mintRasterSet, RasterIssuanceError, type MintItem } from "../src/game/formal/rasterMint.ts";
 import { loadFormalUiAssets } from "../src/game/formal/ui.ts";
 import * as roPublic from "../src/ui/ro/index.ts";
-import { formalHudAssetIds, isVerifiedRaster, planButton, planGauge, planRaster, planSlot, planThreeSlice, roSkillIconId, RoButton, RoFormalHud, RoGauge, RoRaster, RoSlot, RoThreeSlice, type RoFormalHudModel, type VerifiedRaster } from "../src/ui/ro/index.ts";
+import { formalHudAssetIds, isVerifiedRaster, planButton, planGauge, planRaster, planSlot, planThreeSlice, planThreeSliceButton, planWindow, RO_BUTTON_CHROME_IDS, roSkillIconId, RoButton, RoFormalHud, RoGauge, RoRaster, RoSlot, RoThreeSlice, RoThreeSliceButton, type RoFormalHudModel, type VerifiedRaster } from "../src/ui/ro/index.ts";
 import { codeRefs, externalRuntimeImports, FORBIDDEN, guardGraph, isRealBrandModule, isRealMintSource, mintUsage, moduleGraph, REAL_MINT, REAL_RASTER, relPosix, scanFormalVisual } from "./visual-guard.ts";
 
 /**
@@ -811,6 +811,61 @@ describe("RoButton", () => {
     expect(missingOf(() => planButton(set, { off: "ui.menu.status.normal", on: "ui.menu.skill.active" }, "on"))).toEqual([expect.objectContaining({ canonicalPath: "button.family" })]);
     expect(missingOf(() => planButton(set, { off: "ui.button.normal.left", hover: "ui.button.hover.mid" }, "off"))).toEqual([expect.objectContaining({ canonicalPath: "button.family" })]);
     expect(planButton(set, { off: "ui.button.normal.left", hover: "ui.button.hover.left" }, "hover").assetId).toBe("ui.button.hover.left");
+  });
+});
+
+describe("RoWindow", () => {
+  const ids = [
+    "ui.window.title.left", "ui.window.title.mid", "ui.window.title.right",
+    "ui.window.body.left", "ui.window.body.mid", "ui.window.body.right",
+    "ui.window.footer.left", "ui.window.footer.mid", "ui.window.footer.right",
+  ];
+  it("tiles all nine original RO frame parts without stretching source pixels", async () => {
+    const { set } = await rasterSet(ids);
+    const p = planWindow(set, 360, 240);
+    expect(p.pieces.map((x) => x.assetId)).toEqual(ids);
+    expect([p.width, p.height, p.titleHeight, p.footerHeight]).toEqual([360, 240, 17, 21]);
+    const body = p.pieces.slice(3, 6);
+    expect(body.map((x) => [x.assetId, x.x, x.y, x.width, x.height, x.repeatX, x.repeatY, x.tileWidth, x.tileHeight])).toEqual([
+      ["ui.window.body.left", 0, 17, 20, 202, false, true, 20, 8],
+      ["ui.window.body.mid", 20, 17, 320, 202, true, true, 32, 32],
+      ["ui.window.body.right", 340, 17, 20, 202, false, true, 20, 8],
+    ]);
+    expect(p.pieces.slice(6).every((x) => x.y === 219 && x.repeatY === false)).toBe(true);
+    expect(p.interior).toEqual({ x: 20, y: 17, width: 320, height: 202 });
+  });
+  it("fails closed for missing frame parts and impossible integer dimensions", async () => {
+    const { set } = await rasterSet(ids.slice(0, -1));
+    expect(missingOf(() => planWindow(set, 360, 240))).toEqual([expect.objectContaining({ assetId: "ui.window.footer.right", canonicalPath: whitelist.get("ui.window.footer.right").canonical_cp949_path })]);
+    const full = (await rasterSet(ids)).set;
+    expect(missingOf(() => planWindow(full, 360.5, 240))).toEqual([expect.objectContaining({ canonicalPath: "window.size" })]);
+    expect(missingOf(() => planWindow(full, 40, 240))).toEqual([expect.objectContaining({ canonicalPath: "width" })]);
+    expect(missingOf(() => planWindow(full, 360, 38))).toEqual([expect.objectContaining({ canonicalPath: "window.height" })]);
+  });
+});
+
+describe("RoThreeSliceButton", () => {
+  const allIds = Object.values(RO_BUTTON_CHROME_IDS).flat();
+  it("uses the exact original three-piece family for every interaction state", async () => {
+    const { set } = await rasterSet(allIds);
+    for (const state of ["off", "hover", "down", "disabled"] as const) {
+      const p = planThreeSliceButton(set, state, 180);
+      expect(p.state).toBe(state);
+      expect(p.pieces.map((x) => x.assetId)).toEqual([...RO_BUTTON_CHROME_IDS[state]]);
+      expect(p.pieces.map((x) => x.repeatX)).toEqual([false, true, false]);
+      expect(p.height).toBe(20);
+    }
+    const renderedState = (node: ReturnType<typeof RoThreeSliceButton>): unknown => (node.props as unknown as { "data-ro-state"?: unknown })["data-ro-state"];
+    expect(renderedState(RoThreeSliceButton({ rasters: set, width: 180, label: "select", selected: true }))).toBe("hover");
+    expect(renderedState(RoThreeSliceButton({ rasters: set, width: 180, label: "select", state: "down" }))).toBe("down");
+    expect(renderedState(RoThreeSliceButton({ rasters: set, width: 180, label: "select", state: "down", disabled: true }))).toBe("disabled");
+  });
+  it("validates every declared state before rendering and never substitutes one state for another", async () => {
+    const missingDisabledRight = allIds.filter((id) => id !== "ui.button.disabled.right");
+    const { set } = await rasterSet(missingDisabledRight);
+    expect(missingOf(() => planThreeSliceButton(set, "off", 180))).toEqual([expect.objectContaining({ assetId: "ui.button.disabled.right", canonicalPath: whitelist.get("ui.button.disabled.right").canonical_cp949_path })]);
+    const full = (await rasterSet(allIds)).set;
+    expect(missingOf(() => planThreeSliceButton(full, "off", 10))).toEqual([expect.objectContaining({ canonicalPath: "width" })]);
   });
 });
 

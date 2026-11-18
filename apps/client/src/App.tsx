@@ -321,7 +321,7 @@ export function App() {
       ) : null}
       {inRun && st ? <Hud content={content} st={st} rasters={assets?.ui?.rasters ?? null} /> : null}
       {inRun && st && session.current && (st.phase === "draft" || st.phase === "keystone-confirm") && (!autoplay || manualDraft) ? (
-        <DraftModal content={content} st={st} onChoose={(i) => session.current?.choose(i)} onConfirm={() => session.current?.confirm()} onCancel={() => session.current?.cancel()} />
+        <DraftModal content={content} st={st} rasters={assets?.ui?.rasters ?? null} onChoose={(i) => session.current?.choose(i)} onConfirm={() => session.current?.confirm()} onCancel={() => session.current?.cancel()} />
       ) : null}
       {(flow.screen === "victory" || flow.screen === "defeat") && !assets?.ui ? <div class="banner big" data-testid="outcome">{flow.screen === "victory" ? "勝利！" : "倒下了…"}</div> : null}
       {flow.screen === "results" && results ? (

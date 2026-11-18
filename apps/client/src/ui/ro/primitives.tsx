@@ -5,7 +5,7 @@
  * positioning; nothing is drawn with CSS surfaces, gradients, filters, SVG, emoji, fonts or canvas.
  * Each primitive has a pure `plan*` function (validation + layout) and a component that renders it.
  */
-import type { JSX } from "preact";
+import type { ComponentChildren, JSX } from "preact";
 import { MissingAssetsError } from "../../game/requirements.ts";
 import { isVerifiedRaster, missingRaster, type RasterRegistry, type VerifiedRaster } from "./raster.ts";
 
@@ -43,12 +43,15 @@ export interface Piece {
   height: number;
   /** Tile the raster along x across `width` (only ever true for a three-slice middle). */
   repeatX: boolean;
+  /** Tile the raster along y across `height` (window body strips / fill only). */
+  repeatY: boolean;
   /** Size of one tile: the raster's native size × scale (never stretched). */
   tileWidth: number;
+  tileHeight: number;
 }
 
-function piece(r: VerifiedRaster, x: number, y: number, scale: number, width = r.width * scale, repeatX = false): Piece {
-  return { assetId: r.assetId, raster: r, x, y, width, height: r.height * scale, repeatX, tileWidth: r.width * scale };
+function piece(r: VerifiedRaster, x: number, y: number, scale: number, width = r.width * scale, repeatX = false, height = r.height * scale, repeatY = false): Piece {
+  return { assetId: r.assetId, raster: r, x, y, width, height, repeatX, repeatY, tileWidth: r.width * scale, tileHeight: r.height * scale };
 }
 
 const pieceStyle = (p: Piece, scale: number): JSX.CSSProperties => ({
@@ -58,8 +61,8 @@ const pieceStyle = (p: Piece, scale: number): JSX.CSSProperties => ({
   width: `${p.width}px`,
   height: `${p.height}px`,
   backgroundImage: verifiedRasterUrl(p.raster),
-  backgroundRepeat: p.repeatX ? "repeat-x" : "no-repeat",
-  backgroundSize: `${p.tileWidth}px ${p.height}px`,
+  backgroundRepeat: p.repeatX && p.repeatY ? "repeat" : p.repeatX ? "repeat-x" : p.repeatY ? "repeat-y" : "no-repeat",
+  backgroundSize: `${p.tileWidth}px ${p.tileHeight}px`,
   imageRendering: "pixelated",
   ["--ro-scale" as string]: String(scale),
 });
@@ -67,7 +70,7 @@ const pieceStyle = (p: Piece, scale: number): JSX.CSSProperties => ({
 function Pieces({ pieces, scale, width, height }: { pieces: Piece[]; scale: number; width: number; height: number }) {
   return (
     <div class="ro-primitive" style={{ position: "relative", width: `${width}px`, height: `${height}px` }}>
-      {pieces.map((p) => <div key={`${p.assetId}:${p.x}`} data-ro-asset={p.assetId} style={pieceStyle(p, scale)} />)}
+      {pieces.map((p) => <div key={`${p.assetId}:${p.x}:${p.y}`} data-ro-asset={p.assetId} style={pieceStyle(p, scale)} />)}
     </div>
   );
 }
@@ -110,6 +113,127 @@ export function planThreeSlice(left: VerifiedRaster, mid: VerifiedRaster, right:
 export function RoThreeSlice(props: { left: VerifiedRaster; mid: VerifiedRaster; right: VerifiedRaster; width: number; scale?: number }) {
   const p = planThreeSlice(props.left, props.mid, props.right, props.width, props.scale ?? 1);
   return <Pieces pieces={p.pieces} scale={props.scale ?? 1} width={p.width} height={p.height} />;
+}
+
+// ---------------------------------------------------------------- RoWindow
+const WINDOW_IDS = {
+  title: ["ui.window.title.left", "ui.window.title.mid", "ui.window.title.right"],
+  body: ["ui.window.body.left", "ui.window.body.mid", "ui.window.body.right"],
+  footer: ["ui.window.footer.left", "ui.window.footer.mid", "ui.window.footer.right"],
+} as const;
+
+function windowTriplet(rasters: RasterRegistry, ids: readonly [string, string, string], field: string): [VerifiedRaster, VerifiedRaster, VerifiedRaster] {
+  const out = ids.map((id) => checkRaster(rasters.get(id), `${field}.${id}`)) as [VerifiedRaster, VerifiedRaster, VerifiedRaster];
+  for (const r of out) if (r.entry.role !== "frame") throw contractError(field, `${r.assetId} is ${r.entry.role}, not a frame`);
+  return out;
+}
+
+/**
+ * General RO window chrome. Title/footer are horizontal three-slices; body side strips tile vertically
+ * and the body middle tiles in both directions. No source pixel is stretched.
+ */
+export function planWindow(rasters: RasterRegistry, width: number, height: number, scale = 1): { pieces: Piece[]; width: number; height: number; titleHeight: number; footerHeight: number; interior: { x: number; y: number; width: number; height: number } } {
+  const s = checkScale(scale);
+  if (!Number.isInteger(width) || !Number.isInteger(height)) throw contractError("window.size", `window ${width}x${height} is not integer-sized`);
+  const titleParts = windowTriplet(rasters, WINDOW_IDS.title, "window.title");
+  const bodyParts = windowTriplet(rasters, WINDOW_IDS.body, "window.body");
+  const footerParts = windowTriplet(rasters, WINDOW_IDS.footer, "window.footer");
+  const title = planThreeSlice(...titleParts, width, s);
+  const footer = planThreeSlice(...footerParts, width, s);
+  // Validate the body as one declared left/mid/right group and ensure both fixed side strips fit.
+  planThreeSlice(...bodyParts, width, s);
+  const bodyHeight = height - title.height - footer.height;
+  if (bodyHeight < 1) throw contractError("window.height", `height ${height} leaves no body between title ${title.height} and footer ${footer.height}`);
+  const leftWidth = bodyParts[0].width * s;
+  const rightWidth = bodyParts[2].width * s;
+  const midWidth = width - leftWidth - rightWidth;
+  if (midWidth < 1) throw contractError("window.width", `width ${width} leaves no body middle between ${leftWidth}px and ${rightWidth}px sides`);
+  const bodyY = title.height;
+  const footerY = bodyY + bodyHeight;
+  const body: Piece[] = [
+    piece(bodyParts[0], 0, bodyY, s, leftWidth, false, bodyHeight, true),
+    piece(bodyParts[1], leftWidth, bodyY, s, midWidth, true, bodyHeight, true),
+    piece(bodyParts[2], leftWidth + midWidth, bodyY, s, rightWidth, false, bodyHeight, true),
+  ];
+  const pieces = [
+    ...title.pieces,
+    ...body,
+    ...footer.pieces.map((p) => piece(p.raster, p.x, footerY, s, p.width, p.repeatX, p.height, p.repeatY)),
+  ];
+  return {
+    pieces,
+    width,
+    height,
+    titleHeight: title.height,
+    footerHeight: footer.height,
+    interior: { x: leftWidth, y: bodyY, width: midWidth, height: bodyHeight },
+  };
+}
+
+export function RoWindow(props: { rasters: RasterRegistry; width: number; height: number; scale?: number; title?: string; children?: ComponentChildren }) {
+  const s = props.scale ?? 1;
+  const p = planWindow(props.rasters, props.width, props.height, s);
+  return (
+    <div class="ro-window" style={{ position: "relative", width: `${p.width}px`, height: `${p.height}px` }}>
+      <Pieces pieces={p.pieces} scale={s} width={p.width} height={p.height} />
+      {props.title === undefined ? null : <span class="ro-window-title" style={{ position: "absolute", left: `${12 * s}px`, top: "1px", height: `${p.titleHeight}px` }}>{props.title}</span>}
+      <div class="ro-window-content" style={{ position: "absolute", left: `${p.interior.x}px`, top: `${p.interior.y}px`, width: `${p.interior.width}px`, height: `${p.interior.height}px` }}>{props.children}</div>
+    </div>
+  );
+}
+
+// ------------------------------------------------------ RoThreeSliceButton
+export const RO_BUTTON_CHROME_IDS = {
+  off: ["ui.button.normal.left", "ui.button.normal.mid", "ui.button.normal.right"],
+  hover: ["ui.button.hover.left", "ui.button.hover.mid", "ui.button.hover.right"],
+  down: ["ui.button.pressed.left", "ui.button.pressed.mid", "ui.button.pressed.right"],
+  disabled: ["ui.button.disabled.left", "ui.button.disabled.mid", "ui.button.disabled.right"],
+} as const;
+
+export type RoChromeButtonState = keyof typeof RO_BUTTON_CHROME_IDS;
+
+export function planThreeSliceButton(rasters: RasterRegistry, state: RoChromeButtonState, width: number, scale = 1): { state: RoChromeButtonState; pieces: Piece[]; width: number; height: number } {
+  const all = Object.entries(RO_BUTTON_CHROME_IDS) as [RoChromeButtonState, readonly [string, string, string]][];
+  const sets = new Map<RoChromeButtonState, [VerifiedRaster, VerifiedRaster, VerifiedRaster]>();
+  for (const [st, ids] of all) {
+    const parts = ids.map((id) => checkRaster(rasters.get(id), `threeSliceButton.${st}`)) as [VerifiedRaster, VerifiedRaster, VerifiedRaster];
+    for (const r of parts) if (r.entry.role !== "button" || r.entry.state !== st) throw contractError(`threeSliceButton.${st}`, `${r.assetId} is ${r.entry.role}/${r.entry.state ?? "none"}, not button/${st}`);
+    sets.set(st, parts);
+  }
+  const parts = sets.get(state);
+  if (!parts) throw contractError("threeSliceButton.state", `unsupported state ${String(state)}`);
+  const p = planThreeSlice(...parts, width, scale);
+  return { state, pieces: p.pieces, width: p.width, height: p.height };
+}
+
+/** Original RO button chrome with native pointer/focus state and a DOM-text label. */
+export function RoThreeSliceButton(props: { rasters: RasterRegistry; width: number; scale?: number; label: string; state?: RoChromeButtonState; selected?: boolean; disabled?: boolean; testId?: string; buttonRef?: (element: HTMLButtonElement | null) => void; onFocus?: () => void; onBlur?: () => void; onPointerEnter?: () => void; onPointerLeave?: () => void; onPointerDown?: () => void; onPointerUp?: () => void; onPointerCancel?: () => void; onPress?: () => void }) {
+  const state: RoChromeButtonState = props.disabled ? "disabled" : props.state ?? (props.selected ? "hover" : "off");
+  const s = props.scale ?? 1;
+  const p = planThreeSliceButton(props.rasters, state, props.width, s);
+  return (
+    <button
+      type="button"
+      ref={(element) => props.buttonRef?.(element)}
+      class="ro-three-slice-button"
+      aria-label={props.label}
+      data-testid={props.testId}
+      data-ro-state={state}
+      disabled={props.disabled}
+      onClick={props.onPress}
+      onFocus={() => props.onFocus?.()}
+      onBlur={() => props.onBlur?.()}
+      onPointerEnter={() => props.onPointerEnter?.()}
+      onPointerLeave={() => props.onPointerLeave?.()}
+      onPointerDown={() => props.onPointerDown?.()}
+      onPointerUp={() => props.onPointerUp?.()}
+      onPointerCancel={() => props.onPointerCancel?.()}
+      style={{ all: "unset", display: "inline-block", position: "relative", width: `${p.width}px`, height: `${p.height}px` }}
+    >
+      <Pieces pieces={p.pieces} scale={s} width={p.width} height={p.height} />
+      <span class="ro-three-slice-button-label" style={{ position: "absolute", inset: "0px", textAlign: "center", lineHeight: `${p.height}px` }}>{props.label}</span>
+    </button>
+  );
 }
 
 // ---------------------------------------------------------------- RoButton
