@@ -16,6 +16,8 @@ export const FORMAL_CONVERTER_VERSION = 2;
 export interface ImageLike {
   width: number;
   height: number;
+  /** Browser ImageBitmap cleanup; absent from structural test doubles. */
+  close?(): void;
 }
 
 export interface FormalGatewayLike {
@@ -46,6 +48,20 @@ export interface FormalSceneData {
   waterCells: WaterBuffers | null;
   /** Original audio bytes by asset ID (BGM 12 + ambient WAVs). */
   audio: Map<string, ArrayBuffer>;
+}
+
+/** Release browser-owned decoded image resources. Safe to call more than once. */
+export function disposeFormalScene(data: FormalSceneData | null): void {
+  if (!data) return;
+  const seen = new Set<ImageLike>();
+  for (const image of [...data.images.values(), ...data.water.values()]) {
+    if (seen.has(image)) continue;
+    seen.add(image);
+    image.close?.();
+  }
+  data.images.clear();
+  data.water.clear();
+  data.audio.clear();
 }
 
 const reasonOf = (err: unknown): string => (err instanceof Error ? err.message : String(err));

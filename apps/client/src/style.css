@@ -59,6 +59,9 @@ html, body, #app { margin: 0; height: 100%; overflow: hidden; background: var(--
   background: rgba(255, 255, 255, 0.75);
   pointer-events: none;
 }
+/* Formal mobile control keeps the tested pointer region but draws no substitute joystick art. */
+.stick.formal-stick { background: transparent; border: 0; }
+.stick.formal-stick .knob { display: none; }
 @media (max-width: 480px) {
   .hud { font-size: 12px; padding: 8px 10px; }
   .hud .keys { display: none; }
@@ -80,14 +83,62 @@ html, body, #app { margin: 0; height: 100%; overflow: hidden; background: var(--
 .panel button.primary, .modal button.primary { background: var(--accent); color: #fff; border: none; }
 button:focus-visible, .card.focused { outline: 3px solid var(--accent); outline-offset: 2px; }
 .settings { display: grid; gap: 6px; border: 1px solid rgba(127,127,127,.3); border-radius: 8px; }
-.run-hud { position: absolute; z-index: 2; left: 50%; top: max(8px, env(safe-area-inset-top)); transform: translateX(-50%); width: min(560px, calc(100% - 24px)); display: grid; gap: 4px; pointer-events: none; }
-.bar { position: relative; height: 16px; background: rgba(0,0,0,.45); border-radius: 4px; overflow: hidden; }
-.bar span { display: block; height: 100%; }
-.bar.hp span { background: #d64545; } .bar.xp span { background: #4a90d9; } .bar.boss span { background: #a8326e; }
-.bar em { position: absolute; inset: 0; font-style: normal; font-size: 11px; line-height: 16px; text-align: center; color: #fff; }
-.run-hud .meta, .run-hud .slots { display: flex; gap: 8px; flex-wrap: wrap; font-size: 12px; color: #fff; text-shadow: 0 1px 2px #000; }
-.run-hud .slots span { padding: 1px 6px; border-radius: 4px; background: rgba(0,0,0,.4); }
-.run-hud .slots span.ready { background: rgba(74,144,217,.6); }
+.fixture-run-hud { position: absolute; z-index: 2; left: 50%; top: max(8px, env(safe-area-inset-top)); transform: translateX(-50%); width: min(560px, calc(100% - 24px)); display: grid; gap: 4px; pointer-events: none; }
+.fixture-bar { position: relative; height: 16px; background: rgba(0,0,0,.45); border-radius: 4px; overflow: hidden; }
+.fixture-bar span { display: block; height: 100%; }
+.fixture-bar.hp span { background: #d64545; } .fixture-bar.xp span { background: #4a90d9; } .fixture-bar.boss span { background: #a8326e; }
+.fixture-bar em { position: absolute; inset: 0; font-style: normal; font-size: 11px; line-height: 16px; text-align: center; color: #fff; }
+.fixture-run-hud .fixture-meta, .fixture-run-hud .fixture-slots { display: flex; gap: 8px; flex-wrap: wrap; font-size: 12px; color: #fff; text-shadow: 0 1px 2px #000; }
+.fixture-run-hud .fixture-slots span { padding: 1px 6px; border-radius: 4px; background: rgba(0,0,0,.4); }
+.fixture-run-hud .fixture-slots span.ready { background: rgba(74,144,217,.6); }
+
+/* Formal HUD: layout and text only. All visible surfaces, gauges and icons are verified RO rasters. */
+.ro-run-hud { position: absolute; z-index: 2; inset: 0; pointer-events: none; color: #171717; font-family: "RO SCDream", "Noto Sans TC", sans-serif; font-size: 11px; }
+.ro-basic-anchor { position: absolute; top: calc(env(safe-area-inset-top) + 8px); left: calc(env(safe-area-inset-left) + 8px); width: 280px; height: 120px; }
+.ro-basic-info { position: absolute; inset: 0; width: 280px; }
+.ro-basic-info > .ro-primitive { position: absolute !important; inset: 0; }
+.ro-basic-info-full { height: 120px; }
+.ro-basic-info-mini { display: none; height: 34px; }
+.ro-basic-info span, .ro-basic-info > div:not(.ro-primitive) { position: absolute; z-index: 1; }
+.ro-basic-info-full .ro-basic-name { left: 8px; top: 7px; font-weight: 600; }
+.ro-basic-info-full .ro-basic-level { left: 8px; top: 28px; }
+.ro-basic-info-full .ro-basic-hp { left: 110px; top: 21px; }
+.ro-basic-info-full .ro-basic-xp { left: 110px; top: 42px; }
+.ro-basic-info-full .ro-basic-hp-text { left: 202px; top: 20px; }
+.ro-basic-info-full .ro-basic-keystone { left: 8px; top: 75px; width: 184px; }
+.ro-basic-info-mini .ro-basic-name { left: 8px; top: 9px; font-weight: 600; }
+.ro-basic-info-mini .ro-basic-level { left: 58px; top: 9px; }
+.ro-basic-info-mini .ro-basic-hp { left: 100px; top: 5px; }
+.ro-basic-info-mini .ro-basic-xp { left: 100px; top: 18px; }
+.ro-basic-info-mini .ro-basic-hp-text { left: 196px; top: 5px; font-size: 9px; }
+.ro-stage-status { position: absolute; top: calc(env(safe-area-inset-top) + 8px); left: 50%; transform: translateX(-50%); }
+.ro-title-strip { width: 180px; height: 17px; }
+.ro-title-strip > .ro-primitive { position: absolute !important; inset: 0; }
+.ro-title-strip > span { position: absolute; z-index: 1; inset: 1px 8px 0; overflow: hidden; text-align: center; white-space: nowrap; line-height: 15px; }
+.ro-shortcut { position: absolute; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 8px); transform: translateX(-50%); width: 280px; height: 34px; }
+.ro-shortcut > .ro-primitive { position: absolute !important; inset: 0; }
+.ro-shortcut-slot { position: absolute; z-index: 1; top: 5px; width: 24px; height: 24px; }
+.ro-shortcut-slot-1 { left: 5px; } .ro-shortcut-slot-2 { left: 33px; } .ro-shortcut-slot-3 { left: 61px; }
+.ro-shortcut-slot-4 { left: 89px; } .ro-shortcut-slot-5 { left: 117px; } .ro-shortcut-slot-6 { left: 145px; }
+.ro-shortcut-slot-7 { left: 173px; } .ro-shortcut-slot-8 { left: 201px; } .ro-shortcut-slot-9 { left: 229px; }
+.ro-shortcut-slot > .ro-primitive { position: absolute !important; inset: 0; }
+.ro-shortcut-hotkey, .ro-shortcut-rank, .ro-shortcut-cooldown { position: absolute; z-index: 2; font-size: 8px; line-height: 9px; }
+.ro-shortcut-hotkey { left: 1px; top: 0; }
+.ro-shortcut-rank { right: 1px; bottom: 0; }
+.ro-shortcut-cooldown { left: 9px; top: 8px; font-size: 10px; font-weight: 600; }
+.ro-boss-status { position: absolute; top: calc(env(safe-area-inset-top) + 30px); left: 50%; transform: translateX(-50%); width: 180px; height: 28px; }
+.ro-boss-status .ro-title-strip { position: absolute; inset: 0 auto auto 0; }
+.ro-boss-gauge { position: absolute; left: 0; top: 18px; }
+.ro-boss-alert { position: absolute; top: calc(env(safe-area-inset-top) + 62px); left: 50%; transform: translateX(-50%); }
+@media (max-width: 640px) {
+  .ro-basic-anchor { height: 34px; }
+  .ro-basic-info-full { display: none; }
+  .ro-basic-info-mini { display: block; }
+  .ro-stage-status { top: calc(env(safe-area-inset-top) + 48px); }
+  .ro-shortcut { top: calc(env(safe-area-inset-top) + 72px); bottom: auto; }
+  .ro-boss-status { top: calc(env(safe-area-inset-top) + 112px); }
+  .ro-boss-alert { top: calc(env(safe-area-inset-top) + 144px); }
+}
 .banner { position: fixed; z-index: 3; left: 50%; top: 30%; transform: translateX(-50%); padding: 8px 16px; background: rgba(0,0,0,.65); color: #fff; border-radius: 8px; }
 .banner.big { font-size: 28px; font-weight: 700; }
 .modal { position: fixed; z-index: 5; inset: 0; margin: auto; width: min(900px, calc(100% - 24px)); height: fit-content; max-height: calc(100% - 24px); overflow: auto; padding: 16px; background: var(--hud-bg); border-radius: 12px; }

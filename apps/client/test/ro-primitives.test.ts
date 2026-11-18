@@ -11,7 +11,7 @@ import { tmpdir } from "node:os";
 import { mintRasterSet, RasterIssuanceError, type MintItem } from "../src/game/formal/rasterMint.ts";
 import { loadFormalUiAssets } from "../src/game/formal/ui.ts";
 import * as roPublic from "../src/ui/ro/index.ts";
-import { isVerifiedRaster, planButton, planGauge, planRaster, planSlot, planThreeSlice, RoButton, RoGauge, RoRaster, RoSlot, RoThreeSlice, type VerifiedRaster } from "../src/ui/ro/index.ts";
+import { formalHudAssetIds, isVerifiedRaster, planButton, planGauge, planRaster, planSlot, planThreeSlice, roSkillIconId, RoButton, RoFormalHud, RoGauge, RoRaster, RoSlot, RoThreeSlice, type RoFormalHudModel, type VerifiedRaster } from "../src/ui/ro/index.ts";
 import { codeRefs, externalRuntimeImports, FORBIDDEN, guardGraph, isRealBrandModule, isRealMintSource, mintUsage, moduleGraph, REAL_MINT, REAL_RASTER, relPosix, scanFormalVisual } from "./visual-guard.ts";
 
 /**
@@ -854,6 +854,64 @@ describe("RoSlot", () => {
   });
 });
 
+describe("formal RO HUD composition", () => {
+  const model: RoFormalHudModel = {
+    playerName: "Swordsman",
+    level: 7,
+    hp: 7500,
+    maxHp: 10000,
+    xp: 30,
+    xpNext: 100,
+    timer: "03:20",
+    kills: 42,
+    keystone: "guardian",
+    skills: [
+      { id: "skill.sw.basic_slash", rank: 2, hotkey: "F1" },
+      { id: "skill.sw.bash", rank: 1, hotkey: "F2", cooldownTicks: 60 },
+      { id: "skill.sw.magnum_break", rank: 3, hotkey: "F3" },
+      { id: "skill.sw.endure", rank: 1, hotkey: "F4" },
+      { id: "skill.sw.provoke", rank: 1, hotkey: "F5" },
+      { id: "skill.sw.shield_wave", rank: 1, hotkey: "F6" },
+      { id: "skill.sw.fatal_blow", rank: 1 },
+      { id: "skill.sw.auto_berserk", rank: 1 },
+      { id: "passive.sw.hp_recovery", rank: 2 },
+    ],
+    boss: { name: "Mastering", hp: 1000, maxHp: 5000 },
+    alert: { text: "MVP · Mastering", testId: "boss-intro" },
+  };
+
+  it("maps every vertical-slice skill to an approved original RO icon", () => {
+    expect(model.skills.map((s) => roSkillIconId(s.id))).toEqual([
+      "ui.skill.sm_sword.icon",
+      "ui.skill.sm_bash.icon",
+      "ui.skill.sm_magnum.icon",
+      "ui.skill.sm_endure.icon",
+      "ui.skill.sm_provoke.icon",
+      "ui.skill.cr_shieldboomerang.icon",
+      "ui.skill.sm_fatalblow.icon",
+      "ui.skill.sm_autoberserk.icon",
+      "ui.skill.sm_recovery.icon",
+    ]);
+    expect(roSkillIconId("skill.future.unreviewed")).toBeNull();
+  });
+
+  it("plans original BasicInfo, gauge, title, shortcut and icon rasters without treating item_invert as a frame", async () => {
+    const ids = formalHudAssetIds(model);
+    expect(ids).toEqual(expect.arrayContaining([
+      "ui.hud.basic.background",
+      "ui.hud.basic.background.mini",
+      "ui.hotbar.background",
+      "ui.gauge.hp.left",
+      "ui.gauge.sp.left",
+      "ui.window.title.left",
+      "ui.skill.cr_shieldboomerang.icon",
+    ]));
+    expect(ids).not.toContain("ui.slot.selection");
+    const { set } = await rasterSet(ids);
+    expect(RoFormalHud({ rasters: set, model })).toBeTruthy();
+  });
+});
+
 describe("formal visual static guard", () => {
   const bad: Record<string, string> = {
     gradient: `const s = { background: "linear-gradient(#000, #fff)" };`,
@@ -1436,7 +1494,7 @@ describe("formal visual static guard", () => {
   const src = resolve(import.meta.dirname, "../src");
   it("the whole RO primitive dependency graph passes the guard", () => {
     const files = moduleGraph(join(src, "ui/ro/index.ts"));
-    expect(files.map((f) => relPosix(src, f))).toEqual(expect.arrayContaining(["ui/ro/index.ts", "ui/ro/primitives.tsx", "ui/ro/raster.ts"]));
+    expect(files.map((f) => relPosix(src, f))).toEqual(expect.arrayContaining(["ui/ro/hud.tsx", "ui/ro/index.ts", "ui/ro/primitives.tsx", "ui/ro/raster.ts"]));
     for (const f of files) expect(scanFormalVisual(readFileSync(f, "utf8"), f), f).toEqual([]);
     expect(guardGraph(join(src, "ui/ro/index.ts"))).toEqual([]);
   });
@@ -1484,10 +1542,10 @@ describe("formal visual static guard", () => {
     }
   });
 
-  it("the primitive library is unreachable from the shipped formal screen", () => {
+  it("the shipped formal screen reaches the guarded original-RO HUD graph", () => {
     const files = moduleGraph(join(src, "main.tsx")).map((f) => relPosix(src, f));
     expect(files).toContain("App.tsx");
-    expect(files.filter((f) => f.startsWith("ui/ro/") || f === "game/formal/ui.ts")).toEqual([]);
+    expect(files).toEqual(expect.arrayContaining(["screens/Hud.tsx", "ui/ro/hud.tsx", "ui/ro/index.ts", "ui/ro/primitives.tsx", "ui/ro/raster.ts"]));
     expect(dirname(join(src, "ui/ro/index.ts"))).toBe(join(src, "ui/ro"));
   });
 });

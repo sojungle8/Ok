@@ -41,6 +41,10 @@ export interface FormalUiAssets {
   fonts: Map<string, ArrayBuffer>;
   /** UI-B2: lifecycle-owned handles for every verified PNG (issued only after all checks passed). */
   rasters: RasterRegistry;
+  /** True after all raster URLs and decoded images have been released. */
+  readonly disposed: boolean;
+  /** Idempotent lifecycle cleanup. */
+  dispose(): void;
 }
 
 const reasonOf = (err: unknown): string => (err instanceof Error ? err.message : String(err));
@@ -101,6 +105,14 @@ export async function loadFormalUiAssets(
   /** Verified PNG bytes, held until every check has passed; only then are handles issued. */
   const pngBytes = new Map<string, Uint8Array>();
   const derivedSha = new Map<string, string>();
+  const closeDecodedImages = (): void => {
+    const seen = new Set<ImageLike>();
+    for (const image of images.values()) {
+      if (seen.has(image)) continue;
+      seen.add(image);
+      image.close?.();
+    }
+  };
 
   const checkHeader = (row: WhitelistRow, h: { converterVersion: number; profileId: string; lockId: string; whitelistSha256: string; entrySetSha256: string; entry: UiManifestEntry }): UiManifestEntry => {
     if (h.converterVersion !== id.converterVersion) throw new Error(`converterVersion ${h.converterVersion} != manifest ${id.converterVersion}`);
@@ -216,6 +228,7 @@ export async function loadFormalUiAssets(
     }
   }
   if (missing.length > 0 || !s || !a) {
+    closeDecodedImages();
     throw new MissingAssetsError([...new Map(missing.map((m) => [`${m.assetId ?? ""}|${m.reason}`, m])).values()].sort((x, y) => ((x.assetId ?? "") < (y.assetId ?? "") ? -1 : 1)));
   }
   // Mint every handle in one transaction (all or nothing), only after every check above has passed.
@@ -227,6 +240,38 @@ export async function loadFormalUiAssets(
     if (!sha256) throw new MissingAssetsError([missingWhitelisted(whitelist, assetId, "declared PNG SHA-256 missing at handle issue")]);
     return { assetId, bytes, sha256, width: img.width, height: img.height, entry };
   });
-  const rasters = await mintRasterSet(items);
-  return { profileId: UI_PROFILE_ID, lockId: id.lockId, entries, images, cursor: { atlas: s, act: a }, fonts, rasters };
+  let rasters: RasterRegistry;
+  try {
+    rasters = await mintRasterSet(items);
+  } catch (err) {
+    closeDecodedImages();
+    throw err;
+  }
+  let disposed = false;
+  return {
+    profileId: UI_PROFILE_ID,
+    lockId: id.lockId,
+    entries,
+    images,
+    cursor: { atlas: s, act: a },
+    fonts,
+    rasters,
+    get disposed() {
+      return disposed;
+    },
+    dispose() {
+      if (disposed) return;
+      disposed = true;
+      rasters.dispose();
+      const seen = new Set<ImageLike>();
+      for (const image of images.values()) {
+        if (seen.has(image)) continue;
+        seen.add(image);
+        image.close?.();
+      }
+      images.clear();
+      fonts.clear();
+      entries.clear();
+    },
+  };
 }

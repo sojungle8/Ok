@@ -1,7 +1,8 @@
 import type { WalkGrid } from "@ro-survivor/core-sim";
-import { formalRequiredIds, formalUiRequiredIds, missingFromWhitelist, resolveMapClosure, type HttpAssetGatewayClient } from "@ro-survivor/asset-contracts";
+import { CANONICAL_WHITELIST_SHA256, formalRequiredIds, formalUiRequiredIds, missingFromWhitelist, resolveMapClosure, UI_PROFILE_ID, type HttpAssetGatewayClient } from "@ro-survivor/asset-contracts";
 import { whitelist } from "../gateway.ts";
-import { loadFormalScene, type FormalDecoders, type FormalSceneData } from "./formal/load.ts";
+import { disposeFormalScene, loadFormalScene, type FormalDecoders, type FormalSceneData } from "./formal/load.ts";
+import { loadFormalUiAssets, type FormalUiAssets } from "./formal/ui.ts";
 import type { GroundData } from "./renderer.ts";
 import { FORMAL_SCENE, MissingAssetsError, missingWhitelisted, type MissingAsset } from "./requirements.ts";
 import { sheetFromDerived, type SheetData, type SpriteSheet } from "./sprites.ts";
@@ -16,6 +17,8 @@ export interface LoadedAssets {
   start: { x: number; y: number };
   /** Formal scene (original GND / RSM / water / shadow / audio). Null only in test-fixture mode. */
   formal: FormalSceneData | null;
+  /** Verified original RO UI registry. Null only in the synthetic test-fixture build. */
+  ui: FormalUiAssets | null;
   /** Requirements that test-fixture mode tolerated (never tolerated in the formal game). */
   tolerated: MissingAsset[];
 }
@@ -108,7 +111,17 @@ export async function loadFormalAssets(gateway: HttpAssetGatewayClient, fixtureM
   if (!fixtureMode) missing.push(...closureMissing);
   if (missing.length > 0 || !player || Object.keys(enemies).length !== FORMAL_SCENE.enemies.length || !map) throw new MissingAssetsError(missing);
   // Formal scene: original GND / RSM / water / shadow / audio, all or nothing.
-  const formal = fixtureMode ? null : await loadFormalScene(gateway, decoders, whitelist);
+  let formal: FormalSceneData | null = null;
+  let ui: FormalUiAssets | null = null;
+  if (!fixtureMode) {
+    formal = await loadFormalScene(gateway, decoders, whitelist);
+    try {
+      ui = await loadFormalUiAssets(gateway, decoders, whitelist, { profileId: UI_PROFILE_ID, whitelistSha256: CANONICAL_WHITELIST_SHA256 });
+    } catch (err) {
+      disposeFormalScene(formal);
+      throw err;
+    }
+  }
 
   const walkable = new Uint8Array(map.gat.width * map.gat.height);
   for (let i = 0; i < walkable.length; i += 1) {
@@ -122,6 +135,7 @@ export async function loadFormalAssets(gateway: HttpAssetGatewayClient, fixtureM
     grid: { width: map.gat.width, height: map.gat.height, cellMm: 1000, walkable },
     start: { x: map.spawn.x * 1000 + 500, y: map.spawn.y * 1000 + 500 },
     formal,
+    ui,
     tolerated: closureMissing,
   };
 }

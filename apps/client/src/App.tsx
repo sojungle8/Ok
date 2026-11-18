@@ -6,6 +6,8 @@ import seedJson from "../../../docs/product-plan/handoff/vertical-slice-content-
 import { connectFormalGateway, FIXTURE_BUILD, type GatewayConnection } from "./gateway.ts";
 import { loadFormalAssets, type LoadedAssets } from "./game/assets.ts";
 import { FormalAudio, prepareFormalAudio, type AudioContextLike } from "./game/formal/audio.ts";
+import { installFormalFonts, type InstalledFormalFonts } from "./game/formal/fonts.ts";
+import { disposeFormalScene } from "./game/formal/load.ts";
 import { FormalWorld, nearestTexture, OfficialShadowLayer } from "./game/formal/world.ts";
 import { MissingAssetsError, type MissingAsset } from "./game/requirements.ts";
 import type { GroundData } from "./game/renderer.ts";
@@ -53,6 +55,7 @@ export function App() {
   const [debug, setDebug] = useState(false);
   const [audioGate, setAudioGate] = useState(false);
   const audio = useRef<FormalAudio | null>(null);
+  const fonts = useRef<InstalledFormalFonts | null>(null);
   /** Test-fixture builds only: world factory from the dynamically imported fixture module. */
   const fixtureWorld = useRef<((g: GroundData) => WorldLayer) | null>(null);
   const db = useRef<IndexedDbBackend | null>(null);
@@ -65,6 +68,7 @@ export function App() {
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
   const inRunScreen = flow.screen === "running" || flow.screen === "draft-paused" || flow.screen === "boss-intro" || flow.screen === "victory" || flow.screen === "defeat";
+  const showDeveloperHeader = !inRunScreen || FIXTURE_BUILD || params.get("dev") === "1";
   // The run lives as long as the flow stays inside one run; phase changes must not restart it.
   const runKey = inRunScreen && "runSeed" in flow ? `${flow.stage}:${flow.runSeed}` : null;
   const send = useCallback((e: FlowEvent) => setFlow((s) => flowTransition(s, e)), []);
@@ -89,34 +93,73 @@ export function App() {
   // Loading: formal RO assets only; any gap stops with canonical paths.
   useEffect(() => {
     if (flow.screen !== "loading") return;
+    let cancelled = false;
     void (async () => {
+      let loaded: LoadedAssets | null = null;
+      let nextAudio: FormalAudio | null = null;
+      let nextFonts: InstalledFormalFonts | null = null;
       if (!conn?.ok) {
-        setBlocked({ reason: conn?.ok === false ? conn.reason : "gateway 未連線", missing: [] });
+        if (!cancelled) setBlocked({ reason: conn?.ok === false ? conn.reason : "gateway 未連線", missing: [] });
         return;
       }
       try {
-        const loaded = await loadFormalAssets(conn.client, conn.health.fixture === true);
+        loaded = await loadFormalAssets(conn.client, conn.health.fixture === true);
         if (loaded.formal) {
+          if (!loaded.ui) throw new Error("formal scene loaded without the verified RO UI registry");
+          nextFonts = await installFormalFonts(loaded.ui, whitelist);
           // Original audio is decoded up front; a decode failure blocks like any missing asset.
-          const a = new FormalAudio(new AudioContext() as unknown as AudioContextLike, loaded.formal);
-          await prepareFormalAudio(a, whitelist); // a decode failure names the exact asset ID + path
-          audio.current = a;
+          nextAudio = new FormalAudio(new AudioContext() as unknown as AudioContextLike, loaded.formal);
+          await prepareFormalAudio(nextAudio, whitelist); // a decode failure names the exact asset ID + path
         } else if (FIXTURE_BUILD) {
           const mod = await import("./game/fixture/fixtureWorld.ts");
           fixtureWorld.current = (g) => new mod.FixtureWorld(g);
         } else {
           throw new Error("formal build without a formal scene");
         }
+        if (cancelled) {
+          nextAudio?.dispose();
+          nextFonts?.dispose();
+          loaded.ui?.dispose();
+          disposeFormalScene(loaded.formal);
+          return;
+        }
+        audio.current?.dispose();
+        fonts.current?.dispose();
+        audio.current = nextAudio;
+        fonts.current = nextFonts;
         setAssets(loaded);
         send({ type: "loaded" });
       } catch (err) {
-        setBlocked(
-          err instanceof MissingAssetsError ? { reason: "缺少必要的 RO 素材，正式畫面停止（不以任何替代圖取代）。", missing: err.missing }
-          : { reason: String(err), missing: [] },
-        );
+        nextAudio?.dispose();
+        nextFonts?.dispose();
+        loaded?.ui?.dispose();
+        disposeFormalScene(loaded?.formal ?? null);
+        if (!cancelled) {
+          setBlocked(
+            err instanceof MissingAssetsError ? { reason: "缺少必要的 RO 素材，正式畫面停止（不以任何替代圖取代）。", missing: err.missing }
+            : { reason: String(err), missing: [] },
+          );
+        }
       }
     })();
+    return () => {
+      cancelled = true;
+    };
   }, [flow.screen, conn, send]);
+
+  // The decoded scene and verified Blob URLs belong to exactly one loaded run selection.
+  useEffect(() => {
+    if (!assets) return;
+    return () => {
+      assets.ui?.dispose();
+      disposeFormalScene(assets.formal);
+    };
+  }, [assets]);
+
+  useEffect(() => () => {
+    audio.current?.dispose();
+    fonts.current?.dispose();
+  }, []);
 
   // Running: create renderer + session once the canvas exists.
   useEffect(() => {
@@ -225,7 +268,7 @@ export function App() {
   return (
     <main class={`app screen-${flow.screen}`} data-screen={flow.screen}>
       {inRun ? <canvas ref={canvas} class="world" data-testid="world" /> : null}
-      <header class="hud">
+      {showDeveloperHeader ? <header class="hud" data-dev-overlay={inRunScreen ? "true" : undefined}>
         <h1 data-testid="project-name">RO Survivor Fan Game</h1>
         <p class="tag">非官方、非營利同人 · Phase 2 垂直切片</p>
         {FIXTURE_BUILD && conn?.ok && conn.health.fixture ? <p class="fixture" data-testid="fixture-banner">TEST FIXTURE：自動測試用 synthetic 素材，非正式畫面</p> : null}
@@ -234,7 +277,7 @@ export function App() {
           <dt>Build</dt><dd data-testid="build-id"><code>{__BUILD_ID__}</code></dd>
           <dt>Gateway</dt><dd data-testid="gateway-status">{conn === null ? "檢查中…" : conn.ok ? `已連線 · mode=fan-local${conn.health.fixture ? " · TEST FIXTURE" : ""}` : `尚未連線 · ${conn.health?.fixture ? "fixture 已拒絕" : "無 RO 素材來源"}`}</dd>
         </dl>
-      </header>
+      </header> : null}
 
       {flow.screen === "title" ? (
         <section class="panel" data-testid="title">
@@ -276,11 +319,11 @@ export function App() {
           ) : <p>載入本機 RO 素材…</p>}
         </section>
       ) : null}
-      {inRun && st ? <Hud content={content} st={st} /> : null}
+      {inRun && st ? <Hud content={content} st={st} rasters={assets?.ui?.rasters ?? null} /> : null}
       {inRun && st && session.current && (st.phase === "draft" || st.phase === "keystone-confirm") && (!autoplay || manualDraft) ? (
         <DraftModal content={content} st={st} onChoose={(i) => session.current?.choose(i)} onConfirm={() => session.current?.confirm()} onCancel={() => session.current?.cancel()} />
       ) : null}
-      {flow.screen === "victory" || flow.screen === "defeat" ? <div class="banner big" data-testid="outcome">{flow.screen === "victory" ? "勝利！" : "倒下了…"}</div> : null}
+      {(flow.screen === "victory" || flow.screen === "defeat") && !assets?.ui ? <div class="banner big" data-testid="outcome">{flow.screen === "victory" ? "勝利！" : "倒下了…"}</div> : null}
       {flow.screen === "results" && results ? (
         <section class="panel results" data-testid="results">
           <h2>{results.result.outcome === "victory" ? "勝利" : "失敗"}</h2>
@@ -295,13 +338,13 @@ export function App() {
             <dt>存檔</dt><dd data-testid="settled">{db.current ? (results.applied ? "已結算（本機 IndexedDB）" : "已結算過（不重複發獎）") : "無法開啟本機存檔"}</dd>
             {results.character ? <><dt>累計</dt><dd data-testid="character-total">Base {results.character.baseXp} · 勝場 {results.character.victories}/{results.character.runs}{results.character.bestTimeTicks !== null && results.character.bestTimeTicks === results.result.timeTicks && results.result.outcome === "victory" ? " · 新紀錄！" : ""}</dd></> : null}
           </dl>
-          <button class="primary" onClick={() => { setResults(null); setAssets(null); setSt(null); send({ type: "continue" }); }} data-testid="continue">繼續</button>
+          <button class="primary" onClick={() => { fonts.current?.dispose(); fonts.current = null; setResults(null); setAssets(null); setSt(null); send({ type: "continue" }); }} data-testid="continue">繼續</button>
         </section>
       ) : null}
       {inRun && audioGate ? (
         <button class="audio-gate" data-testid="audio-gate" onClick={() => void audio.current?.enable().then(() => setAudioGate(false))}>點擊啟用音訊</button>
       ) : null}
-      {inRun ? <div class="stick" ref={stick} data-testid="joystick" aria-label="虛擬搖桿"><div class="knob" /></div> : null}
+      {inRun ? <div class={`stick${assets?.formal ? " formal-stick" : ""}`} ref={stick} data-testid="joystick" aria-label={assets?.formal ? "透明移動區" : "虛擬搖桿"}><div class="knob" /></div> : null}
     </main>
   );
 }
