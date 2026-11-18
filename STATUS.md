@@ -76,10 +76,10 @@ Details, gates and local commands: `reports/phase1/PHASE1-ACCEPTANCE.md`; perfor
 | 250 enemies @60 FPS desktop / phone 30 FPS | Emulated 4x CPU at 30 FPS: pass · real GPU / phone DEFERRED_LOCAL |
 | Derived files only in `.local-assets` | CLOUD_PASS (marker + rights:check tests) |
 
-Latest code gate on Windows: `pnpm ci:local` passed with 41 test files / 409 tests, 17 synthetic files / 183 tests,
-`rights:check` PASS and 23/23 handoff checks. The full browser gate also passed formal blocking/refusal and the
-fixture key/touch/gamepad/settlement flow, including a focused gamepad-A results exit and exactly-once reload check.
-GitHub Actions run #48 for code commit `500d069` succeeded:
+Latest code gate on Windows: `pnpm ci:local` passed with 42 test files / 427 tests, 17 synthetic files / 183 tests,
+`rights:check` PASS and 23/23 handoff checks. Browser gates passed formal blocking/refusal, the fixture
+key/touch/gamepad/settlement flow, and the real-asset desktop/phone/tablet/landscape path with real touch, formal
+audio start and layout checks. The most recent previously published GitHub Actions run #48 for `500d069` succeeded:
 <https://github.com/sojungle8/Ok/actions/runs/44224737092>.
 
 ---
@@ -133,7 +133,7 @@ Code commits `9062ceb`, `c1e90e9`, `a600c32`; GitHub Actions run #5
 | Finding | Status | Evidence |
 | --- | --- | --- |
 | A handoff transfer integrity | ACCEPTED · CLOUD_PASS | trailing `0D 0A` removed; `.gitattributes eol=lf`; worktree **and Git blob** SHA-256 = VALIDATION.md for all four files |
-| B DRIFT was green | ACCEPTED · CLOUD_PASS | `assets:validate-handoff` exits 1 on FAIL/DRIFT, 21/21 PASS, in `ci:local` and CI; tests cover worktree and staged-blob drift |
+| B DRIFT was green | ACCEPTED · CLOUD_PASS | `assets:validate-handoff` exits 1 on FAIL/DRIFT, 23/23 PASS in the latest local gate; tests cover worktree and staged-blob drift |
 | C CP949 contract | ACCEPTED · CLOUD_PASS | fixed official table: 17,048 double-byte mappings, stream SHA-256 `1ed8d8e4d8095248317a77a2976f4ec8e76e551b11caa1f7249476bf109961cd`, € / ® supported, 188 EUDC rejected, 11,172 Hangul round-trip, strict errors; generator verifies source `f57e6fef…` and is maintenance-only (no network in build/test/CI) |
 | D history blob scanning | ACCEPTED · CLOUD_PASS | baseline `b6d70c2fd5271dae32e926210ea7d49fdea9023c` (full SHA, fail-closed); `baseline..HEAD` paths + blobs incl. merged branches; 17 rights tests pass |
 | Docs (47 + 1 rows, counts) | ACCEPTED · done | VALIDATION.md line corrected; this file; RISKS; DECISIONS D-014–D-016; RESEARCH-GAPS GAP-001 RESOLVED |
