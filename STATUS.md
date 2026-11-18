@@ -7,14 +7,16 @@ full extraction and formal desktop/mobile browser smoke passed on 2026-11-18. Th
 `prt_fild08` GND/RSM/water, four-layer Swordsman, 12 monster sets, official shadow and original audio, with no
 placeholder fallback. Derived files and screenshots remain ignored under `.local-assets` / `reports/local`.
 
-RO UI is still **in progress**, with the first visible run HUD and the formal level-up/keystone draft now
-**LOCAL_PASS** (`reports/phase1/UI-B3-LOCAL-ACCEPTANCE.md`, `reports/phase1/UI-B4-DRAFT-LOCAL-ACCEPTANCE.md`).
+RO UI is still **in progress**, with the visible run HUD, formal level-up/keystone draft and results window now
+**LOCAL_PASS** (`reports/phase1/UI-B3-LOCAL-ACCEPTANCE.md`, `reports/phase1/UI-B4-DRAFT-LOCAL-ACCEPTANCE.md`,
+`reports/phase1/UI-B5-RESULTS-LOCAL-ACCEPTANCE.md`).
 All 108 original UI assets are locally verified and extracted; formal loading now installs the original client fonts
-and renders BasicInfo, HP/XP gauges, Shortcut, skill icons, status/Boss strips, choice panels and four-state buttons
+and renders BasicInfo, HP/XP gauges, Shortcut, skill icons, status/Boss strips, choice panels, a terminal run summary
+and four-state buttons
 from verified rasters. Desktop, phone portrait, tablet portrait and landscape viewports stay within bounds; formal
-mode hides developer HUD and drawn joystick art. Profile `KRO2021_CLASSIC_V0_FAN` remains `DISCOVERED` and exact
-original-client placement metrics remain `DEFERRED_LOCAL`; title, character/stage selection and results windows are
-not RO-complete and no pixel-identical claim is made.
+mode hides developer HUD and drawn joystick art, and results retain a visibly frozen real-RO world. Profile
+`KRO2021_CLASSIC_V0_FAN` remains `DISCOVERED` and exact original-client placement metrics remain `DEFERRED_LOCAL`;
+title and character/stage selection are not RO-complete and no pixel-identical claim is made.
 
 ## Phase 2 (cloud) — summary
 
@@ -29,7 +31,7 @@ Evidence: `reports/vertical-slice-acceptance.md` (headless, `pnpm slice:acceptan
 | Settlement closed 20 times mid-way: no duplicate items / XP | CLOUD_PASS (unit, fault injection) + browser: one settlement, reload does not duplicate |
 | A full run with touch only / gamepad only | Simulation CLOUD_PASS via device quantisation; browser: drafts by key / touch tap / gamepad A pass · real devices DEFERRED_LOCAL |
 | Audio buses, voice limits, boss warning priority | Rules CLOUD_PASS (unit) · playback blocked by missing audio rows (GAP-004) |
-| Formal screen (real RO assets) | LOCAL_PASS: original world/actors/shadow/audio plus first verified-raster RO HUD at desktop, phone, tablet and landscape viewports; remaining screens and human physical-device play stay open |
+| Formal screen (real RO assets) | LOCAL_PASS: original world/actors/shadow/audio plus verified-raster RO HUD, draft and results at desktop, phone, tablet and landscape viewports; title/selection screens and human physical-device play stay open |
 
 Balance tuning T-01…T-09 is layered on the seed (D-024); see the acceptance report.
 
@@ -59,10 +61,11 @@ Details, gates and local commands: `reports/phase1/PHASE1-ACCEPTANCE.md`; perfor
 | 250 enemies @60 FPS desktop / phone 30 FPS | Emulated 4x CPU at 30 FPS: pass · real GPU / phone DEFERRED_LOCAL |
 | Derived files only in `.local-assets` | CLOUD_PASS (marker + rights:check tests) |
 
-Latest code gate on Windows: `pnpm ci:local` passed with 36 test files / 378 tests, 17 synthetic files / 183 tests,
+Latest code gate on Windows: `pnpm ci:local` passed with 37 test files / 383 tests, 17 synthetic files / 183 tests,
 `rights:check` PASS and 23/23 handoff checks. The full browser gate also passed formal blocking/refusal and the
-fixture key/touch/gamepad/settlement flow. GitHub Actions for this uncommitted increment is pending; the prior docs
-baseline run #46 succeeded: <https://github.com/sojungle8/Ok/actions/runs/44216255369>.
+fixture key/touch/gamepad/settlement flow, including a focused gamepad-A results exit and exactly-once reload check.
+GitHub Actions run #48 for code commit `500d069` succeeded:
+<https://github.com/sojungle8/Ok/actions/runs/44224737092>.
 
 ---
 
@@ -124,6 +127,6 @@ Counts are taken from the runner output of run #5 and a clean local `pnpm instal
 
 ## Next minimal step
 
-Run the Phase 1 local commands in `reports/phase1/PHASE1-ACCEPTANCE.md` (audit, extract, contact-sheet
-review, dev:fan-local, GPU bench), return the audit and dependency reports, and wait for an explicit
-instruction before Phase 2.
+Build the title, character selection and stage selection screens from verified original RO rasters, one bounded
+screen at a time, then repeat the four-viewport local gate. D-032 stays specification-only: do not begin the all-job
+skill/VFX redesign until the user explicitly starts that work.

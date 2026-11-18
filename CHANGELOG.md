@@ -154,6 +154,10 @@
 - Formal level-up/keystone draft: verified original RO title/chat strips, semantic original skill icons, official
   selection marker and four-state three-slice buttons; responsive real-local checks at desktop, phone, tablet and
   phone-landscape sizes. Generic draft UI remains test-fixture-only.
+- Formal results: verified original RO item-window title/body/footer and four-state scalable button, with a visibly
+  frozen final real-RO world behind it; HUD, joystick and developer header are removed, settlement gates Continue,
+  and keyboard, pointer/touch plus gamepad A are supported. Four real-local viewport measurements pass without
+  overflow; the generic results panel remains test-fixture-only.
 - Windows e2e runner now executes the exact invoking pnpm CLI through Node 24 instead of attempting to spawn a
   `.cmd` shim with `execFileSync`.
 
