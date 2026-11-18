@@ -1,10 +1,21 @@
-import { botCommand, buildRunResult, createRun, FixedStepClock, stepRun, type BuildPlan, type RunConfig, type RunContent, type RunInput, type RunState } from "@ro-survivor/core-sim";
+import { botCommand, buildRunResult, createRun, FixedStepClock, stepRun, type BuildPlan, type RunConfig, type RunContent, type RunEvent, type RunInput, type RunState } from "@ro-survivor/core-sim";
 import { InputRouter } from "@ro-survivor/input";
 import type { RunRenderer } from "./runRenderer.ts";
 
 export interface SessionCallbacks {
   onFrame(st: RunState): void;
   onEnd(st: RunState): void;
+}
+
+/** Preserve every simulation event produced in one render frame; a zero-step frame clears old events. */
+export function accumulateFrameEvents(state: Pick<RunState, "events">, steps: number, step: (index: number) => boolean | void): void {
+  const events: RunEvent[] = [];
+  for (let i = 0; i < steps; i += 1) {
+    const keepGoing = step(i);
+    events.push(...state.events);
+    if (keepGoing === false) break;
+  }
+  state.events = events;
 }
 
 /**
@@ -81,10 +92,10 @@ export class RunSession {
       let n = this.#clock.advance(Math.max(0, Math.round((now - this.#last) * 1000)));
       this.#last = now;
       if (this.#autoplay && !this.#manualDraft) n *= this.#speed;
-      for (let i = 0; i < n; i += 1) {
+      accumulateFrameEvents(this.state, n, () => {
         stepRun(this.state, this.cfg, this.#command());
-        if (this.state.phase === "victory" || this.state.phase === "defeat") break;
-      }
+        return this.state.phase !== "victory" && this.state.phase !== "defeat";
+      });
       this.#renderer.render(this.state, now - this.#start);
       this.#cb.onFrame(this.state);
       if (this.state.phase === "victory" || this.state.phase === "defeat") {

@@ -52,12 +52,18 @@ describe("run simulation: rules", () => {
     st.player.active = ["skill.sw.magnum_break", "skill.sw.bash", "skill.sw.shield_wave", "skill.sw.endure"].map((id) => ({ id, rank: 3, readyAt: 0 }));
     const { x, y } = st.player;
     let fired = 0;
+    const skillEvents: Extract<RunState["events"][number], { type: "skill" }>[] = [];
     for (let t = 0; t < 2400 && st.phase === "running"; t += 1) {
       stepRun(st, cfg, { tick: st.tick, sequence: t, moveX: 0, moveY: 0 });
-      fired += st.events.filter((e) => e.type === "skill").length;
+      const events = st.events.filter((e): e is Extract<RunState["events"][number], { type: "skill" }> => e.type === "skill");
+      fired += events.length;
+      skillEvents.push(...events);
       expect([st.player.x, st.player.y]).toEqual([x, y]);
     }
     expect(fired).toBeGreaterThan(20);
+    expect(skillEvents.some((e) => e.source === "skill.sw.endure" && e.geometry === null)).toBe(true);
+    expect(skillEvents.every((e) => e.vfxCue === e.source && e.geomId.startsWith(`player:${e.source}:`))).toBe(true);
+    expect(skillEvents.every((e) => Number.isInteger(e.origin.xMm) && Number.isInteger(e.origin.yMm) && Number.isInteger(e.rank))).toBe(true);
   });
 
   it("every telegraph / projectile hit references a geometry ID that was announced", () => {

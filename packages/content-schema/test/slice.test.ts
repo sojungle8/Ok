@@ -12,6 +12,8 @@ describe("vertical-slice content compile", () => {
     expect(c.skills["skill.sw.magnum_break"]).toMatchObject({ cooldownTicks: 300, castTicks: 21, damage: 2800, hitLimit: 20, minimumTargets: 3, geometry: { shape: "circle", radiusMm: 2600 } });
     expect(c.skills["skill.sw.basic_slash"]?.geometry).toEqual({ shape: "sector", rangeMm: 1800, halfAngleDeg: 50 });
     expect(c.skills["skill.sw.basic_slash"]?.perRank.hitLimit).toEqual([3, 3, 4, 4, 5]);
+    expect(c.skills["skill.sw.magnum_break"]).toMatchObject({ designOrigin: "official-name-adapted", fanGameAdaptation: true, officialSource: { id: 7, constant: "SM_MAGNUM" } });
+    expect(c.skills["skill.sw.shield_wave"]).toMatchObject({ designOrigin: "original-survivor-adaptation", fanGameAdaptation: true, officialSource: null });
     expect(c.monsters["monster.poring"]).toMatchObject({ hp: 1800, speedMmPerTick: 30, contactDamage: 500, xp: 1 });
     expect(c.monsters["elite.poring"]).toMatchObject({ hp: 21600, contactDamage: 1000, xp: 20 });
     expect(c.monsters["boss.mastering"]?.attacks.map((a) => a.kind)).toEqual(["hop-slam", "summon", "bounce-ring", "harden"]);
@@ -39,5 +41,12 @@ describe("vertical-slice content compile", () => {
     const bad = JSON.parse(JSON.stringify(seed)) as { stage: { timeline: { pool?: string[] }[] } };
     (bad.stage.timeline[0] as { pool: string[] }).pool = ["monster.nope"];
     expect(() => compileSliceContent(bad)).toThrow(/unknown monster/u);
+  });
+
+  it("rejects a misspelled automatic trigger instead of compiling a never-firing skill", () => {
+    const bad = JSON.parse(JSON.stringify(seed)) as { skills: { id: string; trigger?: string }[] };
+    const skill = bad.skills.find((s) => s.id === "skill.sw.magnum_break");
+    if (skill) skill.trigger = "automatic-nearset-in-range";
+    expect(() => compileSliceContent(bad)).toThrow(/trigger/u);
   });
 });

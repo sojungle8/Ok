@@ -1,6 +1,8 @@
 import { z } from "zod";
-import type {
-  BossAttackDef, Geometry, ItemDef, KeystoneDef, MonsterDef, MonsterRole, PassiveDef, RunContent, SkillDef, SkillTrigger, TimelineEntry,
+import {
+  SKILL_TRIGGERS,
+  type BossAttackDef, type Geometry, type ItemDef, type KeystoneDef, type MonsterDef, type MonsterRole, type PassiveDef,
+  type RunContent, type SkillDef, type TimelineEntry,
 } from "@ro-survivor/core-sim";
 
 /**
@@ -16,10 +18,16 @@ const geometrySchema = z.object({
 
 const skillSchema = z.object({
   id: z.string().regex(/^skill\./u),
+  sourceSkill: z.object({
+    id: z.number().int().positive().nullable(),
+    constant: z.string().min(1),
+    maxLevel: z.number().int().positive(),
+    quest: z.boolean().optional(),
+  }),
   kind: z.enum(["built-in", "active", "passive"]),
   tags: z.array(z.string()),
   requiresTags: z.array(z.string()).optional(),
-  trigger: z.string().optional(),
+  trigger: z.enum(SKILL_TRIGGERS).optional(),
   cooldownMs: z.number().nonnegative().optional(),
   castMs: z.number().nonnegative().optional(),
   durationMs: z.number().nonnegative().optional(),
@@ -191,10 +199,13 @@ export function compileSliceContent(raw: unknown): RunContent {
     }
     skills[s.id] = {
       id: s.id,
+      designOrigin: s.sourceSkill.constant === "ORIGINAL_SURVIVOR_ADAPTATION" ? "original-survivor-adaptation" : "official-name-adapted",
+      fanGameAdaptation: true,
+      officialSource: s.sourceSkill.id === null ? null : { id: s.sourceSkill.id, constant: s.sourceSkill.constant },
       kind: s.kind === "built-in" ? "built-in" : "active",
       tags: s.tags,
       requiresTags: s.requiresTags ?? [],
-      trigger: s.kind === "built-in" ? "automatic-basic" : (s.trigger as SkillTrigger),
+      trigger: s.kind === "built-in" ? "automatic-basic" : (s.trigger ?? "automatic-nearest-in-range"),
       cooldownTicks: ticks(s.cooldownMs ?? 1000),
       castTicks: ticks(s.castMs ?? 0),
       geometry: geometry(s.geometry),

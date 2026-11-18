@@ -32,5 +32,6 @@ export function describeOption(c: RunContent, st: RunState, o: DraftOption): { t
   else if (next.geometry) lines.push(pair("距離", cur?.geometry && cur.geometry.shape !== "circle" ? `${cur.geometry.rangeMm / 1000}m` : null, `${next.geometry.rangeMm / 1000}m`));
   if (next.hitLimit > 1) lines.push(pair("目標數", cur ? String(cur.hitLimit) : null, String(next.hitLimit)));
   lines.push("自動施放，不會移動角色");
+  lines.push(s.designOrigin === "original-survivor-adaptation" ? "本作原創同人倖存者技能" : "RO 名稱／圖示；效果為本作同人倖存者改編");
   return { title: s.id.replace("skill.sw.", ""), lines };
 }

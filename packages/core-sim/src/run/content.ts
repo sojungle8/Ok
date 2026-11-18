@@ -8,16 +8,23 @@ export type Geometry =
   | { shape: "circle"; radiusMm: number }
   | { shape: "capsule"; rangeMm: number; radiusMm: number };
 
-export type SkillTrigger =
-  | "automatic-nearest-in-range"
-  | "automatic-enemy-count-threshold"
-  | "automatic-on-damage-window"
-  | "automatic-nearby-elite-priority"
-  | "automatic-highest-density-sector"
-  | "automatic-elite-priority";
+export const SKILL_TRIGGERS = [
+  "automatic-nearest-in-range",
+  "automatic-enemy-count-threshold",
+  "automatic-on-damage-window",
+  "automatic-nearby-elite-priority",
+  "automatic-highest-density-sector",
+  "automatic-elite-priority",
+] as const;
+export type SkillTrigger = (typeof SKILL_TRIGGERS)[number];
+export type SkillDesignOrigin = "official-name-adapted" | "original-survivor-adaptation";
 
 export interface SkillDef {
   id: string;
+  /** The mechanics are always this fan game's design; this records whether the name/icon has an RO source. */
+  designOrigin: SkillDesignOrigin;
+  fanGameAdaptation: true;
+  officialSource: { id: number; constant: string } | null;
   kind: "built-in" | "active";
   tags: string[];
   requiresTags: string[];

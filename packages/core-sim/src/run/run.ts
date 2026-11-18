@@ -78,14 +78,28 @@ export interface Orb { id: number; x: number; y: number; value: number }
 
 export interface SlotState { id: string; rank: number; readyAt: number }
 
-export interface RunEvent {
-  type: "hit" | "player-hit" | "telegraph" | "projectile" | "kill" | "level-up" | "skill" | "spawn" | "boss-spawn" | "enrage" | "boss-warning";
+export interface SkillFiredEvent {
+  type: "skill";
+  tick: number;
+  source: string;
+  geomId: string;
+  origin: { xMm: number; yMm: number };
+  direction: { x: number; y: number };
+  geometry: Geometry | null;
+  rank: number;
+  vfxCue: string;
+  designOrigin: SkillDef["designOrigin"];
+}
+
+export interface OtherRunEvent {
+  type: "hit" | "player-hit" | "telegraph" | "projectile" | "kill" | "level-up" | "spawn" | "boss-spawn" | "enrage" | "boss-warning";
   tick: number;
   source?: string;
   geomId?: string;
   targetId?: number;
   amount?: number;
 }
+export type RunEvent = SkillFiredEvent | OtherRunEvent;
 
 export interface RunStats {
   kills: number;
@@ -590,13 +604,16 @@ function resolveSkill(c: RunContent, st: RunState, s: SkillDef, rank: number, dx
   const p = st.player;
   const v = skillValue(c, s, rank, p.keystone);
   const rng = Rng.restore(st.rngCombat);
+  const geomId = `player:${s.id}:${st.nextId++}`;
+  st.events.push({
+    type: "skill", tick: st.runTick, source: s.id, geomId, origin: { xMm: p.x, yMm: p.y }, direction: { x: dx, y: dy },
+    geometry: v.geometry, rank, vfxCue: s.id, designOrigin: s.designOrigin,
+  });
   if (s.id === "skill.sw.endure") {
     p.endureUntil = st.runTick + v.duration;
     p.endureReduction = v.reduction;
   } else if (v.geometry) {
     const placed: Placed = { shape: v.geometry, ox: p.x, oy: p.y, dx, dy };
-    const geomId = `player:${s.id}:${st.nextId++}`;
-    st.events.push({ type: "skill", tick: st.runTick, source: s.id, geomId });
     const targets = enemiesWithin(st, p.x, p.y, v.geometry.shape === "circle" ? v.geometry.radiusMm : v.geometry.rangeMm).filter((t) => hits(placed, t.e.x, t.e.y, t.e.radius));
     const limit = v.damage > 0 ? v.hitLimit : targets.length;
     for (const t of targets.slice(0, limit)) {
@@ -626,7 +643,11 @@ function updatePlayerSkills(c: RunContent, st: RunState): void {
       const arc = p.passive.reduce((sum, ps) => sum + (c.passives[ps.id]?.perRank.basicArcDeg ?? 0) * ps.rank, 0);
       const g: Geometry = { ...v.geometry, halfAngleDeg: Math.min(180, v.geometry.halfAngleDeg + Math.trunc(arc / 2)) };
       const placed: Placed = { shape: g, ox: p.x, oy: p.y, dx: p.basicDx, dy: p.basicDy };
-      st.events.push({ type: "skill", tick: st.runTick, source: basic.id, geomId: `player:${basic.id}:${st.nextId++}` });
+      st.events.push({
+        type: "skill", tick: st.runTick, source: basic.id, geomId: `player:${basic.id}:${st.nextId++}`,
+        origin: { xMm: p.x, yMm: p.y }, direction: { x: p.basicDx, y: p.basicDy }, geometry: g,
+        rank: p.basicRank, vfxCue: basic.id, designOrigin: basic.designOrigin,
+      });
       const targets = enemiesWithin(st, p.x, p.y, g.rangeMm).filter((t) => hits(placed, t.e.x, t.e.y, t.e.radius));
       const bonus = p.keystone ? (c.keystones[p.keystone]?.effects.basicHitLimitBonus ?? 0) : 0;
       for (const t of targets.slice(0, v.hitLimit + bonus)) damageEnemy(c, st, t.e, v.damage, basic.id, p.x, p.y);
