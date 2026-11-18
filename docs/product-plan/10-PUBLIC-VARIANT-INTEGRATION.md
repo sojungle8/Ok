@@ -43,7 +43,7 @@ AnnouncementObservation
   categories[]
   confidence: observed | reported | inferred
   copyrightClass: fact | idea | text-do-not-copy | code-do-not-copy
-  supersedes[]
+  supersedesObservationIds[]
 ```
 
 ```text
@@ -56,6 +56,8 @@ DesignDecisionLink
   testIds[]
   rationale
 ```
+
+跨版本同一功能若出現矛盾，另以 `RulesetComparison` 明列官方與 HANS 的 observation IDs；`conflict=true` 時必須引用一筆 `fan-local` resolution decision，否則驗證失敗。驗證器不會靠文字相似度自行猜測衝突。
 
 ## 2026-11-18 可用候選
 

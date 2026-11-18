@@ -160,7 +160,7 @@
       "categories": ["content", "account", "persistence", "social", "multiplayer"],
       "confidence": "observed",
       "copyrightClass": "text-do-not-copy",
-      "supersedes": ["OBS-20261117-HANS-002"]
+      "supersedesObservationIds": ["OBS-20261117-HANS-002"]
     },
     {
       "announcementId": "hans-20261118-notice-r29",
@@ -178,7 +178,7 @@
       "categories": ["content", "economy", "mail", "bugfix", "performance"],
       "confidence": "observed",
       "copyrightClass": "text-do-not-copy",
-      "supersedes": []
+      "supersedesObservationIds": []
     }
   ],
   "currentPublicFacts": [
@@ -234,6 +234,7 @@
       "rationale": "先完成 deterministic replay 與單機內容，再考慮章節、爬塔與排行。"
     }
   ],
+  "variantComparisons": [],
   "runtimeImportPolicy": {
     "activeSnapshotIsBuildInput": false,
     "networkFetchDuringBuildTestOrRuntime": false,

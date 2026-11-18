@@ -14,8 +14,8 @@
       "id": "ro-reference-2026-11-18-taipei",
       "observedAt": "2026-11-18T22:45:00+08:00",
       "path": "docs/product-plan/handoff/reference-snapshot-2026-11-18.json",
-      "bytes": 9360,
-      "sha256": "C1B4BD6C7F57FB267986C82979C4E4ECD42DE081CC9AC5459174F7EAF839C9BB",
+      "bytes": 9416,
+      "sha256": "298E03C3E991CEA39E7A0CF9587B4F3D70B9A0E8677EE891BF695A8D0137E091",
       "status": "active"
     }
   ],
@@ -35,7 +35,11 @@
       "status": "active-delta"
     }
   ],
-  "integrationPlan": "docs/product-plan/10-PUBLIC-VARIANT-INTEGRATION.md",
+  "integrationPlan": {
+    "path": "docs/product-plan/10-PUBLIC-VARIANT-INTEGRATION.md",
+    "bytes": 5147,
+    "sha256": "BE30584CA2C9709E60D56656135D1B925B8A7DDE92D6106BA87E2B418DA68DEA"
+  },
   "rules": {
     "appendOnly": true,
     "productionNetworkFetch": false,

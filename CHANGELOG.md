@@ -2,6 +2,11 @@
 
 ## Unreleased — original assets, RO UI and D-032 skills (2026-11-17–18)
 
+- PUBLIC-REF-A adds strict legacy-v1/current-v2 public-reference schemas and an append-only offline gate for the
+  hash-locked integration plan, two snapshots, two ledger segments and 33 observations. It compares worktree and
+  staged Git bytes, rejects duplicate JSON keys, unsafe URLs/text/paths, unresolved or mis-sourced variant conflicts
+  and runtime imports, and now runs from `ci:local`, GitHub Actions and the handoff validator. It changes no gameplay,
+  balance or RO asset rule.
 - Canonical whitelist v5: adds the 12 verified original KRO visual sources needed by the five Swordsman effects
   (7 type-2 BGRA TGA, 1 STR animation and 4 BMP) for 300 rows total, SHA-256
   `ECE20DDDD09A4868CE9264B04E2DC602EA947F6C19929E49E81C1FCF5FBF480A`. The strict TGA decoder accepts only

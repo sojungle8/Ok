@@ -31,5 +31,6 @@ jobs:
       - run: pnpm build
       - run: pnpm rights:check
       - run: pnpm assets:test-synthetic
+      - run: pnpm reference:validate
       - run: pnpm assets:validate-handoff
       - run: pnpm skills:validate-vfx

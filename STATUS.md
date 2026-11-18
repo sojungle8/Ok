@@ -2,6 +2,11 @@
 
 Current phase: **Phase 2 — 劍士單人垂直切片: deterministic game and real-RO formal world running locally; verified-raster RO HUD and human/device acceptance still in progress (Phase 2 not complete)**.
 
+PUBLIC-REF-A is implemented without changing gameplay, balance or RO assets. The active public evidence pack is
+`ro-reference-2026-11-18-taipei` with 2 snapshots, 2 ledger segments and 33 unique observations; strict offline
+validation now runs independently and inside local/Actions/handoff gates. External announcements remain evidence
+only and cannot enter runtime without an accepted, tested fan-local overlay.
+
 Phase 1 real-asset gate is now **LOCAL_PASS for the pinned KRO 2021 client**: source hashes and the 300/300
 canonical-v5 whitelist audit pass; the unchanged world/actor/UI/audio subset has full extraction and formal
 desktop/mobile browser smoke evidence from 2026-11-18. The run displayed original RO
@@ -84,8 +89,8 @@ Details, gates and local commands: `reports/phase1/PHASE1-ACCEPTANCE.md`; perfor
 | 250 enemies @60 FPS desktop / phone 30 FPS | Emulated 4x CPU at 30 FPS: pass · real GPU / phone DEFERRED_LOCAL |
 | Derived files only in `.local-assets` | CLOUD_PASS (marker + rights:check tests) |
 
-Latest code gate on Windows: `pnpm ci:local` passed with 47 test files / 457 tests, 19 synthetic files / 197 tests,
-`rights:check` PASS and 24/24 handoff checks. Browser gates passed formal blocking/refusal, the fixture
+Latest code gate on Windows: `pnpm ci:local` passed with 49 test files / 473 tests, 19 synthetic files / 197 tests,
+`rights:check`, `reference:validate` (2 snapshots / 2 ledger segments / 33 observations) and 24/24 handoff checks all PASS. Browser gates passed formal blocking/refusal, the fixture
 key/touch/gamepad/settlement flow, and the real-asset desktop/phone/tablet/landscape path with real touch, formal
 audio start, layout checks and active/hitting Shield Wave evidence. The most recent previously published GitHub
 Actions run #52 for `e23466f` succeeded: <https://github.com/sojungle8/Ok/actions/runs/44260234270>.

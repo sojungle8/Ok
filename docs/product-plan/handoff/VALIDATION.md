@@ -13,12 +13,26 @@
 - RO UI rows：108 筆，全部 `required=true`、帶 SHA-256，`notes` 以 `profile=KRO2021_CLASSIC_V0_FAN;` 開頭。
 - 內容 seed：8 skills、4 passives、3 keystones、10 normal、2 elite、1 miniboss、1 MVP。
 - 關卡 timeline 的 entity／pool reference：PASS。
-- reference ledger：20 rows，ID 唯一。
+- baseline reference ledger：20 rows，ID 唯一。
 - public client fingerprints：8 rows，每個 SHA-256 為 64 位大寫十六進位，`retained_in_project=false`。
 - Markdown code fence：全部成對。
 - GRF／SPR／ACT／RSM／GND／GAT／RSW／STR／RO 音訊實檔進企劃目錄：0。
 - 官網 raw bundle／source map 進企劃目錄：0。
 - BGM 12 現場 hash／bytes：PASS。
+
+## 2026-11-18 增量公開參考包
+
+`pnpm reference:validate` 以 fail-closed、完全離線方式驗證：
+
+- `reference-index.json` 嚴格 schema，且 working tree bytes 必須與 staged Git blob 完全一致。
+- Integration plan、2 份 snapshots 與 2 段 ledger 的 bytes／SHA-256 同時符合 index 與 staged Git blob。
+- 恰有一份 active snapshot；`activeSnapshotId`、supersedes 鏈、日期與 v1/v2 schema 全部有效且無循環。
+- Baseline 20 rows 加 delta 13 rows，共 33 個跨 segment 唯一 observation IDs。
+- 公開 URL 僅限核准的官方／HANS host 與精確 path；摘要不得含 raw markup、程式碼或外部原文。
+- 跨 variant 衝突必須引用已接受且有測試的 fan-local decision；來源 provenance 不得混用。
+- Validator 不連網；runtime source 不得 import snapshot、index 或 ledger。
+
+本節不取代下列四個 canonical 交付 hash；歷史基線仍以 2026-11-17 的值鎖定。
 
 ## 交付物 SHA-256
 

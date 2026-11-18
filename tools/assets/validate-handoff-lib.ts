@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { AssetWhitelist, checkWhitelistRoundTrips, parseCsvRecords } from "@ro-survivor/asset-contracts";
 import { sha256Text } from "../lib/hash.ts";
+import { validateReferencePack } from "../reference/validate-lib.ts";
 
 export interface HandoffCheck {
   id: string;
@@ -24,7 +25,7 @@ export function validateHandoff(root: string): HandoffCheck[] {
   };
 
   // JSON parse
-  const jsonFiles = ["handoff/reference-snapshot-2026-11-17.json", "handoff/vertical-slice-content-seed.json"];
+  const jsonFiles = ["handoff/vertical-slice-content-seed.json"];
   const parsed: Record<string, unknown> = {};
   for (const f of jsonFiles) {
     try {
@@ -86,10 +87,16 @@ export function validateHandoff(root: string): HandoffCheck[] {
     }
   }
 
-  // Reference ledger + public client fingerprints
-  const ledger = parseCsvRecords(read(root, `${PLAN}/reference-ledger.csv`)).records;
-  const ledgerIds = new Set(ledger.map((r) => r.observation_id));
-  push("ledger:rows", ledger.length === 20 && ledgerIds.size === 20, `${ledger.length} rows, ${ledgerIds.size} unique ids`);
+  // Append-only reference snapshots and ledger segments.
+  const references = validateReferencePack(root);
+  push("reference:indexed-pack", references.errors.length === 0, references.errors.length === 0 ? `active=${references.stats.activeSnapshotId}` : JSON.stringify(references.errors));
+  push(
+    "reference:counts",
+    references.stats.snapshots === 2 && references.stats.ledgerSegments === 2 && references.stats.observations === 33,
+    `snapshots=${references.stats.snapshots} ledger-segments=${references.stats.ledgerSegments} observations=${references.stats.observations}`,
+  );
+
+  // Public client fingerprints
   const pub = parseCsvRecords(read(root, `${PLAN}/handoff/public-client-artifacts.csv`)).records;
   push(
     "public-client:fingerprints",
@@ -101,7 +108,7 @@ export function validateHandoff(root: string): HandoffCheck[] {
   const mdFiles = [
     "00-START-HERE.md", "01-RESEARCH-AND-GAME-DESIGN.md", "02-ASSET-AND-RIGHTS-PLAN.md", "03-TECHNICAL-ARCHITECTURE.md",
     "04-CONSTRUCTION-PLAN.md", "05-QA-AND-RELEASE.md", "06-CLAUDE-COMMANDS.md", "07-REFERENCE-LEDGER.md",
-    "08-PUBLIC-CODE-OBSERVATIONS.md", "09-GITHUB-CLOUD-WORKFLOW.md", "SOURCES.md",
+    "08-PUBLIC-CODE-OBSERVATIONS.md", "09-GITHUB-CLOUD-WORKFLOW.md", "10-PUBLIC-VARIANT-INTEGRATION.md", "SOURCES.md",
     "handoff/README.md", "handoff/ASSET-AUDIT.md", "handoff/VALIDATION.md",
   ];
   const unbalanced = mdFiles.filter((f) => (read(root, `${PLAN}/${f}`).match(/^```/gmu)?.length ?? 0) % 2 !== 0);
