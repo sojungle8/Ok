@@ -11,7 +11,8 @@ RO UI is still **in progress**, with the visible run HUD, formal level-up/keysto
 **LOCAL_PASS** (`reports/phase1/UI-B3-LOCAL-ACCEPTANCE.md`, `reports/phase1/UI-B4-DRAFT-LOCAL-ACCEPTANCE.md`,
 `reports/phase1/UI-B5-RESULTS-LOCAL-ACCEPTANCE.md`).
 All 108 original UI assets are locally verified and extracted; formal loading now installs the original client fonts
-and renders BasicInfo, HP/XP gauges, Shortcut, skill icons, status/Boss strips, choice panels, a terminal run summary
+and renders BasicInfo, HP/XP gauges, the original menu controls, Shortcut, skill icons, the original `prt_fild08`
+minimap, status/Boss strips, choice panels, a terminal run summary
 and four-state buttons
 from verified rasters. Desktop, phone portrait, tablet portrait and landscape viewports stay within bounds; formal
 mode hides developer HUD and drawn joystick art, and results retain a visibly frozen real-RO world. Profile
@@ -24,7 +25,7 @@ Evidence: `reports/vertical-slice-acceptance.md` (headless, `pnpm slice:acceptan
 
 | Gate (04 Phase 2) | Status |
 | --- | --- |
-| New player gets area clear within 60 s | Bot proxy CLOUD_PASS: latest offered/selected 2070 ticks, cast 2253, effective hit on ≥3 non-MVP targets 3218 (90 runs) · human test DEFERRED_LOCAL |
+| New player gets area clear within 60 s | Bot proxy CLOUD_PASS: latest selected 2025 ticks, cast/effective hit on ≥3 non-MVP targets 2046 ticks (90 runs) · human test DEFERRED_LOCAL |
 | Three builds clear standard difficulty with fixed test equipment | Bot CLOUD_PASS: ≥ 7/10 seeds per build on keyboard / touch / gamepad quantisation (D-027) · human DEFERRED_LOCAL |
 | 10 fixed seeds: no crash, no unreachable spawn, no telegraph misalignment | CLOUD_PASS (90 runs; walled-grid spawn check; every hit carries an announced geometry ID) |
 | Same hash at 15 / 30 / 60 FPS | CLOUD_PASS (10 seeds, 60 s) |
@@ -33,12 +34,15 @@ Evidence: `reports/vertical-slice-acceptance.md` (headless, `pnpm slice:acceptan
 | Audio buses, voice limits, boss warning priority | Rules CLOUD_PASS (unit) · playback blocked by missing audio rows (GAP-004) |
 | Formal screen (real RO assets) | LOCAL_PASS: original world/actors/shadow/audio plus verified-raster RO HUD, draft and results at desktop, phone, tablet and landscape viewports; title/selection screens and human physical-device play stay open |
 
-Balance tuning T-01…T-09 is layered on the seed (D-024); see the acceptance report.
+Balance tuning T-01…T-10 is layered on the seed (D-024/D-039); see the acceptance report. T-10 uses real
+simulation enemies: all 90 runs pass separate whole-map and 11 m near-player density gates with peak 186,
+zero skipped spawns and the deterministic 420-enemy cap unchanged.
 
 Product rule D-032 is **AUTHORIZED / IN PROGRESS**. The first bounded Swordsman slice now has a fail-closed
 project-owned skill-VFX provenance validator, complete skill presentation events (including Endure), multi-tick
-frame event retention, a versioned checkpoint contract, four-stage first-60-second gates and the D-032-v0.1
-clear-speed / MVP-damage / survivability / mobility / control scorecard. The same ten fixed seeds are replayed per
+frame event retention, event-driven original-ACT attack/hit/death presentation, a versioned checkpoint contract,
+four-stage first-60-second gates and the D-032-v0.3 density + clear-speed / MVP-damage / survivability / mobility /
+control scorecard. The same ten fixed seeds are replayed per
 adapter and remain an initial bot baseline, not final tuning or 30 independent samples. The approved original skill
 VFX count is still **0**: no project-owned bitmap or formal renderer hookup is claimed. Characters, monsters/MVPs,
 NPCs, maps, formal UI and audio remain original-RO-only under D-022; AI or closed-source-derived skill art remains
@@ -68,7 +72,7 @@ Details, gates and local commands: `reports/phase1/PHASE1-ACCEPTANCE.md`; perfor
 | 250 enemies @60 FPS desktop / phone 30 FPS | Emulated 4x CPU at 30 FPS: pass · real GPU / phone DEFERRED_LOCAL |
 | Derived files only in `.local-assets` | CLOUD_PASS (marker + rights:check tests) |
 
-Latest code gate on Windows: `pnpm ci:local` passed with 37 test files / 383 tests, 17 synthetic files / 183 tests,
+Latest code gate on Windows: `pnpm ci:local` passed with 41 test files / 409 tests, 17 synthetic files / 183 tests,
 `rights:check` PASS and 23/23 handoff checks. The full browser gate also passed formal blocking/refusal and the
 fixture key/touch/gamepad/settlement flow, including a focused gamepad-A results exit and exactly-once reload check.
 GitHub Actions run #48 for code commit `500d069` succeeded:
@@ -134,7 +138,8 @@ Counts are taken from the runner output of run #5 and a clean local `pnpm instal
 
 ## Next minimal step
 
-Continue the bounded Swordsman D-032 slice: connect the event-driven VFX renderer only after the first manually
-authored skill bitmap passes the provenance/style review, then run dedicated clear, MVP, survival, mobility and
-control scenarios plus human/device review. Until then, existing engine geometry is hit/readability feedback, not
-finished skill art. Title, character selection and stage selection remain a parallel RO-raster UI backlog.
+Continue the bounded Swordsman D-032 slice: approve and connect the first manually authored skill bitmap only after
+the provenance/style review, then finish title, character selection and stage selection with verified RO rasters and
+run dedicated clear, MVP, survival, mobility and control scenarios plus human/device review. Existing geometry and
+text feedback are combat readability overlays, not finished skill art; the current game is a stronger playable
+vertical slice, not a completed RO Survivors replica.

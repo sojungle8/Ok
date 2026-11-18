@@ -2,6 +2,21 @@
 
 ## Unreleased — original assets, RO UI and D-032 skills (2026-11-17–18)
 
+- Combat presentation: connects deterministic hit/skill/kill/player-hit events to original RO ACT attack, cast, hit
+  and death slots; preserves final death cues through the results transition; adds bounded damage text, optional
+  flash/shake and official per-monster shadow/elite scale. Wind-up and resolve now share one continuous animation
+  clock, and IndexedDB settlement runs in parallel with the terminal presentation instead of delaying it.
+- Survivor density D-032-v0.3: raises authoritative wave rates to 1.2/s, 2/s and ~2.73/s in the measured windows,
+  adds separate whole-map and 11 m near-player gates for every one of 90 fixed runs, and keeps peak 186 below the
+  420 cap with zero skipped spawns. Contact grace, simultaneous ranged shooters and level-up sustain were retuned;
+  all three builds remain at least 7/10 on every input adapter.
+- Formal HUD parity pass: adds the verified original BasicInfo system controls and eight menu rasters, a native 1:1
+  crop of the original `prt_fild08` minimap with its original arrow/zoom rasters, and removes passive talents from
+  the RO Shortcut bar. Phone/tablet/desktop layouts keep native/integer raster presentation.
+- Windows E2E portability: the smoke, flow and bench harnesses now locate Playwright beside the active bundled
+  Node runtime before falling back to `npm root -g`; this avoids trying to spawn the Unix-only `npm` name when only
+  `npm.cmd` exists. Formal-no-gateway, formal-refuses-fixture, complete fixture flow and bundle separation all pass.
+
 - D-032 VFX admission (`98d2933`): adds the fail-closed project-owned skill-VFX schema, manifest validator and CI
   command. Manual authorship, rights evidence, external editable-source hash, exact reviewed output and RO-style
   presentation metadata are mandatory; AI, closed-source derivation, traversal, fake/drifted PNGs and unregistered
