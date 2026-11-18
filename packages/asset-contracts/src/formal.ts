@@ -31,6 +31,31 @@ export const FORMAL_SKILL_AUDIO = {
   "skill.sw.shield_wave": "audio.skill.sw.shield_wave",
 } as const;
 export const FORMAL_SKILL_AUDIO_IDS = [...new Set(Object.values(FORMAL_SKILL_AUDIO))];
+/**
+ * Original KRO visual sources required by the Swordsman slice. These are source assets only; the
+ * client must still use independently written timing / geometry for the Survivors adaptations.
+ */
+export const FORMAL_SKILL_EFFECTS = {
+  "skill.sw.bash": [
+    "effect.skill.sw.bash.alpha_down",
+    "effect.skill.sw.bash.alpha_center",
+    "effect.skill.sw.bash.lens1",
+    "effect.skill.sw.bash.lens2",
+  ],
+  "skill.sw.magnum_break": [
+    "effect.skill.sw.magnum_break.ring_yellow",
+    "effect.skill.sw.magnum_break.explosion",
+  ],
+  "skill.sw.endure": ["effect.skill.sw.endure"],
+  "skill.sw.provoke": [
+    "effect.skill.sw.provoke.str",
+    "effect.skill.sw.provoke.piero",
+    "effect.skill.sw.provoke.pika01",
+    "effect.skill.sw.provoke.explosive_1_128",
+  ],
+  "skill.sw.shield_wave": ["effect.skill.sw.shield_wave.projectile"],
+} as const;
+export const FORMAL_SKILL_EFFECT_IDS = [...new Set(Object.values(FORMAL_SKILL_EFFECTS).flat())];
 const CLOSURE_CATEGORIES = new Set(["map_ground_texture", "map_model", "map_model_texture", "map_water_texture", "map_ambient_sound"]);
 
 export interface MissingAssetRef {
@@ -51,6 +76,7 @@ export function formalRequiredIds(list: AssetWhitelist): string[] {
     ...closure,
     FORMAL_BGM,
     ...FORMAL_SKILL_AUDIO_IDS,
+    ...FORMAL_SKILL_EFFECT_IDS,
     ...FORMAL_SHADOW,
   ];
 }

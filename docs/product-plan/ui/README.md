@@ -12,7 +12,7 @@ Local evidence: `reports/phase1/UI-B3-LOCAL-ACCEPTANCE.md`,
 | --- | --- |
 | `KRO2021_CLASSIC_V0_FAN.profile.json` | Reference profile (§3.1): build identifier (source lock), skin, container priority, component → asset map, undecided items. Capture fields stay `null` until a local capture exists. |
 | `ui-reference-metrics.json` | Pixel metrics (§4.3). `measurement = DEFERRED_LOCAL`, every value `null`; roBrowserLegacy sizes are `HINT_NOT_TARGET`. Schema rejects `MEASURED` with nulls or without capture SHA-256. |
-| `../handoff/fan-local-asset-whitelist.csv` | Canonical v4, 288 rows (v3 282 + 6 official hit/skill WAVs), SHA-256 `473E82880F91448F004222A9D049CCB67460B61EE37B138FE89FB286E57C9B85`. The UI subset remains the same 108 verified rows introduced by v3; source size and SHA-256 of every UI asset are listed there. |
+| `../handoff/fan-local-asset-whitelist.csv` | Canonical v5, 300 rows (v4 288 + 12 official skill-effect sources), SHA-256 `ECE20DDDD09A4868CE9264B04E2DC602EA947F6C19929E49E81C1FCF5FBF480A`. The UI subset remains the same 108 verified rows introduced by v3; source size and SHA-256 of every UI asset are listed there. |
 
 Schemas: `packages/content-schema/src/uiReference.ts`. Rules: `packages/asset-contracts/src/ui.ts`.
 
@@ -34,7 +34,7 @@ audit and `assets:ui-manifest` flag any same-name `rdata.grf` entry as **ambiguo
 | `ui_window_chrome` | 9 | `ui_font` | 2 |
 | `ui_button_chrome` | 12 | **total** | **108** |
 
-Found / missing / ambiguous per category against the **real** client: **288/288 full-whitelist LOCAL_PASS** on
+Found / missing / ambiguous per category against the **real** client before the v5 effect-source addition: **288/288 v4 full-whitelist LOCAL_PASS** on
 2026-11-18 (all 108 UI rows loaded; 0 missing/ambiguous in the pinned source profile).
 Synthetic CI (structure only, never evidence of RO visuals): 108 found, 0 missing, 0 ambiguous.
 
@@ -48,7 +48,7 @@ every three-part strip has left/mid/right. Result on the unchanged v3 UI subset 
 
 ```text
 pnpm assets:verify-sources        # now also needs RO_ASSET_SYSTEM_DIR (client System directory)
-pnpm assets:audit-whitelist       # 288 rows
+pnpm assets:audit-whitelist       # 300 rows in canonical v5
 pnpm assets:ui-manifest           # metadata-only manifest in .local-assets/…/ui/, report in reports/local/
 ```
 

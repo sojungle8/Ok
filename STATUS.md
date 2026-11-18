@@ -2,11 +2,16 @@
 
 Current phase: **Phase 2 — 劍士單人垂直切片: deterministic game and real-RO formal world running locally; verified-raster RO HUD and human/device acceptance still in progress (Phase 2 not complete)**.
 
-Phase 1 real-asset gate is now **LOCAL_PASS for the pinned KRO 2021 client**: source hashes, 288/288 whitelist audit,
-full extraction and formal desktop/mobile browser smoke passed on 2026-11-18. The run displayed original RO
+Phase 1 real-asset gate is now **LOCAL_PASS for the pinned KRO 2021 client**: source hashes and the 300/300
+canonical-v5 whitelist audit pass; the unchanged world/actor/UI/audio subset has full extraction and formal
+desktop/mobile browser smoke evidence from 2026-11-18. The run displayed original RO
 `prt_fild08` GND/RSM/water, four-layer Swordsman, 12 monster sets, official shadow, original BGM/ambient audio and
 six official hit/skill WAVs, with no
 placeholder fallback. Derived files and screenshots remain ignored under `.local-assets` / `reports/local`.
+The 12 new original-RO skill-effect sources (7 TGA, 1 STR, 4 BMP) are verified and required. Converter v3 completes
+the real-local extraction/load path (374 outputs overall; 12 effect metadata records and 11 derived PNGs; STR remains
+explicitly source-only). Shield Wave is **LOCAL_PASS** with the verified 64×64 Shield Boomerang bitmap and a bounded
+clean-room motion renderer; Endure, Bash, Magnum Break and Provoke rendering remain open.
 
 RO UI is still **in progress**, with the visible run HUD, formal level-up/keystone draft and results window now
 **LOCAL_PASS** (`reports/phase1/UI-B3-LOCAL-ACCEPTANCE.md`, `reports/phase1/UI-B4-DRAFT-LOCAL-ACCEPTANCE.md`,
@@ -43,12 +48,15 @@ simulation enemies: all 90 runs pass separate whole-map and 11 m near-player den
 zero skipped spawns and the deterministic 420-enemy cap unchanged.
 
 Product rule D-032 is **AUTHORIZED / IN PROGRESS**. The first bounded Swordsman slice now has a fail-closed
-project-owned skill-VFX provenance validator, complete skill presentation events (including Endure), multi-tick
+project-owned skill-VFX provenance validator, a separately pinned original-RO effect-source path (D-045), complete
+skill presentation events (including Endure), multi-tick
 frame event retention, event-driven original-ACT attack/hit/death presentation, a versioned checkpoint contract,
 four-stage first-60-second gates and the D-032-v0.3 density + clear-speed / MVP-damage / survivability / mobility /
 control scorecard. The same ten fixed seeds are replayed per
-adapter and remain an initial bot baseline, not final tuning or 30 independent samples. The approved original skill
-VFX count is still **0**: no project-owned bitmap or formal renderer hookup is claimed. Characters, monsters/MVPs,
+adapter and remain an initial bot baseline, not final tuning or 30 independent samples. The approved project-owned
+skill-VFX count is still **0**. Canonical v5 instead verifies 12 original KRO effect sources; the derived pipeline is
+complete and Shield Wave is the first formal renderer hookup, while Endure, Bash, Magnum Break and Provoke remain
+open. Characters, monsters/MVPs,
 NPCs, maps, formal UI and audio remain original-RO-only under D-022; AI or closed-source-derived skill art remains
 forbidden. Dedicated five-scenario balance tests, human/device review and every job beyond Swordsman remain open.
 
@@ -67,7 +75,7 @@ Details, gates and local commands: `reports/phase1/PHASE1-ACCEPTANCE.md`; perfor
 | Clean-room parsers (SPR 1.x–2.1, ACT 2.0–2.5, PAL, GAT, GND, RSW 1.2–2.1, GRF 0x200 incl. header-DES/MIXCRYPT) | CLOUD_PASS synthetic · LOCAL_PASS on the pinned real client |
 | Loopback gateway + HttpAssetGatewayClient | CLOUD_PASS (synthetic GRF) |
 | **Formal-screen rule (D-022):** only original RO assets; missing assets stop the game and list canonical paths | CLOUD_PASS: formal build without a gateway is blocked (no world canvas); a formal build refuses a synthetic gateway; unit tests list missing canonical paths (`smoke-A/B.json`, `apps/client/test`) |
-| audit-whitelist / extract --profile fan-local / dev:fan-local | LOCAL_PASS: 288/288 real source rows; full local extraction includes the six official hit/skill WAVs; formal gateway/client start successfully |
+| audit-whitelist / extract --profile fan-local / dev:fan-local | LOCAL_PASS: 300/300 canonical-v5 rows audited; converter v3 writes 374 local outputs, including 12 effect metadata records / 11 PNGs; formal loading and Shield Wave rendering pass desktop, phone portrait, tablet portrait and phone landscape; four remaining skill renderers stay open |
 | Contact sheets (6 slots × 8 directions, pivot, shadow), UV-mirror dedupe | CLOUD_PASS synthetic; real actor/monster animation rendered in the formal browser, detailed human sheet review still open |
 | Arena: player + 50 Porings, 1 spawn/s, collision, keyboard + mobile pointer joystick, RenderSnapshot | CLOUD_PASS headless/fixture + LOCAL_PASS real formal desktop/mobile smoke; real phone/tablet hardware still open |
 | 15/30/60 FPS identical 60 s hash | CLOUD_PASS (`4dbb7aa405a98e3b`) |
@@ -142,8 +150,9 @@ Counts are taken from the runner output of run #5 and a clean local `pnpm instal
 
 ## Next minimal step
 
-Continue the bounded Swordsman D-032 slice: approve and connect the first manually authored skill bitmap only after
-the provenance/style review. Add the remaining monster/death/boss/town audio, run dedicated clear, MVP, survival,
+Continue the bounded Swordsman D-032 slice: connect Endure next, then implement the more complex
+Bash/Magnum/Provoke clean-room renderers (including a bounded STR parser for Provoke). Any future manually authored
+bitmap still requires provenance/style review. Add the remaining monster/death/boss/town audio, run dedicated clear, MVP, survival,
 mobility and control scenarios, and do physical phone/tablet/desktop review. Existing geometry and text feedback are
 combat readability overlays, not finished skill art; the current game is a stronger playable vertical slice, not a
 completed RO Survivors replica.

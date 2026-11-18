@@ -110,6 +110,9 @@ export interface CombatHitEvent<T extends "hit" | "player-hit"> {
   geomId?: string;
   actorId?: number;
   targetId?: number;
+  /** Hit position at resolution time; presentation may outlive a target removed in the same tick. */
+  xMm?: number;
+  yMm?: number;
   /** Post-mitigation damage used by the floating number. May include overkill. */
   amount: number;
   /** Damage actually removed from the target's remaining HP. */
@@ -381,7 +384,7 @@ function playerSpeed(c: RunContent, st: RunState): number {
 }
 
 // ---------------------------------------------------------------- damage
-function damageEnemy(c: RunContent, st: RunState, e: Enemy, raw: number, source: string, attackerX: number, attackerY: number, withMultiplier = true): void {
+function damageEnemy(c: RunContent, st: RunState, e: Enemy, raw: number, source: string, attackerX: number, attackerY: number, withMultiplier = true, geomId?: string): void {
   if (e.hp <= 0) return;
   let dmg = withMultiplier ? permille(raw, playerDamageMultiplier(c, st, e)) : raw;
   if (st.runTick < e.debuffUntil) dmg = permille(dmg, 1000 - e.armorDebuff);
@@ -404,8 +407,9 @@ function damageEnemy(c: RunContent, st: RunState, e: Enemy, raw: number, source:
     st.stats.mvpDamageBySource[source] = (st.stats.mvpDamageBySource[source] ?? 0) + effective;
   }
   st.events.push({
-    type: "hit", tick: st.runTick, source, targetId: e.id, amount: dmg,
+    type: "hit", tick: st.runTick, source, targetId: e.id, xMm: e.x, yMm: e.y, amount: dmg,
     effectiveAmount: effective, remainingHp: Math.max(0, e.hp), lethal: e.hp <= 0,
+    ...(geomId ? { geomId } : {}),
   });
 }
 
@@ -740,7 +744,7 @@ function resolveSkill(c: RunContent, st: RunState, s: SkillDef, rank: number, dx
       if (v.damage > 0) {
         let dmg = v.damage;
         if (s.effects.eliteDamagePermille && isElite(c, t.e)) dmg = permille(dmg, s.effects.eliteDamagePermille);
-        damageEnemy(c, st, t.e, dmg, s.id, p.x, p.y);
+        damageEnemy(c, st, t.e, dmg, s.id, p.x, p.y, true, geomId);
       }
       if (s.stun && rng.nextInt(1000) < v.stunChance) {
         const until = st.runTick + s.stun.ticks;
@@ -768,14 +772,15 @@ function updatePlayerSkills(c: RunContent, st: RunState): void {
       const arc = p.passive.reduce((sum, ps) => sum + (c.passives[ps.id]?.perRank.basicArcDeg ?? 0) * ps.rank, 0);
       const g: Geometry = { ...v.geometry, halfAngleDeg: Math.min(180, v.geometry.halfAngleDeg + Math.trunc(arc / 2)) };
       const placed: Placed = { shape: g, ox: p.x, oy: p.y, dx: p.basicDx, dy: p.basicDy };
+      const geomId = `player:${basic.id}:${st.nextId++}`;
       st.events.push({
-        type: "skill", tick: st.runTick, source: basic.id, geomId: `player:${basic.id}:${st.nextId++}`,
+        type: "skill", tick: st.runTick, source: basic.id, geomId,
         origin: { xMm: p.x, yMm: p.y }, direction: { x: p.basicDx, y: p.basicDy }, geometry: g,
         rank: p.basicRank, vfxCue: basic.id, designOrigin: basic.designOrigin,
       });
       const targets = enemiesWithin(st, p.x, p.y, g.rangeMm).filter((t) => hits(placed, t.e.x, t.e.y, t.e.radius));
       const bonus = p.keystone ? (c.keystones[p.keystone]?.effects.basicHitLimitBonus ?? 0) : 0;
-      for (const t of targets.slice(0, v.hitLimit + bonus)) damageEnemy(c, st, t.e, v.damage, basic.id, p.x, p.y);
+      for (const t of targets.slice(0, v.hitLimit + bonus)) damageEnemy(c, st, t.e, v.damage, basic.id, p.x, p.y, true, geomId);
     }
     p.basicHitAt = -1;
   } else if (p.basicHitAt < 0 && st.runTick >= p.basicReadyAt) {

@@ -8,6 +8,7 @@ import { parseGat, parseGnd, parseRsw } from "@ro-survivor/ro-format-runtime";
 import { DERIVED_MARKER } from "../lib/png.ts";
 import { extractUi, type UiExtractionSummary } from "./ui-extract.ts";
 import { extractScene, SceneExtractionError, type SceneMissing, type SceneSummary } from "./scene-extract.ts";
+import { extractSkillEffects, type SkillEffectExtractionSummary } from "./skill-effect-extract.ts";
 import { buildContactSheet, buildSpriteAtlas, CONVERTER_VERSION, extractMap, parseAct, parseSpriteWithPalette, spriteGroups, writeOutput } from "./extract-lib.ts";
 
 export const MANIFEST_FILE = "manifest.json";
@@ -37,6 +38,7 @@ export interface ExtractManifest {
     closure: { resolvedIds: number; missing: SceneMissing[] };
     scene: SceneSummary;
   } | null;
+  effects: SkillEffectExtractionSummary | null;
   ui: UiExtractionSummary | null;
 }
 
@@ -129,7 +131,7 @@ function extractInto(rows: readonly WhitelistRow[], reader: AssetReader, outDir:
   const manifest: ExtractManifest = {
     rights: DERIVED_MARKER, converterVersion: CONVERTER_VERSION, profile: "fan-local",
     identity: { lockId: identity.lockId, whitelistSha256: CANONICAL_WHITELIST_SHA256, uiProfileId: UI_PROFILE_ID, uiEntrySetSha256: UI_ENTRY_SET_SHA256 },
-    sources: reader.sourceHashes, outputs: [], sprites: [], map: null, ui: null,
+    sources: reader.sourceHashes, outputs: [], sprites: [], map: null, effects: null, ui: null,
   };
   const problem = (id: string, reason: string): SceneMissing => {
     const row = byId.get(id);
@@ -206,6 +208,10 @@ function extractInto(rows: readonly WhitelistRow[], reader: AssetReader, outDir:
     closure: { resolvedIds: scene.closureIds.length, missing: [] },
     scene: scene.summary,
   };
+  // Official RO skill-effect closure: lossless texture PNGs plus opaque STR source metadata.
+  const effects = extractSkillEffects(rows, reader, outDir);
+  manifest.outputs.push(...effects.outputs);
+  manifest.effects = effects.summary;
   // UI-B1: the 108 RO UI rows (same transaction; any problem → no ready manifest).
   const ui = extractUi(rows, reader, outDir, { lockId: identity.lockId, whitelistSha256: CANONICAL_WHITELIST_SHA256 });
   manifest.outputs.push(...ui.outputs);

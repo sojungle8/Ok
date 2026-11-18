@@ -11,7 +11,7 @@ import { tmpdir } from "node:os";
 import { mintRasterSet, RasterIssuanceError, type MintItem } from "../src/game/formal/rasterMint.ts";
 import { loadFormalUiAssets } from "../src/game/formal/ui.ts";
 import * as roPublic from "../src/ui/ro/index.ts";
-import { formalHudAssetIds, formatHudNumber, isVerifiedRaster, planButton, planGauge, planMinimap, planRaster, planSlot, planThreeSlice, planThreeSliceButton, planWindow, RO_BUTTON_CHROME_IDS, roSkillIconId, RoButton, RoFormalHud, RoGauge, RoRaster, RoSlot, RoThreeSlice, RoThreeSliceButton, type RoFormalHudModel, type VerifiedRaster } from "../src/ui/ro/index.ts";
+import { formalHudAssetIds, formalMobileControlAssetIds, formatHudNumber, isVerifiedRaster, planButton, planGauge, planMinimap, planMobileControlHint, planRaster, planSlot, planThreeSlice, planThreeSliceButton, planWindow, RO_BUTTON_CHROME_IDS, RO_MOBILE_CONTROL_HINT_SCALE, RO_MOBILE_CONTROL_HINT_SIZE, roSkillIconId, RoButton, RoFormalHud, RoGauge, RoMobileControlHint, RoRaster, RoSlot, RoThreeSlice, RoThreeSliceButton, type RasterRegistry, type RoFormalHudModel, type VerifiedRaster } from "../src/ui/ro/index.ts";
 import { codeRefs, externalRuntimeImports, FORBIDDEN, guardGraph, isRealBrandModule, isRealMintSource, mintUsage, moduleGraph, REAL_MINT, REAL_RASTER, relPosix, scanFormalVisual } from "./visual-guard.ts";
 
 /**
@@ -909,6 +909,55 @@ describe("RoSlot", () => {
   });
 });
 
+describe("formal RO mobile control hint", () => {
+  const ids = ["ui.arrow.up", "ui.arrow.right", "ui.arrow.down", "ui.arrow.left"];
+
+  it("uses only the four verified original-RO arrows at integer scale inside the 120px drag region", async () => {
+    expect(formalMobileControlAssetIds()).toEqual(ids);
+    const { set } = await rasterSet(ids);
+    const plan = planMobileControlHint(set);
+    expect([plan.width, plan.height, RO_MOBILE_CONTROL_HINT_SIZE, RO_MOBILE_CONTROL_HINT_SCALE]).toEqual([120, 120, 120, 2]);
+    expect(plan.pieces.map(({ direction, assetId, x, y, width, height, scale }) => ({ direction, assetId, x, y, width, height, scale }))).toEqual([
+      { direction: "up", assetId: "ui.arrow.up", x: 49, y: 6, width: 22, height: 22, scale: 2 },
+      { direction: "right", assetId: "ui.arrow.right", x: 92, y: 49, width: 22, height: 22, scale: 2 },
+      { direction: "down", assetId: "ui.arrow.down", x: 49, y: 92, width: 22, height: 22, scale: 2 },
+      { direction: "left", assetId: "ui.arrow.left", x: 6, y: 49, width: 22, height: 22, scale: 2 },
+    ]);
+    expect(plan.pieces.every((piece) => Number.isInteger(piece.scale) && piece.x >= 0 && piece.y >= 0 && piece.x + piece.width <= plan.width && piece.y + piece.height <= plan.height)).toBe(true);
+    const vnode = RoMobileControlHint({ rasters: set });
+    expect(vnode.props).toEqual(expect.objectContaining({ "data-testid": "ro-mobile-control-hint", "data-ro-control": "original-ro-raster-drag-hint", "aria-hidden": "true" }));
+  });
+
+  it("fails closed with the requested canonical arrow path for missing, forged and disposed rasters", async () => {
+    const partial = await rasterSet(ids.slice(0, 3));
+    expect(missingOf(() => planMobileControlHint(partial.set))).toEqual([
+      expect.objectContaining({ assetId: "ui.arrow.left", canonicalPath: whitelist.get("ui.arrow.left").canonical_cp949_path }),
+    ]);
+    const forged: RasterRegistry = {
+      disposed: false,
+      get: () => ({ assetId: "ui.arrow.up" }) as VerifiedRaster,
+      has: () => true,
+      ids: () => [...ids],
+      dispose: () => undefined,
+    };
+    expect(missingOf(() => planMobileControlHint(forged))).toEqual([
+      expect.objectContaining({ assetId: "ui.arrow.up", canonicalPath: whitelist.get("ui.arrow.up").canonical_cp949_path, reason: expect.stringContaining("verified raster") as unknown }),
+    ]);
+    const complete = await rasterSet(ids);
+    complete.set.dispose();
+    expect(missingOf(() => planMobileControlHint(complete.set))).toEqual([
+      expect.objectContaining({ assetId: "ui.arrow.up", canonicalPath: whitelist.get("ui.arrow.up").canonical_cp949_path, reason: expect.stringContaining("disposed") as unknown }),
+    ]);
+  });
+
+  it("has layout-only CSS and no visible CSS/SVG/canvas substitute surface", () => {
+    const css = readFileSync(join(srcDir, "style.css"), "utf8");
+    const mobileControlCss = css.split(/\r?\n/u).filter((line) => line.includes("ro-mobile-control")).join("\n");
+    expect(mobileControlCss).toContain("pointer-events: none");
+    expect(mobileControlCss).not.toMatch(/background|border|box-shadow|filter|opacity|gradient|url\s*\(|svg|canvas/iu);
+  });
+});
+
 describe("formal RO HUD composition", () => {
   const model: RoFormalHudModel = {
     playerName: "Swordsman",
@@ -1635,7 +1684,7 @@ describe("formal visual static guard", () => {
   it("the shipped formal screen reaches the guarded original-RO HUD graph", () => {
     const files = moduleGraph(join(src, "main.tsx")).map((f) => relPosix(src, f));
     expect(files).toContain("App.tsx");
-    expect(files).toEqual(expect.arrayContaining(["screens/Hud.tsx", "ui/ro/hud.tsx", "ui/ro/index.ts", "ui/ro/primitives.tsx", "ui/ro/raster.ts"]));
+    expect(files).toEqual(expect.arrayContaining(["screens/Hud.tsx", "ui/ro/hud.tsx", "ui/ro/index.ts", "ui/ro/mobileControl.tsx", "ui/ro/primitives.tsx", "ui/ro/raster.ts"]));
     expect(dirname(join(src, "ui/ro/index.ts"))).toBe(join(src, "ui/ro"));
   });
 });

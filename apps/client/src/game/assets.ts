@@ -33,7 +33,7 @@ interface MapMeta {
  * The swordsman atlas must be composed from all four layer sets with the original palettes
  * (body, hair, sword, guard). A body-only sheet is never accepted on the formal screen.
  */
-export function checkPlayerLayers(data: SheetData): MissingAsset[] {
+export function checkPlayerLayers(data: SheetData, list = whitelist): MissingAsset[] {
   const [body, hair, sword, guard] = FORMAL_SCENE.player.layers;
   const [bodyPal, hairPal] = FORMAL_SCENE.player.palettes;
   const expected: { spr: string; palette: string | null }[] = [
@@ -46,11 +46,11 @@ export function checkPlayerLayers(data: SheetData): MissingAsset[] {
   const problems: MissingAsset[] = [];
   expected.forEach((e, i) => {
     const l = got[i];
-    if (!l || l.spr !== e.spr) problems.push(missingWhitelisted(whitelist, e.spr, `player atlas layer ${i} is ${l?.spr ?? "absent"} (re-run pnpm assets:extract --profile fan-local)`));
-    else if (e.palette && l.palette !== e.palette) problems.push(missingWhitelisted(whitelist, e.palette, `player layer ${e.spr} was composed without its original palette`));
+    if (!l || l.spr !== e.spr) problems.push(missingWhitelisted(list, e.spr, `player atlas layer ${i} is ${l?.spr ?? "absent"} (re-run pnpm assets:extract --profile fan-local)`));
+    else if (e.palette && l.palette !== e.palette) problems.push(missingWhitelisted(list, e.palette, `player layer ${e.spr} was composed without its original palette`));
   });
   if (!data.layerOrder || data.layerOrder.length !== 8 || data.layerOrder.some((o) => [...o].sort().join() !== "0,1,2,3")) {
-    problems.push(missingWhitelisted(whitelist, `${body}.act`, "player atlas has no per-direction layer order for all four layers"));
+    problems.push(missingWhitelisted(list, `${body}.act`, "player atlas has no per-direction layer order for all four layers"));
   }
   return problems;
 }

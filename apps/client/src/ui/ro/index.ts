@@ -5,3 +5,4 @@ export * from "./hud.tsx";
 export * from "./dialog.tsx";
 export * from "./results.tsx";
 export * from "./shell.tsx";
+export * from "./mobileControl.tsx";

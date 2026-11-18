@@ -39,6 +39,7 @@ describe("formal pre-run RO shell", () => {
     expect(app).toContain(": FIXTURE_BUILD ? (");
     expect(app).toContain("TEST FIXTURE：正式版會載入原始 RO 視窗素材。");
     expect(app).toContain("<RoCharacterSelectShell");
+    expect(app).toContain("<FormalPlayerPreview preview={shellPlayerPreview}");
     expect(app).toContain("<RoStageSelectShell");
   });
 });

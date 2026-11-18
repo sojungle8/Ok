@@ -28,7 +28,9 @@
 .ro-shell-choice-preview > div:last-child, .ro-shell-stage-preview > div:last-child { display: grid; gap: 4px; }
 .ro-shell-choice-preview .ro-shell-strong, .ro-shell-stage-preview .ro-shell-strong { font-size: 16px; }
 .ro-shell-choice-preview .ro-shell-small, .ro-shell-stage-preview .ro-shell-small { color: #5b564d; font-size: 10px; }
-.ro-shell-choice-icon { width: 48px; height: 48px; overflow: hidden; image-rendering: pixelated; }
+.ro-shell-actor-preview { width: 96px; height: 108px; overflow: hidden; image-rendering: pixelated; }
+.ro-shell-choice-heading { display: flex; align-items: center; gap: 6px; }
+.ro-shell-choice-icon { width: 24px; height: 24px; overflow: hidden; image-rendering: pixelated; }
 .ro-shell-stage-content { justify-content: center; gap: 12px; }
 .ro-shell-map-crop { width: 128px; height: 128px; overflow: hidden; image-rendering: pixelated; }
 

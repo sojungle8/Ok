@@ -9,6 +9,7 @@ import { loadFormalAssets, type LoadedAssets } from "./game/assets.ts";
 import { FormalAudio, prepareFormalAudio, type AudioContextLike } from "./game/formal/audio.ts";
 import { installFormalFonts, type InstalledFormalFonts } from "./game/formal/fonts.ts";
 import { disposeFormalScene, type FormalDecoders } from "./game/formal/load.ts";
+import { FormalPlayerPreview, loadFormalPlayerPreview, type FormalPlayerPreviewAsset } from "./game/formal/playerPreview.tsx";
 import { loadFormalUiAssets, type FormalUiAssets } from "./game/formal/ui.ts";
 import { FormalWorld, nearestTexture, OfficialShadowLayer } from "./game/formal/world.ts";
 import { MissingAssetsError, type MissingAsset } from "./game/requirements.ts";
@@ -21,7 +22,7 @@ import { DraftModal } from "./screens/Draft.tsx";
 import { Hud } from "./screens/Hud.tsx";
 import { ResultsScreen } from "./screens/Results.tsx";
 import { loadSettings, saveSettings, type Settings } from "./settings.ts";
-import { RoCharacterSelectShell, RoStageSelectShell, RoTitleShell } from "./ui/ro/index.ts";
+import { RoCharacterSelectShell, RoMobileControlHint, RoStageSelectShell, RoTitleShell } from "./ui/ro/index.ts";
 
 const content = compileSliceContent(JSON.parse(seedJson));
 const params = new URLSearchParams(location.search);
@@ -65,6 +66,9 @@ export function App() {
   const [shellUi, setShellUi] = useState<FormalUiAssets | null>(null);
   const [shellUiStatus, setShellUiStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [shellUiError, setShellUiError] = useState("");
+  const [shellPlayerPreview, setShellPlayerPreview] = useState<FormalPlayerPreviewAsset | null>(null);
+  const [shellPlayerPreviewStatus, setShellPlayerPreviewStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [shellPlayerPreviewError, setShellPlayerPreviewError] = useState<{ message: string; missing: MissingAsset[] } | null>(null);
   const [debug, setDebug] = useState(false);
   const [audioGate, setAudioGate] = useState(false);
   const audio = useRef<FormalAudio | null>(null);
@@ -152,6 +156,46 @@ export function App() {
     })();
     return () => {
       cancelled = true;
+    };
+  }, [conn]);
+
+  // The character selector loads only the verified four-layer Swordsman atlas. It deliberately does
+  // not read the map, monsters or audio, so the pre-run preview stays small and fail-closed.
+  useEffect(() => {
+    if (!conn?.ok || conn.health.fixture) {
+      setShellPlayerPreview(null);
+      setShellPlayerPreviewStatus("idle");
+      setShellPlayerPreviewError(null);
+      return;
+    }
+    let cancelled = false;
+    let nextPreview: FormalPlayerPreviewAsset | null = null;
+    setShellPlayerPreview(null);
+    setShellPlayerPreviewStatus("loading");
+    setShellPlayerPreviewError(null);
+    void (async () => {
+      try {
+        nextPreview = await loadFormalPlayerPreview(conn.client, shellDecoders, whitelist);
+        if (cancelled) {
+          nextPreview.dispose();
+          return;
+        }
+        setShellPlayerPreview(nextPreview);
+        setShellPlayerPreviewStatus("ready");
+      } catch (err) {
+        nextPreview?.dispose();
+        if (!cancelled) {
+          setShellPlayerPreviewError({
+            message: err instanceof Error ? err.message : String(err),
+            missing: err instanceof MissingAssetsError ? err.missing : [],
+          });
+          setShellPlayerPreviewStatus("error");
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+      nextPreview?.dispose();
     };
   }, [conn]);
 
@@ -406,14 +450,18 @@ export function App() {
           )
       ) : null}
       {flow.screen === "character-select" ? (
-        shellUi ? <RoCharacterSelectShell rasters={shellUi.rasters} onChoose={() => send({ type: "choose-character", job: "job.swordsman" })} onBack={() => send({ type: "back" })} />
+        shellUi && shellPlayerPreview ? <RoCharacterSelectShell rasters={shellUi.rasters} actorPreview={<FormalPlayerPreview preview={shellPlayerPreview} />} onChoose={() => send({ type: "choose-character", job: "job.swordsman" })} onBack={() => send({ type: "back" })} />
           : FIXTURE_BUILD ? (
             <section class="panel" data-testid="character-select">
               <h2>選擇職業</h2>
               <button class="card" onClick={() => send({ type: "choose-character", job: "job.swordsman" })} data-testid="job-swordsman">劍士</button>
               <button onClick={() => send({ type: "back" })}>返回</button>
             </section>
-          ) : <section class="panel blocked" data-testid="character-select"><p>原始 RO 介面素材尚未就緒。</p><button onClick={() => send({ type: "back" })}>返回</button></section>
+          ) : <section class="panel blocked" data-testid="character-select" data-testid-state={shellUiStatus !== "ready" ? shellUiStatus : shellPlayerPreviewStatus}>
+            <p>{shellUiStatus !== "ready" ? `原始 RO 介面素材尚未就緒${shellUiError ? `：${shellUiError}` : "。"}` : shellPlayerPreviewStatus === "error" ? `原始 RO 四層劍士預覽無法載入：${shellPlayerPreviewError?.message ?? "未知錯誤"}` : "正在驗證本機 RO 四層劍士預覽…"}</p>
+            {shellPlayerPreviewError?.missing.length ? <MissingTable missing={shellPlayerPreviewError.missing} /> : null}
+            <button onClick={() => send({ type: "back" })}>返回</button>
+          </section>
       ) : null}
       {flow.screen === "stage-select" ? (
         shellUi ? <RoStageSelectShell
@@ -462,7 +510,11 @@ export function App() {
       {inRun && audioGate ? (
         <button class="audio-gate" data-testid="audio-gate" onClick={() => void audio.current?.enable().then(() => setAudioGate(false))}>點擊啟用音訊</button>
       ) : null}
-      {inRun ? <div class={`stick${assets?.formal ? " formal-stick" : ""}`} ref={stick} data-testid="joystick" aria-label={assets?.formal ? "透明移動區" : "虛擬搖桿"}><div class="knob" /></div> : null}
+      {inRun ? (
+        <div class={`stick${assets?.formal ? " formal-stick" : ""}`} ref={stick} data-testid="joystick" aria-label={assets?.formal ? "拖曳移動區" : "虛擬搖桿"}>
+          {assets?.formal ? (assets.ui ? <RoMobileControlHint rasters={assets.ui.rasters} /> : null) : <div class="knob" />}
+        </div>
+      ) : null}
     </main>
   );
 }

@@ -91,6 +91,7 @@ const viewports = [
   { tag: "tablet-portrait", width: 768, height: 1024, touch: true },
   { tag: "phone-landscape", width: 844, height: 390, touch: true },
 ];
+const mobileControlAssetIds = ["ui.arrow.up", "ui.arrow.right", "ui.arrow.down", "ui.arrow.left"];
 
 async function dragTouch(context, page, box) {
   const session = await context.newCDPSession(page);
@@ -157,8 +158,22 @@ try {
         };
       });
       const screenshot = join(out, `formal-${viewport.tag}-${name}.png`);
+      let actorPreview = null;
+      if (name === "character-select") {
+        const actor = page.getByTestId("swordsman-actor-preview");
+        await actor.waitFor({ timeout: 60_000 });
+        const firstFrame = await actor.getAttribute("data-ro-frame");
+        await page.waitForFunction((frame) => document.querySelector('[data-testid="swordsman-actor-preview"]')?.getAttribute("data-ro-frame") !== frame, firstFrame, { timeout: 3_000 });
+        actorPreview = {
+          count: await actor.count(),
+          source: await actor.getAttribute("data-ro-source"),
+          kind: await actor.getAttribute("data-ro-actor"),
+          firstFrame,
+          nextFrame: await actor.getAttribute("data-ro-frame"),
+        };
+      }
       await page.screenshot({ path: screenshot });
-      shellLayouts.push({ screen: name, ...evidence, screenshot: screenshot.slice(root.length + 1) });
+      shellLayouts.push({ screen: name, ...evidence, actorPreview, screenshot: screenshot.slice(root.length + 1) });
     };
     await captureShell("title", "title");
     await page.getByTestId("start").click({ timeout: 60_000 });
@@ -173,6 +188,38 @@ try {
     if (await audioGate.count()) await audioGate.click();
     await page.waitForFunction(() => document.querySelector("main.app")?.getAttribute("data-audio-state") === "started", null, { timeout: 10_000 });
     const audioStarted = (await page.locator("main.app").getAttribute("data-audio-state")) === "started";
+
+    const mobileControl = await page.evaluate(() => {
+      const stick = document.querySelector('[data-testid="joystick"]');
+      const hint = document.querySelector('[data-testid="ro-mobile-control-hint"]');
+      if (!(stick instanceof HTMLElement) || !(hint instanceof HTMLElement)) return { count: 0 };
+      const hintStyle = getComputedStyle(hint);
+      const directionElements = [...hint.querySelectorAll(".ro-mobile-control-direction")];
+      const noSynthesizedSurface = [hint, ...directionElements].every((element) => {
+        const style = getComputedStyle(element);
+        return style.backgroundImage === "none"
+          && (style.backgroundColor === "rgba(0, 0, 0, 0)" || style.backgroundColor === "transparent")
+          && style.borderTopWidth === "0px"
+          && style.boxShadow === "none"
+          && style.filter === "none"
+          && style.opacity === "1";
+      });
+      const visible = hintStyle.display !== "none";
+      const stickBox = stick.getBoundingClientRect();
+      const hintBox = hint.getBoundingClientRect();
+      return {
+        count: 1,
+        visible,
+        coarsePointer: matchMedia("(pointer: coarse)").matches,
+        ariaLabel: stick.getAttribute("aria-label"),
+        controlKind: hint.getAttribute("data-ro-control"),
+        pointerEvents: hintStyle.pointerEvents,
+        assetIds: [...hint.querySelectorAll("[data-ro-asset]")].map((element) => element.getAttribute("data-ro-asset")),
+        directions: directionElements.map((element) => element.getAttribute("data-ro-direction")),
+        insideStick: !visible || (hintBox.left >= stickBox.left - 1 && hintBox.top >= stickBox.top - 1 && hintBox.right <= stickBox.right + 1 && hintBox.bottom <= stickBox.bottom + 1),
+        noSynthesizedSurface,
+      };
+    });
 
     const before = await page.evaluate(() => ({ x: window.__run?.()?.player.x, y: window.__run?.()?.player.y }));
     if (viewport.touch) {
@@ -215,6 +262,85 @@ try {
     if (await page.getByTestId("keystone-confirm").count()) await page.getByTestId("confirm").click();
     else await page.getByTestId("option-0").click();
     await page.waitForFunction(() => window.__run?.()?.phase === "running", null, { timeout: 10_000 });
+
+    // Test-only deterministic presentation probe: use the live authoritative state so the formal
+    // renderer must ingest a real Shield Wave cast/hit event and draw the verified RO bitmap.
+    const shieldFxSource = await page.getByTestId("world").getAttribute("data-ro-skill-fx-source");
+    await page.waitForFunction(() => {
+      const state = window.__run?.();
+      const activeFx = Number(document.querySelector('[data-testid="world"]')?.getAttribute("data-ro-skill-fx-active") ?? "0");
+      return state?.phase === "running" && state.enemies.filter((enemy) => enemy.hp > 0).length >= 3 && activeFx === 0;
+    }, null, { timeout: 10_000 });
+    const shieldProbe = await page.evaluate(() => {
+      const state = window.__run?.();
+      if (!state) return { injected: false, enemyCount: 0 };
+      const targets = state.enemies.filter((enemy) => enemy.hp > 0).slice(0, 3);
+      const offsets = [-280, 0, 280];
+      window.__roShieldProbeRestore = {
+        player: {
+          active: structuredClone(state.player.active),
+          passive: structuredClone(state.player.passive),
+          keystone: state.player.keystone,
+          basicReadyAt: state.player.basicReadyAt,
+          basicHitAt: state.player.basicHitAt,
+          castSlot: state.player.castSlot,
+          castEndAt: state.player.castEndAt,
+          castDx: state.player.castDx,
+          castDy: state.player.castDy,
+        },
+        stats: structuredClone(state.stats),
+        targets: targets.map((enemy) => structuredClone(enemy)),
+      };
+      targets.forEach((enemy, index) => {
+        enemy.x = state.player.x + (offsets[index] ?? 0);
+        enemy.y = state.player.y - 4_350;
+        enemy.hp = 100_000;
+        enemy.maxHp = 100_000;
+      });
+      state.player.active = [{ id: "skill.sw.shield_wave", rank: 3, readyAt: state.runTick }];
+      state.player.passive = [];
+      state.player.keystone = null;
+      state.player.basicReadyAt = Number.MAX_SAFE_INTEGER;
+      state.player.basicHitAt = -1;
+      state.player.castSlot = -1;
+      return {
+        injected: targets.length === 3,
+        enemyCount: targets.length,
+        damageBefore: state.stats.damageBySource["skill.sw.shield_wave"] ?? 0,
+      };
+    });
+    await page.waitForFunction(
+      (damageBefore) => {
+        const active = Number(document.querySelector('[data-testid="world"]')?.getAttribute("data-ro-skill-fx-active") ?? "0");
+        const damage = window.__run?.()?.stats.damageBySource["skill.sw.shield_wave"] ?? 0;
+        return active > 0 && damage > damageBefore;
+      },
+      shieldProbe.damageBefore,
+      { timeout: 10_000 },
+    );
+    const shieldFxEvidence = await page.evaluate((damageBefore) => ({
+      active: Number(document.querySelector('[data-testid="world"]')?.getAttribute("data-ro-skill-fx-active") ?? "0"),
+      hitDamage: (window.__run?.()?.stats.damageBySource["skill.sw.shield_wave"] ?? 0) - damageBefore,
+    }), shieldProbe.damageBefore);
+    const shieldFxScreenshot = join(out, `formal-${viewport.tag}-shield-wave.png`);
+    await page.screenshot({ path: shieldFxScreenshot });
+    await page.evaluate(() => {
+      const state = window.__run?.();
+      const restore = window.__roShieldProbeRestore;
+      if (!state || !restore) return;
+      Object.assign(state.player, structuredClone(restore.player));
+      state.stats = structuredClone(restore.stats);
+      for (const snapshot of restore.targets) {
+        const enemy = state.enemies.find((candidate) => candidate.id === snapshot.id);
+        if (enemy) Object.assign(enemy, structuredClone(snapshot));
+      }
+      delete window.__roShieldProbeRestore;
+    });
+    await page.waitForFunction(
+      () => Number(document.querySelector('[data-testid="world"]')?.getAttribute("data-ro-skill-fx-active") ?? "0") === 0,
+      null,
+      { timeout: 10_000 },
+    );
     await page.waitForTimeout(1800);
 
     const surface = {
@@ -227,10 +353,11 @@ try {
       damageStats: await page.getByTestId("damage-stats").count(),
       rightRail: await page.getByTestId("ro-right-rail").count(),
       joystick: await page.getByTestId("joystick").count(),
+      mobileControlHint: await page.getByTestId("ro-mobile-control-hint").count(),
       fixtureBanner: await page.getByTestId("fixture-banner").count(),
     };
     const layout = await page.evaluate(() => {
-      const ids = ["run-hud", "ro-basic-info", "timer", "damage-stats", "ro-right-rail", "ro-shortcut", "ro-minimap", "joystick"];
+      const ids = ["run-hud", "ro-basic-info", "timer", "damage-stats", "ro-right-rail", "ro-shortcut", "ro-minimap", "joystick", "ro-mobile-control-hint"];
       const boxes = Object.fromEntries(ids.map((id) => {
         const element = document.querySelector(`[data-testid="${id}"]`);
         const r = element?.getBoundingClientRect();
@@ -238,7 +365,7 @@ try {
       }));
       const inside = Object.values(boxes).every((r) => r === null || (r.left >= -1 && r.top >= -1 && r.right <= innerWidth + 1 && r.bottom <= innerHeight + 1));
       const overlaps = (a, b) => a !== null && b !== null && a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
-      const disjointPairs = [["ro-basic-info", "timer"], ["ro-basic-info", "ro-right-rail"], ["timer", "ro-right-rail"], ["ro-basic-info", "ro-shortcut"], ["ro-right-rail", "ro-shortcut"], ["joystick", "ro-shortcut"]];
+      const disjointPairs = [["ro-basic-info", "timer"], ["ro-basic-info", "ro-right-rail"], ["timer", "ro-right-rail"], ["ro-basic-info", "ro-shortcut"], ["ro-right-rail", "ro-shortcut"], ["joystick", "ro-shortcut"], ["ro-mobile-control-hint", "ro-shortcut"]];
       const overlapPairs = disjointPairs.filter(([a, b]) => overlaps(boxes[a], boxes[b]));
       return {
         boxes,
@@ -260,9 +387,30 @@ try {
       && surface.damageStats === 1
       && surface.rightRail === 1
       && surface.joystick === 1
+      && surface.mobileControlHint === 1
       && surface.fixtureBanner === 0
+      && shieldFxSource === "effect.skill.sw.shield_wave.projectile"
+      && shieldProbe.injected === true
+      && shieldProbe.enemyCount === 3
+      && shieldFxEvidence.active > 0
+      && shieldFxEvidence.hitDamage > 0
+      && mobileControl.count === 1
+      && mobileControl.visible === viewport.touch
+      && mobileControl.coarsePointer === viewport.touch
+      && mobileControl.ariaLabel === "拖曳移動區"
+      && mobileControl.controlKind === "original-ro-raster-drag-hint"
+      && mobileControl.pointerEvents === "none"
+      && JSON.stringify(mobileControl.assetIds) === JSON.stringify(mobileControlAssetIds)
+      && JSON.stringify(mobileControl.directions) === JSON.stringify(["up", "right", "down", "left"])
+      && mobileControl.insideStick === true
+      && mobileControl.noSynthesizedSurface === true
       && shellLayouts.length === 3
       && shellLayouts.every((entry) => entry.originalRoRaster && entry.inside && entry.noPageOverflow)
+      && shellLayouts.some((entry) => entry.screen === "character-select"
+        && entry.actorPreview?.count === 1
+        && entry.actorPreview.source === "player.swordsman.male.body"
+        && entry.actorPreview.kind === "original-ro-four-layer"
+        && entry.actorPreview.firstFrame !== entry.actorPreview.nextFrame)
       && draftLayout.inside
       && draftLayout.overlapPairs.length === 0
       && draftLayout.noPageOverflow
@@ -270,7 +418,7 @@ try {
       && layout.overlapPairs.length === 0
       && layout.noPageOverflow
       && errors.length === 0;
-    results.push({ viewport: viewport.tag, size: `${viewport.width}x${viewport.height}`, buildId, moved, audioStarted, shellLayouts, surface, draftLayout, layout, canceledRequests, errors, draftScreenshot: draftScreenshot.slice(root.length + 1), screenshot: screenshot.slice(root.length + 1), status: pass ? "PASS" : "FAIL" });
+    results.push({ viewport: viewport.tag, size: `${viewport.width}x${viewport.height}`, buildId, moved, audioStarted, shieldFxSource, shieldProbe, shieldFxEvidence, mobileControl, shellLayouts, surface, draftLayout, layout, canceledRequests, errors, draftScreenshot: draftScreenshot.slice(root.length + 1), shieldFxScreenshot: shieldFxScreenshot.slice(root.length + 1), screenshot: screenshot.slice(root.length + 1), status: pass ? "PASS" : "FAIL" });
     await context.close();
   }
 } finally {

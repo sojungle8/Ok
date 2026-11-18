@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { AssetWhitelist, dependencyCanonicalPath, FORMAL_SKILL_AUDIO_IDS, formalRequiredIds, missingFromWhitelist, resolveMapClosure, type MapReferences } from "../src/index.ts";
+import { AssetWhitelist, dependencyCanonicalPath, FORMAL_SKILL_AUDIO_IDS, FORMAL_SKILL_EFFECT_IDS, formalRequiredIds, missingFromWhitelist, resolveMapClosure, type MapReferences } from "../src/index.ts";
 
 const csv = readFileSync(new URL("../../../docs/product-plan/handoff/fan-local-asset-whitelist.csv", import.meta.url), "utf8");
 const list = AssetWhitelist.fromCsv(csv);
@@ -19,11 +19,11 @@ function referencesFromWhitelist(): MapReferences {
   };
 }
 
-describe("formal scene contract (canonical v4 whitelist)", () => {
-  it("whitelist v4: v3 282 + 6 official skill/hit WAVs", () => {
-    expect(list.size).toBe(288);
-    expect(list.rows().filter((r) => r.raw_name_hex !== "")).toHaveLength(285);
-    expect(list.rows().filter((r) => !r.category.startsWith("ui_"))).toHaveLength(180);
+describe("formal scene contract (canonical v5 whitelist)", () => {
+  it("whitelist v5: v4 288 + 12 official skill-effect sources", () => {
+    expect(list.size).toBe(300);
+    expect(list.rows().filter((r) => r.raw_name_hex !== "")).toHaveLength(297);
+    expect(list.rows().filter((r) => !r.category.startsWith("ui_"))).toHaveLength(192);
   });
 
   it("formal required set resolves completely: missing = 0", () => {
@@ -35,6 +35,14 @@ describe("formal scene contract (canonical v4 whitelist)", () => {
     for (const id of FORMAL_SKILL_AUDIO_IDS) {
       const row = list.get(id);
       expect(row).toMatchObject({ category: "skill_sound", source_container: "data.grf", required: "true", rdata_override: "false" });
+      expect(row.raw_name_hex).toMatch(/^[0-9A-F]+$/u);
+      expect(row.sha256).toMatch(/^[0-9a-f]{64}$/u);
+    }
+    expect(ids.filter((i) => i.startsWith("effect.skill."))).toHaveLength(12);
+    for (const id of FORMAL_SKILL_EFFECT_IDS) {
+      const row = list.get(id);
+      expect(row).toMatchObject({ source_container: "data.grf", required: "true", rdata_override: "false" });
+      expect(row.category).toMatch(/^skill_effect_(?:texture|animation)$/u);
       expect(row.raw_name_hex).toMatch(/^[0-9A-F]+$/u);
       expect(row.sha256).toMatch(/^[0-9a-f]{64}$/u);
     }

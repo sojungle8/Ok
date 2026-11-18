@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
-import { FORMAL_SKILL_AUDIO_IDS } from "@ro-survivor/asset-contracts";
+import { FORMAL_SKILL_AUDIO_IDS, type DerivedSkillEffectTexture } from "@ro-survivor/asset-contracts";
 import type { RunEvent } from "@ro-survivor/core-sim";
 import { resolveClientBuild } from "../build-info.ts";
 import { checkPlayerLayers } from "../src/game/assets.ts";
@@ -15,6 +15,7 @@ import {
 } from "../src/game/formal/contract.ts";
 import type { FormalSceneData } from "../src/game/formal/load.ts";
 import { FormalWorld, OfficialShadowLayer, type TextureFactory } from "../src/game/formal/world.ts";
+import { SHIELD_WAVE_EFFECT_ID } from "../src/game/formal/skillEffects.ts";
 import type { SheetData } from "../src/game/sprites.ts";
 
 // Minimal golden derived contract (2×2 GND, one model placed twice, 32 water frames, one sound).
@@ -53,6 +54,13 @@ const shadow: DerivedShadow = {
   layerAlpha: [128],
 };
 const img = (w: number, h: number, tag: string) => ({ width: w, height: h, tag });
+const shieldEffect: DerivedSkillEffectTexture = {
+  rights: "fan-local-derived", converterVersion: 3, assetId: SHIELD_WAVE_EFFECT_ID,
+  source: { canonicalPath: "data\\texture\\effect\\shield_boomerang.bmp", bytes: 12344, sha256: "3".repeat(64) },
+  kind: "texture", format: "bmp", width: 64, height: 64, bitsPerPixel: 24,
+  alpha: { mode: "ro-color-key", keyedPixels: 1 },
+  derived: { file: `${SHIELD_WAVE_EFFECT_ID}.png`, sha256: "4".repeat(64), width: 64, height: 64 }, filter: "nearest",
+};
 function data(): FormalSceneData {
   const models = new Map([["model.m", model]]);
   const images = new Map<string, { width: number; height: number; tag: string }>([
@@ -63,6 +71,7 @@ function data(): FormalSceneData {
     scene, gnd, ground: buildGroundBuffers(gnd), models, baked: new Map([["model.m", bakeModel(model)]]), instances: buildModelInstances(scene, gnd, models),
     shadow, shadowParams: shadowParams(shadow), sounds: soundPlacements(scene, gnd), images,
     water: new Map(frames.map((f) => [f, img(128, 128, f)])), waterCells: buildWaterBuffers(gnd, 1), audio: new Map([["bgm.prt_fild08", new ArrayBuffer(4)], ["wav.1", new ArrayBuffer(4)]]),
+    effects: new Map([[SHIELD_WAVE_EFFECT_ID, shieldEffect]]), effectImages: new Map([[SHIELD_WAVE_EFFECT_ID, img(64, 64, "shield-wave")]]),
   };
 }
 const gat = { width: 4, height: 4, types: "0".repeat(16), cellHeights: new Array<number>(16).fill(0) };
@@ -99,6 +108,8 @@ describe("formal ground: GND texture UVs + vertex colour + embedded lightmap (st
       expect((m.material as THREE.ShaderMaterial).fragmentShader).toContain("lm.a + lm.rgb");
     }
     expect(JSON.stringify(w.object.children.map((c) => c.userData))).not.toContain("fixture");
+    expect(w.skillEffects.sourceAssetId).toBe(SHIELD_WAVE_EFFECT_ID);
+    expect(w.skillEffects.mesh.userData).toMatchObject({ formal: "skill-effect", sourceAssetId: SHIELD_WAVE_EFFECT_ID });
   });
 });
 

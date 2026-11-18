@@ -222,9 +222,26 @@ describe("run simulation: rules", () => {
     st.player.basicReadyAt = Number.MAX_SAFE_INTEGER;
     st.player.active = [{ id: "skill.sw.shield_wave", rank: 1, readyAt: 0 }];
     st.enemies = [-900, 0, 900].map((dx, index) => testEnemy(st, "monster.poring", 100 + index, dx, -2500, 10_000));
-    for (let sequence = 0; sequence < 40; sequence += 1) stepRun(st, cfg, { tick: st.tick, sequence, moveX: 0, moveY: 0 });
+    type ShieldEvent =
+      | Extract<RunState["events"][number], { type: "skill" }>
+      | Extract<RunState["events"][number], { type: "hit" }>;
+    const shieldEvents: ShieldEvent[] = [];
+    for (let sequence = 0; sequence < 40; sequence += 1) {
+      stepRun(st, cfg, { tick: st.tick, sequence, moveX: 0, moveY: 0 });
+      shieldEvents.push(
+        ...st.events.filter(
+          (event): event is ShieldEvent =>
+            (event.type === "skill" || event.type === "hit") && event.source === "skill.sw.shield_wave",
+        ),
+      );
+    }
     expect(st.stats.playerControlApplications.normal).toBeGreaterThanOrEqual(3);
     expect(st.stats.playerControlTargetTicks.normal).toBeGreaterThan(0);
+    const fired = shieldEvents.find((event): event is Extract<RunState["events"][number], { type: "skill" }> => event.type === "skill");
+    const hits = shieldEvents.filter((event): event is Extract<RunState["events"][number], { type: "hit" }> => event.type === "hit");
+    expect(fired?.geomId).toMatch(/^player:skill\.sw\.shield_wave:/u);
+    expect(hits).toHaveLength(3);
+    expect(hits.every((event) => event.geomId === fired?.geomId && Number.isInteger(event.xMm) && Number.isInteger(event.yMm))).toBe(true);
 
     const windup = createRun(cfg);
     windup.firedEvents.fill(true);

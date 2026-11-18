@@ -1,5 +1,5 @@
 /**
- * Derived scene contract produced by `pnpm assets:extract --profile fan-local` (converter v2,
+ * Derived scene contract produced by `pnpm assets:extract --profile fan-local` (converter v3,
  * tools/assets/scene-extract.ts) and consumed by the formal renderer. Pure data + pure builders: no
  * three.js, no DOM, so the same code is checked against real extractor output in tests.
  */

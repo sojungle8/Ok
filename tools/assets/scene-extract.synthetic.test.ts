@@ -56,7 +56,7 @@ describe("Commit B scene extraction (synthetic structural fixture — not RO evi
       sources: Record<string, string>; converterVersion: number; models: { modelAssetId: string | null }[]; water: { frames: string[]; type: number };
       sounds: { assetId: string | null }[]; textures: { format: string; filter: string; derived: { file: string | null } }[]; audio: { assetId: string; format: string }[];
     };
-    expect(scene.converterVersion).toBe(2);
+    expect(scene.converterVersion).toBe(3);
     expect(Object.keys(scene.sources).sort()).toEqual(["bgm", "data.grf", "rdata.grf", "system"]);
     expect(scene.models.every((m) => m.modelAssetId?.startsWith("map.prt_fild08.model."))).toBe(true);
     expect(scene.water.frames).toHaveLength(32);
@@ -179,7 +179,7 @@ describe("Commit B scene extraction (synthetic structural fixture — not RO evi
     for (const file of ["map.prt_fild08.rsw.json", "reports/prt_fild08-closure.json"]) expect([...fromOf(file)].sort(), file).toEqual(expected);
     for (const file of ["reports/prt_fild08-dependencies.json", "reports/prt_fild08-closure.json"]) {
       const j = JSON.parse(readFileSync(join(out, ...file.split("/")), "utf8")) as { rights: string; converterVersion: number; sources: Record<string, string> };
-      expect([j.rights, j.converterVersion, Object.keys(j.sources).length], file).toEqual(["RO-SURVIVOR-DERIVED:local-fan-use", 2, 4]);
+      expect([j.rights, j.converterVersion, Object.keys(j.sources).length], file).toEqual(["RO-SURVIVOR-DERIVED:local-fan-use", 3, 4]);
     }
     expect([...fromOf("map.prt_fild08.model.001.json")]).toEqual(["map.prt_fild08.model.001"]);
   });

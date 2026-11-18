@@ -14,7 +14,7 @@ export interface SheetFrame {
 export type Slot = "idle" | "walk" | "attack" | "hit" | "death" | "cast";
 
 export interface SheetData {
-  atlas: { width: number; height: number };
+  atlas: { width: number; height: number; sha256?: string };
   slots: Record<Slot, { directions: { frames: number[]; delayMs: number }[] }>;
   frames: SheetFrame[];
   /** Layer sets composed into the atlas (body first) and their palettes (extractor v2). */

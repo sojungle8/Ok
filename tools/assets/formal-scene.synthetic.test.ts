@@ -10,7 +10,7 @@ import { AssetWhitelist, HttpAssetGatewayClient } from "@ro-survivor/asset-contr
 import { createAssetReader, startGateway } from "@ro-survivor/asset-gateway";
 import { readJpegInfo } from "@ro-survivor/ro-format-runtime";
 import { createTempDir } from "@ro-survivor/testkit";
-import { loadFormalScene, type FormalDecoders } from "../../apps/client/src/game/formal/load.ts";
+import { disposeFormalScene, loadFormalScene, type FormalDecoders } from "../../apps/client/src/game/formal/load.ts";
 import { MissingAssetsError } from "../../apps/client/src/game/requirements.ts";
 import { runExtraction } from "./extract-run.ts";
 import { CANONICAL_WHITELIST_SHA256 } from "@ro-survivor/asset-contracts";
@@ -52,7 +52,7 @@ async function setup() {
 }
 
 describe("formal scene loader on the real derived contract (synthetic sources)", () => {
-  it("builds GND ground groups, 69 RSM instances of 23 models, official shadow, 32 water frames and 4 positional sounds", async () => {
+  it("builds the scene and loads all 12 official skill-effect metadata records plus 11 textures", async () => {
     const { client, whitelist, out } = await setup();
     const s = await loadFormalScene(client, decoders, whitelist);
     // Ground: one up-surface per GND cube (32×32) with texture UV, colour and lightmap UV per vertex.
@@ -89,6 +89,11 @@ describe("formal scene loader on the real derived contract (synthetic sources)",
       "audio.skill.sw.provoke",
       "audio.skill.sw.shield_wave",
     ]);
+    expect(s.effects.size).toBe(12);
+    expect(s.effectImages.size).toBe(11);
+    expect(s.effects.get("effect.skill.sw.provoke.str")).toMatchObject({ kind: "animation-source", magic: "STRM", parsed: false, sourceOnly: true });
+    expect(s.effects.get("effect.skill.sw.shield_wave.projectile")).toMatchObject({ kind: "texture", format: "bmp", width: 8, height: 8 });
+    expect(s.effectImages.get("effect.skill.sw.endure")).toEqual({ width: 4, height: 4 });
     expect(s.sounds.map((x) => x.assetId).sort()).toEqual(["map.prt_fild08.ambient_sound.001", "map.prt_fild08.ambient_sound.002", "map.prt_fild08.ambient_sound.003", "map.prt_fild08.ambient_sound.004"]);
   });
 
@@ -107,5 +112,35 @@ describe("formal scene loader on the real derived contract (synthetic sources)",
     rmSync(join(out, "common.shadow.spr.png"));
     const err = await loadFormalScene(client, decoders, whitelist).catch((e: unknown) => e);
     expect((err as MissingAssetsError).missing.map((m) => m.assetId)).toEqual(["common.shadow.spr"]);
+  });
+
+  it.each([
+    ["effect.skill.sw.shield_wave.projectile.png", "effect.skill.sw.shield_wave.projectile"],
+    ["effect.skill.sw.endure.json", "effect.skill.sw.endure"],
+  ])("a missing official effect output %s blocks the world by canonical source path", async (file, id) => {
+    const { client, whitelist, out } = await setup();
+    rmSync(join(out, file));
+    const err = await loadFormalScene(client, decoders, whitelist).catch((caught: unknown) => caught);
+    expect(err).toBeInstanceOf(MissingAssetsError);
+    expect((err as MissingAssetsError).missing).toEqual([
+      expect.objectContaining({ assetId: id, canonicalPath: whitelist.get(id).canonical_cp949_path }),
+    ]);
+  });
+
+  it("disposal releases and clears every decoded official effect texture", async () => {
+    const { client, whitelist } = await setup();
+    let closed = 0;
+    const tracked: FormalDecoders = {
+      async image(bytes, type) {
+        const base = await decoders.image(bytes, type);
+        return { ...base, close: () => { closed += 1; } };
+      },
+    };
+    const scene = await loadFormalScene(client, tracked, whitelist);
+    const expected = new Set([...scene.images.values(), ...scene.water.values(), ...scene.effectImages.values()]).size;
+    disposeFormalScene(scene);
+    expect(closed).toBe(expected);
+    expect(scene.effectImages.size).toBe(0);
+    expect(scene.effects.size).toBe(0);
   });
 });

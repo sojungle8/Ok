@@ -4,7 +4,7 @@
  * extended or drifted whitelist cannot redefine the UI closure. Generated from the canonical CSV;
  * `tools/assets/ui-registry.test.ts` checks it against the file.
  */
-export const CANONICAL_WHITELIST_SHA256 = "473E82880F91448F004222A9D049CCB67460B61EE37B138FE89FB286E57C9B85";
+export const CANONICAL_WHITELIST_SHA256 = "ECE20DDDD09A4868CE9264B04E2DC602EA947F6C19929E49E81C1FCF5FBF480A";
 /** SHA-256 of the 108 sorted UI asset IDs joined by "\n". */
 export const UI_ENTRY_SET_SHA256 = "BB41DADAC15D9142D2147C391A45B54A6F53AD20B0670CFCBC6E7EA39782351D";
 export const UI_REGISTRY_COUNT = 108;

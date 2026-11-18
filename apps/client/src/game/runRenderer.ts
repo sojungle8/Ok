@@ -32,6 +32,7 @@ export class RunRenderer {
   readonly #shadowScales = new Map<string, number>();
   readonly world: WorldLayer;
   readonly shadow: OfficialShadowLayer | null;
+  readonly #heightAt: (xm: number, ym: number) => number;
   readonly #presentation = new CombatPresentationState();
   readonly #overlay: CombatOverlay | null;
   #cam = { x: 0, y: 0, ready: false };
@@ -45,12 +46,14 @@ export class RunRenderer {
     this.content = content;
     this.settings = settings;
     this.world = world;
+    this.#heightAt = (xm, ym) => world.heightAt(xm, ym);
     this.shadow = shadow;
     for (const type of Object.keys(content.monsters)) {
       this.#visualScales.set(type, sharedSpriteVisualScale(content, type));
       this.#shadowScales.set(type, officialShadowScale(content, type));
     }
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: "high-performance" });
+    if (world.skillEffects) canvas.dataset.roSkillFxSource = world.skillEffects.sourceAssetId;
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.setClearColor(0x1d1b18);
     this.#player = new BillboardBatch(player, 1);
@@ -153,6 +156,7 @@ export class RunRenderer {
       this.content.player.basicSkillId,
       animationDuration(this.#player.sheet, "death", dir(p.fx, p.fy)),
     );
+    this.world.skillEffects?.ingest(st.events, presentMs);
     // Camera follows with damping; it never feeds back into the simulation.
     if (!this.#cam.ready) this.#cam = { x: px, y: pz, ready: true };
     this.#cam.x += (px - this.#cam.x) * 0.15;
@@ -164,6 +168,8 @@ export class RunRenderer {
     this.camera.updateMatrixWorld();
     const right = new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld, 0);
     const up = new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld, 1);
+    this.world.skillEffects?.update(presentMs, this.#heightAt, right, up, this.settings.effectOpacity);
+    if (this.world.skillEffects) this.renderer.domElement.dataset.roSkillFxActive = String(this.world.skillEffects.activeCount);
     const playerAnimation = this.#presentation.playerAnimation(st, presentMs, presentMs);
     this.#player.set(0, px, py, pz, playerAnimation.slot, dir(p.fx, p.fy), playerAnimation.timeMs);
     this.#player.commit(1, right, up);
@@ -261,6 +267,8 @@ export class RunRenderer {
     this.#presentation.clearTransient();
     this.#overlay?.dispose();
     this.world.dispose();
+    delete this.renderer.domElement.dataset.roSkillFxSource;
+    delete this.renderer.domElement.dataset.roSkillFxActive;
     this.renderer.dispose();
   }
 }

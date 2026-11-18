@@ -1,6 +1,6 @@
 import { isFilesystemContainer, type WhitelistRow } from "@ro-survivor/content-schema";
 import type { AssetReader } from "@ro-survivor/asset-gateway";
-import { parseAct, parseGat, parseGnd, parsePalette, parseRsw, parseSpr, readWavInfo } from "@ro-survivor/ro-format-runtime";
+import { parseAct, parseGat, parseGnd, parsePalette, parseRsw, parseSpr, parseTga, readWavInfo } from "@ro-survivor/ro-format-runtime";
 
 export interface AuditRow {
   assetId: string;
@@ -8,7 +8,7 @@ export interface AuditRow {
   checks: string[];
 }
 
-const MAGIC: Record<string, string> = { spr: "SP", act: "AC", gat: "GRAT", gnd: "GRGN", rsw: "GRSW", rsm: "GRSM", bmp: "BM", wav: "RIFF", otf: "OTTO" };
+const MAGIC: Record<string, string> = { spr: "SP", act: "AC", gat: "GRAT", gnd: "GRGN", rsw: "GRSW", rsm: "GRSM", bmp: "BM", wav: "RIFF", str: "STRM", otf: "OTTO" };
 
 /**
  * Audit every whitelist row against the verified sources: raw-hex lookup, bytes, SHA-256 when
@@ -63,6 +63,9 @@ export function auditWhitelist(rows: readonly WhitelistRow[], reader: AssetReade
       } else if (ext === "wav") {
         const wav = readWavInfo(bytes);
         checks.push(`PASS WAV ${wav.audioFormat}: ${wav.channels}ch ${wav.sampleRate}Hz ${wav.bitsPerSample}bit ${wav.durationMs}ms`);
+      } else if (ext === "tga") {
+        const tga = parseTga(bytes);
+        checks.push(`PASS TGA type 2: ${tga.width}x${tga.height} ${tga.bitsPerPixel}bit BGRA`);
       } else if (ext === "mp3") {
         const id3 = bytes[0] === 0x49 && bytes[1] === 0x44 && bytes[2] === 0x33;
         const sync = bytes[0] === 0xff && ((bytes[1] ?? 0) & 0xe0) === 0xe0;

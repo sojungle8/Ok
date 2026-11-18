@@ -8,5 +8,6 @@ export * from "./rsw.ts";
 export * from "./compose.ts";
 export * from "./bmp.ts";
 export * from "./jpeg.ts";
+export * from "./tga.ts";
 export * from "./rsm.ts";
 export * from "./wav.ts";

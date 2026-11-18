@@ -8,6 +8,7 @@ import type { GroundData } from "../renderer.ts";
 import { gatHeightAt, type WorldLayer } from "../terrain.ts";
 import { waterFrameAt } from "./contract.ts";
 import type { FormalSceneData, ImageLike } from "./load.ts";
+import { OfficialSkillEffectLayer } from "./skillEffects.ts";
 
 export type TextureFactory = (image: ImageLike, opts: { repeat?: boolean }) => THREE.Texture;
 
@@ -60,11 +61,14 @@ export class FormalWorld implements WorldLayer {
   readonly water: THREE.Mesh | null = null;
   readonly #waterFrames = new Map<string, THREE.Texture>();
   readonly #data: FormalSceneData;
+  readonly skillEffects: OfficialSkillEffectLayer;
   #waterFrame = "";
 
   constructor(data: FormalSceneData, gat: GroundData, makeTexture: TextureFactory) {
     this.#data = data;
     this.heightAt = gatHeightAt(gat);
+    this.skillEffects = new OfficialSkillEffectLayer(data, makeTexture);
+    this.object.add(this.skillEffects.mesh);
     const tex = new Map<string, THREE.Texture>();
     const textureOf = (id: string): THREE.Texture => {
       let t = tex.get(id);
@@ -165,6 +169,8 @@ export class FormalWorld implements WorldLayer {
   }
 
   dispose(): void {
+    this.object.remove(this.skillEffects.mesh);
+    this.skillEffects.dispose();
     this.object.traverse((o) => {
       if (o instanceof THREE.Mesh) {
         (o.geometry as THREE.BufferGeometry).dispose();

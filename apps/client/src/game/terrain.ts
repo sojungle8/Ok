@@ -1,5 +1,14 @@
 import type * as THREE from "three";
+import type { RunEvent } from "@ro-survivor/core-sim";
 import type { GroundData } from "./renderer.ts";
+
+export interface WorldSkillEffectLayer {
+  readonly sourceAssetId: string;
+  readonly activeCount: number;
+  ingest(events: readonly RunEvent[], nowMs: number): void;
+  update(nowMs: number, heightAt: (xm: number, ym: number) => number, right: THREE.Vector3, up: THREE.Vector3, effectOpacity: number): void;
+  dispose(): void;
+}
 
 /** Height lookup from the GAT walk grid (RO units × 0.2 m, up positive). Not a visual: used by both worlds. */
 export function gatHeightAt(data: GroundData): (xm: number, ym: number) => number {
@@ -15,6 +24,8 @@ export function gatHeightAt(data: GroundData): (xm: number, ym: number) => numbe
 export interface WorldLayer {
   readonly kind: "formal" | "fixture";
   readonly object: THREE.Object3D;
+  /** Formal worlds expose original-RO skill effects; fixture worlds deliberately omit them. */
+  readonly skillEffects?: WorldSkillEffectLayer;
   heightAt(xm: number, ym: number): number;
   update(timeMs: number): void;
   setDebugOverlay(on: boolean): void;

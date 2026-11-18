@@ -17,8 +17,15 @@ const csv = readFileSync(new URL("../../../docs/product-plan/handoff/fan-local-a
 describe("fan-local whitelist (handoff CSV, no GRF needed)", () => {
   const list = AssetWhitelist.fromCsv(csv);
 
-  it("has 288 unique asset ids (canonical v4)", () => {
-    expect(list.size).toBe(288);
+  it("has 300 unique asset ids (canonical v5)", () => {
+    expect(list.size).toBe(300);
+  });
+
+  it("pins the complete twelve-file official skill-effect source closure", () => {
+    const effects = list.rows().filter((row) => row.category.startsWith("skill_effect_"));
+    expect(effects).toHaveLength(12);
+    expect(effects.every((row) => row.required === "true" && row.source_container === "data.grf" && row.sha256.length === 64)).toBe(true);
+    expect(effects.map((row) => row.asset_id)).toContain("effect.skill.sw.magnum_break.explosion");
   });
 
   it("every CP949 raw hex and request URI round-trips to the canonical path", () => {

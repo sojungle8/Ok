@@ -2,6 +2,21 @@
 
 ## Unreleased — original assets, RO UI and D-032 skills (2026-11-17–18)
 
+- Canonical whitelist v5: adds the 12 verified original KRO visual sources needed by the five Swordsman effects
+  (7 type-2 BGRA TGA, 1 STR animation and 4 BMP) for 300 rows total, SHA-256
+  `ECE20DDDD09A4868CE9264B04E2DC602EA947F6C19929E49E81C1FCF5FBF480A`. The strict TGA decoder accepts only
+  the exact pinned subset and the real-local source audit passes 300/300; no RO binary or derived image is committed.
+- Original-effect pipeline v3 derives 12 fail-closed metadata records and 11 local-only PNGs from those verified
+  sources; the unparsed STR stays explicitly source-only. Shield Wave is the first connected formal effect: its
+  verified 64×64 Shield Boomerang bitmap follows authoritative cast/hit geometry in one bounded instanced renderer
+  (10 per cast, 32 total). The four-viewport local gate observes three rendered instances and an actual hit in each run.
+- Formal character selection now previews the locally derived original four-layer male Swordsman idle animation
+  (body, hair, sword and guard) before loading the map. Its ten sources, palette/layer contract, atlas hash, decoded
+  dimensions and 96×108 crop all fail closed; missing or clipped original frames never receive a substitute.
+- Formal mobile control now places the four verified original `ui.arrow.*` rasters inside the existing 120×120
+  touch region at 2× integer scale. It appears only for coarse pointers, remains hidden on desktop and adds no
+  CSS/SVG/Canvas substitute surface. Skill and keystone choices now use player-facing Traditional Chinese RO names
+  and effect labels instead of leaking internal IDs such as `magnum_break`.
 - Formal RO entry shell: title, Swordsman selection and `prt_fild08` stage selection now load verified original RO
   window/button/icon/minimap rasters and original client fonts. Generic panels remain fixture-only, missing UI fails
   closed and the responsive composition makes no pixel-identical claim.

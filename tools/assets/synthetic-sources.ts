@@ -15,6 +15,28 @@ import { systemManifestSha256 } from "./verify-sources-lib.ts";
 
 const sha = (b: Uint8Array): string => createHash("sha256").update(b).digest("hex").toUpperCase();
 
+/** Minimal type-2, 32-bit BGRA TGA used only by CI fixtures (bottom-left origin, 8-bit alpha). */
+function writeSyntheticTga32(width: number, height: number, seed: number): Uint8Array {
+  const pixels = width * height;
+  const out = new Uint8Array(18 + pixels * 4 + 26);
+  out[2] = 2;
+  out[12] = width & 0xff;
+  out[13] = width >>> 8;
+  out[14] = height & 0xff;
+  out[15] = height >>> 8;
+  out[16] = 32;
+  out[17] = 8;
+  for (let i = 0; i < pixels; i += 1) {
+    const p = 18 + i * 4;
+    out[p] = (seed + i * 3) & 0xff;
+    out[p + 1] = (seed * 5 + i * 7) & 0xff;
+    out[p + 2] = (seed * 11 + i * 13) & 0xff;
+    out[p + 3] = 64 + (i % 192);
+  }
+  out.set(new TextEncoder().encode("TRUEVISION-XFILE.\0"), out.length - 18);
+  return out;
+}
+
 // RO direction order: 0 S, 1 SW, 2 W, 3 NW, 4 N, 5 NE, 6 E, 7 SE. 5-7 mirror 3-1 (like RO sprites).
 const NOSE: [number, number][] = [[0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1]];
 const MIRROR_OF: Record<number, number> = { 5: 3, 6: 2, 7: 1 };
@@ -181,6 +203,16 @@ export function buildSyntheticSources(dir: string, realRows: readonly WhitelistR
   cat("map_ambient_sound").forEach((r, i) => content.set(r.asset_id, writeWav(syntheticBytes(500 + i, 256))));
   // Synthetic WAVs exercise the skill-audio contract without shipping or deriving any RO audio.
   cat("skill_sound").forEach((r, i) => content.set(r.asset_id, writeWav(syntheticBytes(700 + i, 320))));
+  // Synthetic skill-effect sources exercise the exact whitelist / gateway paths. They are test-only
+  // and never stand in for the original RO effects in a formal build.
+  cat("skill_effect_texture").forEach((r, i) => content.set(r.asset_id, r.canonical_cp949_path.endsWith(".tga")
+    ? writeSyntheticTga32(4 + (i % 2) * 2, 4, 800 + i)
+    : writeBmp24(8, 8, (x, y) => [(x * 31 + i * 17) & 255, (y * 29 + i * 11) & 255, (x + y + i) * 13 & 255])));
+  cat("skill_effect_animation").forEach((r, i) => {
+    const bytes = syntheticBytes(900 + i, 128);
+    bytes.set(new TextEncoder().encode("STRM"), 0);
+    content.set(r.asset_id, bytes);
+  });
   // Official-shadow stand-in: one action, one frame, translucent ellipse (alpha 128 in the ACT colour).
   const shadowIdx = new Uint8Array(16 * 8).map((_, k) => (((k % 16) - 7.5) ** 2 / 64 + (Math.floor(k / 16) - 3.5) ** 2 / 16 <= 1 ? 1 : 0));
   content.set("common.shadow.spr", writeSpr({ indexed: [{ width: 16, height: 8, indices: shadowIdx }], palette: syntheticPalette(9) }));

@@ -3,6 +3,7 @@
  * in-run HUD. Text and layout are project UI; no substitute bitmap, CSS-drawn panel or copied
  * RO Survivors screen is used.
  */
+import type { ComponentChildren } from "preact";
 import { useState } from "preact/hooks";
 import type { RasterRegistry } from "./raster.ts";
 import { RO_BUTTON_CHROME_IDS, RO_WINDOW_CHROME_IDS, RoRaster, RoThreeSliceButton, RoWindow, type RoChromeButtonState } from "./primitives.tsx";
@@ -131,19 +132,19 @@ export function RoTitleShell(props: {
   );
 }
 
-export function RoCharacterSelectShell(props: { rasters: RasterRegistry; onChoose: () => void; onBack: () => void }) {
+export function RoCharacterSelectShell(props: { rasters: RasterRegistry; actorPreview: ComponentChildren; onChoose: () => void; onBack: () => void }) {
   return (
     <div class="ro-shell-screen" data-testid="character-select" data-ro-shell="original-ro-raster">
       {RoWindow({
         rasters: props.rasters,
         width: 360,
-        height: 258,
+        height: 318,
         title: "選擇職業",
         children: <div class="ro-shell-content ro-shell-choice-content">
           <div class="ro-shell-choice-preview">
-            <div class="ro-shell-choice-icon">{RoRaster({ raster: props.rasters.get("ui.skill.sm_sword.icon"), scale: 2 })}</div>
+            <div class="ro-shell-actor-preview">{props.actorPreview}</div>
             <div>
-              <span class="ro-shell-strong">劍士</span>
+              <span class="ro-shell-choice-heading"><span class="ro-shell-choice-icon">{RoRaster({ raster: props.rasters.get("ui.skill.sm_sword.icon") })}</span><span class="ro-shell-strong">劍士</span></span>
               <span>近戰 · 防禦 · 範圍清怪</span>
               <span class="ro-shell-small">使用劍、盾與劍士原始技能素材。</span>
             </div>

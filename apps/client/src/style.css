@@ -61,7 +61,11 @@ html, body, #app { margin: 0; height: 100%; overflow: hidden; background: var(--
 }
 /* Formal mobile control keeps the tested pointer region but draws no substitute joystick art. */
 .stick.formal-stick { background: transparent; border: 0; }
-.stick.formal-stick .knob { display: none; }
+.ro-mobile-control-hint { position: absolute; inset: 0; width: 120px; height: 120px; pointer-events: none; display: none; }
+.ro-mobile-control-direction { pointer-events: none; }
+@media (pointer: coarse) {
+  .stick.formal-stick .ro-mobile-control-hint { display: block; }
+}
 @media (max-width: 480px) {
   .hud { font-size: 12px; padding: 8px 10px; }
   .hud .keys { display: none; }
