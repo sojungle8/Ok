@@ -7,9 +7,12 @@ full extraction and formal desktop/mobile browser smoke passed on 2026-11-18. Th
 `prt_fild08` GND/RSM/water, four-layer Swordsman, 12 monster sets, official shadow and original audio, with no
 placeholder fallback. Derived files and screenshots remain ignored under `.local-assets` / `reports/local`.
 
-RO UI is still **in progress**. All 108 original UI assets are locally verified and extracted; the fail-closed loader
-and verified-raster primitives exist. Profile `KRO2021_CLASSIC_V0_FAN` remains `DISCOVERED` and exact original-client
-placement metrics remain `DEFERRED_LOCAL`; therefore no pixel-identical layout claim is made yet.
+RO UI is still **in progress**, with the first visible run HUD now **LOCAL_PASS** (`reports/phase1/UI-B3-LOCAL-ACCEPTANCE.md`).
+All 108 original UI assets are locally verified and extracted; formal loading now installs the original client fonts
+and renders BasicInfo, HP/XP gauges, Shortcut, skill icons and status/Boss strips from verified rasters. Desktop,
+phone portrait, tablet portrait and landscape viewports stay within bounds; formal mode hides developer HUD and drawn
+joystick art. Profile `KRO2021_CLASSIC_V0_FAN` remains `DISCOVERED` and exact original-client placement metrics remain
+`DEFERRED_LOCAL`; title/selection/draft/results windows are not RO-complete and no pixel-identical claim is made.
 
 ## Phase 2 (cloud) — summary
 
@@ -24,7 +27,7 @@ Evidence: `reports/vertical-slice-acceptance.md` (headless, `pnpm slice:acceptan
 | Settlement closed 20 times mid-way: no duplicate items / XP | CLOUD_PASS (unit, fault injection) + browser: one settlement, reload does not duplicate |
 | A full run with touch only / gamepad only | Simulation CLOUD_PASS via device quantisation; browser: drafts by key / touch tap / gamepad A pass · real devices DEFERRED_LOCAL |
 | Audio buses, voice limits, boss warning priority | Rules CLOUD_PASS (unit) · playback blocked by missing audio rows (GAP-004) |
-| Formal screen (real RO assets) | LOCAL_PASS: desktop and 390×844 browser smoke show original map, four-layer actor, monsters, shadow and audio gate; visible RO HUD completion and human device play remain open |
+| Formal screen (real RO assets) | LOCAL_PASS: original world/actors/shadow/audio plus first verified-raster RO HUD at desktop, phone, tablet and landscape viewports; remaining screens and human physical-device play stay open |
 
 Balance tuning T-01…T-09 is layered on the seed (D-024); see the acceptance report.
 
@@ -54,7 +57,7 @@ Details, gates and local commands: `reports/phase1/PHASE1-ACCEPTANCE.md`; perfor
 | 250 enemies @60 FPS desktop / phone 30 FPS | Emulated 4x CPU at 30 FPS: pass · real GPU / phone DEFERRED_LOCAL |
 | Derived files only in `.local-assets` | CLOUD_PASS (marker + rights:check tests) |
 
-Latest pre-document code gate on Windows: `pnpm ci:local` passed with 34 test files / 368 tests, 17 synthetic files / 183 tests, `rights:check` PASS and 23/23 handoff checks. GitHub Actions run #43 for `1144a06` also succeeded: <https://github.com/sojungle8/Ok/actions/runs/44213231042>.
+Latest code gate on Windows: `pnpm ci:local` passed with 35 test files / 372 tests, 17 synthetic files / 183 tests, `rights:check` PASS and 23/23 handoff checks. GitHub Actions run #45 for `a449dd0` also succeeded: <https://github.com/sojungle8/Ok/actions/runs/44215678107>.
 
 ---
 

@@ -2,6 +2,12 @@
 
 ## Unreleased — Phase 1 original assets and RO UI (2026-11-17)
 
+- UI-B3 (`a449dd0`, Actions run #45): wires the fail-closed 108-asset UI loader into the formal game; installs the
+  two verified client fonts; renders the first visible original-raster BasicInfo, HP/XP gauges, Shortcut, skill icon,
+  stage/Boss strips and victory/defeat alert; hides production Build/Gateway text and drawn joystick art; adds
+  idempotent raster/image/font cleanup. Real-local desktop/phone/tablet/landscape evidence is in
+  `reports/phase1/UI-B3-LOCAL-ACCEPTANCE.md`. Remaining menus/modals are not declared complete.
+
 - Commit A (`983913f`): canonical v2 whitelist (174 rows), map dependency closure contract, formal loader stops at
   the pending GND/RSM/water/shadow/audio renderer instead of substituting anything.
 - UI-A: canonical v3 whitelist (282 rows = v2 + 108 RO UI rows), exact `filesystem:System` font allowlist, UI asset

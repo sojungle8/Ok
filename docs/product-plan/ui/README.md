@@ -1,7 +1,9 @@
 # RO UI reference (UI-A)
 
-Status: **RO UI reference/implementation in progress.** Profile `KRO2021_CLASSIC_V0_FAN` is `DISCOVERED`; it becomes
-`LOCKED` only after Codex review. No formal HUD exists yet and none may be drawn before that (CLAUDE-PHASE1-RO-UI.md §0).
+Status: **RO UI reference/implementation in progress.** Profile `KRO2021_CLASSIC_V0_FAN` is `DISCOVERED`; exact
+original-client placement becomes `LOCKED` only after reference-capture review. D-034 now permits a first playable
+`ORIGINAL-DESIGN` responsive HUD composed only from the locally verified original rasters; it must not be described
+as pixel-identical. Local evidence: `reports/phase1/UI-B3-LOCAL-ACCEPTANCE.md`.
 
 | File | Content |
 | --- | --- |
@@ -29,7 +31,8 @@ audit and `assets:ui-manifest` flag any same-name `rdata.grf` entry as **ambiguo
 | `ui_window_chrome` | 9 | `ui_font` | 2 |
 | `ui_button_chrome` | 12 | **total** | **108** |
 
-Found / missing / ambiguous per category against the **real** client: DEFERRED_LOCAL (run the commands below).
+Found / missing / ambiguous per category against the **real** client: **282/282 full-whitelist LOCAL_PASS** on
+2026-11-18 (all 108 UI rows loaded; 0 missing/ambiguous in the pinned source profile).
 Synthetic CI (structure only, never evidence of RO visuals): 108 found, 0 missing, 0 ambiguous.
 
 ## Profile mixing checks
@@ -50,7 +53,8 @@ pnpm assets:ui-manifest           # metadata-only manifest in .local-assets/…/
 cursor ACT (2.5, 14 actions) and bounds each hotspot by its sprite frame, and checks the fonts' `OTTO` signature.
 Any failure lists asset ID + container + canonical CP949 path.
 
-## Decisions needed from Codex
+## Remaining decisions / measurements
 
-See `undecided` in the profile: UI-Q1 tooltip surface, UI-Q2 status/inventory/skill windows, UI-Q3 font weight and
-size (needs a 1024×768 capture), UI-Q4 Survivors timer/kills/Boss HP composition. Recorded decisions: D-028…D-030.
+See `undecided` in the profile: UI-Q1 tooltip surface, UI-Q2 status/inventory/skill windows and UI-Q3 exact font
+metrics still need a reference capture. D-034 resolves the first-pass UI-Q4 composition only: timer/kills/Boss status
+may use original title/gauge rasters in an original responsive layout. Recorded decisions: D-028…D-030, D-034.
