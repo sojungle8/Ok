@@ -68,7 +68,8 @@ describe("formal RO survivor results", () => {
     expect(model.continueLabel).toBe("結算中…");
     expect(model.rows.find((row) => row.key === "boss")?.value).toBe("—");
     expect(model.rows.find((row) => row.key === "rewards")?.value).toContain("無道具");
-    expect(model.rows.find((row) => row.key === "settled")?.value).toBe("無法開啟本機存檔");
+    expect(model.rows.find((row) => row.key === "settled")?.value).toBe("結算中…");
+    expect(buildResultsModel(data(result()), false, true).rows.find((row) => row.key === "settled")?.value).toBe("無法開啟本機存檔");
   });
 
   it("clamps negative time and uses 60 simulation ticks per second", () => {

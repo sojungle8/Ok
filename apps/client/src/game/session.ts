@@ -7,6 +7,9 @@ export interface SessionCallbacks {
   onEnd(st: RunState): void;
 }
 
+/** Long enough to show the longest bounded original-ACT death cycle before the results panel. */
+export const TERMINAL_PRESENTATION_MS = 1700;
+
 /** Preserve every simulation event produced in one render frame; a zero-step frame clears old events. */
 export function accumulateFrameEvents(state: Pick<RunState, "events">, steps: number, step: (index: number) => boolean | void): void {
   const events: RunEvent[] = [];
@@ -38,6 +41,7 @@ export class RunSession {
   #raf = 0;
   #last = 0;
   #start = 0;
+  #terminalEndAt = 0;
   paused = false;
 
   constructor(content: RunContent, runSeed: number, renderer: RunRenderer, cb: SessionCallbacks, opts: { loadout: string[]; autoplay: BuildPlan | null; manualDraft?: boolean; speed: number; grid?: RunConfig["grid"]; start?: { x: number; y: number } }) {
@@ -86,8 +90,16 @@ export class RunSession {
   start(): void {
     this.#start = performance.now();
     this.#last = this.#start;
+    this.#terminalEndAt = 0;
     const frame = (now: number): void => {
       this.#raf = requestAnimationFrame(frame);
+      // The simulation is already final, but presentation time must continue so the final original
+      // ACT hit/death animation and damage number can complete before the results panel appears.
+      if (this.#terminalEndAt > 0) {
+        this.#renderer.render(this.state, now - this.#start);
+        if (now >= this.#terminalEndAt) this.stop();
+        return;
+      }
       this.#pollGamepad();
       let n = this.#clock.advance(Math.max(0, Math.round((now - this.#last) * 1000)));
       this.#last = now;
@@ -99,7 +111,7 @@ export class RunSession {
       this.#renderer.render(this.state, now - this.#start);
       this.#cb.onFrame(this.state);
       if (this.state.phase === "victory" || this.state.phase === "defeat") {
-        this.stop();
+        this.#terminalEndAt = now + (this.#autoplay ? 200 : TERMINAL_PRESENTATION_MS);
         this.#cb.onEnd(this.state);
       }
     };

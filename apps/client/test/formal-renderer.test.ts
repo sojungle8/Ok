@@ -167,6 +167,13 @@ describe("official water and shadow", () => {
     expect([size.x, size.z].map((v) => Math.round(v * 1000) / 1000)).toEqual([0.4, 0.2]); // 16×8 px × 0.025 m
     layer.set([1, 0, -1, 2, 0, -2]);
     expect(layer.mesh.count).toBe(2);
+    layer.set([1, 0, -1, 2, 0, -2], [0.5, 1.45]);
+    const matrix = new THREE.Matrix4();
+    layer.mesh.getMatrixAt(1, matrix);
+    const scale = new THREE.Vector3();
+    matrix.decompose(new THREE.Vector3(), new THREE.Quaternion(), scale);
+    expect(scale.x).toBeCloseTo(1.45);
+    expect(scale.z).toBeCloseTo(1.45);
   });
 });
 

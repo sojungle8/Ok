@@ -32,7 +32,16 @@ describe("vertical-slice content compile", () => {
   it("builds the timeline and XP curve", () => {
     expect(c.bossSpawnTick).toBe(36000);
     expect(c.enrageTick).toBe(43200);
-    expect(c.timeline[0]).toEqual({ kind: "wave", fromTick: 0, toTick: 3600, spawnEveryTicks: 86, pool: ["monster.poring", "monster.fabre", "monster.lunatic"] });
+    expect(c.timeline[0]).toEqual({ kind: "wave", fromTick: 0, toTick: 3600, spawnEveryTicks: 50, pool: ["monster.poring", "monster.fabre", "monster.lunatic"] });
+    expect(c.timeline.filter((entry) => entry.kind === "wave").map((entry) => [entry.fromTick, entry.toTick, entry.spawnEveryTicks])).toEqual([
+      [0, 3600, 50],
+      [3600, 7200, 30],
+      [7200, 10800, 50],
+      [10800, 16200, 40],
+      [18000, 25200, 22],
+      [25200, 32400, 27],
+    ]);
+    expect(c.progression).toMatchObject({ levelUpHealPermille: 400, maxRangedShooters: 2 });
     expect(c.progression.xpToNext.slice(1, 5)).toEqual([8, 13, 19, 26]);
     expect(c.progression.xpToNext).toHaveLength(30);
   });

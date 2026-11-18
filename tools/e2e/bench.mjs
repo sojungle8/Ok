@@ -5,7 +5,7 @@ import { createServer } from "node:http";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
-import { extname, join, normalize, resolve } from "node:path";
+import { dirname, extname, join, normalize, resolve } from "node:path";
 import { execFileSync } from "node:child_process";
 
 const root = resolve(import.meta.dirname, "../..");
@@ -19,7 +19,9 @@ let playwright;
 try {
   playwright = createRequire(import.meta.url)("playwright");
 } catch {
-  const globalRoot = process.env.PLAYWRIGHT_GLOBAL_ROOT ?? execFileSync("npm", ["root", "-g"], { encoding: "utf8" }).trim();
+  const bundledRoot = resolve(dirname(process.execPath), "../node_modules");
+  const globalRoot = process.env.PLAYWRIGHT_GLOBAL_ROOT
+    ?? (existsSync(join(bundledRoot, "playwright")) ? bundledRoot : execFileSync("npm", ["root", "-g"], { encoding: "utf8" }).trim());
   playwright = createRequire(join(globalRoot, "noop.js"))("playwright");
 }
 const types = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css" };

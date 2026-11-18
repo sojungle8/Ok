@@ -1,18 +1,39 @@
 import type { RunContent, RunState } from "@ro-survivor/core-sim";
-import { RoFormalHud, type RasterRegistry, type RoHudSkill } from "../ui/ro/index.ts";
+import { RoFormalHud, type RasterRegistry, type RoFormalHudModel, type RoHudSkill } from "../ui/ro/index.ts";
 
-export function Hud({ content, st, rasters = null }: { content: RunContent; st: RunState; rasters?: RasterRegistry | null }) {
+export interface HudMapExtent {
+  widthMm: number;
+  heightMm: number;
+}
+
+export function formalHudSkills(st: Pick<RunState, "runTick" | "player">): RoHudSkill[] {
+  const p = st.player;
+  return [
+    { id: "skill.sw.basic_slash", rank: p.basicRank },
+    ...p.active.map((a, index) => ({ id: a.id, rank: a.rank, hotkey: `F${index + 1}`, cooldownTicks: Math.max(0, a.readyAt - st.runTick) })),
+  ];
+}
+
+export function formalMinimapModel(player: RunState["player"], extent: HudMapExtent): NonNullable<RoFormalHudModel["minimap"]> | undefined {
+  if (!(extent.widthMm > 0) || !(extent.heightMm > 0)) return undefined;
+  const clampPermille = (value: number): number => Math.max(0, Math.min(1000, Math.round(value)));
+  return {
+    xPermille: clampPermille(player.x * 1000 / extent.widthMm),
+    // RO map bitmaps place north at the top; simulation +Y is north.
+    yPermille: clampPermille(1000 - player.y * 1000 / extent.heightMm),
+    facingDeg: Math.atan2(player.fx, player.fy) * 180 / Math.PI,
+  };
+}
+
+export function Hud({ content, st, rasters = null, mapExtent }: { content: RunContent; st: RunState; rasters?: RasterRegistry | null; mapExtent?: HudMapExtent }) {
   const p = st.player;
   const need = content.progression.xpToNext[p.level] ?? 1;
   const boss = st.enemies.find((e) => e.id === st.bossId);
   const secs = Math.floor(st.runTick / 60);
   const warning = st.magnetPermille > 1000 && !boss;
   if (rasters) {
-    const skills: RoHudSkill[] = [
-      { id: "skill.sw.basic_slash", rank: p.basicRank },
-      ...p.active.map((a, index) => ({ id: a.id, rank: a.rank, hotkey: `F${index + 1}`, cooldownTicks: Math.max(0, a.readyAt - st.runTick) })),
-      ...p.passive.map((a) => ({ id: a.id, rank: a.rank })),
-    ];
+    const skills = formalHudSkills(st);
+    const minimap = mapExtent ? formalMinimapModel(p, mapExtent) : undefined;
     const bossDetail = `${st.enraged ? "狂暴" : ""}${boss && st.runTick < boss.hardenUntil ? `${st.enraged ? " · " : ""}硬化` : ""}`;
     const keystone = p.keystone?.replace("keystone.", "");
     const alert = st.phase === "victory" ? { text: "勝利！", testId: "outcome" as const }
@@ -24,7 +45,8 @@ export function Hud({ content, st, rasters = null }: { content: RunContent; st: 
       <RoFormalHud
         rasters={rasters}
         model={{
-          playerName: "劍士",
+          playerName: "冒險者",
+          jobName: "劍士",
           level: p.level,
           hp: p.hp,
           maxHp: p.maxHp,
@@ -35,6 +57,7 @@ export function Hud({ content, st, rasters = null }: { content: RunContent; st: 
           skills,
           ...(keystone ? { keystone } : {}),
           ...(boss ? { boss: { name: "Mastering", hp: boss.hp, maxHp: boss.maxHp, ...(bossDetail ? { detail: bossDetail } : {}) } } : {}),
+          ...(minimap ? { minimap } : {}),
           ...(alert ? { alert } : {}),
         }}
       />

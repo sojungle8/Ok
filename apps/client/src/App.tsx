@@ -14,7 +14,7 @@ import type { GroundData } from "./game/renderer.ts";
 import type { WorldLayer } from "./game/terrain.ts";
 import { whitelist } from "./gateway.ts";
 import { RunRenderer } from "./game/runRenderer.ts";
-import { RunSession } from "./game/session.ts";
+import { RunSession, TERMINAL_PRESENTATION_MS } from "./game/session.ts";
 import { DraftModal } from "./screens/Draft.tsx";
 import { Hud } from "./screens/Hud.tsx";
 import { ResultsScreen } from "./screens/Results.tsx";
@@ -194,21 +194,40 @@ export function App() {
         if (screen !== want && (screen === "running" || screen === "draft-paused" || screen === "boss-intro")) send({ type: "run-phase", phase: state.phase });
       },
       onEnd: (state) => {
+        const result = s.result({ profileId: PROFILE, runId: `run-${runSeed}-${Date.now()}`, buildId: __BUILD_ID__ });
+        setResults({ result, applied: false, character: null });
+        setSt({ ...state });
+
+        // Presentation and persistence run in parallel. A slow IndexedDB must not freeze the final
+        // original-ACT death cycle or postpone the results panel; the panel remains disabled until
+        // settlement finishes. A storage failure degrades to the explicit no-local-save state.
+        let resultsShown = false;
+        let settlementDone = false;
+        const markSettledIfVisible = (): void => {
+          if (resultsShown && settlementDone) send({ type: "settled" });
+        };
+        setTimeout(() => {
+          s.stop();
+          resultsShown = true;
+          send({ type: "show-results" });
+          markSettledIfVisible();
+        }, autoplay ? 200 : TERMINAL_PRESENTATION_MS);
+
         void (async () => {
-          const result = s.result({ profileId: PROFILE, runId: `run-${runSeed}-${Date.now()}`, buildId: __BUILD_ID__ });
           let applied = false;
           let character: CharacterRecord | null = null;
-          if (db.current) {
-            await recordPending(db.current, result);
-            applied = (await settle(db.current, idempotencyKey(result))).applied;
-            character = (await db.current.getAll<CharacterRecord>("characters")).find(([k]) => k === `${PROFILE}:job.swordsman`)?.[1] ?? null;
+          try {
+            if (db.current) {
+              await recordPending(db.current, result);
+              applied = (await settle(db.current, idempotencyKey(result))).applied;
+              character = (await db.current.getAll<CharacterRecord>("characters")).find(([k]) => k === `${PROFILE}:job.swordsman`)?.[1] ?? null;
+            }
+          } catch {
+            db.current = null;
           }
           setResults({ result, applied, character });
-          setTimeout(() => {
-            send({ type: "show-results" });
-            send({ type: "settled" });
-          }, autoplay ? 200 : 1500);
-          setSt({ ...state });
+          settlementDone = true;
+          markSettledIfVisible();
         })();
       },
     }, { loadout: content.buildLoadouts[plan] ?? content.standardLoadout, autoplay, manualDraft, speed, grid: assets.grid ? { width: assets.grid.width, height: assets.grid.height, cellMm: assets.grid.cellMm, reachable: assets.grid.walkable } : null, start: assets.start });
@@ -272,7 +291,7 @@ export function App() {
   useEffect(() => {
     if (flow.screen !== "results" || !st || !renderer.current) return;
     const frozen = st;
-    const frozenTimeMs = (st.runTick * 1000) / 60;
+    const frozenTimeMs = renderer.current.presentationTimeMs;
     let raf = 0;
     const paint = (): void => {
       renderer.current?.render(frozen, frozenTimeMs);
@@ -343,7 +362,12 @@ export function App() {
           ) : <p>載入本機 RO 素材…</p>}
         </section>
       ) : null}
-      {inRun && st ? <Hud content={content} st={st} rasters={assets?.ui?.rasters ?? null} /> : null}
+      {inRun && st ? <Hud
+        content={content}
+        st={st}
+        rasters={assets?.ui?.rasters ?? null}
+        {...(assets?.grid ? { mapExtent: { widthMm: assets.grid.width * assets.grid.cellMm, heightMm: assets.grid.height * assets.grid.cellMm } } : {})}
+      /> : null}
       {inRun && st && session.current && (st.phase === "draft" || st.phase === "keystone-confirm") && (!autoplay || manualDraft) ? (
         <DraftModal content={content} st={st} rasters={assets?.ui?.rasters ?? null} onChoose={(i) => session.current?.choose(i)} onConfirm={() => session.current?.confirm()} onCancel={() => session.current?.cancel()} />
       ) : null}

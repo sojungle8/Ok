@@ -31,7 +31,7 @@ export function buildResultsModel(data: ResultsData, hasDatabase: boolean, settl
     {
       key: "settled",
       label: "存檔",
-      value: hasDatabase ? (data.applied ? "已結算（本機 IndexedDB）" : "已結算過（不重複發獎）") : "無法開啟本機存檔",
+      value: !settled ? "結算中…" : hasDatabase ? (data.applied ? "已結算（本機 IndexedDB）" : "已結算過（不重複發獎）") : "無法開啟本機存檔",
       testId: "settled",
     },
   ];

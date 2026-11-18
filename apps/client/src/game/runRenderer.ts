@@ -2,6 +2,15 @@ import * as THREE from "three";
 import type { RunContent, RunState } from "@ro-survivor/core-sim";
 import { telegraphColors, type Settings } from "../settings.ts";
 import type { OfficialShadowLayer } from "./formal/world.ts";
+import {
+  animationDuration,
+  CombatOverlay,
+  CombatPresentationState,
+  officialShadowScale,
+  sharedSpriteVisualScale,
+  type ActorSnapshot,
+  type DamageCue,
+} from "./presentation.ts";
 import { BillboardBatch } from "./renderer.ts";
 import type { SpriteSheet } from "./sprites.ts";
 import type { WorldLayer } from "./terrain.ts";
@@ -19,18 +28,28 @@ export class RunRenderer {
   readonly #batches = new Map<string, BillboardBatch>();
   readonly #telegraphs = new Map<number, THREE.Mesh>();
   readonly #markers: THREE.InstancedMesh;
+  readonly #visualScales = new Map<string, number>();
+  readonly #shadowScales = new Map<string, number>();
   readonly world: WorldLayer;
   readonly shadow: OfficialShadowLayer | null;
+  readonly #presentation = new CombatPresentationState();
+  readonly #overlay: CombatOverlay | null;
   #cam = { x: 0, y: 0, ready: false };
   readonly content: RunContent;
   settings: Settings;
   textureBytes = 0;
+  /** Monotonic presentation clock; results redraws must never rewind ACT or transient cues. */
+  presentationTimeMs = 0;
 
   constructor(canvas: HTMLCanvasElement, content: RunContent, player: SpriteSheet, enemies: Record<string, SpriteSheet>, settings: Settings, world: WorldLayer, shadow: OfficialShadowLayer | null) {
     this.content = content;
     this.settings = settings;
     this.world = world;
     this.shadow = shadow;
+    for (const type of Object.keys(content.monsters)) {
+      this.#visualScales.set(type, sharedSpriteVisualScale(content, type));
+      this.#shadowScales.set(type, officialShadowScale(content, type));
+    }
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: "high-performance" });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.setClearColor(0x1d1b18);
@@ -38,7 +57,7 @@ export class RunRenderer {
     this.#player.mesh.renderOrder = 5;
     this.textureBytes += player.textureBytes;
     for (const [ref, sheet] of Object.entries(enemies)) {
-      const b = new BillboardBatch(sheet, 440);
+      const b = new BillboardBatch(sheet, 480);
       b.mesh.renderOrder = 4;
       this.#batches.set(ref, b);
       this.scene.add(b.mesh);
@@ -49,6 +68,7 @@ export class RunRenderer {
     this.#markers.frustumCulled = false;
     this.scene.add(world.object, this.#player.mesh, this.#markers);
     if (shadow) this.scene.add(shadow.mesh);
+    this.#overlay = canvas.parentElement ? new CombatOverlay(canvas.parentElement) : null;
   }
 
   setDebugOverlay(on: boolean): void {
@@ -93,19 +113,11 @@ export class RunRenderer {
   }
 
   render(st: RunState, timeMs: number): void {
+    const presentMs = Math.max(this.presentationTimeMs, timeMs);
+    this.presentationTimeMs = presentMs;
     const p = st.player;
     const px = p.x / 1000;
     const pz = -p.y / 1000;
-    // Camera follows with damping; it never feeds back into the simulation.
-    if (!this.#cam.ready) this.#cam = { x: px, y: pz, ready: true };
-    this.#cam.x += (px - this.#cam.x) * 0.15;
-    this.#cam.y += (pz - this.#cam.y) * 0.15;
-    const py = this.world.heightAt(px, p.y / 1000);
-    this.camera.position.set(this.#cam.x, py + 30, this.#cam.y + 30);
-    this.camera.lookAt(this.#cam.x, py, this.#cam.y);
-    this.camera.updateMatrixWorld();
-    const right = new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld, 0);
-    const up = new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld, 1);
     const dir = (fx: number, fy: number): number => {
       const ax = Math.abs(fx);
       const ay = Math.abs(fy);
@@ -113,7 +125,47 @@ export class RunRenderer {
       if (ax * 1000 <= ay * 414) return fy > 0 ? 4 : 0;
       return fx > 0 ? (fy > 0 ? 5 : 7) : fy > 0 ? 3 : 1;
     };
-    this.#player.set(0, px, py, pz, p.moving ? "walk" : p.basicHitAt >= 0 ? "attack" : "idle", dir(p.fx, p.fy), timeMs);
+    const actors = new Map<number, ActorSnapshot>();
+    for (const e of st.enemies) {
+      const def = this.content.monsters[e.type];
+      const ref = def?.assetRef ?? "";
+      const batch = this.#batches.get(ref);
+      const facing = dir(e.fx, e.fy);
+      if (!def || !batch) continue;
+      actors.set(e.id, {
+        id: e.id,
+        type: e.type,
+        assetRef: ref,
+        xMm: e.x,
+        yMm: e.y,
+        fx: e.fx,
+        fy: e.fy,
+        visualScale: this.#visualScales.get(e.type) ?? 1,
+        shadowScale: this.#shadowScales.get(e.type) ?? 1,
+        deathDurationMs: animationDuration(batch.sheet, "death", facing),
+      });
+    }
+    this.#presentation.ingest(
+      st,
+      presentMs,
+      actors,
+      this.settings,
+      this.content.player.basicSkillId,
+      animationDuration(this.#player.sheet, "death", dir(p.fx, p.fy)),
+    );
+    // Camera follows with damping; it never feeds back into the simulation.
+    if (!this.#cam.ready) this.#cam = { x: px, y: pz, ready: true };
+    this.#cam.x += (px - this.#cam.x) * 0.15;
+    this.#cam.y += (pz - this.#cam.y) * 0.15;
+    const py = this.world.heightAt(px, p.y / 1000);
+    const shake = this.#presentation.shake(presentMs, this.settings.shake);
+    this.camera.position.set(this.#cam.x + shake.x, py + 30, this.#cam.y + 30 + shake.z);
+    this.camera.lookAt(this.#cam.x + shake.x, py, this.#cam.y + shake.z);
+    this.camera.updateMatrixWorld();
+    const right = new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld, 0);
+    const up = new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld, 1);
+    const playerAnimation = this.#presentation.playerAnimation(st, presentMs, presentMs);
+    this.#player.set(0, px, py, pz, playerAnimation.slot, dir(p.fx, p.fy), playerAnimation.timeMs);
     this.#player.commit(1, right, up);
     const counts = new Map<string, number>();
     for (const e of st.enemies) {
@@ -121,16 +173,34 @@ export class RunRenderer {
       const b = this.#batches.get(ref);
       if (!b) continue;
       const i = counts.get(ref) ?? 0;
+      if (i >= b.mesh.instanceMatrix.count) continue;
       counts.set(ref, i + 1);
-      b.set(i, e.x / 1000, this.world.heightAt(e.x / 1000, e.y / 1000), -e.y / 1000, st.runTick < e.stunUntil ? "hit" : "walk", dir(e.fx, e.fy), timeMs + e.id * 37);
+      const animation = this.#presentation.enemyAnimation(e, st, presentMs, presentMs);
+      b.set(i, e.x / 1000, this.world.heightAt(e.x / 1000, e.y / 1000), -e.y / 1000, animation.slot, dir(e.fx, e.fy), animation.timeMs, this.#visualScales.get(e.type) ?? 1);
+    }
+    for (const death of this.#presentation.deaths.values()) {
+      const b = this.#batches.get(death.assetRef);
+      if (!b) continue;
+      const i = counts.get(death.assetRef) ?? 0;
+      if (i >= b.mesh.instanceMatrix.count) continue;
+      counts.set(death.assetRef, i + 1);
+      b.set(i, death.xMm / 1000, this.world.heightAt(death.xMm / 1000, death.yMm / 1000), -death.yMm / 1000, "death", dir(death.fx, death.fy), presentMs - death.startMs, death.visualScale);
     }
     for (const [ref, b] of this.#batches) b.commit(counts.get(ref) ?? 0, right, up);
     if (this.shadow) {
       const feet: number[] = [px, py, pz];
-      for (const e of st.enemies) feet.push(e.x / 1000, this.world.heightAt(e.x / 1000, e.y / 1000), -e.y / 1000);
-      this.shadow.set(feet);
+      const scales: number[] = [1];
+      for (const e of st.enemies) {
+        feet.push(e.x / 1000, this.world.heightAt(e.x / 1000, e.y / 1000), -e.y / 1000);
+        scales.push(this.#shadowScales.get(e.type) ?? 1);
+      }
+      for (const death of this.#presentation.deaths.values()) {
+        feet.push(death.xMm / 1000, this.world.heightAt(death.xMm / 1000, death.yMm / 1000), -death.yMm / 1000);
+        scales.push(death.shadowScale);
+      }
+      this.shadow.set(feet, scales);
     }
-    this.world.update(timeMs);
+    this.world.update(presentMs);
     // Telegraphs: opacity ramps toward the hit tick; never reduced by effect settings.
     const live = new Set<number>();
     for (const t of st.telegraphs) {
@@ -167,10 +237,29 @@ export class RunRenderer {
     this.#markers.instanceMatrix.needsUpdate = true;
     if (this.#markers.instanceColor) this.#markers.instanceColor.needsUpdate = true;
     (this.#markers.material as THREE.MeshBasicMaterial).opacity = Math.max(0.5, this.settings.effectOpacity);
+    if (this.#overlay) {
+      const width = Math.max(1, this.renderer.domElement.clientWidth);
+      const height = Math.max(1, this.renderer.domElement.clientHeight);
+      const point = new THREE.Vector3();
+      const project = (cue: DamageCue) => {
+        const x = cue.xMm / 1000;
+        const y = cue.yMm / 1000;
+        point.set(x, this.world.heightAt(x, y) + 1.25 * cue.visualScale, -y).project(this.camera);
+        return {
+          x: (point.x * 0.5 + 0.5) * width,
+          y: (-point.y * 0.5 + 0.5) * height,
+          visible: point.z >= -1 && point.z <= 1 && Math.abs(point.x) <= 1.1 && Math.abs(point.y) <= 1.1,
+        };
+      };
+      this.#overlay.syncDamage(this.#presentation.damage, presentMs, this.settings.damageNumbers, project);
+      this.#overlay.setFlash(this.#presentation.flash(presentMs, this.settings.flash, this.settings.effectOpacity));
+    }
     this.renderer.render(this.scene, this.camera);
   }
 
   dispose(): void {
+    this.#presentation.clearTransient();
+    this.#overlay?.dispose();
     this.world.dispose();
     this.renderer.dispose();
   }

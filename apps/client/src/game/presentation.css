@@ -1,0 +1,32 @@
+.combat-presentation {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.combat-flash {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.combat-flash--player { background: rgb(255 58 48 / 55%); }
+.combat-flash--skill { background: rgb(255 255 255 / 70%); }
+
+.combat-damage {
+  position: absolute;
+  color: #fff;
+  font-family: "RO SCDream", "Noto Sans TC", sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1;
+  text-shadow: -1px -1px 0 #171717, 1px -1px 0 #171717, -1px 1px 0 #171717, 1px 1px 0 #171717;
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+  will-change: top, opacity;
+}
+
+.combat-damage--player { color: #ff6a5f; }

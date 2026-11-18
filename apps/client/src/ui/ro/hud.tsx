@@ -4,8 +4,9 @@
  * Positioning and DOM text are original layout; every visible panel, gauge and icon pixel comes from
  * the pinned KRO2021_CLASSIC_V0_FAN registry.
  */
+import { useState } from "preact/hooks";
 import type { RasterRegistry, VerifiedRaster } from "./raster.ts";
-import { RoGauge, RoRaster, RoThreeSlice } from "./primitives.tsx";
+import { RoButton, RoGauge, RoRaster, RoThreeSlice, type RoButtonState } from "./primitives.tsx";
 
 export interface RoHudSkill {
   id: string;
@@ -16,6 +17,7 @@ export interface RoHudSkill {
 
 export interface RoFormalHudModel {
   playerName: string;
+  jobName: string;
   level: number;
   hp: number;
   maxHp: number;
@@ -25,6 +27,7 @@ export interface RoFormalHudModel {
   kills: number;
   keystone?: string;
   skills: RoHudSkill[];
+  minimap?: { xPermille: number; yPermille: number; facingDeg: number };
   boss?: { name: string; hp: number; maxHp: number; detail?: string };
   alert?: { text: string; testId: "boss-intro" | "boss-warning" | "outcome" };
 }
@@ -53,6 +56,28 @@ const EMPTY_GAUGE = ["ui.gauge.empty.left", "ui.gauge.empty.mid", "ui.gauge.empt
 const HP_GAUGE = ["ui.gauge.hp.left", "ui.gauge.hp.mid", "ui.gauge.hp.right"] as const;
 const XP_GAUGE = ["ui.gauge.sp.left", "ui.gauge.sp.mid", "ui.gauge.sp.right"] as const;
 const TITLE = ["ui.window.title.left", "ui.window.title.mid", "ui.window.title.right"] as const;
+const BASIC_SYSTEM = [
+  ["ui.control.base.normal", "ui.control.base.hover"],
+  ["ui.control.minimize.normal", "ui.control.minimize.hover"],
+] as const;
+const BASIC_MENU = [
+  ["status", "ui.menu.status.normal", "ui.menu.status.active"],
+  ["option", "ui.menu.option.normal", "ui.menu.option.active"],
+  ["inventory", "ui.menu.inventory.normal", "ui.menu.inventory.active"],
+  ["equipment", "ui.menu.equipment.normal", "ui.menu.equipment.active"],
+  ["skill", "ui.menu.skill.normal", "ui.menu.skill.active"],
+  ["map", "ui.menu.map.normal", "ui.menu.map.active"],
+  ["chat", "ui.menu.chat.normal", "ui.menu.chat.active"],
+  ["friends", "ui.menu.friends.normal", "ui.menu.friends.active"],
+] as const;
+const MINIMAP = [
+  "ui.minimap.map.prt_fild08",
+  "ui.minimap.player_arrow",
+  "ui.minimap.control.zoom_in.normal",
+  "ui.minimap.control.zoom_in.hover",
+  "ui.minimap.control.zoom_out.normal",
+  "ui.minimap.control.zoom_out.hover",
+] as const;
 
 function three(rasters: RasterRegistry, ids: readonly [string, string, string]): [VerifiedRaster, VerifiedRaster, VerifiedRaster] {
   return [rasters.get(ids[0]), rasters.get(ids[1]), rasters.get(ids[2])];
@@ -68,6 +93,9 @@ export function formalHudAssetIds(model: RoFormalHudModel): string[] {
     ...HP_GAUGE,
     ...XP_GAUGE,
     ...TITLE,
+    ...BASIC_SYSTEM.flat(),
+    ...BASIC_MENU.flatMap((entry) => entry.slice(1)),
+    ...MINIMAP,
   ]);
   for (const skill of model.skills.slice(0, 9)) {
     const icon = roSkillIconId(skill.id);
@@ -87,7 +115,9 @@ function BasicInfoVariant({ rasters, model, compact }: { rasters: RasterRegistry
   return (
     <div class={`ro-basic-info ${compact ? "ro-basic-info-mini" : "ro-basic-info-full"}`} data-ro-layout={compact ? "mobile-mini" : "desktop-full"}>
       {RoRaster({ raster: rasters.get(compact ? "ui.hud.basic.background.mini" : "ui.hud.basic.background") })}
+      <span class="ro-basic-title">Basic Info</span>
       <span class="ro-basic-name">{model.playerName}</span>
+      <span class="ro-basic-job">{model.jobName}</span>
       <span class="ro-basic-level">Lv {model.level}</span>
       <div class="ro-basic-hp" aria-label="HP">
         {RoGauge({ empty, fill: hp, ratio: ratio(model.hp, model.maxHp), width: compact ? 90 : 85 })}
@@ -101,11 +131,83 @@ function BasicInfoVariant({ rasters, model, compact }: { rasters: RasterRegistry
   );
 }
 
-export function RoBasicInfo({ rasters, model }: { rasters: RasterRegistry; model: RoFormalHudModel }) {
+function SystemButton({ rasters, ids, label, onPress }: { rasters: RasterRegistry; ids: readonly [string, string]; label: string; onPress: () => void }) {
+  const [state, setState] = useState<RoButtonState>("off");
   return (
-    <div class="ro-basic-anchor">
+    <span class="ro-basic-system-button" onPointerEnter={() => setState("hover")} onPointerLeave={() => setState("off")}>
+      {RoButton({ rasters, declared: { off: ids[0], hover: ids[1] }, state, label, onPress })}
+    </span>
+  );
+}
+
+function RoBasicMenu({ rasters }: { rasters: RasterRegistry }) {
+  return (
+    <div class="ro-basic-menu" aria-label="RO 主選單">
+      {BASIC_MENU.map(([name, normal]) => (
+        <span key={name} class="ro-basic-menu-item" data-ro-menu={name} aria-hidden="true">
+          {RoRaster({ raster: rasters.get(normal) })}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+export function RoBasicInfo({ rasters, model }: { rasters: RasterRegistry; model: RoFormalHudModel }) {
+  const [minimized, setMinimized] = useState(false);
+  return (
+    <div class={`ro-basic-anchor${minimized ? " is-minimized" : ""}`}>
       <BasicInfoVariant rasters={rasters} model={model} compact={false} />
       <BasicInfoVariant rasters={rasters} model={model} compact={true} />
+      <span class="ro-basic-system ro-basic-system-base">
+        <SystemButton rasters={rasters} ids={BASIC_SYSTEM[0]} label="展開基本資訊" onPress={() => setMinimized(false)} />
+      </span>
+      <span class="ro-basic-system ro-basic-system-minimize">
+        <SystemButton rasters={rasters} ids={BASIC_SYSTEM[1]} label="縮小基本資訊" onPress={() => setMinimized(true)} />
+      </span>
+      <RoBasicMenu rasters={rasters} />
+    </div>
+  );
+}
+
+export interface RoMinimapPlan {
+  mapLeft: number;
+  mapTop: number;
+  arrowLeft: number;
+  arrowTop: number;
+  facingDeg: number;
+  viewport: 128;
+}
+
+/** Crop the native 512px map at 1:1; no fractional scaling or synthesized map surface. */
+export function planMinimap(map: VerifiedRaster, arrow: VerifiedRaster, model: NonNullable<RoFormalHudModel["minimap"]>): RoMinimapPlan {
+  const viewport = 128 as const;
+  const clamp = (value: number, low: number, high: number): number => Math.max(low, Math.min(high, value));
+  const x = Math.round(clamp(model.xPermille, 0, 1000) * (map.width - 1) / 1000);
+  const y = Math.round(clamp(model.yPermille, 0, 1000) * (map.height - 1) / 1000);
+  const mapLeft = clamp(Math.round(viewport / 2 - x), viewport - map.width, 0);
+  const mapTop = clamp(Math.round(viewport / 2 - y), viewport - map.height, 0);
+  return {
+    mapLeft,
+    mapTop,
+    arrowLeft: clamp(Math.round(x + mapLeft - arrow.width / 2), 0, viewport - arrow.width),
+    arrowTop: clamp(Math.round(y + mapTop - arrow.height / 2), 0, viewport - arrow.height),
+    facingDeg: Number.isFinite(model.facingDeg) ? model.facingDeg : 0,
+    viewport,
+  };
+}
+
+export function RoMinimap({ rasters, model }: { rasters: RasterRegistry; model: NonNullable<RoFormalHudModel["minimap"]> }) {
+  const map = rasters.get(MINIMAP[0]);
+  const arrow = rasters.get(MINIMAP[1]);
+  const plan = planMinimap(map, arrow, model);
+  return (
+    <div class="ro-minimap" data-testid="ro-minimap" data-ro-crop="native-1x">
+      <div class="ro-minimap-map" style={{ left: `${plan.mapLeft}px`, top: `${plan.mapTop}px` }}>{RoRaster({ raster: map })}</div>
+      <div class="ro-minimap-arrow" style={{ left: `${plan.arrowLeft}px`, top: `${plan.arrowTop}px`, transform: `rotate(${plan.facingDeg}deg)` }}>{RoRaster({ raster: arrow })}</div>
+      <div class="ro-minimap-controls" aria-hidden="true">
+        {RoRaster({ raster: rasters.get("ui.minimap.control.zoom_in.normal") })}
+        {RoRaster({ raster: rasters.get("ui.minimap.control.zoom_out.normal") })}
+      </div>
     </div>
   );
 }
@@ -160,6 +262,7 @@ export function RoFormalHud({ rasters, model }: { rasters: RasterRegistry; model
       <RoBasicInfo rasters={rasters} model={model} />
       <RoStageStatus rasters={rasters} model={model} />
       <RoShortcut rasters={rasters} skills={model.skills} />
+      {model.minimap ? <RoMinimap rasters={rasters} model={model.minimap} /> : null}
       {model.boss ? <RoBossStatus rasters={rasters} boss={model.boss} /> : null}
       {model.alert ? <RoTitleStrip rasters={rasters} text={model.alert.text} testId={model.alert.testId} className="ro-boss-alert" /> : null}
     </div>

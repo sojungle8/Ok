@@ -228,12 +228,17 @@ export class OfficialShadowLayer {
     this.#offset = { x: sp.offsetX * pxToWorld, z: sp.offsetY * pxToWorld };
   }
 
-  /** `actors`: flat [x, height, z, …] world positions of actor feet. */
-  set(actors: readonly number[]): void {
+  /** `actors`: flat [x, height, z, …] world positions; `scales`: official per-actor shadow scale. */
+  set(actors: readonly number[], scales: readonly number[] = []): void {
     const n = Math.min(this.mesh.instanceMatrix.count, Math.floor(actors.length / 3));
     const m = new THREE.Matrix4();
     for (let i = 0; i < n; i += 1) {
-      m.makeTranslation((actors[i * 3] as number) + this.#offset.x, (actors[i * 3 + 1] as number) + 0.02, (actors[i * 3 + 2] as number) + this.#offset.z);
+      const scale = Math.max(0, scales[i] ?? 1);
+      m.makeScale(scale, 1, scale).setPosition(
+        (actors[i * 3] as number) + this.#offset.x * scale,
+        (actors[i * 3 + 1] as number) + 0.02,
+        (actors[i * 3 + 2] as number) + this.#offset.z * scale,
+      );
       this.mesh.setMatrixAt(i, m);
     }
     this.mesh.count = n;

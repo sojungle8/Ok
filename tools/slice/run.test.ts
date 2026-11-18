@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { FakeClock } from "@ro-survivor/testkit";
 import {
-  botCommand, checkpoint, createRun, FixedStepClock, generateDraft, eligibleOptions, optionKey, restore, Rng, RUN_CHECKPOINT_SCHEMA_VERSION, runHash, stepRun, buildView, type BuildPlan, type DraftOption, type Enemy, type RunState,
+  botCommand, checkpoint, createRun, FixedStepClock, generateDraft, eligibleOptions, optionKey, restore, Rng, RUN_CHECKPOINT_SCHEMA_VERSION, RUN_MAX_ENEMIES, runHash, stepRun, buildView, type BuildPlan, type DraftOption, type Enemy, type RunState,
 } from "@ro-survivor/core-sim";
 import { playRun, sliceConfig, sliceContent as c } from "./slice-fixture.ts";
-import { allAcceptanceGatesPass } from "./acceptance-lib.ts";
+import {
+  allAcceptanceGatesPass, LIVE_ENEMY_DENSITY_FLOORS, NEAR_PLAYER_DENSITY_FLOORS,
+  NEAR_PLAYER_RADIUS_MM, summarizeLiveEnemyDensity,
+} from "./acceptance-lib.ts";
 
 /** Advance with the bot until `until(st)` or `limit` steps. */
 function advance(st: RunState, plan: "guardian" | "weapon" | "fury", seed: number, until: (s: RunState) => boolean, limit = 60 * 60 * 15): void {
@@ -53,6 +56,26 @@ describe("acceptance gate wiring", () => {
   it("fails closed when any gate is false", () => {
     expect(allAcceptanceGatesPass({ noCrash: true, effectiveAreaClearWithin60s: true })).toBe(true);
     expect(allAcceptanceGatesPass({ noCrash: true, effectiveAreaClearWithin60s: false })).toBe(false);
+  });
+
+  it("summarises live simulation enemies deterministically and fails closed on no samples", () => {
+    expect(summarizeLiveEnemyDensity([9, 1, 5, 7, 3])).toEqual({ samples: 5, mean: 5, p10: 1, p50: 5, p90: 7, max: 9 });
+    expect(summarizeLiveEnemyDensity([])).toEqual({ samples: 0, mean: 0, p10: 0, p50: 0, p90: 0, max: 0 });
+  });
+
+  it("locks the three survivor-density floors", () => {
+    expect(RUN_MAX_ENEMIES).toBe(420);
+    expect(LIVE_ENEMY_DENSITY_FLOORS).toEqual({
+      early0to60: { mean: 6, p50: 6 },
+      early60to120: { mean: 12, p50: 11 },
+      climax300to420: { mean: 28, p50: 24 },
+    });
+    expect(NEAR_PLAYER_RADIUS_MM).toBe(11_000);
+    expect(NEAR_PLAYER_DENSITY_FLOORS).toEqual({
+      early0to60: { mean: 5, p50: 5 },
+      early60to120: { mean: 7, p50: 7 },
+      climax300to420: { mean: 17, p50: 15 },
+    });
   });
 });
 

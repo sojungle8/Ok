@@ -98,6 +98,8 @@ export interface OtherRunEvent {
   tick: number;
   source?: string;
   geomId?: string;
+  /** Actor that caused this event when the target itself is not an entity (for example player-hit). */
+  actorId?: number;
   targetId?: number;
   amount?: number;
 }
@@ -181,7 +183,7 @@ const BASIC_WINDUP = 8;
 const BOSS_INTRO_TICKS = 120;
 const SPAWN_MIN_MM = 13_000;
 const SPAWN_MAX_MM = 16_000;
-const MAX_ENEMIES = 420;
+export const RUN_MAX_ENEMIES = 420;
 const ORB_PULL_MM = 260;
 const emptyRoleCounts = (): Record<BalanceRole, number> => ({ normal: 0, elite: 0, mvp: 0 });
 export const RUN_CHECKPOINT_SCHEMA_VERSION = 1;
@@ -373,7 +375,7 @@ function damagePlayer(c: RunContent, st: RunState, raw: number, source: string, 
   p.lastDamagedTick = st.runTick;
   st.stats.damageTakenBySource[source] = (st.stats.damageTakenBySource[source] ?? 0) + dmg;
   st.stats.effectiveDamageTakenBySource[source] = (st.stats.effectiveDamageTakenBySource[source] ?? 0) + effective;
-  st.events.push({ type: "player-hit", tick: st.runTick, source, amount: dmg, ...(geomId ? { geomId } : {}) });
+  st.events.push({ type: "player-hit", tick: st.runTick, source, amount: dmg, ...(geomId ? { geomId } : {}), ...(attacker ? { actorId: attacker.id } : {}) });
   const k = p.keystone ? c.keystones[p.keystone]?.effects : undefined;
   if (attacker && st.runTick < p.endureUntil && k?.counterOnBlockDamage) damageEnemy(c, st, attacker, k.counterOnBlockDamage, "keystone.guardian.counter", p.x, p.y);
 }
@@ -382,7 +384,7 @@ function damagePlayer(c: RunContent, st: RunState, raw: number, source: string, 
 function spawnEnemy(c: RunContent, st: RunState, grid: RunGrid | null | undefined, type: string, rng: Rng, near?: { x: number; y: number; radius: number }): Enemy | null {
   const def = c.monsters[type];
   if (!def) throw new Error(`unknown monster ${type}`);
-  if (st.enemies.length >= MAX_ENEMIES && def.role !== "mvp") {
+  if (st.enemies.length >= RUN_MAX_ENEMIES && def.role !== "mvp") {
     st.stats.spawnsSkipped += 1;
     return null;
   }

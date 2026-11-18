@@ -11,7 +11,7 @@ import { tmpdir } from "node:os";
 import { mintRasterSet, RasterIssuanceError, type MintItem } from "../src/game/formal/rasterMint.ts";
 import { loadFormalUiAssets } from "../src/game/formal/ui.ts";
 import * as roPublic from "../src/ui/ro/index.ts";
-import { formalHudAssetIds, isVerifiedRaster, planButton, planGauge, planRaster, planSlot, planThreeSlice, planThreeSliceButton, planWindow, RO_BUTTON_CHROME_IDS, roSkillIconId, RoButton, RoFormalHud, RoGauge, RoRaster, RoSlot, RoThreeSlice, RoThreeSliceButton, type RoFormalHudModel, type VerifiedRaster } from "../src/ui/ro/index.ts";
+import { formalHudAssetIds, isVerifiedRaster, planButton, planGauge, planMinimap, planRaster, planSlot, planThreeSlice, planThreeSliceButton, planWindow, RO_BUTTON_CHROME_IDS, roSkillIconId, RoButton, RoFormalHud, RoGauge, RoRaster, RoSlot, RoThreeSlice, RoThreeSliceButton, type RoFormalHudModel, type VerifiedRaster } from "../src/ui/ro/index.ts";
 import { codeRefs, externalRuntimeImports, FORBIDDEN, guardGraph, isRealBrandModule, isRealMintSource, mintUsage, moduleGraph, REAL_MINT, REAL_RASTER, relPosix, scanFormalVisual } from "./visual-guard.ts";
 
 /**
@@ -912,6 +912,7 @@ describe("RoSlot", () => {
 describe("formal RO HUD composition", () => {
   const model: RoFormalHudModel = {
     playerName: "Swordsman",
+    jobName: "劍士",
     level: 7,
     hp: 7500,
     maxHp: 10000,
@@ -920,6 +921,7 @@ describe("formal RO HUD composition", () => {
     timer: "03:20",
     kills: 42,
     keystone: "guardian",
+    minimap: { xPermille: 500, yPermille: 500, facingDeg: 90 },
     skills: [
       { id: "skill.sw.basic_slash", rank: 2, hotkey: "F1" },
       { id: "skill.sw.bash", rank: 1, hotkey: "F2", cooldownTicks: 60 },
@@ -950,7 +952,7 @@ describe("formal RO HUD composition", () => {
     expect(roSkillIconId("skill.future.unreviewed")).toBeNull();
   });
 
-  it("plans original BasicInfo, gauge, title, shortcut and icon rasters without treating item_invert as a frame", async () => {
+  it("plans original BasicInfo controls, menu, minimap, gauge, title, shortcut and icons", async () => {
     const ids = formalHudAssetIds(model);
     expect(ids).toEqual(expect.arrayContaining([
       "ui.hud.basic.background",
@@ -960,10 +962,34 @@ describe("formal RO HUD composition", () => {
       "ui.gauge.sp.left",
       "ui.window.title.left",
       "ui.skill.cr_shieldboomerang.icon",
+      "ui.control.base.normal",
+      "ui.control.minimize.hover",
+      "ui.menu.status.normal",
+      "ui.menu.chat.active",
+      "ui.minimap.map.prt_fild08",
+      "ui.minimap.player_arrow",
+      "ui.minimap.control.zoom_in.normal",
+      "ui.minimap.control.zoom_out.hover",
     ]));
     expect(ids).not.toContain("ui.slot.selection");
     const { set } = await rasterSet(ids);
     expect(RoFormalHud({ rasters: set, model })).toBeTruthy();
+  });
+
+  it("crops the native minimap without fractional scaling and clamps the official arrow", async () => {
+    const { set } = await rasterSet(["ui.minimap.map.prt_fild08", "ui.minimap.player_arrow"]);
+    const map = set.get("ui.minimap.map.prt_fild08");
+    const arrow = set.get("ui.minimap.player_arrow");
+    expect([map.width, map.height, arrow.width, arrow.height]).toEqual([512, 512, 12, 12]);
+    expect(planMinimap(map, arrow, { xPermille: 500, yPermille: 500, facingDeg: 90 })).toEqual({
+      mapLeft: -192, mapTop: -192, arrowLeft: 58, arrowTop: 58, facingDeg: 90, viewport: 128,
+    });
+    expect(planMinimap(map, arrow, { xPermille: -1, yPermille: -1, facingDeg: Number.NaN })).toEqual({
+      mapLeft: 0, mapTop: 0, arrowLeft: 0, arrowTop: 0, facingDeg: 0, viewport: 128,
+    });
+    expect(planMinimap(map, arrow, { xPermille: 1001, yPermille: 1001, facingDeg: 180 })).toEqual({
+      mapLeft: -384, mapTop: -384, arrowLeft: 116, arrowTop: 116, facingDeg: 180, viewport: 128,
+    });
   });
 });
 

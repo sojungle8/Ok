@@ -6,6 +6,7 @@ attribute vec4 aUv;      // atlas rect (normalised): x, y, w, h — top-down
 attribute vec2 aSize;    // frame size in pixels
 attribute vec2 aOrigin;  // pivot (foot) inside the frame, pixels
 attribute float aFlip;   // 1 = mirror horizontally (UV flip, no extra texture)
+attribute float aScale;  // visual scale; simulation collision remains authoritative
 uniform vec3 uRight;
 uniform vec3 uUp;
 uniform float uPx;
@@ -16,7 +17,7 @@ void main() {
   float v = 0.5 - position.y;
   float px = u * aSize.x - aOrigin.x;
   float py = v * aSize.y - aOrigin.y;
-  vec3 world = center + uRight * (px * uPx) - uUp * (py * uPx);
+  vec3 world = center + uRight * (px * uPx * aScale) - uUp * (py * uPx * aScale);
   gl_Position = projectionMatrix * viewMatrix * vec4(world, 1.0);
   float su = aFlip > 0.5 ? 1.0 - u : u;
   vUv = vec2(aUv.x + su * aUv.z, aUv.y + v * aUv.w);
@@ -39,6 +40,7 @@ export class BillboardBatch {
   readonly size: THREE.InstancedBufferAttribute;
   readonly origin: THREE.InstancedBufferAttribute;
   readonly flip: THREE.InstancedBufferAttribute;
+  readonly scale: THREE.InstancedBufferAttribute;
   readonly sheet: SpriteSheet;
 
   constructor(sheet: SpriteSheet, capacity: number) {
@@ -48,11 +50,13 @@ export class BillboardBatch {
     this.size = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 2), 2);
     this.origin = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 2), 2);
     this.flip = new THREE.InstancedBufferAttribute(new Float32Array(capacity), 1);
-    for (const a of [this.uv, this.size, this.origin, this.flip]) a.setUsage(THREE.DynamicDrawUsage);
+    this.scale = new THREE.InstancedBufferAttribute(new Float32Array(capacity), 1);
+    for (const a of [this.uv, this.size, this.origin, this.flip, this.scale]) a.setUsage(THREE.DynamicDrawUsage);
     geo.setAttribute("aUv", this.uv);
     geo.setAttribute("aSize", this.size);
     geo.setAttribute("aOrigin", this.origin);
     geo.setAttribute("aFlip", this.flip);
+    geo.setAttribute("aScale", this.scale);
     this.material = new THREE.ShaderMaterial({
       vertexShader: VERT,
       fragmentShader: FRAG,
@@ -64,7 +68,7 @@ export class BillboardBatch {
     this.mesh.count = 0;
   }
 
-  set(i: number, x: number, y: number, z: number, slot: Slot, dir: number, timeMs: number): void {
+  set(i: number, x: number, y: number, z: number, slot: Slot, dir: number, timeMs: number, scale = 1): void {
     const d = this.sheet.data;
     const anim = d.slots[slot].directions[dir] ?? d.slots.idle.directions[0];
     const frames = anim?.frames ?? [0];
@@ -77,12 +81,13 @@ export class BillboardBatch {
     this.size.setXY(i, f.w, f.h);
     this.origin.setXY(i, f.originX, f.originY);
     this.flip.setX(i, f.flipX ? 1 : 0);
+    this.scale.setX(i, scale);
   }
 
   commit(count: number, right: THREE.Vector3, up: THREE.Vector3): void {
     this.mesh.count = count;
     this.mesh.instanceMatrix.needsUpdate = true;
-    for (const a of [this.uv, this.size, this.origin, this.flip]) a.needsUpdate = true;
+    for (const a of [this.uv, this.size, this.origin, this.flip, this.scale]) a.needsUpdate = true;
     (this.material.uniforms.uRight as { value: THREE.Vector3 }).value.copy(right);
     (this.material.uniforms.uUp as { value: THREE.Vector3 }).value.copy(up);
   }

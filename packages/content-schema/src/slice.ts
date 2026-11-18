@@ -103,15 +103,25 @@ export const SLICE_TUNING = {
    * T-01: sustain. Without regen the seed's chip damage killed every bot build by 4:50.
    * 15% left guardian/weapon at 4–6/10 wins per input device; 30% gives ≥ 7/10 for every build and device.
    */
-  levelUpHealPermille: 300,
+  levelUpHealPermille: 400,
   /** T-02: keystone drafts at these run levels (the Vocal reward adds one more offer). */
   keystoneOfferLevels: [6, 12],
   /** T-03: contact damage per enemy at most once per second (seed gives per-touch damage only). */
   contactIntervalTicks: 60,
-  /** T-04: 0.2 s grace after any contact hit so a swarm cannot stack every frame. */
-  contactGraceTicks: 12,
-  /** T-09: readability: at most 6 ranged enemies (nearest first) fire at once; 6–8 min losses were volley stacks. */
-  maxRangedShooters: 6,
+  /** T-04 / T-10: 0.5 s grace after any contact hit keeps real swarms readable instead of stacking damage in one frame. */
+  contactGraceTicks: 30,
+  /** T-09 / T-10: at most 2 ranged enemies (nearest first) fire at once; density must not become an unreadable volley stack. */
+  maxRangedShooters: 2,
+  /**
+   * T-10: survivor density. The signed handoff seed remains immutable; these exact fixed-step
+   * overrides are the versioned balance layer. They create real simulation enemies, never renderer
+   * clones, and are guarded by 0–60 / 60–120 / 300–420 second live-density acceptance floors.
+   */
+  waveSpawnOverrides: [
+    { fromSecond: 0, toSecond: 60, spawnEveryTicks: 50 },
+    { fromSecond: 60, toSecond: 120, spawnEveryTicks: 30 },
+    { fromSecond: 300, toSecond: 420, spawnEveryTicks: 22 },
+  ],
   /** T-05: Poporing's identity is the poison pool; it was also the top contact-damage killer in every losing run. */
   monsterOverrides: { "monster.poporing": { hp: 75, contactDamage: 7 } } as Record<string, { hp?: number; contactDamage?: number }>,
   /**
@@ -312,7 +322,14 @@ export function compileSliceContent(raw: unknown): RunContent {
   for (const t of seed.stage.timeline) {
     if ("spawnPerSecond" in t) {
       const w = t as { fromSecond: number; toSecond: number; spawnPerSecond: number; pool: string[] };
-      timeline.push({ kind: "wave", fromTick: w.fromSecond * HZ, toTick: w.toSecond * HZ, spawnEveryTicks: Math.max(1, Math.round(HZ / w.spawnPerSecond)), pool: w.pool });
+      const tuned = SLICE_TUNING.waveSpawnOverrides.find((x) => x.fromSecond === w.fromSecond && x.toSecond === w.toSecond);
+      timeline.push({
+        kind: "wave",
+        fromTick: w.fromSecond * HZ,
+        toTick: w.toSecond * HZ,
+        spawnEveryTicks: tuned?.spawnEveryTicks ?? Math.max(1, Math.round(HZ / w.spawnPerSecond)),
+        pool: w.pool,
+      });
     } else if (t.event === "spawn") {
       const entity = String((t as Record<string, unknown>).entity);
       const rewardRaw = (t as Record<string, unknown>).reward;

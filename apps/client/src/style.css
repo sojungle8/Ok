@@ -93,29 +93,41 @@ button:focus-visible, .card.focused { outline: 3px solid var(--accent); outline-
 .fixture-run-hud .fixture-slots span.ready { background: rgba(74,144,217,.6); }
 
 /* Formal HUD: layout and text only. All visible surfaces, gauges and icons are verified RO rasters. */
-.ro-run-hud { position: absolute; z-index: 2; inset: 0; pointer-events: none; color: #171717; font-family: "RO SCDream", "Noto Sans TC", sans-serif; font-size: 11px; }
-.ro-basic-anchor { position: absolute; top: calc(env(safe-area-inset-top) + 8px); left: calc(env(safe-area-inset-left) + 8px); width: 280px; height: 120px; }
+.ro-run-hud { --ro-ui-scale: 1; position: absolute; z-index: 2; inset: 0; pointer-events: none; color: #171717; font-family: "RO SCDream", "Noto Sans TC", sans-serif; font-size: 11px; }
+.ro-basic-anchor { position: absolute; top: calc(env(safe-area-inset-top) + 8px); left: calc(env(safe-area-inset-left) + 8px); width: 280px; height: 120px; transform: scale(var(--ro-ui-scale)); transform-origin: top left; }
 .ro-basic-info { position: absolute; inset: 0; width: 280px; }
 .ro-basic-info > .ro-primitive { position: absolute !important; inset: 0; }
 .ro-basic-info-full { height: 120px; }
 .ro-basic-info-mini { display: none; height: 34px; }
 .ro-basic-info span, .ro-basic-info > div:not(.ro-primitive) { position: absolute; z-index: 1; }
-.ro-basic-info-full .ro-basic-name { left: 8px; top: 7px; font-weight: 600; }
-.ro-basic-info-full .ro-basic-level { left: 8px; top: 28px; }
+.ro-basic-info-full .ro-basic-title { left: 18px; top: 2px; font-weight: 600; }
+.ro-basic-info-full .ro-basic-name { left: 10px; top: 20px; font-weight: 600; }
+.ro-basic-info-full .ro-basic-job { left: 10px; top: 33px; }
+.ro-basic-info-full .ro-basic-level { left: 10px; top: 50px; }
 .ro-basic-info-full .ro-basic-hp { left: 110px; top: 21px; }
 .ro-basic-info-full .ro-basic-xp { left: 110px; top: 42px; }
 .ro-basic-info-full .ro-basic-hp-text { left: 202px; top: 20px; }
 .ro-basic-info-full .ro-basic-keystone { left: 8px; top: 75px; width: 184px; }
-.ro-basic-info-mini .ro-basic-name { left: 8px; top: 9px; font-weight: 600; }
+.ro-basic-info-mini .ro-basic-title, .ro-basic-info-mini .ro-basic-job { display: none; }
+.ro-basic-info-mini .ro-basic-name { left: 18px; top: 2px; font-weight: 600; }
 .ro-basic-info-mini .ro-basic-level { left: 58px; top: 9px; }
 .ro-basic-info-mini .ro-basic-hp { left: 100px; top: 5px; }
 .ro-basic-info-mini .ro-basic-xp { left: 100px; top: 18px; }
 .ro-basic-info-mini .ro-basic-hp-text { left: 196px; top: 5px; font-size: 9px; }
-.ro-stage-status { position: absolute; top: calc(env(safe-area-inset-top) + 8px); left: 50%; transform: translateX(-50%); }
+.ro-basic-system { position: absolute; z-index: 3; top: 3px; width: 11px; height: 11px; pointer-events: auto; }
+.ro-basic-system-base { left: 4px; }
+.ro-basic-system-minimize { right: 2px; }
+.ro-basic-system-button, .ro-basic-system-button > .ro-button { display: block; width: 11px; height: 11px; cursor: pointer; }
+.ro-basic-menu { position: absolute; z-index: 2; top: 18px; right: 8px; width: 64px; display: grid; grid-template-columns: repeat(2, 30px); gap: 4px; }
+.ro-basic-menu-item { display: block; width: 30px; height: 20px; }
+.ro-basic-anchor.is-minimized { height: 34px; }
+.ro-basic-anchor.is-minimized .ro-basic-info-full, .ro-basic-anchor.is-minimized .ro-basic-menu { display: none; }
+.ro-basic-anchor.is-minimized .ro-basic-info-mini { display: block; }
+.ro-stage-status { position: absolute; top: calc(env(safe-area-inset-top) + 8px); left: 50%; transform: translateX(-50%) scale(var(--ro-ui-scale)); transform-origin: top center; }
 .ro-title-strip { width: 180px; height: 17px; }
 .ro-title-strip > .ro-primitive { position: absolute !important; inset: 0; }
 .ro-title-strip > span { position: absolute; z-index: 1; inset: 1px 8px 0; overflow: hidden; text-align: center; white-space: nowrap; line-height: 15px; }
-.ro-shortcut { position: absolute; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 8px); transform: translateX(-50%); width: 280px; height: 34px; }
+.ro-shortcut { position: absolute; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 8px); transform: translateX(-50%) scale(var(--ro-ui-scale)); transform-origin: bottom center; width: 280px; height: 34px; }
 .ro-shortcut > .ro-primitive { position: absolute !important; inset: 0; }
 .ro-shortcut-slot { position: absolute; z-index: 1; top: 5px; width: 24px; height: 24px; }
 .ro-shortcut-slot-1 { left: 5px; } .ro-shortcut-slot-2 { left: 33px; } .ro-shortcut-slot-3 { left: 61px; }
@@ -126,18 +138,28 @@ button:focus-visible, .card.focused { outline: 3px solid var(--accent); outline-
 .ro-shortcut-hotkey { left: 1px; top: 0; }
 .ro-shortcut-rank { right: 1px; bottom: 0; }
 .ro-shortcut-cooldown { left: 9px; top: 8px; font-size: 10px; font-weight: 600; }
-.ro-boss-status { position: absolute; top: calc(env(safe-area-inset-top) + 30px); left: 50%; transform: translateX(-50%); width: 180px; height: 28px; }
+.ro-minimap { position: absolute; top: calc(env(safe-area-inset-top) + 8px); right: calc(env(safe-area-inset-right) + 8px); width: 128px; height: 128px; overflow: hidden; transform: scale(var(--ro-ui-scale)); transform-origin: top right; }
+.ro-minimap-map, .ro-minimap-arrow { position: absolute; }
+.ro-minimap-map > .ro-primitive, .ro-minimap-arrow > .ro-primitive { position: relative !important; }
+.ro-minimap-arrow { z-index: 1; transform-origin: 6px 6px; }
+.ro-minimap-controls { position: absolute; z-index: 2; top: 2px; right: 2px; display: grid; gap: 2px; }
+.ro-boss-status { position: absolute; top: calc(env(safe-area-inset-top) + 30px); left: 50%; transform: translateX(-50%) scale(var(--ro-ui-scale)); transform-origin: top center; width: 180px; height: 28px; }
 .ro-boss-status .ro-title-strip { position: absolute; inset: 0 auto auto 0; }
 .ro-boss-gauge { position: absolute; left: 0; top: 18px; }
-.ro-boss-alert { position: absolute; top: calc(env(safe-area-inset-top) + 62px); left: 50%; transform: translateX(-50%); }
+.ro-boss-alert { position: absolute; top: calc(env(safe-area-inset-top) + 62px); left: 50%; transform: translateX(-50%) scale(var(--ro-ui-scale)); transform-origin: top center; }
+@media (min-width: 1600px) and (min-height: 900px) {
+  .ro-run-hud { --ro-ui-scale: 2; }
+}
 @media (max-width: 640px) {
   .ro-basic-anchor { height: 34px; }
   .ro-basic-info-full { display: none; }
   .ro-basic-info-mini { display: block; }
+  .ro-basic-menu { display: none; }
   .ro-stage-status { top: calc(env(safe-area-inset-top) + 48px); }
   .ro-shortcut { top: calc(env(safe-area-inset-top) + 72px); bottom: auto; }
-  .ro-boss-status { top: calc(env(safe-area-inset-top) + 112px); }
-  .ro-boss-alert { top: calc(env(safe-area-inset-top) + 144px); }
+  .ro-minimap { top: calc(env(safe-area-inset-top) + 112px); }
+  .ro-boss-status { top: calc(env(safe-area-inset-top) + 244px); }
+  .ro-boss-alert { top: calc(env(safe-area-inset-top) + 276px); }
 }
 .banner { position: fixed; z-index: 3; left: 50%; top: 30%; transform: translateX(-50%); padding: 8px 16px; background: rgba(0,0,0,.65); color: #fff; border-radius: 8px; }
 .banner.big { font-size: 28px; font-weight: 700; }
