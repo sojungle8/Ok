@@ -151,6 +151,11 @@
 - Flow state machine, run results, transactional settlement (`4e63988`); input adapters, automated acceptance (`30dae38`).
 - Client game flow, run renderer, settlement UI, mixer rules (`6f310d9`); fix: the run no longer restarts on phase
   changes; compact in-run header; browser flow e2e (`reports/phase2/`).
+- Formal level-up/keystone draft: verified original RO title/chat strips, semantic original skill icons, official
+  selection marker and four-state three-slice buttons; responsive real-local checks at desktop, phone, tablet and
+  phone-landscape sizes. Generic draft UI remains test-fixture-only.
+- Windows e2e runner now executes the exact invoking pnpm CLI through Node 24 instead of attempting to spawn a
+  `.cmd` shim with `execFileSync`.
 
 ## Unreleased — Phase 1 cloud spike (2026-11-17)
 

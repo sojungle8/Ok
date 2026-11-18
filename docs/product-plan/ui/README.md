@@ -2,8 +2,9 @@
 
 Status: **RO UI reference/implementation in progress.** Profile `KRO2021_CLASSIC_V0_FAN` is `DISCOVERED`; exact
 original-client placement becomes `LOCKED` only after reference-capture review. D-034 now permits a first playable
-`ORIGINAL-DESIGN` responsive HUD composed only from the locally verified original rasters; it must not be described
-as pixel-identical. Local evidence: `reports/phase1/UI-B3-LOCAL-ACCEPTANCE.md`.
+`ORIGINAL-DESIGN` responsive HUD, and D-035 permits the survivor draft composition, both using only locally verified
+original rasters; neither may be described as pixel-identical. Local evidence:
+`reports/phase1/UI-B3-LOCAL-ACCEPTANCE.md` and `reports/phase1/UI-B4-DRAFT-LOCAL-ACCEPTANCE.md`.
 
 | File | Content |
 | --- | --- |
@@ -56,5 +57,5 @@ Any failure lists asset ID + container + canonical CP949 path.
 ## Remaining decisions / measurements
 
 See `undecided` in the profile: UI-Q1 tooltip surface, UI-Q2 status/inventory/skill windows and UI-Q3 exact font
-metrics still need a reference capture. D-034 resolves the first-pass UI-Q4 composition only: timer/kills/Boss status
-may use original title/gauge rasters in an original responsive layout. Recorded decisions: D-028…D-030, D-034.
+metrics still need a reference capture. D-034 resolves the first-pass UI-Q4 HUD composition; D-035 records the
+survivor-draft semantic reuse of neutral original chrome. Recorded decisions: D-028…D-030, D-034…D-035.

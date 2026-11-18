@@ -1,33 +1,54 @@
 [
   {
-    "browser": "chromium 153.0.8010.12",
+    "browser": "chromium 151.0.7922.34",
     "viewport": "desktop",
     "expect": "blocked",
     "status": "PASS",
-    "buildId": "0.0.0+30dae38e7d7a.20261117",
+    "buildId": "0.0.0+74c4f16ae236.20261118",
     "profile": "fan-local",
     "reason": "未設定 asset gateway（請用 pnpm dev:fan-local 啟動，需本機 RO 客戶端）",
     "worldCanvas": 0,
     "missingRows": 0,
     "errors": [],
-    "screenshot": "reports/phase1/smoke-A-formal-no-gateway-chromium-desktop.png"
+    "screenshot": "reports\\phase1\\smoke-A-formal-no-gateway-chromium-desktop.png"
   },
   {
-    "browser": "chromium 153.0.8010.12",
+    "browser": "chromium 151.0.7922.34",
     "viewport": "mobile",
     "expect": "blocked",
     "status": "PASS",
-    "buildId": "0.0.0+30dae38e7d7a.20261117",
+    "buildId": "0.0.0+74c4f16ae236.20261118",
     "profile": "fan-local",
     "reason": "未設定 asset gateway（請用 pnpm dev:fan-local 啟動，需本機 RO 客戶端）",
     "worldCanvas": 0,
     "missingRows": 0,
     "errors": [],
-    "screenshot": "reports/phase1/smoke-A-formal-no-gateway-chromium-mobile.png"
+    "screenshot": "reports\\phase1\\smoke-A-formal-no-gateway-chromium-mobile.png"
   },
   {
-    "browser": "webkit",
-    "status": "NOT_RUN",
-    "detail": "Error: browserType.launch: Executable doesn't exist at /opt/pw-browsers/webkit-2359/pw_run.sh"
+    "browser": "webkit 26.5",
+    "viewport": "desktop",
+    "expect": "blocked",
+    "status": "PASS",
+    "buildId": "0.0.0+74c4f16ae236.20261118",
+    "profile": "fan-local",
+    "reason": "未設定 asset gateway（請用 pnpm dev:fan-local 啟動，需本機 RO 客戶端）",
+    "worldCanvas": 0,
+    "missingRows": 0,
+    "errors": [],
+    "screenshot": "reports\\phase1\\smoke-A-formal-no-gateway-webkit-desktop.png"
+  },
+  {
+    "browser": "webkit 26.5",
+    "viewport": "mobile",
+    "expect": "blocked",
+    "status": "PASS",
+    "buildId": "0.0.0+74c4f16ae236.20261118",
+    "profile": "fan-local",
+    "reason": "未設定 asset gateway（請用 pnpm dev:fan-local 啟動，需本機 RO 客戶端）",
+    "worldCanvas": 0,
+    "missingRows": 0,
+    "errors": [],
+    "screenshot": "reports\\phase1\\smoke-A-formal-no-gateway-webkit-mobile.png"
   }
 ]
