@@ -41,7 +41,7 @@ Evidence: `reports/vertical-slice-acceptance.md` (headless, `pnpm slice:acceptan
 | Settlement closed 20 times mid-way: no duplicate items / XP | CLOUD_PASS (unit, fault injection) + browser: one settlement, reload does not duplicate |
 | A full run with touch only / gamepad only | Simulation CLOUD_PASS via device quantisation; browser: drafts by key / touch tap / gamepad A pass · real devices DEFERRED_LOCAL |
 | Audio buses, voice limits, boss warning priority | Rules CLOUD_PASS (unit) · original BGM + 4 ambient WAVs + official physical-hit/Bash/Magnum Break/Endure/Provoke/Shield Wave playback integrated; remaining monster/death/boss/town audio stays open (GAP-004) |
-| Formal screen (real RO assets) | LOCAL_PASS for verified-raster title/job/stage, world/actors/shadow/audio, HUD, draft and results at desktop, phone, tablet and landscape viewports; keyboard/real-touch movement and audio start pass; human physical-device play stays open |
+| Formal screen (real RO assets) | LOCAL_PASS for verified-raster title/job/stage, four-layer character preview, world/actors/shadow/audio, HUD, draft, results and an active/hitting Shield Wave at desktop, phone, tablet and landscape viewports; keyboard/real-touch movement and audio start pass; human physical-device play stays open |
 
 Balance tuning T-01…T-10 is layered on the seed (D-024/D-039); see the acceptance report. T-10 uses real
 simulation enemies: all 90 runs pass separate whole-map and 11 m near-player density gates with peak 186,
@@ -84,11 +84,11 @@ Details, gates and local commands: `reports/phase1/PHASE1-ACCEPTANCE.md`; perfor
 | 250 enemies @60 FPS desktop / phone 30 FPS | Emulated 4x CPU at 30 FPS: pass · real GPU / phone DEFERRED_LOCAL |
 | Derived files only in `.local-assets` | CLOUD_PASS (marker + rights:check tests) |
 
-Latest code gate on Windows: `pnpm ci:local` passed with 42 test files / 427 tests, 17 synthetic files / 183 tests,
-`rights:check` PASS and 23/23 handoff checks. Browser gates passed formal blocking/refusal, the fixture
+Latest code gate on Windows: `pnpm ci:local` passed with 47 test files / 457 tests, 19 synthetic files / 197 tests,
+`rights:check` PASS and 24/24 handoff checks. Browser gates passed formal blocking/refusal, the fixture
 key/touch/gamepad/settlement flow, and the real-asset desktop/phone/tablet/landscape path with real touch, formal
-audio start and layout checks. The most recent previously published GitHub Actions run #48 for `500d069` succeeded:
-<https://github.com/sojungle8/Ok/actions/runs/44224737092>.
+audio start, layout checks and active/hitting Shield Wave evidence. The most recent previously published GitHub
+Actions run #52 for `e23466f` succeeded: <https://github.com/sojungle8/Ok/actions/runs/44260234270>.
 
 ---
 
