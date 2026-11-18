@@ -234,6 +234,26 @@ describe("formal audio: BGM 12 + RSW-positioned WAVs, autoplay gate", () => {
     bad.decodeAudioData = () => Promise.reject(new Error("EncodingError"));
     await expect(new FormalAudio(bad, data()).prepare()).rejects.toThrow(/EncodingError/u);
   });
+
+  it("stops sources and closes the context at most once during repeated cleanup", async () => {
+    const { ctx } = fakeCtx("running");
+    let stopped = 0;
+    let closed = 0;
+    const originalSource = ctx.createBufferSource.bind(ctx);
+    ctx.createBufferSource = () => {
+      const source = originalSource();
+      source.stop = () => { stopped += 1; };
+      return source;
+    };
+    ctx.close = () => { closed += 1; ctx.state = "closed"; return Promise.resolve(); };
+    const audio = new FormalAudio(ctx, data());
+    await audio.prepare();
+    expect(audio.tryStart()).toBe(true);
+    audio.dispose();
+    audio.dispose();
+    expect(stopped).toBe(2);
+    expect(closed).toBe(1);
+  });
 });
 
 describe("formal / fixture graph separation", () => {

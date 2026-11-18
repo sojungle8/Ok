@@ -3,3 +3,4 @@ export { RO_PRIMITIVES_MODULE_MARKER, isVerifiedRaster, missingRaster, type Rast
 export * from "./primitives.tsx";
 export * from "./hud.tsx";
 export * from "./dialog.tsx";
+export * from "./results.tsx";

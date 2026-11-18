@@ -17,6 +17,7 @@ import { RunRenderer } from "./game/runRenderer.ts";
 import { RunSession } from "./game/session.ts";
 import { DraftModal } from "./screens/Draft.tsx";
 import { Hud } from "./screens/Hud.tsx";
+import { ResultsScreen } from "./screens/Results.tsx";
 import { loadSettings, saveSettings, type Settings } from "./settings.ts";
 
 const content = compileSliceContent(JSON.parse(seedJson));
@@ -68,9 +69,11 @@ export function App() {
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
   const inRunScreen = flow.screen === "running" || flow.screen === "draft-paused" || flow.screen === "boss-intro" || flow.screen === "victory" || flow.screen === "defeat";
-  const showDeveloperHeader = !inRunScreen || FIXTURE_BUILD || params.get("dev") === "1";
+  const worldSurface = inRunScreen || (flow.screen === "results" && assets !== null && st !== null);
+  const fixturePresentation = FIXTURE_BUILD && conn?.ok === true && conn.health.fixture;
+  const showDeveloperHeader = !(inRunScreen || flow.screen === "results") || fixturePresentation || params.get("dev") === "1";
   // The run lives as long as the flow stays inside one run; phase changes must not restart it.
-  const runKey = inRunScreen && "runSeed" in flow ? `${flow.stage}:${flow.runSeed}` : null;
+  const runKey = worldSurface && "runSeed" in flow ? `${flow.stage}:${flow.runSeed}` : null;
   const send = useCallback((e: FlowEvent) => setFlow((s) => flowTransition(s, e)), []);
   window.__flow = () => flowRef.current.screen;
   window.__run = () => session.current?.state ?? null;
@@ -78,6 +81,8 @@ export function App() {
 
   // Boot: storage + recovery of unsettled results, then the gateway check (no placeholder fallback).
   useEffect(() => {
+    if (flowRef.current.screen !== "boot") return;
+    let cancelled = false;
     void (async () => {
       try {
         db.current = await IndexedDbBackend.open("ro-survivor");
@@ -85,9 +90,12 @@ export function App() {
       } catch {
         db.current = null;
       }
-      setConn(await connectFormalGateway());
-      send({ type: "booted" });
+      const nextConnection = await connectFormalGateway();
+      if (cancelled) return;
+      setConn(nextConnection);
+      if (flowRef.current.screen === "boot") send({ type: "booted" });
     })();
+    return () => { cancelled = true; };
   }, [send]);
 
   // Loading: formal RO assets only; any gap stops with canonical paths.
@@ -258,6 +266,22 @@ export function App() {
     renderer.current?.setDebugOverlay(debug);
   }, [debug]);
 
+  // WebGL's default framebuffer may be discarded after compositing. While results are open, redraw
+  // the same terminal simulation state at one fixed animation time so the world is visibly frozen;
+  // no simulation step, input or reward operation runs in this loop.
+  useEffect(() => {
+    if (flow.screen !== "results" || !st || !renderer.current) return;
+    const frozen = st;
+    const frozenTimeMs = (st.runTick * 1000) / 60;
+    let raf = 0;
+    const paint = (): void => {
+      renderer.current?.render(frozen, frozenTimeMs);
+      raf = requestAnimationFrame(paint);
+    };
+    paint();
+    return () => cancelAnimationFrame(raf);
+  }, [flow.screen, st]);
+
   const updateSettings = (s: Settings): void => {
     setSettings(s);
     saveSettings(s);
@@ -267,7 +291,7 @@ export function App() {
   const inRun = inRunScreen;
   return (
     <main class={`app screen-${flow.screen}`} data-screen={flow.screen}>
-      {inRun ? <canvas ref={canvas} class="world" data-testid="world" /> : null}
+      {worldSurface ? <canvas ref={canvas} class="world" data-testid="world" /> : null}
       {showDeveloperHeader ? <header class="hud" data-dev-overlay={inRunScreen ? "true" : undefined}>
         <h1 data-testid="project-name">RO Survivor Fan Game</h1>
         <p class="tag">非官方、非營利同人 · Phase 2 垂直切片</p>
@@ -325,21 +349,13 @@ export function App() {
       ) : null}
       {(flow.screen === "victory" || flow.screen === "defeat") && !assets?.ui ? <div class="banner big" data-testid="outcome">{flow.screen === "victory" ? "勝利！" : "倒下了…"}</div> : null}
       {flow.screen === "results" && results ? (
-        <section class="panel results" data-testid="results">
-          <h2>{results.result.outcome === "victory" ? "勝利" : "失敗"}</h2>
-          <dl>
-            <dt>時間</dt><dd>{Math.floor(results.result.timeTicks / 3600)}:{String(Math.floor(results.result.timeTicks / 60) % 60).padStart(2, "0")}</dd>
-            <dt>等級</dt><dd>{results.result.level}</dd>
-            <dt>擊殺</dt><dd>{results.result.kills}</dd>
-            <dt>傷害 / 承傷</dt><dd>{Math.round(results.result.damageDealt / 100)} / {Math.round(results.result.damageTaken / 100)}</dd>
-            <dt>升級次數</dt><dd>{results.result.levelUps}</dd>
-            <dt>首領擊殺</dt><dd>{results.result.bossKillTick >= 0 ? `${Math.floor(results.result.bossKillTick / 60)}s` : "—"}</dd>
-            <dt>獎勵</dt><dd data-testid="rewards">Base +{results.result.rewards.baseXp} · Job +{results.result.rewards.jobXp} · {results.result.rewards.items.join(", ") || "無道具"}</dd>
-            <dt>存檔</dt><dd data-testid="settled">{db.current ? (results.applied ? "已結算（本機 IndexedDB）" : "已結算過（不重複發獎）") : "無法開啟本機存檔"}</dd>
-            {results.character ? <><dt>累計</dt><dd data-testid="character-total">Base {results.character.baseXp} · 勝場 {results.character.victories}/{results.character.runs}{results.character.bestTimeTicks !== null && results.character.bestTimeTicks === results.result.timeTicks && results.result.outcome === "victory" ? " · 新紀錄！" : ""}</dd></> : null}
-          </dl>
-          <button class="primary" onClick={() => { fonts.current?.dispose(); fonts.current = null; setResults(null); setAssets(null); setSt(null); send({ type: "continue" }); }} data-testid="continue">繼續</button>
-        </section>
+        <ResultsScreen
+          data={results}
+          hasDatabase={db.current !== null}
+          settled={flow.settled}
+          rasters={assets?.ui?.rasters ?? null}
+          onContinue={() => { fonts.current?.dispose(); fonts.current = null; setResults(null); setAssets(null); setSt(null); send({ type: "continue" }); }}
+        />
       ) : null}
       {inRun && audioGate ? (
         <button class="audio-gate" data-testid="audio-gate" onClick={() => void audio.current?.enable().then(() => setAudioGate(false))}>點擊啟用音訊</button>

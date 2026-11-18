@@ -50,6 +50,10 @@ async function enterRun(page, query) {
 // A. Autoplay (bot) to results; settlement once; reload does not duplicate.
 {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  await ctx.addInitScript(() => {
+    window.__resultPadA = false;
+    navigator.getGamepads = () => [{ connected: true, axes: [0, 0], buttons: Array.from({ length: 16 }, (_, i) => ({ pressed: i === 0 && window.__resultPadA === true, value: 0 })) }];
+  });
   const page = await ctx.newPage();
   const errors = await enterRun(page, "autoplay=fury&speed=40&seed=3");
   const flowSeen = new Set();
@@ -64,6 +68,11 @@ async function enterRun(page, query) {
   await page.screenshot({ path: join(out, "flow-results.png") });
   const res = await page.evaluate(() => window.__results?.());
   const settledText = await page.getByTestId("settled").innerText();
+  const resultSurface = {
+    world: await page.getByTestId("world").count(),
+    runHud: await page.getByTestId("run-hud").count(),
+    joystick: await page.getByTestId("joystick").count(),
+  };
   const count = () => page.evaluate(() => new Promise((ok) => {
     const r = indexedDB.open("ro-survivor");
     r.onsuccess = () => {
@@ -77,11 +86,17 @@ async function enterRun(page, query) {
     };
   }));
   const before = await count();
+  const focused = await page.evaluate(() => document.activeElement?.getAttribute("data-testid"));
+  await page.evaluate(() => { window.__resultPadA = true; });
+  await page.waitForTimeout(200);
+  await page.evaluate(() => { window.__resultPadA = false; });
+  await page.getByTestId("stage-select").waitFor({ timeout: 10_000 });
+  const afterContinue = await page.evaluate(() => window.__flow?.());
   await page.reload();
   await page.getByTestId("start").waitFor({ timeout: 20_000 });
   const after = await count();
-  results.autoplay = { flowSeen: [...flowSeen], outcome: res?.result.outcome, applied: res?.applied, settledText, before, after, errors,
-    pass: res?.applied === true && before.runResults === 1 && JSON.stringify(before) === JSON.stringify(after) && errors.length === 0 };
+  results.autoplay = { flowSeen: [...flowSeen], outcome: res?.result.outcome, applied: res?.applied, settledText, resultSurface, focused, continueInput: "gamepad-a", afterContinue, before, after, errors,
+    pass: res?.applied === true && resultSurface.world === 1 && resultSurface.runHud === 0 && resultSurface.joystick === 0 && focused === "continue" && afterContinue === "stage-select" && before.runResults === 1 && JSON.stringify(before) === JSON.stringify(after) && errors.length === 0 };
   await ctx.close();
 }
 

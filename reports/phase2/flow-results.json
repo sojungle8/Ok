@@ -2,11 +2,20 @@
   "autoplay": {
     "flowSeen": [
       "running",
+      "defeat",
       "results"
     ],
     "outcome": "defeat",
     "applied": true,
     "settledText": "已結算（本機 IndexedDB）",
+    "resultSurface": {
+      "world": 1,
+      "runHud": 0,
+      "joystick": 0
+    },
+    "focused": "continue",
+    "continueInput": "gamepad-a",
+    "afterContinue": "stage-select",
     "before": {
       "runResults": 1,
       "pendingResults": 0,
@@ -40,7 +49,7 @@
   },
   "keyboard": {
     "x0": 32500,
-    "x1": 36616,
+    "x1": 36532,
     "errors": [],
     "pass": true
   }

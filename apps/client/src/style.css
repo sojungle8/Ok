@@ -174,6 +174,18 @@ button:focus-visible, .card.focused { outline: 3px solid var(--accent); outline-
   .ro-draft-options { flex-direction: column; }
   .ro-draft-option { flex-basis: 101px; }
 }
+/* Formal survivor results: positioning/text only; the complete surface and control states are verified RO rasters. */
+.ro-results-dialog { position: fixed; z-index: 6; inset: 0; box-sizing: border-box; display: flex; align-items: center; justify-content: center; overflow: auto; padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left)); color: #171717; font-family: "RO SCDream", "Noto Sans TC", sans-serif; font-size: 11px; line-height: 1.2; }
+.ro-results-window { position: relative; width: 300px; height: 300px; flex: 0 0 300px; }
+.ro-results-window > .ro-window { position: absolute !important; inset: 0; }
+.ro-results-window .ro-window-title { z-index: 1; right: 12px; overflow: hidden; text-align: center; white-space: nowrap; line-height: 15px; font-weight: 600; }
+.ro-results-content { position: relative; width: 100%; height: 100%; padding: 8px 6px; }
+.ro-results-rows { display: grid; gap: 3px; }
+.ro-results-row { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 6px; min-height: 14px; }
+.ro-results-label { font-weight: 600; white-space: nowrap; }
+.ro-results-value { overflow-wrap: anywhere; }
+.ro-results-actions { position: absolute; left: 50%; bottom: 7px; width: 112px; height: 40px; transform: translateX(-50%); }
+.ro-results-actions .ro-three-slice-button:focus-visible { outline: none; outline-offset: 0; }
 /* In-run header: compact so it never covers the HP / XP bars (full mobile layouts are Phase 3). */
 .screen-running .hud, .screen-draft-paused .hud, .screen-boss-intro .hud, .screen-victory .hud, .screen-defeat .hud { top: auto; bottom: max(12px, env(safe-area-inset-bottom)); left: auto; right: max(12px, env(safe-area-inset-right)); max-width: 300px; padding: 6px 10px; font-size: 11px; opacity: 0.85; }
 @media (max-width: 640px) {

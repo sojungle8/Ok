@@ -116,7 +116,7 @@ export function RoThreeSlice(props: { left: VerifiedRaster; mid: VerifiedRaster;
 }
 
 // ---------------------------------------------------------------- RoWindow
-const WINDOW_IDS = {
+export const RO_WINDOW_CHROME_IDS = {
   title: ["ui.window.title.left", "ui.window.title.mid", "ui.window.title.right"],
   body: ["ui.window.body.left", "ui.window.body.mid", "ui.window.body.right"],
   footer: ["ui.window.footer.left", "ui.window.footer.mid", "ui.window.footer.right"],
@@ -135,9 +135,9 @@ function windowTriplet(rasters: RasterRegistry, ids: readonly [string, string, s
 export function planWindow(rasters: RasterRegistry, width: number, height: number, scale = 1): { pieces: Piece[]; width: number; height: number; titleHeight: number; footerHeight: number; interior: { x: number; y: number; width: number; height: number } } {
   const s = checkScale(scale);
   if (!Number.isInteger(width) || !Number.isInteger(height)) throw contractError("window.size", `window ${width}x${height} is not integer-sized`);
-  const titleParts = windowTriplet(rasters, WINDOW_IDS.title, "window.title");
-  const bodyParts = windowTriplet(rasters, WINDOW_IDS.body, "window.body");
-  const footerParts = windowTriplet(rasters, WINDOW_IDS.footer, "window.footer");
+  const titleParts = windowTriplet(rasters, RO_WINDOW_CHROME_IDS.title, "window.title");
+  const bodyParts = windowTriplet(rasters, RO_WINDOW_CHROME_IDS.body, "window.body");
+  const footerParts = windowTriplet(rasters, RO_WINDOW_CHROME_IDS.footer, "window.footer");
   const title = planThreeSlice(...titleParts, width, s);
   const footer = planThreeSlice(...footerParts, width, s);
   // Validate the body as one declared left/mid/right group and ensure both fixed side strips fit.

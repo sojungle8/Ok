@@ -64,6 +64,7 @@ export class FormalAudio {
   readonly #decoded = new Map<string, unknown>();
   readonly sources: { assetId: string; source: BufferSourceLike; panner: PannerLike | null }[] = [];
   #started = false;
+  #disposed = false;
 
   constructor(ctx: AudioContextLike, data: FormalSceneData) {
     this.#ctx = ctx;
@@ -142,7 +143,9 @@ export class FormalAudio {
   }
 
   dispose(): void {
+    if (this.#disposed) return;
+    this.#disposed = true;
     for (const s of this.sources) s.source.stop();
-    void this.#ctx.close();
+    if (this.#ctx.state !== "closed") void this.#ctx.close();
   }
 }
