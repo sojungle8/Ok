@@ -40,6 +40,8 @@ The final Windows `pnpm ci:local` gate passed 49 test files / 480 tests, 19 synt
 90-run deterministic slice matrix, production build, rights scan, public-reference validation, 24 handoff checks
 and the zero-entry project-owned VFX provenance manifest. `pnpm e2e:smoke` also passed A–E; formal builds still
 reject missing/synthetic sources and only the separately marked fixture build accepts synthetic assets.
+GitHub Actions run #56 for code commit `50015a9` independently passed the same repository CI gate:
+<https://github.com/sojungle8/Ok/actions/runs/44341389507>.
 
 ## Still open
 

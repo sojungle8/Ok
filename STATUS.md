@@ -93,8 +93,8 @@ Details, gates and local commands: `reports/phase1/PHASE1-ACCEPTANCE.md`; perfor
 Latest code gate on Windows: `pnpm ci:local` passed with 49 test files / 480 tests, 19 synthetic files / 198 tests,
 `rights:check`, `reference:validate` (2 snapshots / 2 ledger segments / 33 observations) and 24/24 handoff checks all PASS. Browser gates passed formal blocking/refusal, the fixture
 key/touch/gamepad/settlement flow, and the real-asset desktop/phone/tablet/landscape path with real touch, formal
-audio start, layout checks, active/hitting Shield Wave evidence and active/expired Endure evidence. The most recent previously published GitHub
-Actions run #52 for `e23466f` succeeded: <https://github.com/sojungle8/Ok/actions/runs/44260234270>.
+audio start, layout checks, active/hitting Shield Wave evidence and active/expired Endure evidence. The Endure code
+commit's GitHub Actions run #56 for `50015a9` succeeded: <https://github.com/sojungle8/Ok/actions/runs/44341389507>.
 
 ---
 
