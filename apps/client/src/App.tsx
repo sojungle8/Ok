@@ -21,6 +21,7 @@ import { RunSession, TERMINAL_PRESENTATION_MS } from "./game/session.ts";
 import { DraftModal } from "./screens/Draft.tsx";
 import { Hud } from "./screens/Hud.tsx";
 import { ResultsScreen } from "./screens/Results.tsx";
+import { FrameTimes, perfEnabled } from "./game/perf.ts";
 import { loadSettings, saveSettings, type Settings } from "./settings.ts";
 import { RoCharacterSelectShell, RoMobileControlHint, RoStageSelectShell, RoTitleShell } from "./ui/ro/index.ts";
 
@@ -72,6 +73,8 @@ export function App() {
   const [shellPlayerPreviewStatus, setShellPlayerPreviewStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [shellPlayerPreviewError, setShellPlayerPreviewError] = useState<{ message: string; missing: MissingAsset[] } | null>(null);
   const [debug, setDebug] = useState(false);
+  const perf = perfEnabled(location.search);
+  const [perfText, setPerfText] = useState("");
   const [audioGate, setAudioGate] = useState(false);
   const audio = useRef<FormalAudio | null>(null);
   const fonts = useRef<InstalledFormalFonts | null>(null);
@@ -398,6 +401,27 @@ export function App() {
     renderer.current?.setDebugOverlay(debug);
   }, [debug]);
 
+  // Opt-in performance HUD (?perf=1 only): frame-time percentiles and live GPU counters.
+  useEffect(() => {
+    if (!perf) return;
+    const frames = new FrameTimes();
+    let raf = 0;
+    const loop = (t: number): void => {
+      frames.tick(t);
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    const timer = window.setInterval(() => {
+      const s = frames.summary();
+      const info = renderer.current?.renderer.info;
+      setPerfText(`FPS p50 ${s.fpsP50} · p05 ${s.fpsP05} · frame p95 ${s.frameMsP95} ms${info ? ` · draw ${info.render.calls} · tex ${info.memory.textures} · geo ${info.memory.geometries}` : ""}`);
+    }, 500);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.clearInterval(timer);
+    };
+  }, [perf]);
+
   // WebGL's default framebuffer may be discarded after compositing. While results are open, redraw
   // the same terminal simulation state at one fixed animation time so the world is visibly frozen;
   // no simulation step, input or reward operation runs in this loop.
@@ -430,6 +454,7 @@ export function App() {
       data-audio-state={inRun ? (audioGate ? "blocked" : "started") : undefined}
     >
       {worldSurface ? <canvas ref={canvas} class="world" data-testid="world" /> : null}
+      {perf ? <output class="perf-hud" data-testid="perf-hud" data-dev-overlay="true">{perfText}</output> : null}
       {showDeveloperHeader ? <header class="hud" data-dev-overlay={inRunScreen ? "true" : undefined}>
         <h1 data-testid="project-name">RO Survivor Fan Game</h1>
         <p class="tag">非官方、非營利同人 · Phase 2 垂直切片</p>

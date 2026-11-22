@@ -2,6 +2,8 @@
 
 ## Unreleased — original assets, RO UI and D-032 skills (2026-11-17–18)
 
+- Phase 3.2.5: opt-in performance HUD (`?perf=1` only, off by default in every build) showing frame-time
+  percentiles over a bounded 240-frame window plus live draw calls, textures and geometries.
 - Phase 3.2.6 soak: browser check G plays three consecutive autoplay runs on the test-fixture build and, at each
   results screen, compares the live renderer's GPU counters and the post-GC JS heap. Evidence
   `reports/phase3/soak-three-runs.json`: 15 geometries / 13 textures / 4 programs every run, heap 10.7 MB flat.
