@@ -2,6 +2,11 @@
 
 ## Unreleased — original assets, RO UI and D-032 skills (2026-11-17–18)
 
+- D-032 five-scenario balance: `pnpm slice:scenarios` warms each build up on the real stage to level 10, then runs its
+  drafted kit through five isolated, seeded scenarios (clear 60 normals, MVP 60 s, survival 50-mob ring, waypoint
+  mobility, control) over 30 unique seeds; `slice:acceptance:check` recomputes the rows digest and gates (no crash,
+  equal budget, clear/MVP relative floors, survival ≥ 90 %, course completion). Low control coverage is recorded
+  as a finding. No gameplay number changed.
 - D032-E4 Provoke: three verified original-RO BMP-derived sources (`explosive_1_128` 128×128 8bpp,
   `piero` 64×64 24bpp, `pika01` 16×16 8bpp, RO color key) drive a clean-room cue at the public cast origin: a
   flat shockwave scaled to the authoritative circle radius, a mark pop and six outward sparks. The original

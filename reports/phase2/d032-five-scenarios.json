@@ -1,0 +1,2508 @@
+{
+  "generator": "tools/slice/scenarios.ts",
+  "contentVersion": "slice-0.1.0-seed",
+  "seeds": [
+    101,
+    102,
+    103,
+    104,
+    105,
+    106,
+    107,
+    108,
+    109,
+    110,
+    111,
+    112,
+    113,
+    114,
+    115,
+    116,
+    117,
+    118,
+    119,
+    120,
+    121,
+    122,
+    123,
+    124,
+    125,
+    126,
+    127,
+    128,
+    129,
+    130
+  ],
+  "plans": [
+    "guardian",
+    "weapon",
+    "fury"
+  ],
+  "levelBudget": 10,
+  "scenarioTicks": {
+    "clear": 1200,
+    "mvp": 3600,
+    "survival": 1800,
+    "mobility": 2700,
+    "control": 1200
+  },
+  "mobilityWaypointsMm": [
+    [
+      12000,
+      0
+    ],
+    [
+      12000,
+      12000
+    ],
+    [
+      0,
+      12000
+    ],
+    [
+      0,
+      0
+    ]
+  ],
+  "rowsSha256": "A7B47F8BCEA6495F0C63D51E1B801FDEB4747EE7E41955025A019FB6EC228A08",
+  "gates": {
+    "no crash in any scenario run": true,
+    "every build reaches the level budget in warm-up": true,
+    "clear: every build p50 >= 120 kills/min and >= 50% of the best build": true,
+    "mvp: every build p50 >= 300‰ in 60 s and >= 40% of the best build": true,
+    "survival: every build survives >= 90% of seeds": true,
+    "mobility: every run completes the waypoint course": true
+  },
+  "findings": [
+    "control axis: every build p50 coverage < 50‰ (Bash stun is the only player control); tracked under R-18, not gated"
+  ],
+  "axes": {
+    "clear": {
+      "guardian": {
+        "value": {
+          "samples": 30,
+          "p10": 171,
+          "p50": 191,
+          "p90": 225,
+          "mean": 192.4
+        },
+        "survivalRatePermille": 1000,
+        "crashes": 0
+      },
+      "weapon": {
+        "value": {
+          "samples": 30,
+          "p10": 174,
+          "p50": 206,
+          "p90": 228,
+          "mean": 202.7
+        },
+        "survivalRatePermille": 1000,
+        "crashes": 0
+      },
+      "fury": {
+        "value": {
+          "samples": 30,
+          "p10": 159,
+          "p50": 211,
+          "p90": 252,
+          "mean": 205.7
+        },
+        "survivalRatePermille": 1000,
+        "crashes": 0
+      }
+    },
+    "mvp": {
+      "guardian": {
+        "value": {
+          "samples": 30,
+          "p10": 475,
+          "p50": 616,
+          "p90": 647,
+          "mean": 583
+        },
+        "survivalRatePermille": 1000,
+        "crashes": 0
+      },
+      "weapon": {
+        "value": {
+          "samples": 30,
+          "p10": 790,
+          "p50": 918,
+          "p90": 1000,
+          "mean": 910.2
+        },
+        "survivalRatePermille": 1000,
+        "crashes": 0
+      },
+      "fury": {
+        "value": {
+          "samples": 30,
+          "p10": 435,
+          "p50": 591,
+          "p90": 680,
+          "mean": 586.9
+        },
+        "survivalRatePermille": 1000,
+        "crashes": 0
+      }
+    },
+    "survival": {
+      "guardian": {
+        "value": {
+          "samples": 30,
+          "p10": 789,
+          "p50": 896,
+          "p90": 952,
+          "mean": 885
+        },
+        "survivalRatePermille": 1000,
+        "crashes": 0
+      },
+      "weapon": {
+        "value": {
+          "samples": 30,
+          "p10": 785,
+          "p50": 892,
+          "p90": 948,
+          "mean": 882.9
+        },
+        "survivalRatePermille": 1000,
+        "crashes": 0
+      },
+      "fury": {
+        "value": {
+          "samples": 30,
+          "p10": 790,
+          "p50": 868,
+          "p90": 939,
+          "mean": 865.8
+        },
+        "survivalRatePermille": 1000,
+        "crashes": 0
+      }
+    },
+    "mobility": {
+      "guardian": {
+        "value": {
+          "samples": 30,
+          "p10": 1010,
+          "p50": 1010,
+          "p90": 1010,
+          "mean": 1010
+        },
+        "survivalRatePermille": 1000,
+        "crashes": 0
+      },
+      "weapon": {
+        "value": {
+          "samples": 30,
+          "p10": 1124,
+          "p50": 1136,
+          "p90": 1136,
+          "mean": 1133.2
+        },
+        "survivalRatePermille": 1000,
+        "crashes": 0
+      },
+      "fury": {
+        "value": {
+          "samples": 30,
+          "p10": 1124,
+          "p50": 1136,
+          "p90": 1136,
+          "mean": 1133.2
+        },
+        "survivalRatePermille": 1000,
+        "crashes": 0
+      }
+    },
+    "control": {
+      "guardian": {
+        "value": {
+          "samples": 30,
+          "p10": 2,
+          "p50": 9,
+          "p90": 12,
+          "mean": 8.5
+        },
+        "survivalRatePermille": 1000,
+        "crashes": 0
+      },
+      "weapon": {
+        "value": {
+          "samples": 30,
+          "p10": 0,
+          "p50": 0,
+          "p90": 0,
+          "mean": 0.1
+        },
+        "survivalRatePermille": 1000,
+        "crashes": 0
+      },
+      "fury": {
+        "value": {
+          "samples": 30,
+          "p10": 0,
+          "p50": 0,
+          "p90": 11,
+          "mean": 3.2
+        },
+        "survivalRatePermille": 1000,
+        "crashes": 0
+      }
+    }
+  },
+  "kits": [
+    {
+      "plan": "guardian",
+      "seed": 101,
+      "level": 10,
+      "warmupSeconds": 167,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.shield_wave",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.guardian"
+    },
+    {
+      "plan": "guardian",
+      "seed": 102,
+      "level": 10,
+      "warmupSeconds": 164,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.shield_wave",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.guardian"
+    },
+    {
+      "plan": "guardian",
+      "seed": 103,
+      "level": 10,
+      "warmupSeconds": 169,
+      "active": [
+        {
+          "id": "skill.sw.shield_wave",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.provoke",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.guardian"
+    },
+    {
+      "plan": "guardian",
+      "seed": 104,
+      "level": 10,
+      "warmupSeconds": 166,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.shield_wave",
+          "rank": 3
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.guardian"
+    },
+    {
+      "plan": "guardian",
+      "seed": 105,
+      "level": 10,
+      "warmupSeconds": 168,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 3
+        },
+        {
+          "id": "skill.sw.provoke",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.shield_wave",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.guardian"
+    },
+    {
+      "plan": "guardian",
+      "seed": 106,
+      "level": 10,
+      "warmupSeconds": 167,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.shield_wave",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.guardian"
+    },
+    {
+      "plan": "guardian",
+      "seed": 107,
+      "level": 10,
+      "warmupSeconds": 167,
+      "active": [
+        {
+          "id": "skill.sw.shield_wave",
+          "rank": 3
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.provoke",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.guardian"
+    },
+    {
+      "plan": "guardian",
+      "seed": 108,
+      "level": 10,
+      "warmupSeconds": 172,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.shield_wave",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.provoke",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.guardian"
+    },
+    {
+      "plan": "guardian",
+      "seed": 109,
+      "level": 10,
+      "warmupSeconds": 171,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.shield_wave",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.guardian"
+    },
+    {
+      "plan": "guardian",
+      "seed": 110,
+      "level": 10,
+      "warmupSeconds": 169,
+      "active": [
+        {
+          "id": "skill.sw.shield_wave",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 2
+        }
+      ],
+      "keystone": "keystone.guardian"
+    },
+    {
+      "plan": "guardian",
+      "seed": 111,
+      "level": 10,
+      "warmupSeconds": 156,
+      "active": [
+        {
+          "id": "skill.sw.shield_wave",
+          "rank": 3
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.guardian"
+    },
+    {
+      "plan": "guardian",
+      "seed": 112,
+      "level": 10,
+      "warmupSeconds": 168,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.provoke",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.shield_wave",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.guardian"
+    },
+    {
+      "plan": "guardian",
+      "seed": 113,
+      "level": 10,
+      "warmupSeconds": 168,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.shield_wave",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.provoke",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.guardian"
+    },
+    {
+      "plan": "guardian",
+      "seed": 114,
+      "level": 10,
+      "warmupSeconds": 166,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.provoke",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.shield_wave",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.guardian"
+    },
+    {
+      "plan": "guardian",
+      "seed": 115,
+      "level": 10,
+      "warmupSeconds": 169,
+      "active": [
+        {
+          "id": "skill.sw.shield_wave",
+          "rank": 4
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.guardian"
+    },
+    {
+      "plan": "guardian",
+      "seed": 116,
+      "level": 10,
+      "warmupSeconds": 163,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.provoke",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.shield_wave",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.guardian"
+    },
+    {
+      "plan": "guardian",
+      "seed": 117,
+      "level": 10,
+      "warmupSeconds": 163,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.provoke",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.shield_wave",
+          "rank": 3
+        }
+      ],
+      "keystone": "keystone.guardian"
+    },
+    {
+      "plan": "guardian",
+      "seed": 118,
+      "level": 10,
+      "warmupSeconds": 169,
+      "active": [
+        {
+          "id": "skill.sw.shield_wave",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.guardian"
+    },
+    {
+      "plan": "guardian",
+      "seed": 119,
+      "level": 10,
+      "warmupSeconds": 164,
+      "active": [
+        {
+          "id": "skill.sw.shield_wave",
+          "rank": 3
+        },
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.guardian"
+    },
+    {
+      "plan": "guardian",
+      "seed": 120,
+      "level": 10,
+      "warmupSeconds": 171,
+      "active": [
+        {
+          "id": "skill.sw.shield_wave",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.guardian"
+    },
+    {
+      "plan": "guardian",
+      "seed": 121,
+      "level": 10,
+      "warmupSeconds": 165,
+      "active": [
+        {
+          "id": "skill.sw.shield_wave",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.provoke",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 2
+        }
+      ],
+      "keystone": "keystone.guardian"
+    },
+    {
+      "plan": "guardian",
+      "seed": 122,
+      "level": 10,
+      "warmupSeconds": 173,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.provoke",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 2
+        }
+      ],
+      "keystone": "keystone.guardian"
+    },
+    {
+      "plan": "guardian",
+      "seed": 123,
+      "level": 10,
+      "warmupSeconds": 166,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.provoke",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.shield_wave",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.guardian"
+    },
+    {
+      "plan": "guardian",
+      "seed": 124,
+      "level": 10,
+      "warmupSeconds": 165,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.shield_wave",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.guardian"
+    },
+    {
+      "plan": "guardian",
+      "seed": 125,
+      "level": 10,
+      "warmupSeconds": 169,
+      "active": [
+        {
+          "id": "skill.sw.shield_wave",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.provoke",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.guardian"
+    },
+    {
+      "plan": "guardian",
+      "seed": 126,
+      "level": 10,
+      "warmupSeconds": 169,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.shield_wave",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.guardian"
+    },
+    {
+      "plan": "guardian",
+      "seed": 127,
+      "level": 10,
+      "warmupSeconds": 162,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.provoke",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.shield_wave",
+          "rank": 3
+        }
+      ],
+      "keystone": "keystone.guardian"
+    },
+    {
+      "plan": "guardian",
+      "seed": 128,
+      "level": 10,
+      "warmupSeconds": 167,
+      "active": [
+        {
+          "id": "skill.sw.shield_wave",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.guardian"
+    },
+    {
+      "plan": "guardian",
+      "seed": 129,
+      "level": 10,
+      "warmupSeconds": 166,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.shield_wave",
+          "rank": 3
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.guardian"
+    },
+    {
+      "plan": "guardian",
+      "seed": 130,
+      "level": 10,
+      "warmupSeconds": 162,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.shield_wave",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.provoke",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.guardian"
+    },
+    {
+      "plan": "weapon",
+      "seed": 101,
+      "level": 10,
+      "warmupSeconds": 167,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.provoke",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.fatal_blow",
+          "rank": 3
+        }
+      ],
+      "keystone": "keystone.weapon"
+    },
+    {
+      "plan": "weapon",
+      "seed": 102,
+      "level": 10,
+      "warmupSeconds": 162,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.provoke",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.weapon"
+    },
+    {
+      "plan": "weapon",
+      "seed": 103,
+      "level": 10,
+      "warmupSeconds": 169,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.fatal_blow",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.provoke",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.weapon"
+    },
+    {
+      "plan": "weapon",
+      "seed": 104,
+      "level": 10,
+      "warmupSeconds": 166,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.fatal_blow",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.weapon"
+    },
+    {
+      "plan": "weapon",
+      "seed": 105,
+      "level": 10,
+      "warmupSeconds": 166,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 3
+        },
+        {
+          "id": "skill.sw.fatal_blow",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.weapon"
+    },
+    {
+      "plan": "weapon",
+      "seed": 106,
+      "level": 10,
+      "warmupSeconds": 168,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.provoke",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.weapon"
+    },
+    {
+      "plan": "weapon",
+      "seed": 107,
+      "level": 10,
+      "warmupSeconds": 164,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.fatal_blow",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.provoke",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.weapon"
+    },
+    {
+      "plan": "weapon",
+      "seed": 108,
+      "level": 10,
+      "warmupSeconds": 171,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.provoke",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.weapon"
+    },
+    {
+      "plan": "weapon",
+      "seed": 109,
+      "level": 10,
+      "warmupSeconds": 168,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.fatal_blow",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 3
+        }
+      ],
+      "keystone": "keystone.weapon"
+    },
+    {
+      "plan": "weapon",
+      "seed": 110,
+      "level": 10,
+      "warmupSeconds": 165,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.fatal_blow",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.provoke",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.weapon"
+    },
+    {
+      "plan": "weapon",
+      "seed": 111,
+      "level": 10,
+      "warmupSeconds": 156,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.provoke",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.fatal_blow",
+          "rank": 3
+        }
+      ],
+      "keystone": "keystone.weapon"
+    },
+    {
+      "plan": "weapon",
+      "seed": 112,
+      "level": 10,
+      "warmupSeconds": 167,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.fatal_blow",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.weapon"
+    },
+    {
+      "plan": "weapon",
+      "seed": 113,
+      "level": 10,
+      "warmupSeconds": 168,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.fatal_blow",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.weapon"
+    },
+    {
+      "plan": "weapon",
+      "seed": 114,
+      "level": 10,
+      "warmupSeconds": 167,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.fatal_blow",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.weapon"
+    },
+    {
+      "plan": "weapon",
+      "seed": 115,
+      "level": 10,
+      "warmupSeconds": 170,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 3
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.fatal_blow",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.provoke",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.weapon"
+    },
+    {
+      "plan": "weapon",
+      "seed": 116,
+      "level": 10,
+      "warmupSeconds": 161,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.provoke",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 2
+        }
+      ],
+      "keystone": "keystone.weapon"
+    },
+    {
+      "plan": "weapon",
+      "seed": 117,
+      "level": 10,
+      "warmupSeconds": 161,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.fatal_blow",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.weapon"
+    },
+    {
+      "plan": "weapon",
+      "seed": 118,
+      "level": 10,
+      "warmupSeconds": 166,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.fatal_blow",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 2
+        }
+      ],
+      "keystone": "keystone.weapon"
+    },
+    {
+      "plan": "weapon",
+      "seed": 119,
+      "level": 10,
+      "warmupSeconds": 165,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.provoke",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.weapon"
+    },
+    {
+      "plan": "weapon",
+      "seed": 120,
+      "level": 10,
+      "warmupSeconds": 168,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 3
+        },
+        {
+          "id": "skill.sw.fatal_blow",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.weapon"
+    },
+    {
+      "plan": "weapon",
+      "seed": 121,
+      "level": 10,
+      "warmupSeconds": 163,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.provoke",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.fatal_blow",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.weapon"
+    },
+    {
+      "plan": "weapon",
+      "seed": 122,
+      "level": 10,
+      "warmupSeconds": 167,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.fatal_blow",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 2
+        }
+      ],
+      "keystone": "keystone.weapon"
+    },
+    {
+      "plan": "weapon",
+      "seed": 123,
+      "level": 10,
+      "warmupSeconds": 169,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.fatal_blow",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.provoke",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.weapon"
+    },
+    {
+      "plan": "weapon",
+      "seed": 124,
+      "level": 10,
+      "warmupSeconds": 163,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.provoke",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.weapon"
+    },
+    {
+      "plan": "weapon",
+      "seed": 125,
+      "level": 10,
+      "warmupSeconds": 167,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.provoke",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.fatal_blow",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.weapon"
+    },
+    {
+      "plan": "weapon",
+      "seed": 126,
+      "level": 10,
+      "warmupSeconds": 169,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.fatal_blow",
+          "rank": 3
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.weapon"
+    },
+    {
+      "plan": "weapon",
+      "seed": 127,
+      "level": 10,
+      "warmupSeconds": 161,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.fatal_blow",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.provoke",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.weapon"
+    },
+    {
+      "plan": "weapon",
+      "seed": 128,
+      "level": 10,
+      "warmupSeconds": 164,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 3
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.provoke",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.weapon"
+    },
+    {
+      "plan": "weapon",
+      "seed": 129,
+      "level": 10,
+      "warmupSeconds": 164,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 3
+        },
+        {
+          "id": "skill.sw.fatal_blow",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 2
+        }
+      ],
+      "keystone": "keystone.weapon"
+    },
+    {
+      "plan": "weapon",
+      "seed": 130,
+      "level": 10,
+      "warmupSeconds": 162,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 3
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.fatal_blow",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.weapon"
+    },
+    {
+      "plan": "fury",
+      "seed": 101,
+      "level": 10,
+      "warmupSeconds": 168,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.provoke",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.fury"
+    },
+    {
+      "plan": "fury",
+      "seed": 102,
+      "level": 10,
+      "warmupSeconds": 167,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.provoke",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.fatal_blow",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.fury"
+    },
+    {
+      "plan": "fury",
+      "seed": 103,
+      "level": 10,
+      "warmupSeconds": 174,
+      "active": [
+        {
+          "id": "skill.sw.shield_wave",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 3
+        },
+        {
+          "id": "skill.sw.provoke",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.fury"
+    },
+    {
+      "plan": "fury",
+      "seed": 104,
+      "level": 10,
+      "warmupSeconds": 165,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.provoke",
+          "rank": 2
+        }
+      ],
+      "keystone": "keystone.fury"
+    },
+    {
+      "plan": "fury",
+      "seed": 105,
+      "level": 10,
+      "warmupSeconds": 166,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.provoke",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.fury"
+    },
+    {
+      "plan": "fury",
+      "seed": 106,
+      "level": 10,
+      "warmupSeconds": 166,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.fatal_blow",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.fury"
+    },
+    {
+      "plan": "fury",
+      "seed": 107,
+      "level": 10,
+      "warmupSeconds": 167,
+      "active": [
+        {
+          "id": "skill.sw.shield_wave",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.provoke",
+          "rank": 2
+        }
+      ],
+      "keystone": "keystone.fury"
+    },
+    {
+      "plan": "fury",
+      "seed": 108,
+      "level": 10,
+      "warmupSeconds": 171,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 4
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.provoke",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.fury"
+    },
+    {
+      "plan": "fury",
+      "seed": 109,
+      "level": 10,
+      "warmupSeconds": 168,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.provoke",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 2
+        }
+      ],
+      "keystone": "keystone.fury"
+    },
+    {
+      "plan": "fury",
+      "seed": 110,
+      "level": 10,
+      "warmupSeconds": 166,
+      "active": [
+        {
+          "id": "skill.sw.shield_wave",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 3
+        },
+        {
+          "id": "skill.sw.provoke",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.fury"
+    },
+    {
+      "plan": "fury",
+      "seed": 111,
+      "level": 10,
+      "warmupSeconds": 158,
+      "active": [
+        {
+          "id": "skill.sw.shield_wave",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 2
+        }
+      ],
+      "keystone": "keystone.fury"
+    },
+    {
+      "plan": "fury",
+      "seed": 112,
+      "level": 10,
+      "warmupSeconds": 168,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.provoke",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 3
+        },
+        {
+          "id": "skill.sw.fatal_blow",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.fury"
+    },
+    {
+      "plan": "fury",
+      "seed": 113,
+      "level": 10,
+      "warmupSeconds": 171,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.fatal_blow",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 2
+        }
+      ],
+      "keystone": "keystone.fury"
+    },
+    {
+      "plan": "fury",
+      "seed": 114,
+      "level": 10,
+      "warmupSeconds": 166,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.fatal_blow",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.fury"
+    },
+    {
+      "plan": "fury",
+      "seed": 115,
+      "level": 10,
+      "warmupSeconds": 170,
+      "active": [
+        {
+          "id": "skill.sw.shield_wave",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.fatal_blow",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 3
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.fury"
+    },
+    {
+      "plan": "fury",
+      "seed": 116,
+      "level": 10,
+      "warmupSeconds": 162,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.provoke",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.fury"
+    },
+    {
+      "plan": "fury",
+      "seed": 117,
+      "level": 10,
+      "warmupSeconds": 163,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 3
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.provoke",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.fatal_blow",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.fury"
+    },
+    {
+      "plan": "fury",
+      "seed": 118,
+      "level": 10,
+      "warmupSeconds": 172,
+      "active": [
+        {
+          "id": "skill.sw.shield_wave",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.fatal_blow",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.provoke",
+          "rank": 2
+        }
+      ],
+      "keystone": "keystone.fury"
+    },
+    {
+      "plan": "fury",
+      "seed": 119,
+      "level": 10,
+      "warmupSeconds": 164,
+      "active": [
+        {
+          "id": "skill.sw.shield_wave",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.provoke",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.fury"
+    },
+    {
+      "plan": "fury",
+      "seed": 120,
+      "level": 10,
+      "warmupSeconds": 171,
+      "active": [
+        {
+          "id": "skill.sw.shield_wave",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.fatal_blow",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.fury"
+    },
+    {
+      "plan": "fury",
+      "seed": 121,
+      "level": 10,
+      "warmupSeconds": 165,
+      "active": [
+        {
+          "id": "skill.sw.shield_wave",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.fatal_blow",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.fury"
+    },
+    {
+      "plan": "fury",
+      "seed": 122,
+      "level": 10,
+      "warmupSeconds": 168,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.provoke",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 2
+        }
+      ],
+      "keystone": "keystone.fury"
+    },
+    {
+      "plan": "fury",
+      "seed": 123,
+      "level": 10,
+      "warmupSeconds": 168,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.provoke",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.fury"
+    },
+    {
+      "plan": "fury",
+      "seed": 124,
+      "level": 10,
+      "warmupSeconds": 165,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.fatal_blow",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.provoke",
+          "rank": 2
+        }
+      ],
+      "keystone": "keystone.fury"
+    },
+    {
+      "plan": "fury",
+      "seed": 125,
+      "level": 10,
+      "warmupSeconds": 174,
+      "active": [
+        {
+          "id": "skill.sw.shield_wave",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.fatal_blow",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.fury"
+    },
+    {
+      "plan": "fury",
+      "seed": 126,
+      "level": 10,
+      "warmupSeconds": 169,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 3
+        },
+        {
+          "id": "skill.sw.provoke",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.fury"
+    },
+    {
+      "plan": "fury",
+      "seed": 127,
+      "level": 10,
+      "warmupSeconds": 161,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.provoke",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 2
+        }
+      ],
+      "keystone": "keystone.fury"
+    },
+    {
+      "plan": "fury",
+      "seed": 128,
+      "level": 10,
+      "warmupSeconds": 170,
+      "active": [
+        {
+          "id": "skill.sw.shield_wave",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 3
+        },
+        {
+          "id": "skill.sw.fatal_blow",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.fury"
+    },
+    {
+      "plan": "fury",
+      "seed": 129,
+      "level": 10,
+      "warmupSeconds": 164,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 3
+        },
+        {
+          "id": "skill.sw.fatal_blow",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.bash",
+          "rank": 2
+        }
+      ],
+      "keystone": "keystone.fury"
+    },
+    {
+      "plan": "fury",
+      "seed": 130,
+      "level": 10,
+      "warmupSeconds": 164,
+      "active": [
+        {
+          "id": "skill.sw.magnum_break",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.provoke",
+          "rank": 2
+        },
+        {
+          "id": "skill.sw.endure",
+          "rank": 1
+        },
+        {
+          "id": "skill.sw.fatal_blow",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.fury"
+    }
+  ]
+}

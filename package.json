@@ -34,7 +34,8 @@
     "dev:fan-local": "node tools/dev/fan-local.ts",
     "assets:synthetic-demo": "node tools/assets/synthetic-demo.ts",
     "slice:acceptance": "node tools/slice/acceptance.ts",
-    "slice:acceptance:check": "node tools/slice/acceptance.ts --check"
+    "slice:acceptance:check": "node tools/slice/acceptance.ts --check && node tools/slice/scenarios.ts --check",
+    "slice:scenarios": "node tools/slice/scenarios.ts"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
