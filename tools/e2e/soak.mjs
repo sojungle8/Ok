@@ -36,7 +36,7 @@ const base = `http://127.0.0.1:${server.address().port}/`;
 const browser = await playwright.chromium.launch({ args: ["--enable-unsafe-swiftshader", "--js-flags=--expose-gc"] });
 const samples = [];
 const errors = [];
-let status = "FAIL";
+let status;
 try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
   page.on("pageerror", (e) => errors.push(String(e)));
