@@ -2,6 +2,10 @@
 
 ## Unreleased — original assets, RO UI and D-032 skills (2026-11-17–18)
 
+- Phase 3.2.6 soak: browser check G plays three consecutive autoplay runs on the test-fixture build and, at each
+  results screen, compares the live renderer's GPU counters and the post-GC JS heap. Evidence
+  `reports/phase3/soak-three-runs.json`: 15 geometries / 13 textures / 4 programs every run, heap 10.7 MB flat.
+  The formal real-asset soak and the iPhone three-run gate remain `DEFERRED_LOCAL`.
 - Phase 3.3 offline app shell: builds emit `manifest.webmanifest` and a generated `sw.js` that precaches only the
   built HTML/JS/CSS/manifest (versioned by build ID) and passes every other request — gateway, GRF, derived and
   local RO data — straight to the network. New versions install in the background and apply at the next launch;

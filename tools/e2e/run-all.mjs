@@ -5,6 +5,7 @@
 //      settlement, drafts by key / touch / gamepad, keyboard movement
 //   D. bench on the test-fixture build
 //   F. offline app shell (service worker) of the formal build
+//   G. three consecutive runs on the test-fixture build: GPU counters stable, no heap climb
 // Synthetic fixtures are only ever served to the separate test build in apps/client/dist-test.
 import { spawn, execFileSync } from "node:child_process";
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -52,6 +53,9 @@ try {
   const b = capture(["tools/e2e/smoke.mjs"], { SMOKE_DIST: "apps/client/dist-formal-gw", SMOKE_EXPECT: "blocked", SMOKE_TAG: "-B-formal-refuses-fixture", SMOKE_REASON: "synthetic fixture" });
   runPnpm(["--filter", "@ro-survivor/client", "build:test-fixture"], { VITE_ASSET_GATEWAY_URL: gwUrl });
   const c = capture(["tools/e2e/flow.mjs"], { FLOW_DIST: "apps/client/dist-test" });
+  // G. three consecutive runs: stable GPU counters, no run-over-run heap climb (Phase 3.2.6).
+  const g = process.env.SKIP_SOAK ? { code: 0, out: "skipped" } : capture(["tools/e2e/soak.mjs"], { SOAK_DIST: "apps/client/dist-test" });
+  console.log(`soak: ${g.out.trim().split("\n").slice(0, 40).join(" ").slice(0, 600)}`);
   const d = process.env.SKIP_BENCH ? { code: 0, out: "skipped" } : capture(["tools/e2e/bench.mjs"], { BENCH_DIST: "apps/client/dist-test" });
   // E. formal / fixture graph separation in the built bundles: the fixture-only module (marker) must be
   //    absent from both formal bundles and present in the test-fixture bundle.
@@ -62,7 +66,7 @@ try {
   // UI-B3 ships the guarded RO primitives now. E only proves that the fixture-only world module
   // remains absent from both formal builds and present in the explicitly labelled test build.
   const e = { code: !sep.dist && !sep["dist-formal-gw"] && sep["dist-test"] ? 0 : 1 };
-  Object.assign(summary, { A: a, B: b, C: c, D: { code: d.code }, E: e, F: f });
+  Object.assign(summary, { A: a, B: b, C: c, D: { code: d.code }, E: e, F: f, G: g });
   for (const [k, v] of Object.entries({ A: a, B: b })) writeFileSync(join(root, `reports/phase1/smoke-${k}.json`), v.out.slice(v.out.indexOf("[")));
 } finally {
   gw.kill();

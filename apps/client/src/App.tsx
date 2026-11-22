@@ -43,6 +43,8 @@ declare global {
     __flow?: () => string;
     __run?: () => RunState | null;
     __results?: () => { result: RunResult; applied: boolean } | null;
+    /** Read-only GPU resource counters of the live run renderer (soak / leak checks). */
+    __renderInfo?: () => { geometries: number; textures: number; programs: number } | null;
   }
 }
 
@@ -96,6 +98,10 @@ export function App() {
   window.__flow = () => flowRef.current.screen;
   window.__run = () => session.current?.state ?? null;
   window.__results = () => (results ? { result: results.result, applied: results.applied } : null);
+  window.__renderInfo = () => {
+    const info = renderer.current?.renderer.info;
+    return info ? { geometries: info.memory.geometries, textures: info.memory.textures, programs: info.programs?.length ?? 0 } : null;
+  };
 
   // Boot: storage + recovery of unsettled results, then the gateway check (no placeholder fallback).
   useEffect(() => {

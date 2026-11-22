@@ -1,0 +1,40 @@
+{
+  "status": "PASS",
+  "runs": 3,
+  "samples": [
+    {
+      "run": 1,
+      "render": {
+        "geometries": 15,
+        "textures": 13,
+        "programs": 4
+      },
+      "heapMb": 10.7,
+      "outcome": "victory"
+    },
+    {
+      "run": 2,
+      "render": {
+        "geometries": 15,
+        "textures": 13,
+        "programs": 4
+      },
+      "heapMb": 10.7,
+      "outcome": "victory"
+    },
+    {
+      "run": 3,
+      "render": {
+        "geometries": 15,
+        "textures": 13,
+        "programs": 4
+      },
+      "heapMb": 10.7,
+      "outcome": "victory"
+    }
+  ],
+  "stableGpu": true,
+  "heapGrowthMb": 0,
+  "monotonicGrowth": false,
+  "errors": []
+}
