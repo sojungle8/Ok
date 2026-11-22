@@ -497,6 +497,85 @@ try {
     );
     const bashExpired = true;
 
+    // Magnum Break: a cast with three targets inside the authoritative circle must draw the exact two
+    // verified original-RO TGA-derived sources (ground ring + explosion), deal effective damage, expire.
+    const magnumFxSources = await page.getByTestId("world").getAttribute("data-ro-magnum-fx-sources");
+    await page.waitForFunction(() => {
+      const state = window.__run?.();
+      return state?.phase === "running" && state.enemies.filter((enemy) => enemy.hp > 0).length >= 3
+        && Number(document.querySelector('[data-testid="world"]')?.getAttribute("data-ro-magnum-fx-active") ?? "0") === 0;
+    }, null, { timeout: 10_000 });
+    const magnumProbe = await page.evaluate(() => {
+      const state = window.__run?.();
+      if (!state) return { injected: false, enemyCount: 0 };
+      const targets = state.enemies.filter((enemy) => enemy.hp > 0).slice(0, 3);
+      window.__roMagnumProbeRestore = {
+        player: {
+          active: structuredClone(state.player.active),
+          passive: structuredClone(state.player.passive),
+          keystone: state.player.keystone,
+          basicReadyAt: state.player.basicReadyAt,
+          basicHitAt: state.player.basicHitAt,
+          castSlot: state.player.castSlot,
+          castEndAt: state.player.castEndAt,
+          castDx: state.player.castDx,
+          castDy: state.player.castDy,
+        },
+        stats: structuredClone(state.stats),
+        targets: targets.map((enemy) => structuredClone(enemy)),
+      };
+      const offsets = [[-900, -600], [0, -1_000], [900, -600]];
+      targets.forEach((enemy, index) => {
+        const [ox, oy] = offsets[index] ?? [0, 0];
+        enemy.x = state.player.x + ox;
+        enemy.y = state.player.y + oy;
+        enemy.hp = 100_000;
+        enemy.maxHp = 100_000;
+      });
+      state.player.active = [{ id: "skill.sw.magnum_break", rank: 3, readyAt: state.runTick }];
+      state.player.passive = [];
+      state.player.keystone = null;
+      state.player.basicReadyAt = Number.MAX_SAFE_INTEGER;
+      state.player.basicHitAt = -1;
+      state.player.castSlot = -1;
+      return {
+        injected: targets.length === 3,
+        enemyCount: targets.length,
+        effectiveBefore: state.stats.effectiveDamageBySource["skill.sw.magnum_break"] ?? 0,
+      };
+    });
+    await page.waitForFunction(
+      (effectiveBefore) => Number(document.querySelector('[data-testid="world"]')?.getAttribute("data-ro-magnum-fx-active") ?? "0") > 0
+        && (window.__run?.()?.stats.effectiveDamageBySource["skill.sw.magnum_break"] ?? 0) > effectiveBefore,
+      magnumProbe.effectiveBefore,
+      { timeout: 10_000 },
+    );
+    await page.waitForTimeout(80);
+    const magnumFxEvidence = await page.evaluate((effectiveBefore) => ({
+      active: Number(document.querySelector('[data-testid="world"]')?.getAttribute("data-ro-magnum-fx-active") ?? "0"),
+      effectiveHitDamage: (window.__run?.()?.stats.effectiveDamageBySource["skill.sw.magnum_break"] ?? 0) - effectiveBefore,
+    }), magnumProbe.effectiveBefore);
+    const magnumFxScreenshot = join(out, `formal-${viewport.tag}-magnum-break.png`);
+    await page.screenshot({ path: magnumFxScreenshot });
+    await page.evaluate(() => {
+      const state = window.__run?.();
+      const restore = window.__roMagnumProbeRestore;
+      if (!state || !restore) return;
+      Object.assign(state.player, structuredClone(restore.player));
+      state.stats = structuredClone(restore.stats);
+      for (const snapshot of restore.targets) {
+        const enemy = state.enemies.find((candidate) => candidate.id === snapshot.id);
+        if (enemy) Object.assign(enemy, structuredClone(snapshot));
+      }
+      delete window.__roMagnumProbeRestore;
+    });
+    await page.waitForFunction(
+      () => Number(document.querySelector('[data-testid="world"]')?.getAttribute("data-ro-magnum-fx-active") ?? "0") === 0,
+      null,
+      { timeout: 10_000 },
+    );
+    const magnumExpired = true;
+
     const surface = {
       world: await page.getByTestId("world").count(),
       hud: await page.getByTestId("run-hud").count(),
@@ -557,6 +636,10 @@ try {
       && bashFxEvidence.active > 0
       && bashFxEvidence.effectiveHitDamage > 0
       && bashExpired
+      && magnumFxSources === "effect.skill.sw.magnum_break.ring_yellow,effect.skill.sw.magnum_break.explosion"
+      && magnumProbe.injected === true
+      && magnumFxEvidence.effectiveHitDamage > 0
+      && magnumExpired
       && mobileControl.count === 1
       && mobileControl.visible === viewport.touch
       && mobileControl.coarsePointer === viewport.touch
@@ -581,7 +664,7 @@ try {
       && layout.overlapPairs.length === 0
       && layout.noPageOverflow
       && errors.length === 0;
-    results.push({ viewport: viewport.tag, size: `${viewport.width}x${viewport.height}`, buildId, moved, audioStarted, shieldFxSource, shieldProbe, shieldFxEvidence, endureFxSource, endureProbe, endureFxEvidence, endureExpired, bashFxSources, bashProbe, bashFxEvidence, bashExpired, mobileControl, shellLayouts, surface, draftLayout, layout, canceledRequests, errors, draftScreenshot: draftScreenshot.slice(root.length + 1), shieldFxScreenshot: shieldFxScreenshot.slice(root.length + 1), endureFxScreenshot: endureFxScreenshot.slice(root.length + 1), bashFxScreenshot: bashFxScreenshot.slice(root.length + 1), screenshot: screenshot.slice(root.length + 1), status: pass ? "PASS" : "FAIL" });
+    results.push({ viewport: viewport.tag, size: `${viewport.width}x${viewport.height}`, buildId, moved, audioStarted, shieldFxSource, shieldProbe, shieldFxEvidence, endureFxSource, endureProbe, endureFxEvidence, endureExpired, bashFxSources, bashProbe, bashFxEvidence, bashExpired, magnumFxSources, magnumProbe, magnumFxEvidence, magnumExpired, mobileControl, shellLayouts, surface, draftLayout, layout, canceledRequests, errors, draftScreenshot: draftScreenshot.slice(root.length + 1), shieldFxScreenshot: shieldFxScreenshot.slice(root.length + 1), endureFxScreenshot: endureFxScreenshot.slice(root.length + 1), bashFxScreenshot: bashFxScreenshot.slice(root.length + 1), magnumFxScreenshot: magnumFxScreenshot.slice(root.length + 1), screenshot: screenshot.slice(root.length + 1), status: pass ? "PASS" : "FAIL" });
     await context.close();
   }
 } finally {

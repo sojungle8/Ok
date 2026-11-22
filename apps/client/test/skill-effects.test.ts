@@ -4,11 +4,15 @@ import type { DerivedSkillEffectTexture } from "@ro-survivor/asset-contracts";
 import type { RunEvent } from "@ro-survivor/core-sim";
 import {
   BASH_CAPACITY,
-  BASH_EFFECT_CONTRACT,
   BASH_EFFECT_IDS,
   BASH_IMPACT_DURATION_MS,
   BASH_MAX_PER_CAST,
   BashPresentation,
+  AreaCastPresentation,
+  MAGNUM_BREAK_CAPACITY,
+  MAGNUM_BREAK_DURATION_MS,
+  MAGNUM_BREAK_EFFECT_IDS,
+  sampleMagnumBreak,
   sampleBashImpact,
   ENDURE_CAPACITY,
   ENDURE_DURATION_MS,
@@ -24,7 +28,7 @@ import {
   type ShieldWaveCue,
 } from "../src/game/formal/skillEffects.ts";
 import type { FormalSceneData } from "../src/game/formal/load.ts";
-import { bashEffectEntries, bashEffectMeta, bashImageEntries } from "./bash-effect-fixture.ts";
+import { TGA_EFFECT_CONTRACT, TGA_EFFECT_IDS, tgaEffectEntries, tgaEffectMeta, tgaImageEntries } from "./skill-effect-fixture.ts";
 
 const cast = (geomId = "shield:1", tick = 10): Extract<RunEvent, { type: "skill" }> => ({
   type: "skill", tick, source: "skill.sw.shield_wave", geomId,
@@ -60,11 +64,11 @@ const endureMeta: DerivedSkillEffectTexture = {
 };
 
 const data = (shieldWidth = 64, shieldHeight = 64, endureWidth = 64, endureHeight = 64): FormalSceneData => ({
-  effects: new Map([[SHIELD_WAVE_EFFECT_ID, meta], [ENDURE_EFFECT_ID, endureMeta], ...bashEffectEntries()]),
+  effects: new Map([[SHIELD_WAVE_EFFECT_ID, meta], [ENDURE_EFFECT_ID, endureMeta], ...tgaEffectEntries()]),
   effectImages: new Map<string, { width: number; height: number }>([
     [SHIELD_WAVE_EFFECT_ID, { width: shieldWidth, height: shieldHeight }],
     [ENDURE_EFFECT_ID, { width: endureWidth, height: endureHeight }],
-    ...bashImageEntries((width, height) => ({ width, height })),
+    ...tgaImageEntries((width, height) => ({ width, height })),
   ]),
 } as unknown as FormalSceneData);
 
@@ -145,13 +149,13 @@ describe("Endure presentation cue", () => {
 
 describe("official Shield Wave GPU layer", () => {
   it("uses one verified 64x64 original image and one bounded instanced draw", () => {
-    const textures = Array.from({ length: 2 + BASH_EFFECT_IDS.length }, () => new THREE.Texture());
+    const textures = Array.from({ length: 2 + TGA_EFFECT_IDS.length }, () => new THREE.Texture());
     const layer = new OfficialSkillEffectLayer(data(), () => textures.shift() as THREE.Texture);
     const events: RunEvent[] = [cast(), hit("shield:1", 7, 1000, 0)];
     layer.ingest(events, 0);
     layer.update(80, 0, 0, () => 0, new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 1, 0), 0.5);
     expect(layer.sourceAssetId).toBe(SHIELD_WAVE_EFFECT_ID);
-    expect(layer.sourceAssetIds).toEqual([SHIELD_WAVE_EFFECT_ID, ENDURE_EFFECT_ID, ...BASH_EFFECT_IDS]);
+    expect(layer.sourceAssetIds).toEqual([SHIELD_WAVE_EFFECT_ID, ENDURE_EFFECT_ID, ...TGA_EFFECT_IDS]);
     expect(layer.mesh.count).toBe(1);
     expect(layer.mesh.instanceMatrix.count).toBe(SHIELD_WAVE_CAPACITY);
     const matrix = new THREE.Matrix4();
@@ -361,8 +365,8 @@ describe("official Bash GPU lanes", () => {
     layer.dispose();
   });
 
-  it.each(BASH_EFFECT_IDS)("fails closed when %s is missing, drifted or not source-alpha", (id) => {
-    const c = BASH_EFFECT_CONTRACT[id];
+  it.each(TGA_EFFECT_IDS)("fails closed when %s is missing, drifted or not source-alpha", (id) => {
+    const c = TGA_EFFECT_CONTRACT[id];
     const make = (mutate: (d: FormalSceneData) => void): (() => OfficialSkillEffectLayer) => () => {
       const d = data();
       mutate(d);
@@ -371,13 +375,13 @@ describe("official Bash GPU lanes", () => {
     expect(make((d) => d.effects.delete(id))).toThrow(/verified TGA metadata not loaded/u);
     expect(make((d) => d.effectImages.delete(id))).toThrow(new RegExp(`expected verified ${c.width}x${c.height}`, "u"));
     expect(make((d) => d.effectImages.set(id, { width: c.width, height: c.height + 1 }))).toThrow(/expected verified/u);
-    expect(make((d) => d.effects.set(id, { ...bashEffectMeta(id), format: "bmp" }))).toThrow(/verified TGA metadata not loaded/u);
-    expect(make((d) => d.effects.set(id, { ...bashEffectMeta(id), bitsPerPixel: 24 }))).toThrow(/verified 32-bit source-alpha/u);
-    expect(make((d) => d.effects.set(id, { ...bashEffectMeta(id), alpha: { mode: "ro-color-key", keyedPixels: 1 } }))).toThrow(/verified 32-bit source-alpha/u);
-    expect(make((d) => d.effects.set(id, { ...bashEffectMeta(id), derived: { ...bashEffectMeta(id).derived, width: 1 } }))).toThrow(/derived 1x/u);
-    expect(make((d) => d.effects.set(id, { ...bashEffectMeta(id), derived: { ...bashEffectMeta(id).derived, sha256: "" } }))).toThrow(/SHA-256 contract missing/u);
-    expect(make((d) => d.effects.set(id, { ...bashEffectMeta(id), source: { ...bashEffectMeta(id).source, canonicalPath: "data\\texture\\effect\\other.tga" } }))).toThrow(/source data/u);
-    expect(make((d) => d.effects.set(id, { ...bashEffectMeta(id), source: { ...bashEffectMeta(id).source, bytes: 1 } }))).toThrow(/source 1 bytes/u);
+    expect(make((d) => d.effects.set(id, { ...tgaEffectMeta(id), format: "bmp" }))).toThrow(/verified TGA metadata not loaded/u);
+    expect(make((d) => d.effects.set(id, { ...tgaEffectMeta(id), bitsPerPixel: 24 }))).toThrow(/verified 32-bit source-alpha/u);
+    expect(make((d) => d.effects.set(id, { ...tgaEffectMeta(id), alpha: { mode: "ro-color-key", keyedPixels: 1 } }))).toThrow(/verified 32-bit source-alpha/u);
+    expect(make((d) => d.effects.set(id, { ...tgaEffectMeta(id), derived: { ...tgaEffectMeta(id).derived, width: 1 } }))).toThrow(/derived 1x/u);
+    expect(make((d) => d.effects.set(id, { ...tgaEffectMeta(id), derived: { ...tgaEffectMeta(id).derived, sha256: "" } }))).toThrow(/SHA-256 contract missing/u);
+    expect(make((d) => d.effects.set(id, { ...tgaEffectMeta(id), source: { ...tgaEffectMeta(id).source, canonicalPath: "data\\texture\\effect\\other.tga" } }))).toThrow(/source data/u);
+    expect(make((d) => d.effects.set(id, { ...tgaEffectMeta(id), source: { ...tgaEffectMeta(id).source, bytes: 1 } }))).toThrow(/source 1 bytes/u);
   });
 
   it("releases every earlier lane when a later Bash lane fails to construct", () => {
@@ -394,7 +398,7 @@ describe("official Bash GPU lanes", () => {
     expect(disposed.sort()).toEqual([1, 2, 3, 4]);
   });
 
-  it("disposes all six lanes exactly once and ignores later frames", () => {
+  it("disposes all eight lanes exactly once and ignores later frames", () => {
     const textures: THREE.Texture[] = [];
     const layer = new OfficialSkillEffectLayer(data(), () => {
       const t = new THREE.Texture();
@@ -403,7 +407,7 @@ describe("official Bash GPU lanes", () => {
     });
     const counts = { texture: 0, geometry: 0, material: 0 };
     for (const t of textures) t.dispose = () => { counts.texture += 1; };
-    for (const m of [layer.mesh, layer.endureMesh, ...layer.bashMeshes]) {
+    for (const m of [layer.mesh, layer.endureMesh, ...layer.bashMeshes, ...layer.magnumMeshes]) {
       m.geometry.dispose = () => { counts.geometry += 1; };
       (m.material as THREE.ShaderMaterial).dispose = () => { counts.material += 1; };
     }
@@ -411,8 +415,82 @@ describe("official Bash GPU lanes", () => {
     layer.dispose();
     layer.ingest([bashCast("g"), bashHit("g", 1, 0, 0)], 0);
     layer.update(10, 0, 0, () => 0, new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 1, 0), 1);
-    expect(counts).toEqual({ texture: 6, geometry: 6, material: 6 });
+    expect(counts).toEqual({ texture: 8, geometry: 8, material: 8 });
     expect(layer.bashActiveCount).toBe(0);
     expect(layer.object.children).toHaveLength(0);
+  });
+});
+
+const magnumCast = (geomId = "player:skill.sw.magnum_break:1", tick = 10, radiusMm = 2600): Extract<RunEvent, { type: "skill" }> => ({
+  type: "skill", tick, source: "skill.sw.magnum_break", geomId,
+  origin: { xMm: 4000, yMm: -2000 }, direction: { x: 0, y: -10_000 },
+  geometry: { shape: "circle", radiusMm }, rank: 1,
+  vfxCue: "skill.sw.magnum_break", designOrigin: "official-name-adapted",
+});
+
+describe("Magnum Break area presentation", () => {
+  it("anchors one cue per cast at the public origin and radius, never replayed", () => {
+    const p = new AreaCastPresentation("skill.sw.magnum_break", MAGNUM_BREAK_DURATION_MS, MAGNUM_BREAK_CAPACITY);
+    const events: RunEvent[] = [magnumCast("m1", 10), bashCast("b"), magnumCast("m2", 12, 3200)];
+    p.ingest(events, 1000);
+    p.ingest(events, 1010);
+    p.ingest([...events], 1020);
+    expect(p.cues.map((c) => [c.geomId, c.xMm, c.yMm, c.radiusMm])).toEqual([["m1", 4000, -2000, 2600], ["m2", 4000, -2000, 3200]]);
+    expect(p.cues[0]?.startMs).toBeCloseTo(1000 - 2 * (1000 / 60));
+  });
+
+  it("bounds the queue and expires exactly at the deadline", () => {
+    const p = new AreaCastPresentation("skill.sw.magnum_break", MAGNUM_BREAK_DURATION_MS, MAGNUM_BREAK_CAPACITY);
+    p.ingest(Array.from({ length: 7 }, (_, i) => magnumCast(`m${i}`, 10)), 0);
+    expect(p.cues.map((c) => c.geomId)).toEqual(["m3", "m4", "m5", "m6"]);
+    p.prune(MAGNUM_BREAK_DURATION_MS - 1);
+    expect(p.cues).toHaveLength(MAGNUM_BREAK_CAPACITY);
+    p.prune(MAGNUM_BREAK_DURATION_MS);
+    expect(p.cues).toHaveLength(0);
+  });
+
+  it("samples an expanding ring and a bounded flash that both end transparent", () => {
+    const cue = { id: 1, geomId: "m", xMm: 0, yMm: 0, radiusMm: 2600, startMs: 0, endMs: 520, phase: 0 };
+    const mid = sampleMagnumBreak(cue, 100);
+    expect(mid.visible).toBe(true);
+    expect(mid.ring.opacity).toBe(1);
+    expect(mid.explosion.opacity).toBeGreaterThan(0);
+    expect(sampleMagnumBreak(cue, 400).ring.scale).toBeGreaterThan(mid.ring.scale);
+    const end = sampleMagnumBreak(cue, 520);
+    expect(end).toMatchObject({ visible: false, ring: { opacity: 0 }, explosion: { opacity: 0 } });
+  });
+});
+
+describe("official Magnum Break GPU lanes", () => {
+  it("draws a ground ring sized to the authoritative radius plus a billboard explosion, then expires", () => {
+    const layer = new OfficialSkillEffectLayer(data(), () => new THREE.Texture());
+    expect(layer.magnumMeshes.map((m) => [(m.userData as { sourceAssetId: string }).sourceAssetId, m.instanceMatrix.count])).toEqual(MAGNUM_BREAK_EFFECT_IDS.map((id) => [id, MAGNUM_BREAK_CAPACITY]));
+    layer.ingest([magnumCast("m", 10, 2600)], 0);
+    layer.update(MAGNUM_BREAK_DURATION_MS, 0, 0, () => 0, new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 1, 0), 1);
+    expect(layer.magnumBreakActiveCount).toBe(0);
+    layer.ingest([magnumCast("m2", 10, 2600)], 1000);
+    const camRight = new THREE.Vector3(0.6, 0, 0.8);
+    const camUp = new THREE.Vector3(0, 1, 0);
+    layer.update(1000, 0, 0, () => 2, camRight, camUp, 1);
+    expect(layer.magnumBreakActiveCount).toBe(1);
+    expect(layer.activeCount).toBe(1);
+    const [ring, explosion] = layer.magnumMeshes as [THREE.InstancedMesh, THREE.InstancedMesh];
+    const matrix = new THREE.Matrix4();
+    ring.getMatrixAt(0, matrix);
+    const ringPos = new THREE.Vector3().setFromMatrixPosition(matrix);
+    expect(ringPos.x).toBeCloseTo(4);
+    expect(ringPos.y).toBeCloseTo(2.06);
+    expect(ringPos.z).toBeCloseTo(2);
+    const ringScale = (ring.geometry.getAttribute("aScale") as THREE.InstancedBufferAttribute).getX(0);
+    expect(ringScale).toBeCloseTo((5.2 / (64 * 0.025)) * 0.25);
+    const ringMat = ring.material as THREE.ShaderMaterial;
+    expect((ringMat.uniforms.uUp as { value: THREE.Vector3 }).value.toArray()).toEqual([0, 0, -1]);
+    const explosionMat = explosion.material as THREE.ShaderMaterial;
+    expect((explosionMat.uniforms.uRight as { value: THREE.Vector3 }).value.toArray()).toEqual(camRight.toArray());
+    expect((explosionMat.uniforms.uSize as { value: THREE.Vector2 }).value.toArray()).toEqual([128 * 0.025, 128 * 0.025]);
+    layer.update(1000 + MAGNUM_BREAK_DURATION_MS, 0, 0, () => 2, camRight, camUp, 1);
+    expect(layer.magnumBreakActiveCount).toBe(0);
+    expect(ring.count + explosion.count).toBe(0);
+    layer.dispose();
   });
 });

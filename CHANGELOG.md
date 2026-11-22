@@ -2,6 +2,12 @@
 
 ## Unreleased — original assets, RO UI and D-032 skills (2026-11-17–18)
 
+- D032-E3 Magnum Break: two verified original-RO TGA-derived sources (`ring_yellow` 64×64, `대폭발` explosion
+  128×128, 32-bit source-alpha) drive a clean-room burst anchored at the public cast origin: a flat ground ring
+  expanding to the authoritative circle radius plus a camera-facing flash. One cue per cast geomId (never
+  replayed), two long-lived lanes of 4 cues, 520 ms presentation-only lifetime, same fail-closed TGA contract
+  and rollback/dispose rules as Bash. No skill number or simulation state changed; real-local evidence is
+  `DEFERRED_LOCAL`.
 - D032-E2 Bash: four verified original-RO TGA-derived sources (`alpha_down` 64×64, `alpha_center` 32×32,
   `lens1`/`lens2` 32×128, 32-bit source-alpha) drive a clean-room layered impact anchored on every positioned
   authoritative Bash hit with the cast geomId (rank 3 draws both targets); one bounded fallback only without a

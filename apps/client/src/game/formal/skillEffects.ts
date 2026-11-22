@@ -32,6 +32,16 @@ export const BASH_EFFECT_CONTRACT: Readonly<Record<BashEffectId, { canonicalPath
   "effect.skill.sw.bash.lens1": { canonicalPath: "data\\texture\\effect\\lens1.tga", bytes: 16428, width: 32, height: 128 },
   "effect.skill.sw.bash.lens2": { canonicalPath: "data\\texture\\effect\\lens2.tga", bytes: 16428, width: 32, height: 128 },
 };
+export const MAGNUM_BREAK_EFFECT_IDS = ["effect.skill.sw.magnum_break.ring_yellow", "effect.skill.sw.magnum_break.explosion"] as const;
+export type MagnumBreakEffectId = (typeof MAGNUM_BREAK_EFFECT_IDS)[number];
+/** At most 4 concurrent Magnum Break bursts (one ring + one explosion plane each). */
+export const MAGNUM_BREAK_CAPACITY = 4;
+export const MAGNUM_BREAK_DURATION_MS = 520;
+export const MAGNUM_BREAK_EFFECT_CONTRACT: Readonly<Record<MagnumBreakEffectId, { canonicalPath: string; bytes: number; width: number; height: number }>> = {
+  "effect.skill.sw.magnum_break.ring_yellow": { canonicalPath: "data\\texture\\effect\\ring_yellow.tga", bytes: 16428, width: 64, height: 64 },
+  "effect.skill.sw.magnum_break.explosion": { canonicalPath: "data\\texture\\effect\\대폭발.tga", bytes: 65580, width: 128, height: 128 },
+};
+const MAGNUM_BREAK_SOURCE = "skill.sw.magnum_break";
 const BASH_SOURCE = "skill.sw.bash";
 const BASH_FALLBACK_MAX_MM = 3000;
 const SHIELD_WAVE_SOURCE = "skill.sw.shield_wave";
@@ -96,6 +106,26 @@ export interface BashImpactSample {
   planes: readonly [BashPlaneSample, BashPlaneSample, BashPlaneSample, BashPlaneSample];
 }
 
+/** One cast-centred area cue; anchored at the public cast origin, never at live player state. */
+export interface AreaCastCue {
+  id: number;
+  geomId: string;
+  xMm: number;
+  yMm: number;
+  radiusMm: number;
+  startMs: number;
+  endMs: number;
+  phase: number;
+}
+
+export interface MagnumBreakSample {
+  visible: boolean;
+  /** Flat ground ring; `scale` is relative to the authoritative circle diameter. */
+  ring: BashPlaneSample;
+  /** Camera-facing explosion over the cast origin. */
+  explosion: BashPlaneSample;
+}
+
 function normalizedDirection(x: number, y: number): [number, number] {
   const length = Math.hypot(x, y);
   return length > 0 ? [x / length, y / length] : [0, -1];
@@ -156,6 +186,74 @@ export function sampleBashImpact(cue: BashImpactCue, nowMs: number): BashImpactS
       { opacity: flash(0.1, 0.2, 0.65), scale: 0.9 + 0.3 * p, rotation: cue.phase - Math.PI / 4, liftM: 0.9 },
     ],
   };
+}
+
+/** Clean-room Magnum Break burst: a ground ring expanding to the authoritative radius plus a flash. */
+export function sampleMagnumBreak(cue: AreaCastCue, nowMs: number): MagnumBreakSample {
+  const duration = Math.max(1, cue.endMs - cue.startMs);
+  const p = clamp01((nowMs - cue.startMs) / duration);
+  const easeOut = 1 - (1 - p) * (1 - p);
+  const ringFade = p < 0.55 ? 1 : clamp01((1 - p) / 0.45);
+  const flashIn = clamp01(p / 0.1);
+  const flashOut = clamp01((0.7 - p) / 0.45);
+  return {
+    visible: nowMs >= cue.startMs && nowMs < cue.endMs,
+    ring: { opacity: ringFade, scale: 0.25 + 0.75 * easeOut, rotation: cue.phase + p * Math.PI / 3, liftM: 0.06 },
+    explosion: { opacity: Math.min(flashIn, flashOut), scale: 0.7 + 0.6 * easeOut, rotation: cue.phase, liftM: 1 },
+  };
+}
+
+/**
+ * Bounded cast-centred cue queue for circle skills. One cue per authoritative cast geomId (never
+ * replayed); radius comes from the public circle geometry.
+ */
+export class AreaCastPresentation {
+  readonly cues: AreaCastCue[] = [];
+  readonly #seen = new Set<string>();
+  readonly #source: string;
+  readonly #durationMs: number;
+  readonly #capacity: number;
+  #lastEvents: readonly RunEvent[] | null = null;
+  #nextId = 1;
+
+  constructor(source: string, durationMs: number, capacity: number) {
+    this.#source = source;
+    this.#durationMs = durationMs;
+    this.#capacity = capacity;
+  }
+
+  ingest(events: readonly RunEvent[], nowMs: number): void {
+    if (events === this.#lastEvents) {
+      this.prune(nowMs);
+      return;
+    }
+    this.#lastEvents = events;
+    const maxTick = events.reduce((max, event) => Math.max(max, event.tick), 0);
+    for (const cast of events) {
+      if (cast.type !== "skill" || cast.source !== this.#source || this.#seen.has(cast.geomId)) continue;
+      this.#seen.add(cast.geomId);
+      if (this.#seen.size > BASH_SEEN_CAPACITY) {
+        const oldest = this.#seen.values().next().value;
+        if (oldest !== undefined) this.#seen.delete(oldest);
+      }
+      const startMs = nowMs - Math.max(0, maxTick - cast.tick) * TICK_MS;
+      const radiusMm = cast.geometry?.shape === "circle" ? Math.max(0, cast.geometry.radiusMm) : 0;
+      const id = this.#nextId++;
+      this.cues.push({ id, geomId: cast.geomId, xMm: cast.origin.xMm, yMm: cast.origin.yMm, radiusMm, startMs, endMs: startMs + this.#durationMs, phase: (id % 6) * Math.PI / 3 });
+    }
+    if (this.cues.length > this.#capacity) this.cues.splice(0, this.cues.length - this.#capacity);
+    this.prune(nowMs);
+  }
+
+  prune(nowMs: number): void {
+    for (let i = this.cues.length - 1; i >= 0; i -= 1) if (nowMs >= (this.cues[i]?.endMs ?? 0)) this.cues.splice(i, 1);
+  }
+
+  clear(): void {
+    this.cues.splice(0);
+    this.#seen.clear();
+    this.#lastEvents = null;
+  }
 }
 
 /**
@@ -428,12 +526,12 @@ function disposeGpu(gpu: EffectGpu): void {
 }
 
 /**
- * Verified original-RO skill textures in bounded instanced draws: Shield Wave (32), Endure (1) and
- * four Bash lanes (16 each). No per-cast texture/material/geometry allocation.
+ * Verified original-RO skill textures in bounded instanced draws: Shield Wave (32), Endure (1),
+ * four Bash lanes (16 each) and two Magnum Break lanes (4 each: ground ring, explosion). No per-cast texture/material/geometry allocation.
  */
 export class OfficialSkillEffectLayer implements WorldSkillEffectLayer {
   readonly sourceAssetId = SHIELD_WAVE_EFFECT_ID;
-  readonly sourceAssetIds = [SHIELD_WAVE_EFFECT_ID, ENDURE_EFFECT_ID, ...BASH_EFFECT_IDS] as const;
+  readonly sourceAssetIds = [SHIELD_WAVE_EFFECT_ID, ENDURE_EFFECT_ID, ...BASH_EFFECT_IDS, ...MAGNUM_BREAK_EFFECT_IDS] as const;
   readonly object = new THREE.Group();
   readonly mesh: THREE.InstancedMesh;
   readonly material: THREE.ShaderMaterial;
@@ -442,20 +540,28 @@ export class OfficialSkillEffectLayer implements WorldSkillEffectLayer {
   /** Bash lanes in {@link BASH_EFFECT_IDS} order. */
   readonly bashMeshes: readonly THREE.InstancedMesh[];
   readonly bashMaterials: readonly THREE.ShaderMaterial[];
+  /** Magnum Break lanes in {@link MAGNUM_BREAK_EFFECT_IDS} order (ground ring, explosion). */
+  readonly magnumMeshes: readonly THREE.InstancedMesh[];
   readonly presentation = new ShieldWavePresentation();
   readonly endurePresentation = new EndurePresentation();
   readonly bashPresentation = new BashPresentation();
+  readonly magnumPresentation = new AreaCastPresentation(MAGNUM_BREAK_SOURCE, MAGNUM_BREAK_DURATION_MS, MAGNUM_BREAK_CAPACITY);
   readonly #shield: EffectGpu;
   readonly #endure: EffectGpu;
   readonly #bash: readonly EffectGpu[];
+  readonly #magnum: readonly EffectGpu[];
+  readonly #groundRight = new THREE.Vector3(1, 0, 0);
+  readonly #groundUp = new THREE.Vector3(0, 0, -1);
   readonly #matrix = new THREE.Matrix4();
   #bashImpacts = 0;
+  #magnumBursts = 0;
   #disposed = false;
 
   constructor(data: FormalSceneData, makeTexture: TextureFactory) {
     const shieldSource = requireTexture(data, SHIELD_WAVE_EFFECT_ID, { format: "bmp", bitsPerPixel: 24, alpha: "ro-color-key" });
     const endureSource = requireTexture(data, ENDURE_EFFECT_ID, { format: "tga", bitsPerPixel: 32, alpha: "source-alpha" });
     const bashSources = BASH_EFFECT_IDS.map((id) => requireTexture(data, id, { format: "tga", bitsPerPixel: 32, alpha: "source-alpha", ...BASH_EFFECT_CONTRACT[id] }));
+    const magnumSources = MAGNUM_BREAK_EFFECT_IDS.map((id) => requireTexture(data, id, { format: "tga", bitsPerPixel: 32, alpha: "source-alpha", ...MAGNUM_BREAK_EFFECT_CONTRACT[id] }));
     const built: EffectGpu[] = [];
     try {
       built.push(createEffectGpu(shieldSource.meta, shieldSource.image, SHIELD_WAVE_CAPACITY, makeTexture, SHIELD_WAVE_EFFECT_ID));
@@ -464,25 +570,33 @@ export class OfficialSkillEffectLayer implements WorldSkillEffectLayer {
         const source = bashSources[index] as (typeof bashSources)[number];
         built.push(createEffectGpu(source.meta, source.image, BASH_CAPACITY, makeTexture, id));
       });
+      MAGNUM_BREAK_EFFECT_IDS.forEach((id, index) => {
+        const source = magnumSources[index] as (typeof magnumSources)[number];
+        built.push(createEffectGpu(source.meta, source.image, MAGNUM_BREAK_CAPACITY, makeTexture, id));
+      });
     } catch (err) {
       for (const gpu of built) disposeGpu(gpu);
       throw err;
     }
-    const [shield, endure, ...bash] = built as [EffectGpu, EffectGpu, ...EffectGpu[]];
+    const [shield, endure, ...rest] = built as [EffectGpu, EffectGpu, ...EffectGpu[]];
+    const bash = rest.slice(0, BASH_EFFECT_IDS.length);
+    const magnum = rest.slice(BASH_EFFECT_IDS.length);
     this.#shield = shield;
     this.#endure = endure;
     this.#bash = bash;
+    this.#magnum = magnum;
+    this.magnumMeshes = magnum.map((gpu) => gpu.mesh);
     this.mesh = shield.mesh;
     this.material = shield.material;
     this.endureMesh = endure.mesh;
     this.endureMaterial = endure.material;
     this.bashMeshes = bash.map((gpu) => gpu.mesh);
     this.bashMaterials = bash.map((gpu) => gpu.material);
-    this.object.add(this.mesh, this.endureMesh, ...this.bashMeshes);
+    this.object.add(this.mesh, this.endureMesh, ...this.bashMeshes, ...this.magnumMeshes);
   }
 
   get activeCount(): number {
-    return this.mesh.count + this.endureMesh.count + this.#bashImpacts;
+    return this.mesh.count + this.endureMesh.count + this.#bashImpacts + this.#magnumBursts;
   }
 
   get shieldWaveActiveCount(): number {
@@ -498,11 +612,17 @@ export class OfficialSkillEffectLayer implements WorldSkillEffectLayer {
     return this.#bashImpacts;
   }
 
+  /** Visible Magnum Break bursts (ground ring + explosion plane each). */
+  get magnumBreakActiveCount(): number {
+    return this.#magnumBursts;
+  }
+
   ingest(events: readonly RunEvent[], nowMs: number): void {
     if (this.#disposed) return;
     this.presentation.ingest(events, nowMs);
     this.endurePresentation.ingest(events, nowMs);
     this.bashPresentation.ingest(events, nowMs);
+    this.magnumPresentation.ingest(events, nowMs);
   }
 
   update(nowMs: number, playerXmm: number, playerYmm: number, heightAt: (xm: number, ym: number) => number, right: THREE.Vector3, up: THREE.Vector3, effectOpacity: number): void {
@@ -510,6 +630,7 @@ export class OfficialSkillEffectLayer implements WorldSkillEffectLayer {
     this.presentation.prune(nowMs);
     this.endurePresentation.prune(nowMs);
     this.bashPresentation.prune(nowMs);
+    this.magnumPresentation.prune(nowMs);
     const boundedOpacity = Math.max(0.2, Math.min(1, effectOpacity));
     let count = 0;
     for (const cue of this.presentation.cues) {
@@ -563,6 +684,35 @@ export class OfficialSkillEffectLayer implements WorldSkillEffectLayer {
       gpu.mesh.count = impacts;
       this.#flush(gpu, right, up);
     }
+
+    const [ring, explosion] = this.#magnum as [EffectGpu, EffectGpu];
+    const ringBaseM = MAGNUM_BREAK_EFFECT_CONTRACT["effect.skill.sw.magnum_break.ring_yellow"].width * 0.025;
+    let bursts = 0;
+    for (const cue of this.magnumPresentation.cues) {
+      if (bursts >= MAGNUM_BREAK_CAPACITY) break;
+      const sample = sampleMagnumBreak(cue, nowMs);
+      if (!sample.visible) continue;
+      const xm = cue.xMm / 1000;
+      const ym = cue.yMm / 1000;
+      const ground = heightAt(xm, ym);
+      const diameterM = Math.max(0.5, (2 * cue.radiusMm) / 1000);
+      this.#matrix.makeTranslation(xm, ground + sample.ring.liftM, -ym);
+      ring.mesh.setMatrixAt(bursts, this.#matrix);
+      ring.rotation.setX(bursts, sample.ring.rotation);
+      ring.opacity.setX(bursts, sample.ring.opacity * boundedOpacity);
+      ring.scale.setX(bursts, (diameterM / ringBaseM) * sample.ring.scale);
+      this.#matrix.makeTranslation(xm, ground + sample.explosion.liftM, -ym);
+      explosion.mesh.setMatrixAt(bursts, this.#matrix);
+      explosion.rotation.setX(bursts, sample.explosion.rotation);
+      explosion.opacity.setX(bursts, sample.explosion.opacity * boundedOpacity);
+      explosion.scale.setX(bursts, sample.explosion.scale);
+      bursts += 1;
+    }
+    this.#magnumBursts = bursts;
+    ring.mesh.count = bursts;
+    explosion.mesh.count = bursts;
+    this.#flush(ring, this.#groundRight, this.#groundUp);
+    this.#flush(explosion, right, up);
   }
 
   #flush(gpu: EffectGpu, right: THREE.Vector3, up: THREE.Vector3): void {
@@ -580,8 +730,10 @@ export class OfficialSkillEffectLayer implements WorldSkillEffectLayer {
     this.presentation.clear();
     this.endurePresentation.clear();
     this.bashPresentation.clear();
+    this.magnumPresentation.clear();
     this.#bashImpacts = 0;
-    const lanes = [this.#shield, this.#endure, ...this.#bash];
+    this.#magnumBursts = 0;
+    const lanes = [this.#shield, this.#endure, ...this.#bash, ...this.#magnum];
     for (const gpu of lanes) {
       gpu.mesh.count = 0;
       this.object.remove(gpu.mesh);
