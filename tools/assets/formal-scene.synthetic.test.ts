@@ -126,6 +126,10 @@ describe("formal scene loader on the real derived contract (synthetic sources)",
       [`effect.skill.sw.magnum_break.${part}.json`, `effect.skill.sw.magnum_break.${part}`],
       [`effect.skill.sw.magnum_break.${part}.png`, `effect.skill.sw.magnum_break.${part}`],
     ]),
+    ...["explosive_1_128", "piero", "pika01"].flatMap((part) => [
+      [`effect.skill.sw.provoke.${part}.json`, `effect.skill.sw.provoke.${part}`],
+      [`effect.skill.sw.provoke.${part}.png`, `effect.skill.sw.provoke.${part}`],
+    ]),
   ])("a missing official effect output %s blocks the world by canonical source path", async (file, id) => {
     const { client, whitelist, out } = await setup();
     rmSync(join(out, file));

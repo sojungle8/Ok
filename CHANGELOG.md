@@ -2,6 +2,12 @@
 
 ## Unreleased — original assets, RO UI and D-032 skills (2026-11-17–18)
 
+- D032-E4 Provoke: three verified original-RO BMP-derived sources (`explosive_1_128` 128×128 8bpp,
+  `piero` 64×64 24bpp, `pika01` 16×16 8bpp, RO color key) drive a clean-room cue at the public cast origin: a
+  flat shockwave scaled to the authoritative circle radius, a mark pop and six outward sparks. The original
+  `provoke.str` stays source-only and is never drawn. Lanes of 2 / 2 / 12, 640 ms presentation-only lifetime,
+  same fail-closed and rollback/dispose rules. No skill number or simulation state changed; real-local evidence
+  is `DEFERRED_LOCAL`.
 - D032-E3 Magnum Break: two verified original-RO TGA-derived sources (`ring_yellow` 64×64, `대폭발` explosion
   128×128, 32-bit source-alpha) drive a clean-room burst anchored at the public cast origin: a flat ground ring
   expanding to the authoritative circle radius plus a camera-facing flash. One cue per cast geomId (never

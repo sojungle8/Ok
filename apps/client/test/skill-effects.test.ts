@@ -13,6 +13,12 @@ import {
   MAGNUM_BREAK_DURATION_MS,
   MAGNUM_BREAK_EFFECT_IDS,
   sampleMagnumBreak,
+  PROVOKE_CAPACITY,
+  PROVOKE_DURATION_MS,
+  PROVOKE_EFFECT_CONTRACT,
+  PROVOKE_EFFECT_IDS,
+  PROVOKE_SPARKS_PER_CAST,
+  sampleProvoke,
   sampleBashImpact,
   ENDURE_CAPACITY,
   ENDURE_DURATION_MS,
@@ -28,7 +34,7 @@ import {
   type ShieldWaveCue,
 } from "../src/game/formal/skillEffects.ts";
 import type { FormalSceneData } from "../src/game/formal/load.ts";
-import { TGA_EFFECT_CONTRACT, TGA_EFFECT_IDS, tgaEffectEntries, tgaEffectMeta, tgaImageEntries } from "./skill-effect-fixture.ts";
+import { LANE_EFFECT_IDS, provokeEffectMeta, TGA_EFFECT_CONTRACT, TGA_EFFECT_IDS, tgaEffectEntries, tgaEffectMeta, tgaImageEntries } from "./skill-effect-fixture.ts";
 
 const cast = (geomId = "shield:1", tick = 10): Extract<RunEvent, { type: "skill" }> => ({
   type: "skill", tick, source: "skill.sw.shield_wave", geomId,
@@ -149,13 +155,13 @@ describe("Endure presentation cue", () => {
 
 describe("official Shield Wave GPU layer", () => {
   it("uses one verified 64x64 original image and one bounded instanced draw", () => {
-    const textures = Array.from({ length: 2 + TGA_EFFECT_IDS.length }, () => new THREE.Texture());
+    const textures = Array.from({ length: 2 + LANE_EFFECT_IDS.length }, () => new THREE.Texture());
     const layer = new OfficialSkillEffectLayer(data(), () => textures.shift() as THREE.Texture);
     const events: RunEvent[] = [cast(), hit("shield:1", 7, 1000, 0)];
     layer.ingest(events, 0);
     layer.update(80, 0, 0, () => 0, new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 1, 0), 0.5);
     expect(layer.sourceAssetId).toBe(SHIELD_WAVE_EFFECT_ID);
-    expect(layer.sourceAssetIds).toEqual([SHIELD_WAVE_EFFECT_ID, ENDURE_EFFECT_ID, ...TGA_EFFECT_IDS]);
+    expect(layer.sourceAssetIds).toEqual([SHIELD_WAVE_EFFECT_ID, ENDURE_EFFECT_ID, ...LANE_EFFECT_IDS]);
     expect(layer.mesh.count).toBe(1);
     expect(layer.mesh.instanceMatrix.count).toBe(SHIELD_WAVE_CAPACITY);
     const matrix = new THREE.Matrix4();
@@ -398,7 +404,7 @@ describe("official Bash GPU lanes", () => {
     expect(disposed.sort()).toEqual([1, 2, 3, 4]);
   });
 
-  it("disposes all eight lanes exactly once and ignores later frames", () => {
+  it("disposes all eleven lanes exactly once and ignores later frames", () => {
     const textures: THREE.Texture[] = [];
     const layer = new OfficialSkillEffectLayer(data(), () => {
       const t = new THREE.Texture();
@@ -407,7 +413,7 @@ describe("official Bash GPU lanes", () => {
     });
     const counts = { texture: 0, geometry: 0, material: 0 };
     for (const t of textures) t.dispose = () => { counts.texture += 1; };
-    for (const m of [layer.mesh, layer.endureMesh, ...layer.bashMeshes, ...layer.magnumMeshes]) {
+    for (const m of [layer.mesh, layer.endureMesh, ...layer.bashMeshes, ...layer.magnumMeshes, ...layer.provokeMeshes]) {
       m.geometry.dispose = () => { counts.geometry += 1; };
       (m.material as THREE.ShaderMaterial).dispose = () => { counts.material += 1; };
     }
@@ -415,7 +421,7 @@ describe("official Bash GPU lanes", () => {
     layer.dispose();
     layer.ingest([bashCast("g"), bashHit("g", 1, 0, 0)], 0);
     layer.update(10, 0, 0, () => 0, new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 1, 0), 1);
-    expect(counts).toEqual({ texture: 8, geometry: 8, material: 8 });
+    expect(counts).toEqual({ texture: 11, geometry: 11, material: 11 });
     expect(layer.bashActiveCount).toBe(0);
     expect(layer.object.children).toHaveLength(0);
   });
@@ -491,6 +497,80 @@ describe("official Magnum Break GPU lanes", () => {
     layer.update(1000 + MAGNUM_BREAK_DURATION_MS, 0, 0, () => 2, camRight, camUp, 1);
     expect(layer.magnumBreakActiveCount).toBe(0);
     expect(ring.count + explosion.count).toBe(0);
+    layer.dispose();
+  });
+});
+
+const provokeCast = (geomId = "player:skill.sw.provoke:1", tick = 10, radiusMm = 5000): Extract<RunEvent, { type: "skill" }> => ({
+  type: "skill", tick, source: "skill.sw.provoke", geomId,
+  origin: { xMm: 1000, yMm: 1000 }, direction: { x: 10_000, y: 0 },
+  geometry: { shape: "circle", radiusMm }, rank: 1,
+  vfxCue: "skill.sw.provoke", designOrigin: "official-name-adapted",
+});
+
+describe("Provoke presentation", () => {
+  it("one cue per cast at the public origin; samples a wave, a mark and outward sparks that end transparent", () => {
+    const p = new AreaCastPresentation("skill.sw.provoke", PROVOKE_DURATION_MS, PROVOKE_CAPACITY);
+    const events: RunEvent[] = [provokeCast("p1"), magnumCast("m"), provokeCast("p2"), provokeCast("p3")];
+    p.ingest(events, 0);
+    p.ingest([...events], 5);
+    expect(p.cues.map((c) => c.geomId)).toEqual(["p2", "p3"]);
+    const cue = p.cues[0] as NonNullable<(typeof p.cues)[number]>;
+    const mid = sampleProvoke(cue, 120);
+    expect(mid.visible).toBe(true);
+    expect(mid.mark.opacity).toBeGreaterThan(0);
+    expect(sampleProvoke(cue, 500).spark.radiusFactor).toBeGreaterThan(mid.spark.radiusFactor);
+    expect(sampleProvoke(cue, PROVOKE_DURATION_MS)).toMatchObject({ visible: false, wave: { opacity: 0 }, mark: { opacity: 0 }, spark: { opacity: 0 } });
+  });
+});
+
+describe("official Provoke GPU lanes", () => {
+  it("draws a radius-scaled ground wave, a mark and six sparks per cue, then expires", () => {
+    const layer = new OfficialSkillEffectLayer(data(), () => new THREE.Texture());
+    expect(layer.provokeMeshes.map((m) => [(m.userData as { sourceAssetId: string }).sourceAssetId, m.instanceMatrix.count])).toEqual([
+      ["effect.skill.sw.provoke.explosive_1_128", PROVOKE_CAPACITY],
+      ["effect.skill.sw.provoke.piero", PROVOKE_CAPACITY],
+      ["effect.skill.sw.provoke.pika01", PROVOKE_CAPACITY * PROVOKE_SPARKS_PER_CAST],
+    ]);
+    layer.ingest([provokeCast("p", 10, 5000)], 0);
+    layer.update(300, 0, 0, () => 0, new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 1, 0), 1);
+    const [wave, mark, spark] = layer.provokeMeshes as [THREE.InstancedMesh, THREE.InstancedMesh, THREE.InstancedMesh];
+    expect(layer.provokeActiveCount).toBe(1);
+    expect([wave.count, mark.count, spark.count]).toEqual([1, 1, PROVOKE_SPARKS_PER_CAST]);
+    const sample = sampleProvoke({ id: 1, geomId: "p", xMm: 1000, yMm: 1000, radiusMm: 5000, startMs: 0, endMs: PROVOKE_DURATION_MS, phase: Math.PI / 3 }, 300);
+    expect((wave.geometry.getAttribute("aScale") as THREE.InstancedBufferAttribute).getX(0)).toBeCloseTo((10 / (128 * 0.025)) * sample.wave.scale);
+    const matrix = new THREE.Matrix4();
+    for (let k = 0; k < PROVOKE_SPARKS_PER_CAST; k += 1) {
+      spark.getMatrixAt(k, matrix);
+      const at = new THREE.Vector3().setFromMatrixPosition(matrix);
+      expect(Math.hypot(at.x - 1, -at.z - 1)).toBeCloseTo(5 * sample.spark.radiusFactor);
+    }
+    expect(((wave.material as THREE.ShaderMaterial).uniforms.uUp as { value: THREE.Vector3 }).value.toArray()).toEqual([0, 0, -1]);
+    layer.update(PROVOKE_DURATION_MS, 0, 0, () => 0, new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 1, 0), 1);
+    expect(layer.provokeActiveCount).toBe(0);
+    expect(wave.count + mark.count + spark.count).toBe(0);
+    layer.dispose();
+  });
+
+  it.each(PROVOKE_EFFECT_IDS)("fails closed when BMP source %s is missing or drifted", (id) => {
+    const c = PROVOKE_EFFECT_CONTRACT[id];
+    const make = (mutate: (d: FormalSceneData) => void): (() => OfficialSkillEffectLayer) => () => {
+      const d = data();
+      mutate(d);
+      return new OfficialSkillEffectLayer(d, () => new THREE.Texture());
+    };
+    expect(make((d) => d.effects.delete(id))).toThrow(/verified BMP metadata not loaded/u);
+    expect(make((d) => d.effectImages.delete(id))).toThrow(new RegExp(`expected verified ${c.width}x${c.height}`, "u"));
+    expect(make((d) => d.effects.set(id, { ...provokeEffectMeta(id), format: "tga" }))).toThrow(/verified BMP metadata not loaded/u);
+    expect(make((d) => d.effects.set(id, { ...provokeEffectMeta(id), bitsPerPixel: c.bitsPerPixel === 8 ? 24 : 8 }))).toThrow(/ro-color-key metadata required/u);
+    expect(make((d) => d.effects.set(id, { ...provokeEffectMeta(id), alpha: { mode: "source-alpha" } }))).toThrow(/ro-color-key metadata required/u);
+    expect(make((d) => d.effects.set(id, { ...provokeEffectMeta(id), source: { ...provokeEffectMeta(id).source, bytes: 2 } }))).toThrow(/source 2 bytes/u);
+    expect(make((d) => d.effects.set(id, { ...provokeEffectMeta(id), source: { ...provokeEffectMeta(id).source, canonicalPath: "data\\texture\\effect\\x.bmp" } }))).toThrow(/source data/u);
+  });
+
+  it("never draws the unparsed original Provoke STR source", () => {
+    const layer = new OfficialSkillEffectLayer(data(), () => new THREE.Texture());
+    expect(layer.sourceAssetIds).not.toContain("effect.skill.sw.provoke.str");
     layer.dispose();
   });
 });

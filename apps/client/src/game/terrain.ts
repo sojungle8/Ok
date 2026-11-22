@@ -11,6 +11,7 @@ export interface WorldSkillEffectLayer {
   readonly endureActiveCount: number;
   readonly bashActiveCount: number;
   readonly magnumBreakActiveCount: number;
+  readonly provokeActiveCount: number;
   ingest(events: readonly RunEvent[], nowMs: number): void;
   update(nowMs: number, playerXmm: number, playerYmm: number, heightAt: (xm: number, ym: number) => number, right: THREE.Vector3, up: THREE.Vector3, effectOpacity: number): void;
   dispose(): void;

@@ -15,7 +15,7 @@ import {
 } from "../src/game/formal/contract.ts";
 import type { FormalSceneData } from "../src/game/formal/load.ts";
 import { FormalWorld, OfficialShadowLayer, type TextureFactory } from "../src/game/formal/world.ts";
-import { BASH_EFFECT_IDS, ENDURE_EFFECT_ID, MAGNUM_BREAK_EFFECT_IDS, SHIELD_WAVE_EFFECT_ID } from "../src/game/formal/skillEffects.ts";
+import { BASH_EFFECT_IDS, ENDURE_EFFECT_ID, MAGNUM_BREAK_EFFECT_IDS, PROVOKE_EFFECT_IDS, SHIELD_WAVE_EFFECT_ID } from "../src/game/formal/skillEffects.ts";
 import { tgaEffectEntries, tgaImageEntries } from "./skill-effect-fixture.ts";
 import type { SheetData } from "../src/game/sprites.ts";
 
@@ -122,7 +122,8 @@ describe("formal ground: GND texture UVs + vertex colour + embedded lightmap (st
     expect(w.skillEffects.endureMesh.userData).toMatchObject({ formal: "skill-effect", sourceAssetId: ENDURE_EFFECT_ID });
     expect(w.skillEffects.bashMeshes.map((m) => (m.userData as { sourceAssetId: string }).sourceAssetId)).toEqual([...BASH_EFFECT_IDS]);
     expect(w.skillEffects.magnumMeshes.map((m) => (m.userData as { sourceAssetId: string }).sourceAssetId)).toEqual([...MAGNUM_BREAK_EFFECT_IDS]);
-    expect(w.skillEffects.object.children).toEqual([w.skillEffects.mesh, w.skillEffects.endureMesh, ...w.skillEffects.bashMeshes, ...w.skillEffects.magnumMeshes]);
+    expect(w.skillEffects.object.children).toEqual([w.skillEffects.mesh, w.skillEffects.endureMesh, ...w.skillEffects.bashMeshes, ...w.skillEffects.magnumMeshes, ...w.skillEffects.provokeMeshes]);
+    expect(w.skillEffects.provokeMeshes.map((m) => (m.userData as { sourceAssetId: string }).sourceAssetId)).toEqual([...PROVOKE_EFFECT_IDS]);
   });
 });
 

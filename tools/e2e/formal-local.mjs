@@ -576,6 +576,89 @@ try {
     );
     const magnumExpired = true;
 
+    // Provoke: three nearby targets trigger the authoritative debuff; the exact three verified
+    // original-RO BMP-derived sources (ground wave, mark, sparks) must draw, then expire. The original
+    // provoke.str animation stays source-only and is never drawn.
+    const provokeFxSources = await page.getByTestId("world").getAttribute("data-ro-provoke-fx-sources");
+    await page.waitForFunction(() => {
+      const state = window.__run?.();
+      return state?.phase === "running" && state.enemies.filter((enemy) => enemy.hp > 0).length >= 3
+        && Number(document.querySelector('[data-testid="world"]')?.getAttribute("data-ro-provoke-fx-active") ?? "0") === 0;
+    }, null, { timeout: 10_000 });
+    const provokeProbe = await page.evaluate(() => {
+      const state = window.__run?.();
+      if (!state) return { injected: false, enemyCount: 0, targetIds: [] };
+      const targets = state.enemies.filter((enemy) => enemy.hp > 0).slice(0, 3);
+      window.__roProvokeProbeRestore = {
+        player: {
+          active: structuredClone(state.player.active),
+          passive: structuredClone(state.player.passive),
+          keystone: state.player.keystone,
+          basicReadyAt: state.player.basicReadyAt,
+          basicHitAt: state.player.basicHitAt,
+          castSlot: state.player.castSlot,
+          castEndAt: state.player.castEndAt,
+          castDx: state.player.castDx,
+          castDy: state.player.castDy,
+        },
+        stats: structuredClone(state.stats),
+        targets: targets.map((enemy) => structuredClone(enemy)),
+      };
+      const offsets = [[-1_500, -1_500], [0, -2_000], [1_500, -1_500]];
+      targets.forEach((enemy, index) => {
+        const [ox, oy] = offsets[index] ?? [0, 0];
+        enemy.x = state.player.x + ox;
+        enemy.y = state.player.y + oy;
+        enemy.hp = 100_000;
+        enemy.maxHp = 100_000;
+        enemy.debuffUntil = -1;
+      });
+      state.player.active = [{ id: "skill.sw.provoke", rank: 3, readyAt: state.runTick }];
+      state.player.passive = [];
+      state.player.keystone = null;
+      state.player.basicReadyAt = Number.MAX_SAFE_INTEGER;
+      state.player.basicHitAt = -1;
+      state.player.castSlot = -1;
+      return { injected: targets.length === 3, enemyCount: targets.length, targetIds: targets.map((enemy) => enemy.id) };
+    });
+    await page.waitForFunction(
+      (targetIds) => {
+        const state = window.__run?.();
+        const debuffed = (state?.enemies ?? []).filter((enemy) => targetIds.includes(enemy.id) && enemy.debuffUntil > state.runTick).length;
+        return Number(document.querySelector('[data-testid="world"]')?.getAttribute("data-ro-provoke-fx-active") ?? "0") > 0 && debuffed > 0;
+      },
+      provokeProbe.targetIds,
+      { timeout: 10_000 },
+    );
+    await page.waitForTimeout(120);
+    const provokeFxEvidence = await page.evaluate((targetIds) => {
+      const state = window.__run?.();
+      return {
+        active: Number(document.querySelector('[data-testid="world"]')?.getAttribute("data-ro-provoke-fx-active") ?? "0"),
+        debuffedTargets: (state?.enemies ?? []).filter((enemy) => targetIds.includes(enemy.id) && enemy.debuffUntil > state.runTick).length,
+      };
+    }, provokeProbe.targetIds);
+    const provokeFxScreenshot = join(out, `formal-${viewport.tag}-provoke.png`);
+    await page.screenshot({ path: provokeFxScreenshot });
+    await page.evaluate(() => {
+      const state = window.__run?.();
+      const restore = window.__roProvokeProbeRestore;
+      if (!state || !restore) return;
+      Object.assign(state.player, structuredClone(restore.player));
+      state.stats = structuredClone(restore.stats);
+      for (const snapshot of restore.targets) {
+        const enemy = state.enemies.find((candidate) => candidate.id === snapshot.id);
+        if (enemy) Object.assign(enemy, structuredClone(snapshot));
+      }
+      delete window.__roProvokeProbeRestore;
+    });
+    await page.waitForFunction(
+      () => Number(document.querySelector('[data-testid="world"]')?.getAttribute("data-ro-provoke-fx-active") ?? "0") === 0,
+      null,
+      { timeout: 10_000 },
+    );
+    const provokeExpired = true;
+
     const surface = {
       world: await page.getByTestId("world").count(),
       hud: await page.getByTestId("run-hud").count(),
@@ -640,6 +723,10 @@ try {
       && magnumProbe.injected === true
       && magnumFxEvidence.effectiveHitDamage > 0
       && magnumExpired
+      && provokeFxSources === "effect.skill.sw.provoke.explosive_1_128,effect.skill.sw.provoke.piero,effect.skill.sw.provoke.pika01"
+      && provokeProbe.injected === true
+      && provokeFxEvidence.debuffedTargets > 0
+      && provokeExpired
       && mobileControl.count === 1
       && mobileControl.visible === viewport.touch
       && mobileControl.coarsePointer === viewport.touch
@@ -664,7 +751,7 @@ try {
       && layout.overlapPairs.length === 0
       && layout.noPageOverflow
       && errors.length === 0;
-    results.push({ viewport: viewport.tag, size: `${viewport.width}x${viewport.height}`, buildId, moved, audioStarted, shieldFxSource, shieldProbe, shieldFxEvidence, endureFxSource, endureProbe, endureFxEvidence, endureExpired, bashFxSources, bashProbe, bashFxEvidence, bashExpired, magnumFxSources, magnumProbe, magnumFxEvidence, magnumExpired, mobileControl, shellLayouts, surface, draftLayout, layout, canceledRequests, errors, draftScreenshot: draftScreenshot.slice(root.length + 1), shieldFxScreenshot: shieldFxScreenshot.slice(root.length + 1), endureFxScreenshot: endureFxScreenshot.slice(root.length + 1), bashFxScreenshot: bashFxScreenshot.slice(root.length + 1), magnumFxScreenshot: magnumFxScreenshot.slice(root.length + 1), screenshot: screenshot.slice(root.length + 1), status: pass ? "PASS" : "FAIL" });
+    results.push({ viewport: viewport.tag, size: `${viewport.width}x${viewport.height}`, buildId, moved, audioStarted, shieldFxSource, shieldProbe, shieldFxEvidence, endureFxSource, endureProbe, endureFxEvidence, endureExpired, bashFxSources, bashProbe, bashFxEvidence, bashExpired, magnumFxSources, magnumProbe, magnumFxEvidence, magnumExpired, provokeFxSources, provokeProbe, provokeFxEvidence, provokeExpired, mobileControl, shellLayouts, surface, draftLayout, layout, canceledRequests, errors, draftScreenshot: draftScreenshot.slice(root.length + 1), shieldFxScreenshot: shieldFxScreenshot.slice(root.length + 1), endureFxScreenshot: endureFxScreenshot.slice(root.length + 1), bashFxScreenshot: bashFxScreenshot.slice(root.length + 1), magnumFxScreenshot: magnumFxScreenshot.slice(root.length + 1), provokeFxScreenshot: provokeFxScreenshot.slice(root.length + 1), screenshot: screenshot.slice(root.length + 1), status: pass ? "PASS" : "FAIL" });
     await context.close();
   }
 } finally {
