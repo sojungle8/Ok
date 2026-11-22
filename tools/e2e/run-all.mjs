@@ -4,6 +4,7 @@
 //   C. test-fixture build + synthetic gateway -> game flow (tools/e2e/flow.mjs): autoplay to results +
 //      settlement, drafts by key / touch / gamepad, keyboard movement
 //   D. bench on the test-fixture build
+//   F. offline app shell (service worker) of the formal build
 // Synthetic fixtures are only ever served to the separate test build in apps/client/dist-test.
 import { spawn, execFileSync } from "node:child_process";
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -44,6 +45,9 @@ try {
   // Formal builds ignore VITE_ALLOW_SYNTHETIC (set here on purpose); only --mode fixture builds dist-test.
   runPnpm(["--filter", "@ro-survivor/client", "build"], { VITE_ASSET_GATEWAY_URL: "", VITE_ALLOW_SYNTHETIC: "1" });
   const a = capture(["tools/e2e/smoke.mjs"], { SMOKE_EXPECT: "blocked", SMOKE_TAG: "-A-formal-no-gateway", SMOKE_REASON: "未設定 asset gateway" });
+  // F. offline app shell of the same formal build (Phase 3.3): shell-only cache, offline reload.
+  const f = capture(["tools/e2e/pwa.mjs"], { PWA_DIST: "apps/client/dist" });
+  console.log(`pwa: ${f.out.trim().split("\n").slice(-12).join(" ")}`);
   runPnpm(["--filter", "@ro-survivor/client", "exec", "vite", "build", "--outDir", "dist-formal-gw"], { VITE_ASSET_GATEWAY_URL: gwUrl, VITE_ALLOW_SYNTHETIC: "1" });
   const b = capture(["tools/e2e/smoke.mjs"], { SMOKE_DIST: "apps/client/dist-formal-gw", SMOKE_EXPECT: "blocked", SMOKE_TAG: "-B-formal-refuses-fixture", SMOKE_REASON: "synthetic fixture" });
   runPnpm(["--filter", "@ro-survivor/client", "build:test-fixture"], { VITE_ASSET_GATEWAY_URL: gwUrl });
@@ -58,7 +62,7 @@ try {
   // UI-B3 ships the guarded RO primitives now. E only proves that the fixture-only world module
   // remains absent from both formal builds and present in the explicitly labelled test build.
   const e = { code: !sep.dist && !sep["dist-formal-gw"] && sep["dist-test"] ? 0 : 1 };
-  Object.assign(summary, { A: a, B: b, C: c, D: { code: d.code }, E: e });
+  Object.assign(summary, { A: a, B: b, C: c, D: { code: d.code }, E: e, F: f });
   for (const [k, v] of Object.entries({ A: a, B: b })) writeFileSync(join(root, `reports/phase1/smoke-${k}.json`), v.out.slice(v.out.indexOf("[")));
 } finally {
   gw.kill();

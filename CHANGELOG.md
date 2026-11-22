@@ -2,6 +2,12 @@
 
 ## Unreleased — original assets, RO UI and D-032 skills (2026-11-17–18)
 
+- Phase 3.3 offline app shell: builds emit `manifest.webmanifest` and a generated `sw.js` that precaches only the
+  built HTML/JS/CSS/manifest (versioned by build ID) and passes every other request — gateway, GRF, derived and
+  local RO data — straight to the network. New versions install in the background and apply at the next launch;
+  a running game is never reloaded. New browser check F proves an offline reload of the formal build with a
+  shell-only cache. Coarse-pointer devices render at most 1.5× DPR (desktop 2×). The manifest has no icon yet
+  (an installable icon needs a rights decision), so the shell works offline but is not yet installable.
 - D032-E5 Provoke STR: a strict clean-room STR 0x94 parser (`@ro-survivor/ro-format-runtime/str`; bounded counts,
   finite floats, printable-ASCII names, exact length) plus a pure playback sampler. The formal client fetches the
   whitelisted `provoke.str` bytes, verifies size and SHA-256 against the whitelist, parses them and resolves every

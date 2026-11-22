@@ -1,6 +1,7 @@
 import { render } from "preact";
 import { App } from "./App.tsx";
 import { FIXTURE_BUILD } from "./gateway.ts";
+import { registerAppShell } from "./pwa.ts";
 import "./style.css";
 
 const root = document.getElementById("app");
@@ -13,3 +14,4 @@ if (FIXTURE_BUILD && new URLSearchParams(location.search).has("bench")) {
 } else {
   render(<App />, root);
 }
+registerAppShell();

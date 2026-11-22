@@ -2,6 +2,7 @@ import { fileURLToPath } from "node:url";
 import { defineConfig, type Plugin } from "vite";
 import preact from "@preact/preset-vite";
 import { computeBuildInfo, resolveClientBuild } from "./build-info.ts";
+import { APP_MANIFEST, serviceWorkerSource, shellFiles } from "./pwa/app-shell.ts";
 
 const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
 const { buildId, profile } = computeBuildInfo(repoRoot, process.env);
@@ -25,10 +26,23 @@ function excludeFixtureModules(): Plugin {
   };
 }
 
+/** Emit sw.js + manifest.webmanifest listing only the built shell files (Phase 3.3). */
+function appShell(id: string): Plugin {
+  return {
+    name: "ro-app-shell",
+    apply: "build",
+    generateBundle(_options, bundle) {
+      this.emitFile({ type: "asset", fileName: "manifest.webmanifest", source: JSON.stringify(APP_MANIFEST, null, 2) });
+      const files = shellFiles([...Object.keys(bundle), "index.html", "manifest.webmanifest"]);
+      this.emitFile({ type: "asset", fileName: "sw.js", source: serviceWorkerSource(id, files) });
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => {
   const client = resolveClientBuild(mode);
   return {
-  plugins: [preact(), ...(client.fixture ? [] : [excludeFixtureModules()])],
+  plugins: [preact(), ...(client.fixture ? [] : [excludeFixtureModules()]), appShell(buildId)],
   base: "./",
   define: {
     __BUILD_ID__: JSON.stringify(buildId),

@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import type { RunContent, RunState } from "@ro-survivor/core-sim";
+import { renderPixelRatio } from "../pwa.ts";
 import { telegraphColors, type Settings } from "../settings.ts";
 import type { OfficialShadowLayer } from "./formal/world.ts";
 import {
@@ -62,7 +63,7 @@ export class RunRenderer {
       canvas.dataset.roMagnumFxSources = world.skillEffects.sourceAssetIds.filter((id) => (MAGNUM_BREAK_EFFECT_IDS as readonly string[]).includes(id)).join(",");
       canvas.dataset.roProvokeFxSources = world.skillEffects.sourceAssetIds.filter((id) => id === PROVOKE_STR_ID || (PROVOKE_EFFECT_IDS as readonly string[]).includes(id)).join(",");
     }
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.setPixelRatio(renderPixelRatio(window.devicePixelRatio, window.matchMedia("(pointer: coarse)").matches));
     this.renderer.setClearColor(0x1d1b18);
     this.#player = new BillboardBatch(player, 1);
     this.#player.mesh.renderOrder = 5;

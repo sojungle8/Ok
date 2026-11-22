@@ -20,6 +20,7 @@
     "src/**/*.tsx",
     "test/**/*.ts",
     "vite.config.ts",
-    "build-info.ts"
+    "build-info.ts",
+    "pwa/**/*.ts"
   ]
 }
