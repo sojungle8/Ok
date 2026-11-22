@@ -17,7 +17,11 @@ The 12 new original-RO skill-effect sources (7 TGA, 1 STR, 4 BMP) are verified a
 the real-local extraction/load path (374 outputs overall; 12 effect metadata records and 11 derived PNGs; STR remains
 explicitly source-only). Shield Wave is **LOCAL_PASS** with the verified 64×64 Shield Boomerang bitmap and a bounded
 clean-room motion renderer. Endure is also **LOCAL_PASS** with the verified 64×64 source-alpha TGA in one
-player-following slot and a 900 ms presentation-only pulse/fade. Bash, Magnum Break and Provoke rendering remain open.
+player-following slot and a 900 ms presentation-only pulse/fade. Bash (`3a78905`), Magnum Break (`c1cc07d`) and
+Provoke (`9ff1fe2`) renderers are now connected in the cloud with fail-closed verified-source contracts and unit/CI
+coverage; their real-asset four-viewport evidence is **DEFERRED_LOCAL** (`pnpm e2e:formal-local` probes are ready).
+Provoke draws its three verified BMP dependencies; the original `provoke.str` stays source-only until a bounded STR
+parser exists.
 
 RO UI is still **in progress**, with the visible run HUD, formal level-up/keystone draft and results window now
 **LOCAL_PASS** (`reports/phase1/UI-B3-LOCAL-ACCEPTANCE.md`, `reports/phase1/UI-B4-DRAFT-LOCAL-ACCEPTANCE.md`,
@@ -61,8 +65,8 @@ four-stage first-60-second gates and the D-032-v0.3 density + clear-speed / MVP-
 control scorecard. The same ten fixed seeds are replayed per
 adapter and remain an initial bot baseline, not final tuning or 30 independent samples. The approved project-owned
 skill-VFX count is still **0**. Canonical v5 instead verifies 12 original KRO effect sources; the derived pipeline is
-complete and Shield Wave plus Endure are the first two formal renderer hookups, while Bash, Magnum Break and Provoke
-remain open. Characters, monsters/MVPs,
+complete; Shield Wave and Endure are LOCAL_PASS, and Bash, Magnum Break and Provoke are connected with real-local
+evidence DEFERRED_LOCAL. Characters, monsters/MVPs,
 NPCs, maps, formal UI and audio remain original-RO-only under D-022; AI or closed-source-derived skill art remains
 forbidden. Dedicated five-scenario balance tests, human/device review and every job beyond Swordsman remain open.
 
