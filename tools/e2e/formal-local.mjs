@@ -420,6 +420,83 @@ try {
     const endureExpired = true;
     await page.waitForTimeout(900);
 
+    // Bash: a rank-3 cast with two positioned authoritative hits must draw the exact four verified
+    // original-RO TGA-derived sources at the hit anchors, deal effective damage, then expire to 0.
+    const bashFxSources = await page.getByTestId("world").getAttribute("data-ro-bash-fx-sources");
+    await page.waitForFunction(() => {
+      const state = window.__run?.();
+      return state?.phase === "running" && state.enemies.filter((enemy) => enemy.hp > 0).length >= 2
+        && Number(document.querySelector('[data-testid="world"]')?.getAttribute("data-ro-bash-fx-active") ?? "0") === 0;
+    }, null, { timeout: 10_000 });
+    const bashProbe = await page.evaluate(() => {
+      const state = window.__run?.();
+      if (!state) return { injected: false, enemyCount: 0 };
+      const targets = state.enemies.filter((enemy) => enemy.hp > 0).slice(0, 2);
+      window.__roBashProbeRestore = {
+        player: {
+          active: structuredClone(state.player.active),
+          passive: structuredClone(state.player.passive),
+          keystone: state.player.keystone,
+          basicReadyAt: state.player.basicReadyAt,
+          basicHitAt: state.player.basicHitAt,
+          castSlot: state.player.castSlot,
+          castEndAt: state.player.castEndAt,
+          castDx: state.player.castDx,
+          castDy: state.player.castDy,
+        },
+        stats: structuredClone(state.stats),
+        targets: targets.map((enemy) => structuredClone(enemy)),
+      };
+      const offsets = [-150, 150];
+      targets.forEach((enemy, index) => {
+        enemy.x = state.player.x + (offsets[index] ?? 0);
+        enemy.y = state.player.y - 1_200;
+        enemy.hp = 100_000;
+        enemy.maxHp = 100_000;
+      });
+      state.player.active = [{ id: "skill.sw.bash", rank: 3, readyAt: state.runTick }];
+      state.player.passive = [];
+      state.player.keystone = null;
+      state.player.basicReadyAt = Number.MAX_SAFE_INTEGER;
+      state.player.basicHitAt = -1;
+      state.player.castSlot = -1;
+      return {
+        injected: targets.length === 2,
+        enemyCount: targets.length,
+        effectiveBefore: state.stats.effectiveDamageBySource["skill.sw.bash"] ?? 0,
+      };
+    });
+    await page.waitForFunction(
+      (effectiveBefore) => Number(document.querySelector('[data-testid="world"]')?.getAttribute("data-ro-bash-fx-active") ?? "0") > 0
+        && (window.__run?.()?.stats.effectiveDamageBySource["skill.sw.bash"] ?? 0) > effectiveBefore,
+      bashProbe.effectiveBefore,
+      { timeout: 10_000 },
+    );
+    const bashFxEvidence = await page.evaluate((effectiveBefore) => ({
+      active: Number(document.querySelector('[data-testid="world"]')?.getAttribute("data-ro-bash-fx-active") ?? "0"),
+      effectiveHitDamage: (window.__run?.()?.stats.effectiveDamageBySource["skill.sw.bash"] ?? 0) - effectiveBefore,
+    }), bashProbe.effectiveBefore);
+    const bashFxScreenshot = join(out, `formal-${viewport.tag}-bash.png`);
+    await page.screenshot({ path: bashFxScreenshot });
+    await page.evaluate(() => {
+      const state = window.__run?.();
+      const restore = window.__roBashProbeRestore;
+      if (!state || !restore) return;
+      Object.assign(state.player, structuredClone(restore.player));
+      state.stats = structuredClone(restore.stats);
+      for (const snapshot of restore.targets) {
+        const enemy = state.enemies.find((candidate) => candidate.id === snapshot.id);
+        if (enemy) Object.assign(enemy, structuredClone(snapshot));
+      }
+      delete window.__roBashProbeRestore;
+    });
+    await page.waitForFunction(
+      () => Number(document.querySelector('[data-testid="world"]')?.getAttribute("data-ro-bash-fx-active") ?? "0") === 0,
+      null,
+      { timeout: 10_000 },
+    );
+    const bashExpired = true;
+
     const surface = {
       world: await page.getByTestId("world").count(),
       hud: await page.getByTestId("run-hud").count(),
@@ -475,6 +552,11 @@ try {
       && endureProbe.injected === true
       && endureFxEvidence.active === 1
       && endureExpired
+      && bashFxSources === "effect.skill.sw.bash.alpha_down,effect.skill.sw.bash.alpha_center,effect.skill.sw.bash.lens1,effect.skill.sw.bash.lens2"
+      && bashProbe.injected === true
+      && bashFxEvidence.active > 0
+      && bashFxEvidence.effectiveHitDamage > 0
+      && bashExpired
       && mobileControl.count === 1
       && mobileControl.visible === viewport.touch
       && mobileControl.coarsePointer === viewport.touch
@@ -499,7 +581,7 @@ try {
       && layout.overlapPairs.length === 0
       && layout.noPageOverflow
       && errors.length === 0;
-    results.push({ viewport: viewport.tag, size: `${viewport.width}x${viewport.height}`, buildId, moved, audioStarted, shieldFxSource, shieldProbe, shieldFxEvidence, endureFxSource, endureProbe, endureFxEvidence, endureExpired, mobileControl, shellLayouts, surface, draftLayout, layout, canceledRequests, errors, draftScreenshot: draftScreenshot.slice(root.length + 1), shieldFxScreenshot: shieldFxScreenshot.slice(root.length + 1), endureFxScreenshot: endureFxScreenshot.slice(root.length + 1), screenshot: screenshot.slice(root.length + 1), status: pass ? "PASS" : "FAIL" });
+    results.push({ viewport: viewport.tag, size: `${viewport.width}x${viewport.height}`, buildId, moved, audioStarted, shieldFxSource, shieldProbe, shieldFxEvidence, endureFxSource, endureProbe, endureFxEvidence, endureExpired, bashFxSources, bashProbe, bashFxEvidence, bashExpired, mobileControl, shellLayouts, surface, draftLayout, layout, canceledRequests, errors, draftScreenshot: draftScreenshot.slice(root.length + 1), shieldFxScreenshot: shieldFxScreenshot.slice(root.length + 1), endureFxScreenshot: endureFxScreenshot.slice(root.length + 1), bashFxScreenshot: bashFxScreenshot.slice(root.length + 1), screenshot: screenshot.slice(root.length + 1), status: pass ? "PASS" : "FAIL" });
     await context.close();
   }
 } finally {

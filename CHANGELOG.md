@@ -2,6 +2,13 @@
 
 ## Unreleased — original assets, RO UI and D-032 skills (2026-11-17–18)
 
+- D032-E2 Bash: four verified original-RO TGA-derived sources (`alpha_down` 64×64, `alpha_center` 32×32,
+  `lens1`/`lens2` 32×128, 32-bit source-alpha) drive a clean-room layered impact anchored on every positioned
+  authoritative Bash hit with the cast geomId (rank 3 draws both targets); one bounded fallback only without a
+  positioned hit. Four long-lived instanced lanes of 16 cues (≤64 planes), 360 ms presentation-only lifetime,
+  geomId + target replay protection, rollback of earlier lanes on partial construction, idempotent dispose. Format,
+  bpp, alpha, dimensions, derived size, SHA-256 presence, canonical path and byte-size drift fail closed. No
+  skill number, simulation state or whitelist row changed; real-local four-viewport evidence is `DEFERRED_LOCAL`.
 - PUBLIC-REF-A adds strict legacy-v1/current-v2 public-reference schemas and an append-only offline gate for the
   hash-locked integration plan, two snapshots, two ledger segments and 33 observations. It compares worktree and
   staged Git bytes, rejects duplicate JSON keys, unsafe URLs/text/paths, unresolved or mis-sourced variant conflicts

@@ -118,6 +118,10 @@ describe("formal scene loader on the real derived contract (synthetic sources)",
     ["effect.skill.sw.shield_wave.projectile.png", "effect.skill.sw.shield_wave.projectile"],
     ["effect.skill.sw.endure.json", "effect.skill.sw.endure"],
     ["effect.skill.sw.endure.png", "effect.skill.sw.endure"],
+    ...["alpha_down", "alpha_center", "lens1", "lens2"].flatMap((part) => [
+      [`effect.skill.sw.bash.${part}.json`, `effect.skill.sw.bash.${part}`],
+      [`effect.skill.sw.bash.${part}.png`, `effect.skill.sw.bash.${part}`],
+    ]),
   ])("a missing official effect output %s blocks the world by canonical source path", async (file, id) => {
     const { client, whitelist, out } = await setup();
     rmSync(join(out, file));

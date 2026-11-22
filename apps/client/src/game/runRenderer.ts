@@ -14,7 +14,7 @@ import {
 import { BillboardBatch } from "./renderer.ts";
 import type { SpriteSheet } from "./sprites.ts";
 import type { WorldLayer } from "./terrain.ts";
-import { ENDURE_EFFECT_ID } from "./formal/skillEffects.ts";
+import { BASH_EFFECT_IDS, ENDURE_EFFECT_ID } from "./formal/skillEffects.ts";
 
 /**
  * Renders a RunState read-only. Actors use RO sprite sheets only (D-022). The world (formal: original
@@ -58,6 +58,7 @@ export class RunRenderer {
       canvas.dataset.roSkillFxSource = world.skillEffects.sourceAssetId;
       canvas.dataset.roSkillFxSources = world.skillEffects.sourceAssetIds.join(",");
       canvas.dataset.roEndureFxSource = world.skillEffects.sourceAssetIds.find((id) => id === ENDURE_EFFECT_ID) ?? "";
+      canvas.dataset.roBashFxSources = world.skillEffects.sourceAssetIds.filter((id) => (BASH_EFFECT_IDS as readonly string[]).includes(id)).join(",");
     }
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.setClearColor(0x1d1b18);
@@ -177,6 +178,7 @@ export class RunRenderer {
     if (this.world.skillEffects) {
       this.renderer.domElement.dataset.roSkillFxActive = String(this.world.skillEffects.shieldWaveActiveCount);
       this.renderer.domElement.dataset.roEndureFxActive = String(this.world.skillEffects.endureActiveCount);
+      this.renderer.domElement.dataset.roBashFxActive = String(this.world.skillEffects.bashActiveCount);
     }
     const playerAnimation = this.#presentation.playerAnimation(st, presentMs, presentMs);
     this.#player.set(0, px, py, pz, playerAnimation.slot, dir(p.fx, p.fy), playerAnimation.timeMs);
@@ -280,6 +282,8 @@ export class RunRenderer {
     delete this.renderer.domElement.dataset.roSkillFxActive;
     delete this.renderer.domElement.dataset.roEndureFxSource;
     delete this.renderer.domElement.dataset.roEndureFxActive;
+    delete this.renderer.domElement.dataset.roBashFxSources;
+    delete this.renderer.domElement.dataset.roBashFxActive;
     this.renderer.dispose();
   }
 }

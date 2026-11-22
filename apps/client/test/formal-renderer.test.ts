@@ -15,7 +15,8 @@ import {
 } from "../src/game/formal/contract.ts";
 import type { FormalSceneData } from "../src/game/formal/load.ts";
 import { FormalWorld, OfficialShadowLayer, type TextureFactory } from "../src/game/formal/world.ts";
-import { ENDURE_EFFECT_ID, SHIELD_WAVE_EFFECT_ID } from "../src/game/formal/skillEffects.ts";
+import { BASH_EFFECT_IDS, ENDURE_EFFECT_ID, SHIELD_WAVE_EFFECT_ID } from "../src/game/formal/skillEffects.ts";
+import { bashEffectEntries, bashImageEntries } from "./bash-effect-fixture.ts";
 import type { SheetData } from "../src/game/sprites.ts";
 
 // Minimal golden derived contract (2×2 GND, one model placed twice, 32 water frames, one sound).
@@ -78,8 +79,8 @@ function data(): FormalSceneData {
     scene, gnd, ground: buildGroundBuffers(gnd), models, baked: new Map([["model.m", bakeModel(model)]]), instances: buildModelInstances(scene, gnd, models),
     shadow, shadowParams: shadowParams(shadow), sounds: soundPlacements(scene, gnd), images,
     water: new Map(frames.map((f) => [f, img(128, 128, f)])), waterCells: buildWaterBuffers(gnd, 1), audio: new Map([["bgm.prt_fild08", new ArrayBuffer(4)], ["wav.1", new ArrayBuffer(4)]]),
-    effects: new Map([[SHIELD_WAVE_EFFECT_ID, shieldEffect], [ENDURE_EFFECT_ID, endureEffect]]),
-    effectImages: new Map([[SHIELD_WAVE_EFFECT_ID, img(64, 64, "shield-wave")], [ENDURE_EFFECT_ID, img(64, 64, "endure")]]),
+    effects: new Map([[SHIELD_WAVE_EFFECT_ID, shieldEffect], [ENDURE_EFFECT_ID, endureEffect], ...bashEffectEntries()]),
+    effectImages: new Map([[SHIELD_WAVE_EFFECT_ID, img(64, 64, "shield-wave")], [ENDURE_EFFECT_ID, img(64, 64, "endure")], ...bashImageEntries(img)]),
   };
 }
 const gat = { width: 4, height: 4, types: "0".repeat(16), cellHeights: new Array<number>(16).fill(0) };
@@ -119,7 +120,8 @@ describe("formal ground: GND texture UVs + vertex colour + embedded lightmap (st
     expect(w.skillEffects.sourceAssetId).toBe(SHIELD_WAVE_EFFECT_ID);
     expect(w.skillEffects.mesh.userData).toMatchObject({ formal: "skill-effect", sourceAssetId: SHIELD_WAVE_EFFECT_ID });
     expect(w.skillEffects.endureMesh.userData).toMatchObject({ formal: "skill-effect", sourceAssetId: ENDURE_EFFECT_ID });
-    expect(w.skillEffects.object.children).toEqual([w.skillEffects.mesh, w.skillEffects.endureMesh]);
+    expect(w.skillEffects.bashMeshes.map((m) => (m.userData as { sourceAssetId: string }).sourceAssetId)).toEqual([...BASH_EFFECT_IDS]);
+    expect(w.skillEffects.object.children).toEqual([w.skillEffects.mesh, w.skillEffects.endureMesh, ...w.skillEffects.bashMeshes]);
   });
 });
 
