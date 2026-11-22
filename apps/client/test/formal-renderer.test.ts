@@ -15,8 +15,8 @@ import {
 } from "../src/game/formal/contract.ts";
 import type { FormalSceneData } from "../src/game/formal/load.ts";
 import { FormalWorld, OfficialShadowLayer, type TextureFactory } from "../src/game/formal/world.ts";
-import { BASH_EFFECT_IDS, ENDURE_EFFECT_ID, MAGNUM_BREAK_EFFECT_IDS, PROVOKE_EFFECT_IDS, SHIELD_WAVE_EFFECT_ID } from "../src/game/formal/skillEffects.ts";
-import { tgaEffectEntries, tgaImageEntries } from "./skill-effect-fixture.ts";
+import { BASH_EFFECT_IDS, ENDURE_EFFECT_ID, MAGNUM_BREAK_EFFECT_IDS, SHIELD_WAVE_EFFECT_ID } from "../src/game/formal/skillEffects.ts";
+import { syntheticProvokeStr, tgaEffectEntries, tgaImageEntries } from "./skill-effect-fixture.ts";
 import type { SheetData } from "../src/game/sprites.ts";
 
 // Minimal golden derived contract (2×2 GND, one model placed twice, 32 water frames, one sound).
@@ -81,6 +81,7 @@ function data(): FormalSceneData {
     water: new Map(frames.map((f) => [f, img(128, 128, f)])), waterCells: buildWaterBuffers(gnd, 1), audio: new Map([["bgm.prt_fild08", new ArrayBuffer(4)], ["wav.1", new ArrayBuffer(4)]]),
     effects: new Map([[SHIELD_WAVE_EFFECT_ID, shieldEffect], [ENDURE_EFFECT_ID, endureEffect], ...tgaEffectEntries()]),
     effectImages: new Map([[SHIELD_WAVE_EFFECT_ID, img(64, 64, "shield-wave")], [ENDURE_EFFECT_ID, img(64, 64, "endure")], ...tgaImageEntries(img)]),
+    effectAnimations: new Map([["effect.skill.sw.provoke.str", syntheticProvokeStr()]]),
   };
 }
 const gat = { width: 4, height: 4, types: "0".repeat(16), cellHeights: new Array<number>(16).fill(0) };
@@ -122,8 +123,8 @@ describe("formal ground: GND texture UVs + vertex colour + embedded lightmap (st
     expect(w.skillEffects.endureMesh.userData).toMatchObject({ formal: "skill-effect", sourceAssetId: ENDURE_EFFECT_ID });
     expect(w.skillEffects.bashMeshes.map((m) => (m.userData as { sourceAssetId: string }).sourceAssetId)).toEqual([...BASH_EFFECT_IDS]);
     expect(w.skillEffects.magnumMeshes.map((m) => (m.userData as { sourceAssetId: string }).sourceAssetId)).toEqual([...MAGNUM_BREAK_EFFECT_IDS]);
-    expect(w.skillEffects.object.children).toEqual([w.skillEffects.mesh, w.skillEffects.endureMesh, ...w.skillEffects.bashMeshes, ...w.skillEffects.magnumMeshes, ...w.skillEffects.provokeMeshes]);
-    expect(w.skillEffects.provokeMeshes.map((m) => (m.userData as { sourceAssetId: string }).sourceAssetId)).toEqual([...PROVOKE_EFFECT_IDS]);
+    expect(w.skillEffects.object.children).toEqual([w.skillEffects.mesh, w.skillEffects.endureMesh, ...w.skillEffects.bashMeshes, ...w.skillEffects.magnumMeshes, w.skillEffects.provokeStr.object]);
+    expect(w.skillEffects.provokeStr.object.children.every((m) => (m.userData as { sourceAssetId: string }).sourceAssetId === "effect.skill.sw.provoke.str")).toBe(true);
   });
 });
 

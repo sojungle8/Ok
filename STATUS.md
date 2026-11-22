@@ -20,8 +20,8 @@ clean-room motion renderer. Endure is also **LOCAL_PASS** with the verified 64×
 player-following slot and a 900 ms presentation-only pulse/fade. Bash (`3a78905`), Magnum Break (`c1cc07d`) and
 Provoke (`9ff1fe2`) renderers are now connected in the cloud with fail-closed verified-source contracts and unit/CI
 coverage; their real-asset four-viewport evidence is **DEFERRED_LOCAL** (`pnpm e2e:formal-local` probes are ready).
-Provoke draws its three verified BMP dependencies; the original `provoke.str` stays source-only until a bounded STR
-parser exists.
+Provoke now plays the original `provoke.str` (client-side verified + parsed by a bounded STR 0x94 parser) with its
+three verified BMP dependencies; STR playback semantics still need real-client visual confirmation.
 
 RO UI is still **in progress**, with the visible run HUD, formal level-up/keystone draft and results window now
 **LOCAL_PASS** (`reports/phase1/UI-B3-LOCAL-ACCEPTANCE.md`, `reports/phase1/UI-B4-DRAFT-LOCAL-ACCEPTANCE.md`,

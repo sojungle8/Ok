@@ -4,6 +4,8 @@ import type { RunEvent } from "@ro-survivor/core-sim";
 import type { WorldSkillEffectLayer } from "../terrain.ts";
 import type { FormalSceneData, ImageLike } from "./load.ts";
 import type { TextureFactory } from "./world.ts";
+import { StrEffectPlayer } from "./strEffect.ts";
+import { strDurationMs } from "./strPlayer.ts";
 
 export const SHIELD_WAVE_EFFECT_ID = "effect.skill.sw.shield_wave.projectile";
 export const SHIELD_WAVE_CAPACITY = 32;
@@ -42,12 +44,11 @@ export const MAGNUM_BREAK_EFFECT_CONTRACT: Readonly<Record<MagnumBreakEffectId, 
   "effect.skill.sw.magnum_break.explosion": { canonicalPath: "data\\texture\\effect\\대폭발.tga", bytes: 65580, width: 128, height: 128 },
 };
 const MAGNUM_BREAK_SOURCE = "skill.sw.magnum_break";
-/** Provoke bitmap sources; the original `provoke.str` stays source-only (unparsed) and is not drawn. */
+/** Provoke: the original `provoke.str` animation, drawn with its three verified BMP dependencies. */
+export const PROVOKE_STR_ID = "effect.skill.sw.provoke.str";
 export const PROVOKE_EFFECT_IDS = ["effect.skill.sw.provoke.explosive_1_128", "effect.skill.sw.provoke.piero", "effect.skill.sw.provoke.pika01"] as const;
 export type ProvokeEffectId = (typeof PROVOKE_EFFECT_IDS)[number];
 export const PROVOKE_CAPACITY = 2;
-export const PROVOKE_SPARKS_PER_CAST = 6;
-export const PROVOKE_DURATION_MS = 640;
 export const PROVOKE_EFFECT_CONTRACT: Readonly<Record<ProvokeEffectId, { canonicalPath: string; bytes: number; width: number; height: number; bitsPerPixel: 8 | 24 }>> = {
   "effect.skill.sw.provoke.explosive_1_128": { canonicalPath: "data\\texture\\effect\\explosive_1_128.bmp", bytes: 17462, width: 128, height: 128, bitsPerPixel: 8 },
   "effect.skill.sw.provoke.piero": { canonicalPath: "data\\texture\\effect\\piero.bmp", bytes: 12344, width: 64, height: 64, bitsPerPixel: 24 },
@@ -128,16 +129,6 @@ export interface AreaCastCue {
   startMs: number;
   endMs: number;
   phase: number;
-}
-
-export interface ProvokeSample {
-  visible: boolean;
-  /** Flat ground shockwave; `scale` is relative to the authoritative circle diameter. */
-  wave: BashPlaneSample;
-  /** Camera-facing taunt mark over the cast origin. */
-  mark: BashPlaneSample;
-  /** Sparks travelling outward along the circle; `radiusFactor` is relative to the authoritative radius. */
-  spark: BashPlaneSample & { radiusFactor: number };
 }
 
 export interface MagnumBreakSample {
@@ -222,21 +213,6 @@ export function sampleMagnumBreak(cue: AreaCastCue, nowMs: number): MagnumBreakS
     visible: nowMs >= cue.startMs && nowMs < cue.endMs,
     ring: { opacity: ringFade, scale: 0.25 + 0.75 * easeOut, rotation: cue.phase + p * Math.PI / 3, liftM: 0.06 },
     explosion: { opacity: Math.min(flashIn, flashOut), scale: 0.7 + 0.6 * easeOut, rotation: cue.phase, liftM: 1 },
-  };
-}
-
-/** Clean-room Provoke cue: an outward ground shockwave, a short mark pop and outward sparks. */
-export function sampleProvoke(cue: AreaCastCue, nowMs: number): ProvokeSample {
-  const duration = Math.max(1, cue.endMs - cue.startMs);
-  const p = clamp01((nowMs - cue.startMs) / duration);
-  const easeOut = 1 - (1 - p) * (1 - p);
-  const markIn = clamp01(p / 0.12);
-  const markOut = clamp01((0.75 - p) / 0.35);
-  return {
-    visible: nowMs >= cue.startMs && nowMs < cue.endMs,
-    wave: { opacity: clamp01((1 - p) / 0.6), scale: 0.15 + 0.85 * easeOut, rotation: cue.phase, liftM: 0.05 },
-    mark: { opacity: Math.min(markIn, markOut), scale: 0.8 + 0.3 * Math.sin(Math.min(1, p / 0.4) * Math.PI), rotation: 0, liftM: 2.1 },
-    spark: { opacity: p < 0.15 ? clamp01(p / 0.15) : clamp01((1 - p) / 0.85), scale: 1, rotation: p * Math.PI * 2, liftM: 0.5, radiusFactor: 0.1 + 0.9 * easeOut },
   };
 }
 
@@ -564,12 +540,12 @@ function disposeGpu(gpu: EffectGpu): void {
 
 /**
  * Verified original-RO skill textures in bounded instanced draws: Shield Wave (32), Endure (1),
- * four Bash lanes (16 each), two Magnum Break lanes (4 each: ground ring, explosion) and three
- * Provoke lanes (2 wave, 2 mark, 12 sparks). No per-cast texture/material/geometry allocation.
+ * four Bash lanes (16 each), two Magnum Break lanes (4 each: ground ring, explosion) and the original
+ * Provoke STR animation (2 slots × its layers). No per-cast texture/material/geometry allocation.
  */
 export class OfficialSkillEffectLayer implements WorldSkillEffectLayer {
   readonly sourceAssetId = SHIELD_WAVE_EFFECT_ID;
-  readonly sourceAssetIds = [SHIELD_WAVE_EFFECT_ID, ENDURE_EFFECT_ID, ...BASH_EFFECT_IDS, ...MAGNUM_BREAK_EFFECT_IDS, ...PROVOKE_EFFECT_IDS] as const;
+  readonly sourceAssetIds = [SHIELD_WAVE_EFFECT_ID, ENDURE_EFFECT_ID, ...BASH_EFFECT_IDS, ...MAGNUM_BREAK_EFFECT_IDS, PROVOKE_STR_ID, ...PROVOKE_EFFECT_IDS] as const;
   readonly object = new THREE.Group();
   readonly mesh: THREE.InstancedMesh;
   readonly material: THREE.ShaderMaterial;
@@ -580,18 +556,19 @@ export class OfficialSkillEffectLayer implements WorldSkillEffectLayer {
   readonly bashMaterials: readonly THREE.ShaderMaterial[];
   /** Magnum Break lanes in {@link MAGNUM_BREAK_EFFECT_IDS} order (ground ring, explosion). */
   readonly magnumMeshes: readonly THREE.InstancedMesh[];
-  /** Provoke lanes in {@link PROVOKE_EFFECT_IDS} order (ground wave, mark, sparks). */
-  readonly provokeMeshes: readonly THREE.InstancedMesh[];
+  /** Original Provoke STR player (2 slots × STR layers). */
+  readonly provokeStr: StrEffectPlayer;
   readonly presentation = new ShieldWavePresentation();
   readonly endurePresentation = new EndurePresentation();
   readonly bashPresentation = new BashPresentation();
   readonly magnumPresentation = new AreaCastPresentation(MAGNUM_BREAK_SOURCE, MAGNUM_BREAK_DURATION_MS, MAGNUM_BREAK_CAPACITY);
-  readonly provokePresentation = new AreaCastPresentation(PROVOKE_SOURCE, PROVOKE_DURATION_MS, PROVOKE_CAPACITY);
+  readonly provokePresentation: AreaCastPresentation;
   readonly #shield: EffectGpu;
   readonly #endure: EffectGpu;
   readonly #bash: readonly EffectGpu[];
   readonly #magnum: readonly EffectGpu[];
-  readonly #provoke: readonly EffectGpu[];
+  readonly #provokeTextures: readonly THREE.Texture[];
+  readonly #centre = new THREE.Vector3();
   readonly #groundRight = new THREE.Vector3(1, 0, 0);
   readonly #groundUp = new THREE.Vector3(0, 0, -1);
   readonly #matrix = new THREE.Matrix4();
@@ -605,6 +582,13 @@ export class OfficialSkillEffectLayer implements WorldSkillEffectLayer {
     const endureSource = requireTexture(data, ENDURE_EFFECT_ID, { format: "tga", bitsPerPixel: 32, alpha: "source-alpha" });
     const bashSources = BASH_EFFECT_IDS.map((id) => requireTexture(data, id, { format: "tga", bitsPerPixel: 32, alpha: "source-alpha", ...BASH_EFFECT_CONTRACT[id] }));
     const provokeSources = PROVOKE_EFFECT_IDS.map((id) => requireTexture(data, id, { format: "bmp", alpha: "ro-color-key", ...PROVOKE_EFFECT_CONTRACT[id] }));
+    const provokeAnimation = data.effectAnimations.get(PROVOKE_STR_ID);
+    if (!provokeAnimation) throw new Error(`${PROVOKE_STR_ID}: verified STR animation not loaded`);
+    for (const ids of provokeAnimation.layerTextures) for (const id of ids) {
+      if (!(PROVOKE_EFFECT_IDS as readonly string[]).includes(id)) throw new Error(`${PROVOKE_STR_ID}: layer texture ${id} is not a verified Provoke dependency`);
+    }
+    const provokeTextures: THREE.Texture[] = [];
+    let provokeStr: StrEffectPlayer;
     const magnumSources = MAGNUM_BREAK_EFFECT_IDS.map((id) => requireTexture(data, id, { format: "tga", bitsPerPixel: 32, alpha: "source-alpha", ...MAGNUM_BREAK_EFFECT_CONTRACT[id] }));
     const built: EffectGpu[] = [];
     try {
@@ -618,33 +602,37 @@ export class OfficialSkillEffectLayer implements WorldSkillEffectLayer {
         const source = magnumSources[index] as (typeof magnumSources)[number];
         built.push(createEffectGpu(source.meta, source.image, MAGNUM_BREAK_CAPACITY, makeTexture, id));
       });
+      const byId = new Map<string, THREE.Texture>();
       PROVOKE_EFFECT_IDS.forEach((id, index) => {
-        const source = provokeSources[index] as (typeof provokeSources)[number];
-        const capacity = id === "effect.skill.sw.provoke.pika01" ? PROVOKE_CAPACITY * PROVOKE_SPARKS_PER_CAST : PROVOKE_CAPACITY;
-        built.push(createEffectGpu(source.meta, source.image, capacity, makeTexture, id));
+        const texture = makeTexture((provokeSources[index] as (typeof provokeSources)[number]).image, {});
+        provokeTextures.push(texture);
+        byId.set(id, texture);
       });
+      provokeStr = new StrEffectPlayer(provokeAnimation.str, provokeAnimation.layerTextures.map((ids) => ids.map((id) => byId.get(id) as THREE.Texture)), PROVOKE_CAPACITY, PROVOKE_STR_ID);
     } catch (err) {
       for (const gpu of built) disposeGpu(gpu);
+      const laneTextures = new Set(built.map((gpu) => gpu.texture));
+      for (const texture of new Set(provokeTextures)) if (!laneTextures.has(texture)) texture.dispose();
       throw err;
     }
     const [shield, endure, ...rest] = built as [EffectGpu, EffectGpu, ...EffectGpu[]];
     const bash = rest.slice(0, BASH_EFFECT_IDS.length);
     const magnum = rest.slice(BASH_EFFECT_IDS.length, BASH_EFFECT_IDS.length + MAGNUM_BREAK_EFFECT_IDS.length);
-    const provoke = rest.slice(BASH_EFFECT_IDS.length + MAGNUM_BREAK_EFFECT_IDS.length);
     this.#shield = shield;
     this.#endure = endure;
     this.#bash = bash;
     this.#magnum = magnum;
     this.magnumMeshes = magnum.map((gpu) => gpu.mesh);
-    this.#provoke = provoke;
-    this.provokeMeshes = provoke.map((gpu) => gpu.mesh);
+    this.#provokeTextures = provokeTextures;
+    this.provokeStr = provokeStr;
+    this.provokePresentation = new AreaCastPresentation(PROVOKE_SOURCE, strDurationMs(provokeAnimation.str), PROVOKE_CAPACITY);
     this.mesh = shield.mesh;
     this.material = shield.material;
     this.endureMesh = endure.mesh;
     this.endureMaterial = endure.material;
     this.bashMeshes = bash.map((gpu) => gpu.mesh);
     this.bashMaterials = bash.map((gpu) => gpu.material);
-    this.object.add(this.mesh, this.endureMesh, ...this.bashMeshes, ...this.magnumMeshes, ...this.provokeMeshes);
+    this.object.add(this.mesh, this.endureMesh, ...this.bashMeshes, ...this.magnumMeshes, this.provokeStr.object);
   }
 
   get activeCount(): number {
@@ -669,7 +657,7 @@ export class OfficialSkillEffectLayer implements WorldSkillEffectLayer {
     return this.#magnumBursts;
   }
 
-  /** Visible Provoke cues (ground wave + mark + six sparks each). */
+  /** Visible Provoke cues (each draws the original STR layers active at its key index). */
   get provokeActiveCount(): number {
     return this.#provokeCues;
   }
@@ -773,48 +761,23 @@ export class OfficialSkillEffectLayer implements WorldSkillEffectLayer {
     this.#flush(ring, this.#groundRight, this.#groundUp);
     this.#flush(explosion, right, up);
 
-    const [wave, mark, spark] = this.#provoke as [EffectGpu, EffectGpu, EffectGpu];
-    const waveBaseM = PROVOKE_EFFECT_CONTRACT["effect.skill.sw.provoke.explosive_1_128"].width * 0.025;
     let cues = 0;
-    let sparks = 0;
-    for (const cue of this.provokePresentation.cues) {
-      if (cues >= PROVOKE_CAPACITY) break;
-      const sample = sampleProvoke(cue, nowMs);
-      if (!sample.visible) continue;
+    let quads = 0;
+    for (let slot = 0; slot < PROVOKE_CAPACITY; slot += 1) {
+      const cue = this.provokePresentation.cues[slot];
+      if (!cue || nowMs < cue.startMs || nowMs >= cue.endMs) {
+        this.provokeStr.hideSlot(slot);
+        continue;
+      }
       const xm = cue.xMm / 1000;
       const ym = cue.yMm / 1000;
-      const ground = heightAt(xm, ym);
-      const radiusM = Math.max(0.25, cue.radiusMm / 1000);
-      this.#matrix.makeTranslation(xm, ground + sample.wave.liftM, -ym);
-      wave.mesh.setMatrixAt(cues, this.#matrix);
-      wave.rotation.setX(cues, sample.wave.rotation);
-      wave.opacity.setX(cues, sample.wave.opacity * boundedOpacity);
-      wave.scale.setX(cues, ((2 * radiusM) / waveBaseM) * sample.wave.scale);
-      this.#matrix.makeTranslation(xm, ground + sample.mark.liftM, -ym);
-      mark.mesh.setMatrixAt(cues, this.#matrix);
-      mark.rotation.setX(cues, sample.mark.rotation);
-      mark.opacity.setX(cues, sample.mark.opacity * boundedOpacity);
-      mark.scale.setX(cues, sample.mark.scale);
-      for (let k = 0; k < PROVOKE_SPARKS_PER_CAST; k += 1) {
-        const angle = cue.phase + (k / PROVOKE_SPARKS_PER_CAST) * Math.PI * 2;
-        const sx = xm + Math.cos(angle) * radiusM * sample.spark.radiusFactor;
-        const sy = ym + Math.sin(angle) * radiusM * sample.spark.radiusFactor;
-        this.#matrix.makeTranslation(sx, heightAt(sx, sy) + sample.spark.liftM, -sy);
-        spark.mesh.setMatrixAt(sparks, this.#matrix);
-        spark.rotation.setX(sparks, sample.spark.rotation);
-        spark.opacity.setX(sparks, sample.spark.opacity * boundedOpacity);
-        spark.scale.setX(sparks, sample.spark.scale);
-        sparks += 1;
-      }
-      cues += 1;
+      this.#centre.set(xm, heightAt(xm, ym) + 1, -ym);
+      const drawn = this.provokeStr.draw(slot, nowMs - cue.startMs, this.#centre, right, up, boundedOpacity);
+      quads += drawn;
+      if (drawn > 0) cues += 1;
     }
     this.#provokeCues = cues;
-    wave.mesh.count = cues;
-    mark.mesh.count = cues;
-    spark.mesh.count = sparks;
-    this.#flush(wave, this.#groundRight, this.#groundUp);
-    this.#flush(mark, right, up);
-    this.#flush(spark, right, up);
+    this.provokeStr.setVisibleCount(quads);
   }
 
   #flush(gpu: EffectGpu, right: THREE.Vector3, up: THREE.Vector3): void {
@@ -837,7 +800,9 @@ export class OfficialSkillEffectLayer implements WorldSkillEffectLayer {
     this.#bashImpacts = 0;
     this.#magnumBursts = 0;
     this.#provokeCues = 0;
-    const lanes = [this.#shield, this.#endure, ...this.#bash, ...this.#magnum, ...this.#provoke];
+    this.object.remove(this.provokeStr.object);
+    this.provokeStr.dispose();
+    const lanes = [this.#shield, this.#endure, ...this.#bash, ...this.#magnum];
     for (const gpu of lanes) {
       gpu.mesh.count = 0;
       this.object.remove(gpu.mesh);
@@ -846,6 +811,6 @@ export class OfficialSkillEffectLayer implements WorldSkillEffectLayer {
       gpu.mesh.geometry.dispose();
       gpu.material.dispose();
     }
-    for (const texture of new Set(lanes.map((gpu) => gpu.texture))) texture.dispose();
+    for (const texture of new Set([...lanes.map((gpu) => gpu.texture), ...this.#provokeTextures])) texture.dispose();
   }
 }

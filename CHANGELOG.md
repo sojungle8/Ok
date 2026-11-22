@@ -2,6 +2,12 @@
 
 ## Unreleased — original assets, RO UI and D-032 skills (2026-11-17–18)
 
+- D032-E5 Provoke STR: a strict clean-room STR 0x94 parser (`@ro-survivor/ro-format-runtime/str`; bounded counts,
+  finite floats, printable-ASCII names, exact length) plus a pure playback sampler. The formal client fetches the
+  whitelisted `provoke.str` bytes, verifies size and SHA-256 against the whitelist, parses them and resolves every
+  layer texture to a required verified effect texture; Provoke now plays the original STR layers (2 bounded slots)
+  with its three BMP dependencies instead of the interim composition. The converter record stays source-only (no
+  converter bump, no re-extraction). Real-client visual parity is `DEFERRED_LOCAL`.
 - D-032 five-scenario balance: `pnpm slice:scenarios` warms each build up on the real stage to level 10, then runs its
   drafted kit through five isolated, seeded scenarios (clear 60 normals, MVP 60 s, survival 50-mob ring, waypoint
   mobility, control) over 30 unique seeds; `slice:acceptance:check` recomputes the rows digest and gates (no crash,

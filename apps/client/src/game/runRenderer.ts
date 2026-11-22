@@ -14,7 +14,7 @@ import {
 import { BillboardBatch } from "./renderer.ts";
 import type { SpriteSheet } from "./sprites.ts";
 import type { WorldLayer } from "./terrain.ts";
-import { BASH_EFFECT_IDS, ENDURE_EFFECT_ID, MAGNUM_BREAK_EFFECT_IDS, PROVOKE_EFFECT_IDS } from "./formal/skillEffects.ts";
+import { BASH_EFFECT_IDS, ENDURE_EFFECT_ID, MAGNUM_BREAK_EFFECT_IDS, PROVOKE_EFFECT_IDS, PROVOKE_STR_ID } from "./formal/skillEffects.ts";
 
 /**
  * Renders a RunState read-only. Actors use RO sprite sheets only (D-022). The world (formal: original
@@ -60,7 +60,7 @@ export class RunRenderer {
       canvas.dataset.roEndureFxSource = world.skillEffects.sourceAssetIds.find((id) => id === ENDURE_EFFECT_ID) ?? "";
       canvas.dataset.roBashFxSources = world.skillEffects.sourceAssetIds.filter((id) => (BASH_EFFECT_IDS as readonly string[]).includes(id)).join(",");
       canvas.dataset.roMagnumFxSources = world.skillEffects.sourceAssetIds.filter((id) => (MAGNUM_BREAK_EFFECT_IDS as readonly string[]).includes(id)).join(",");
-      canvas.dataset.roProvokeFxSources = world.skillEffects.sourceAssetIds.filter((id) => (PROVOKE_EFFECT_IDS as readonly string[]).includes(id)).join(",");
+      canvas.dataset.roProvokeFxSources = world.skillEffects.sourceAssetIds.filter((id) => id === PROVOKE_STR_ID || (PROVOKE_EFFECT_IDS as readonly string[]).includes(id)).join(",");
     }
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.setClearColor(0x1d1b18);

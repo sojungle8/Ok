@@ -11,3 +11,4 @@ export * from "./jpeg.ts";
 export * from "./tga.ts";
 export * from "./rsm.ts";
 export * from "./wav.ts";
+export * from "./str.ts";

@@ -7,6 +7,7 @@ import {
   FORMAL_SKILL_AUDIO_IDS, FORMAL_SKILL_EFFECT_IDS,
   type AssetWhitelist, type DerivedSkillEffect,
 } from "@ro-survivor/asset-contracts";
+import { parseStr, type Str } from "@ro-survivor/ro-format-runtime/str";
 import { MissingAssetsError, missingWhitelisted, type MissingAsset } from "../requirements.ts";
 import {
   bakeModel, buildGroundBuffers, buildModelInstances, buildWaterBuffers, sceneRequiredIds, shadowParams, soundPlacements,
@@ -55,6 +56,11 @@ export interface FormalSceneData {
   effects: Map<string, DerivedSkillEffect>;
   /** Decoded lossless PNGs for the 11 BMP/TGA effect textures. */
   effectImages: Map<string, ImageLike>;
+  /**
+   * Original STR animations parsed in the client from the whitelisted source bytes (size + SHA-256
+   * verified); every layer texture is resolved to a verified effect texture asset ID.
+   */
+  effectAnimations: Map<string, { str: Str; layerTextures: string[][] }>;
 }
 
 /** Release browser-owned decoded image resources. Safe to call more than once. */
@@ -71,6 +77,7 @@ export function disposeFormalScene(data: FormalSceneData | null): void {
   data.audio.clear();
   data.effects.clear();
   data.effectImages.clear();
+  data.effectAnimations.clear();
 }
 
 const reasonOf = (err: unknown): string => (err instanceof Error ? err.message : String(err));
@@ -110,6 +117,29 @@ function checkedEffectMetadata(assetId: string, value: unknown, whitelist: Asset
   throw new Error(`whitelist category ${row.category} is not a skill-effect category`);
 }
 
+/**
+ * Verify and parse an original STR source in the client. The converter record stays source-only; the
+ * bytes must equal the whitelist size and SHA-256, and each layer texture name must resolve to a
+ * whitelisted, required effect texture in the same `data\\texture\\effect\\` folder.
+ */
+export async function loadStrAnimation(assetId: string, bytes: Uint8Array, whitelist: AssetWhitelist): Promise<{ str: Str; layerTextures: string[][] }> {
+  const row = whitelist.get(assetId);
+  if (bytes.length !== row.bytes) throw new Error(`STR ${bytes.length} bytes != whitelist ${row.bytes}`);
+  const hash = await sha256Upper(bytes);
+  if (hash !== row.sha256.toUpperCase()) throw new Error(`STR SHA-256 ${hash} != whitelist ${row.sha256}`);
+  const str = parseStr(bytes);
+  const folder = row.canonical_cp949_path.slice(0, row.canonical_cp949_path.lastIndexOf("\\") + 1);
+  const layerTextures = str.layers.map((layer) => layer.textures.map((name) => {
+    const path = folder + name.replaceAll("/", "\\");
+    const id = whitelist.idForCanonicalPath(path);
+    if (!id || !(FORMAL_SKILL_EFFECT_IDS as readonly string[]).includes(id) || whitelist.get(id).category !== "skill_effect_texture") {
+      throw new Error(`STR texture ${path} is not a whitelisted required effect texture`);
+    }
+    return id;
+  }));
+  return { str, layerTextures };
+}
+
 export async function loadFormalScene(gateway: FormalGatewayLike, decoders: FormalDecoders, whitelist: AssetWhitelist): Promise<FormalSceneData> {
   const missing: MissingAsset[] = [];
   const fail = (id: string, reason: string): void => {
@@ -139,6 +169,7 @@ export async function loadFormalScene(gateway: FormalGatewayLike, decoders: Form
   const audio = new Map<string, ArrayBuffer>();
   const effects = new Map<string, DerivedSkillEffect>();
   const effectImages = new Map<string, ImageLike>();
+  const effectAnimations = new Map<string, { str: Str; layerTextures: string[][] }>();
   const closeLoadedImages = (): void => {
     const seen = new Set<ImageLike>();
     for (const image of [...images.values(), ...water.values(), ...effectImages.values()]) {
@@ -187,6 +218,8 @@ export async function loadFormalScene(gateway: FormalGatewayLike, decoders: Form
             throw new Error(`decoded ${image.width}x${image.height} != declared ${meta.width}x${meta.height}`);
           }
           effectImages.set(id, image);
+        } else {
+          effectAnimations.set(id, await loadStrAnimation(id, new Uint8Array(await gateway.getBinary(id)), whitelist));
         }
       } catch (err) {
         effects.delete(id);
@@ -240,5 +273,5 @@ export async function loadFormalScene(gateway: FormalGatewayLike, decoders: Form
     closeLoadedImages();
     throw new MissingAssetsError(missing);
   }
-  return { scene, gnd, ground, models, baked, instances, shadow: sh, shadowParams: sp, sounds, images, water, waterCells, audio, effects, effectImages };
+  return { scene, gnd, ground, models, baked, instances, shadow: sh, shadowParams: sp, sounds, images, water, waterCells, audio, effects, effectImages, effectAnimations };
 }

@@ -18,11 +18,13 @@
     "three": "0.186.1",
     "@ro-survivor/content-schema": "workspace:*",
     "@ro-survivor/input": "workspace:*",
-    "@ro-survivor/persistence": "workspace:*"
+    "@ro-survivor/persistence": "workspace:*",
+    "@ro-survivor/ro-format-runtime": "workspace:*"
   },
   "devDependencies": {
     "@preact/preset-vite": "2.10.6",
     "vite": "8.3.8",
-    "@types/three": "0.186.0"
+    "@types/three": "0.186.0",
+    "@ro-survivor/testkit": "workspace:*"
   }
 }

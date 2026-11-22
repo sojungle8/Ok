@@ -91,6 +91,9 @@ describe("formal scene loader on the real derived contract (synthetic sources)",
     ]);
     expect(s.effects.size).toBe(12);
     expect(s.effectImages.size).toBe(11);
+    expect(s.effectAnimations.get("effect.skill.sw.provoke.str")?.layerTextures.flat().sort()).toEqual([
+      "effect.skill.sw.provoke.explosive_1_128", "effect.skill.sw.provoke.piero", "effect.skill.sw.provoke.pika01",
+    ]);
     expect(s.effects.get("effect.skill.sw.provoke.str")).toMatchObject({ kind: "animation-source", magic: "STRM", parsed: false, sourceOnly: true });
     expect(s.effects.get("effect.skill.sw.shield_wave.projectile")).toMatchObject({ kind: "texture", format: "bmp", width: 8, height: 8 });
     expect(s.effectImages.get("effect.skill.sw.endure")).toEqual({ width: 4, height: 4 });

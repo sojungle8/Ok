@@ -9,7 +9,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { declaredUiDimensions, encodeCp949, hexToBytes } from "@ro-survivor/asset-contracts";
 import type { SourceLockLocal, WhitelistRow } from "@ro-survivor/content-schema";
-import { syntheticBytes, syntheticPalette, writeAct, writeBmp24, writeBmp8, writeGat, writeGnd, writeGrf, writeJpegHeader, writeRsm, writeRsw, writeSpr, writeWav, type SyntheticActAction } from "@ro-survivor/testkit";
+import { syntheticBytes, syntheticPalette, writeAct, writeBmp24, writeBmp8, writeGat, writeGnd, writeGrf, writeJpegHeader, writeRsm, writeRsw, writeSpr, writeStr, writeWav, type SyntheticActAction } from "@ro-survivor/testkit";
 
 import { systemManifestSha256 } from "./verify-sources-lib.ts";
 
@@ -208,11 +208,14 @@ export function buildSyntheticSources(dir: string, realRows: readonly WhitelistR
   cat("skill_effect_texture").forEach((r, i) => content.set(r.asset_id, r.canonical_cp949_path.endsWith(".tga")
     ? writeSyntheticTga32(4 + (i % 2) * 2, 4, 800 + i)
     : writeBmp24(8, 8, (x, y) => [(x * 31 + i * 17) & 255, (y * 29 + i * 11) & 255, (x + y + i) * 13 & 255])));
-  cat("skill_effect_animation").forEach((r, i) => {
-    const bytes = syntheticBytes(900 + i, 128);
-    bytes.set(new TextEncoder().encode("STRM"), 0);
-    content.set(r.asset_id, bytes);
-  });
+  // A valid synthetic STR 0x94 whose layers reference the same-folder synthetic effect BMPs, so the
+  // client-side STR parse/resolve path runs end to end in tests (never real RO animation data).
+  const strTextures = cat("skill_effect_texture").filter((r) => r.canonical_cp949_path.toLowerCase().endsWith(".bmp") && r.asset_id.startsWith("effect.skill.sw.provoke."))
+    .map((r) => r.canonical_cp949_path.slice(r.canonical_cp949_path.lastIndexOf("\\") + 1));
+  cat("skill_effect_animation").forEach((r) => content.set(r.asset_id, writeStr({
+    fps: 60, maxKey: 40,
+    layers: strTextures.map((name, l) => ({ textures: [name], keys: [{ frame: l * 4, type: 0 as const }, { frame: l * 4, type: 1 as const, color: [0, 0, 0, -4] as [number, number, number, number] }, { frame: 36, type: 0 as const }] })),
+  })));
   // Official-shadow stand-in: one action, one frame, translucent ellipse (alpha 128 in the ACT colour).
   const shadowIdx = new Uint8Array(16 * 8).map((_, k) => (((k % 16) - 7.5) ** 2 / 64 + (Math.floor(k / 16) - 3.5) ** 2 / 16 <= 1 ? 1 : 0));
   content.set("common.shadow.spr", writeSpr({ indexed: [{ width: 16, height: 8, indices: shadowIdx }], palette: syntheticPalette(9) }));

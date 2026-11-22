@@ -7,7 +7,8 @@
   "description": "Clean-room parsers for RO client formats (SPR, ACT, PAL, GAT, GND, RSW). No RO data is shipped.",
   "exports": {
     ".": "./src/index.ts",
-    "./grf": "./src/grf.ts"
+    "./grf": "./src/grf.ts",
+    "./str": "./src/str.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json && tsc -p test/tsconfig.json"

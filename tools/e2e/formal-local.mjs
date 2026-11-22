@@ -576,9 +576,9 @@ try {
     );
     const magnumExpired = true;
 
-    // Provoke: three nearby targets trigger the authoritative debuff; the exact three verified
-    // original-RO BMP-derived sources (ground wave, mark, sparks) must draw, then expire. The original
-    // provoke.str animation stays source-only and is never drawn.
+    // Provoke: three nearby targets trigger the authoritative debuff; the original provoke.str
+    // animation (client-verified and parsed) must draw with its three verified BMP dependencies,
+    // then expire.
     const provokeFxSources = await page.getByTestId("world").getAttribute("data-ro-provoke-fx-sources");
     await page.waitForFunction(() => {
       const state = window.__run?.();
@@ -723,7 +723,7 @@ try {
       && magnumProbe.injected === true
       && magnumFxEvidence.effectiveHitDamage > 0
       && magnumExpired
-      && provokeFxSources === "effect.skill.sw.provoke.explosive_1_128,effect.skill.sw.provoke.piero,effect.skill.sw.provoke.pika01"
+      && provokeFxSources === "effect.skill.sw.provoke.str,effect.skill.sw.provoke.explosive_1_128,effect.skill.sw.provoke.piero,effect.skill.sw.provoke.pika01"
       && provokeProbe.injected === true
       && provokeFxEvidence.debuffedTargets > 0
       && provokeExpired

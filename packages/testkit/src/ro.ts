@@ -423,3 +423,39 @@ export function writeRsm(opts: { textures: Uint8Array[]; nodes: SyntheticRsmNode
   if (v >= 103) w.i32(0);
   return w.done();
 }
+
+export interface SyntheticStrKey {
+  frame: number;
+  type: 0 | 1;
+  pos?: [number, number];
+  uv?: number[];
+  xy?: number[];
+  aniFrame?: number;
+  aniType?: number;
+  delay?: number;
+  angle?: number;
+  color?: [number, number, number, number];
+  srcBlend?: number;
+  dstBlend?: number;
+  mtPreset?: number;
+}
+
+/** STR 0x94 effect animation (synthetic; layout mirrors the clean-room parser). */
+export function writeStr(opts: { fps?: number; maxKey: number; layers: { textures: string[]; keys: SyntheticStrKey[] }[]; version?: number; reserved?: number }): Uint8Array {
+  const w = new Writer().ascii("STRM").u32(opts.version ?? 0x94).u32(opts.fps ?? 60).u32(opts.maxKey).u32(opts.layers.length).zeros(opts.reserved ?? 16);
+  for (const layer of opts.layers) {
+    w.i32(layer.textures.length);
+    for (const name of layer.textures) w.fixed(ascii(name), 128);
+    w.i32(layer.keys.length);
+    for (const k of layer.keys) {
+      w.i32(k.frame).u32(k.type);
+      for (const v of k.pos ?? [320, 320]) w.f32(v);
+      for (const v of k.uv ?? [0, 0, 1, 0, 0, 1, 1, 1]) w.f32(v);
+      for (const v of k.xy ?? [-16, 16, -16, 16, -16, -16, 16, 16]) w.f32(v);
+      w.f32(k.aniFrame ?? 0).u32(k.aniType ?? 0).f32(k.delay ?? 0).f32(k.angle ?? 0);
+      for (const v of k.color ?? [255, 255, 255, 255]) w.f32(v);
+      w.u32(k.srcBlend ?? 5).u32(k.dstBlend ?? 2).u32(k.mtPreset ?? 0);
+    }
+  }
+  return w.done();
+}
