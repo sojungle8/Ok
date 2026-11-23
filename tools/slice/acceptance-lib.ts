@@ -1,7 +1,8 @@
 import { FakeClock } from "@ro-survivor/testkit";
 import { createRun, FixedStepClock, botCommand, isAreaClear, runHash, stepRun, type BalanceRole, type BuildPlan, type RunState } from "@ro-survivor/core-sim";
 import { intentThroughDevice, type DeviceKind } from "@ro-survivor/input";
-import { playRun, sliceConfig, sliceContent } from "./slice-fixture.ts";
+import { playJobRun, sliceConfig, sliceContent } from "./slice-fixture.ts";
+import type { RunContent } from "@ro-survivor/core-sim";
 
 export interface RunRow {
   plan: BuildPlan;
@@ -105,7 +106,7 @@ export function allAcceptanceGatesPass(gates: Readonly<Record<string, boolean>>)
 }
 
 /** Play one run through a device adapter and collect acceptance facts. Never throws. */
-export function acceptanceRun(seed: number, plan: BuildPlan, device: DeviceKind): RunRow {
+export function acceptanceRun(seed: number, plan: BuildPlan, device: DeviceKind, content: RunContent = sliceContent): RunRow {
   const announced = new Set<string>();
   let firstDraftTick = -1;
   let firstDraftHasAreaClear = false;
@@ -126,11 +127,11 @@ export function acceptanceRun(seed: number, plan: BuildPlan, device: DeviceKind)
   let st: RunState | null = null;
   let crashed: string | null = null;
   try {
-    st = playRun(seed, plan, (x, y) => intentThroughDevice(device, x, y), (s, input) => {
+    st = playJobRun(content, seed, plan, (x, y) => intentThroughDevice(device, x, y), (s, input) => {
       for (const e of s.events) if ((e.type === "telegraph" || e.type === "projectile") && e.geomId) announced.add(e.geomId);
       if (s.phase === "draft" && firstDraftTick < 0 && s.draft) {
         firstDraftTick = s.runTick;
-        firstDraftHasAreaClear = s.draft.options.some((o) => isAreaClear(sliceContent, o.id));
+        firstDraftHasAreaClear = s.draft.options.some((o) => isAreaClear(content, o.id));
       }
       for (const second of [60, 180, 540, 600] as const) if (killsAt[second] < 0 && s.runTick >= second * 60) killsAt[second] = s.stats.kills;
       // Draft/boss pauses can repeat a runTick; sample each simulation tick once and count only

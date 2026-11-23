@@ -1,0 +1,2509 @@
+{
+  "generator": "tools/slice/scenarios.ts",
+  "job": "mage",
+  "contentVersion": "slice-0.1.0-seed+mage.draft-balance-v0.2",
+  "seeds": [
+    101,
+    102,
+    103,
+    104,
+    105,
+    106,
+    107,
+    108,
+    109,
+    110,
+    111,
+    112,
+    113,
+    114,
+    115,
+    116,
+    117,
+    118,
+    119,
+    120,
+    121,
+    122,
+    123,
+    124,
+    125,
+    126,
+    127,
+    128,
+    129,
+    130
+  ],
+  "plans": [
+    "elementalist",
+    "storm",
+    "arcane"
+  ],
+  "levelBudget": 10,
+  "scenarioTicks": {
+    "clear": 1200,
+    "mvp": 3600,
+    "survival": 1800,
+    "mobility": 2700,
+    "control": 1200
+  },
+  "mobilityWaypointsMm": [
+    [
+      12000,
+      0
+    ],
+    [
+      12000,
+      12000
+    ],
+    [
+      0,
+      12000
+    ],
+    [
+      0,
+      0
+    ]
+  ],
+  "rowsSha256": "ADDA1E437F1F4E6CF7664B4AC4372246887DE26E3A7C539831B882F97342C55A",
+  "gates": {
+    "no crash in any scenario run": true,
+    "every build reaches the level budget in warm-up": true,
+    "clear: every build p50 >= 120 kills/min and >= 50% of the best build": true,
+    "mvp: every build p50 >= 300‰ in 60 s and >= 40% of the best build": true,
+    "survival: every build survives >= 90% of seeds": true,
+    "mobility: every run completes the waypoint course": true
+  },
+  "findings": [
+    "control axis: every build p50 coverage < 50‰; tracked under R-18, not gated"
+  ],
+  "axes": {
+    "clear": {
+      "elementalist": {
+        "value": {
+          "samples": 30,
+          "p10": 174,
+          "p50": 208,
+          "p90": 250,
+          "mean": 209.6
+        },
+        "survivalRatePermille": 1000,
+        "crashes": 0
+      },
+      "storm": {
+        "value": {
+          "samples": 30,
+          "p10": 182,
+          "p50": 218,
+          "p90": 257,
+          "mean": 219.5
+        },
+        "survivalRatePermille": 1000,
+        "crashes": 0
+      },
+      "arcane": {
+        "value": {
+          "samples": 30,
+          "p10": 138,
+          "p50": 174,
+          "p90": 210,
+          "mean": 176.8
+        },
+        "survivalRatePermille": 1000,
+        "crashes": 0
+      }
+    },
+    "mvp": {
+      "elementalist": {
+        "value": {
+          "samples": 30,
+          "p10": 444,
+          "p50": 620,
+          "p90": 729,
+          "mean": 623.5
+        },
+        "survivalRatePermille": 1000,
+        "crashes": 0
+      },
+      "storm": {
+        "value": {
+          "samples": 30,
+          "p10": 365,
+          "p50": 428,
+          "p90": 484,
+          "mean": 464.9
+        },
+        "survivalRatePermille": 1000,
+        "crashes": 0
+      },
+      "arcane": {
+        "value": {
+          "samples": 30,
+          "p10": 607,
+          "p50": 1000,
+          "p90": 1000,
+          "mean": 927.1
+        },
+        "survivalRatePermille": 1000,
+        "crashes": 0
+      }
+    },
+    "survival": {
+      "elementalist": {
+        "value": {
+          "samples": 30,
+          "p10": 783,
+          "p50": 865,
+          "p90": 967,
+          "mean": 874.9
+        },
+        "survivalRatePermille": 1000,
+        "crashes": 0
+      },
+      "storm": {
+        "value": {
+          "samples": 30,
+          "p10": 758,
+          "p50": 895,
+          "p90": 959,
+          "mean": 869.8
+        },
+        "survivalRatePermille": 1000,
+        "crashes": 0
+      },
+      "arcane": {
+        "value": {
+          "samples": 30,
+          "p10": 796,
+          "p50": 878,
+          "p90": 934,
+          "mean": 868.3
+        },
+        "survivalRatePermille": 1000,
+        "crashes": 0
+      }
+    },
+    "mobility": {
+      "elementalist": {
+        "value": {
+          "samples": 30,
+          "p10": 1163,
+          "p50": 1163,
+          "p90": 1163,
+          "mean": 1163
+        },
+        "survivalRatePermille": 1000,
+        "crashes": 0
+      },
+      "storm": {
+        "value": {
+          "samples": 30,
+          "p10": 1087,
+          "p50": 1087,
+          "p90": 1087,
+          "mean": 1087.4
+        },
+        "survivalRatePermille": 1000,
+        "crashes": 0
+      },
+      "arcane": {
+        "value": {
+          "samples": 30,
+          "p10": 1163,
+          "p50": 1163,
+          "p90": 1163,
+          "mean": 1162.5
+        },
+        "survivalRatePermille": 1000,
+        "crashes": 0
+      }
+    },
+    "control": {
+      "elementalist": {
+        "value": {
+          "samples": 30,
+          "p10": 0,
+          "p50": 0,
+          "p90": 7,
+          "mean": 2.6
+        },
+        "survivalRatePermille": 1000,
+        "crashes": 0
+      },
+      "storm": {
+        "value": {
+          "samples": 30,
+          "p10": 0,
+          "p50": 2,
+          "p90": 15,
+          "mean": 5.1
+        },
+        "survivalRatePermille": 1000,
+        "crashes": 0
+      },
+      "arcane": {
+        "value": {
+          "samples": 30,
+          "p10": 0,
+          "p50": 9,
+          "p90": 20,
+          "mean": 10
+        },
+        "survivalRatePermille": 1000,
+        "crashes": 0
+      }
+    }
+  },
+  "kits": [
+    {
+      "plan": "elementalist",
+      "seed": 101,
+      "level": 10,
+      "warmupSeconds": 166,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.fire_bolt",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.cold_bolt",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.elementalist"
+    },
+    {
+      "plan": "elementalist",
+      "seed": 102,
+      "level": 10,
+      "warmupSeconds": 162,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.fire_bolt",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.lightning_bolt",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.elementalist"
+    },
+    {
+      "plan": "elementalist",
+      "seed": 103,
+      "level": 10,
+      "warmupSeconds": 178,
+      "active": [
+        {
+          "id": "skill.mg.thunderstorm",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.fire_bolt",
+          "rank": 3
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.lightning_bolt",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.elementalist"
+    },
+    {
+      "plan": "elementalist",
+      "seed": 104,
+      "level": 10,
+      "warmupSeconds": 172,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.fire_bolt",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.lightning_bolt",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.cold_bolt",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.elementalist"
+    },
+    {
+      "plan": "elementalist",
+      "seed": 105,
+      "level": 10,
+      "warmupSeconds": 165,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.fire_bolt",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.lightning_bolt",
+          "rank": 2
+        }
+      ],
+      "keystone": "keystone.mg.elementalist"
+    },
+    {
+      "plan": "elementalist",
+      "seed": 106,
+      "level": 10,
+      "warmupSeconds": 166,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.fire_bolt",
+          "rank": 3
+        },
+        {
+          "id": "skill.mg.lightning_bolt",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.elementalist"
+    },
+    {
+      "plan": "elementalist",
+      "seed": 107,
+      "level": 10,
+      "warmupSeconds": 164,
+      "active": [
+        {
+          "id": "skill.mg.thunderstorm",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.cold_bolt",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.fire_bolt",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.lightning_bolt",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.elementalist"
+    },
+    {
+      "plan": "elementalist",
+      "seed": 108,
+      "level": 10,
+      "warmupSeconds": 173,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.lightning_bolt",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.fire_bolt",
+          "rank": 3
+        },
+        {
+          "id": "skill.mg.cold_bolt",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.elementalist"
+    },
+    {
+      "plan": "elementalist",
+      "seed": 109,
+      "level": 10,
+      "warmupSeconds": 170,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.lightning_bolt",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.fire_bolt",
+          "rank": 3
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.elementalist"
+    },
+    {
+      "plan": "elementalist",
+      "seed": 110,
+      "level": 10,
+      "warmupSeconds": 164,
+      "active": [
+        {
+          "id": "skill.mg.thunderstorm",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.fire_bolt",
+          "rank": 4
+        },
+        {
+          "id": "skill.mg.cold_bolt",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.elementalist"
+    },
+    {
+      "plan": "elementalist",
+      "seed": 111,
+      "level": 10,
+      "warmupSeconds": 158,
+      "active": [
+        {
+          "id": "skill.mg.thunderstorm",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.fire_bolt",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.cold_bolt",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.elementalist"
+    },
+    {
+      "plan": "elementalist",
+      "seed": 112,
+      "level": 10,
+      "warmupSeconds": 167,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.lightning_bolt",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.fire_bolt",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.elementalist"
+    },
+    {
+      "plan": "elementalist",
+      "seed": 113,
+      "level": 10,
+      "warmupSeconds": 167,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.cold_bolt",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.fire_bolt",
+          "rank": 2
+        }
+      ],
+      "keystone": "keystone.mg.elementalist"
+    },
+    {
+      "plan": "elementalist",
+      "seed": 114,
+      "level": 10,
+      "warmupSeconds": 166,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 3
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.lightning_bolt",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.cold_bolt",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.elementalist"
+    },
+    {
+      "plan": "elementalist",
+      "seed": 115,
+      "level": 10,
+      "warmupSeconds": 170,
+      "active": [
+        {
+          "id": "skill.mg.thunderstorm",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.fire_bolt",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.lightning_bolt",
+          "rank": 2
+        }
+      ],
+      "keystone": "keystone.mg.elementalist"
+    },
+    {
+      "plan": "elementalist",
+      "seed": 116,
+      "level": 10,
+      "warmupSeconds": 166,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.fire_bolt",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.lightning_bolt",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.elementalist"
+    },
+    {
+      "plan": "elementalist",
+      "seed": 117,
+      "level": 10,
+      "warmupSeconds": 162,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 3
+        },
+        {
+          "id": "skill.mg.cold_bolt",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.fire_bolt",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.elementalist"
+    },
+    {
+      "plan": "elementalist",
+      "seed": 118,
+      "level": 10,
+      "warmupSeconds": 167,
+      "active": [
+        {
+          "id": "skill.mg.thunderstorm",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.lightning_bolt",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.cold_bolt",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.elementalist"
+    },
+    {
+      "plan": "elementalist",
+      "seed": 119,
+      "level": 10,
+      "warmupSeconds": 168,
+      "active": [
+        {
+          "id": "skill.mg.thunderstorm",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.fire_bolt",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.cold_bolt",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.elementalist"
+    },
+    {
+      "plan": "elementalist",
+      "seed": 120,
+      "level": 10,
+      "warmupSeconds": 170,
+      "active": [
+        {
+          "id": "skill.mg.thunderstorm",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.fire_bolt",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.cold_bolt",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.lightning_bolt",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.elementalist"
+    },
+    {
+      "plan": "elementalist",
+      "seed": 121,
+      "level": 10,
+      "warmupSeconds": 167,
+      "active": [
+        {
+          "id": "skill.mg.thunderstorm",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.cold_bolt",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.elementalist"
+    },
+    {
+      "plan": "elementalist",
+      "seed": 122,
+      "level": 10,
+      "warmupSeconds": 171,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.soul_strike",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.lightning_bolt",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.cold_bolt",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.elementalist"
+    },
+    {
+      "plan": "elementalist",
+      "seed": 123,
+      "level": 10,
+      "warmupSeconds": 165,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.lightning_bolt",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.fire_bolt",
+          "rank": 2
+        }
+      ],
+      "keystone": "keystone.mg.elementalist"
+    },
+    {
+      "plan": "elementalist",
+      "seed": 124,
+      "level": 10,
+      "warmupSeconds": 164,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.fire_bolt",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.lightning_bolt",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.cold_bolt",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.elementalist"
+    },
+    {
+      "plan": "elementalist",
+      "seed": 125,
+      "level": 10,
+      "warmupSeconds": 165,
+      "active": [
+        {
+          "id": "skill.mg.thunderstorm",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.lightning_bolt",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.fire_bolt",
+          "rank": 2
+        }
+      ],
+      "keystone": "keystone.mg.elementalist"
+    },
+    {
+      "plan": "elementalist",
+      "seed": 126,
+      "level": 10,
+      "warmupSeconds": 168,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.cold_bolt",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.lightning_bolt",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.fire_bolt",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.elementalist"
+    },
+    {
+      "plan": "elementalist",
+      "seed": 127,
+      "level": 10,
+      "warmupSeconds": 162,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.cold_bolt",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.lightning_bolt",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.elementalist"
+    },
+    {
+      "plan": "elementalist",
+      "seed": 128,
+      "level": 10,
+      "warmupSeconds": 165,
+      "active": [
+        {
+          "id": "skill.mg.thunderstorm",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.lightning_bolt",
+          "rank": 3
+        },
+        {
+          "id": "skill.mg.frost_diver",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.elementalist"
+    },
+    {
+      "plan": "elementalist",
+      "seed": 129,
+      "level": 10,
+      "warmupSeconds": 166,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.cold_bolt",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.lightning_bolt",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.elementalist"
+    },
+    {
+      "plan": "elementalist",
+      "seed": 130,
+      "level": 10,
+      "warmupSeconds": 161,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 3
+        },
+        {
+          "id": "skill.mg.lightning_bolt",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.cold_bolt",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.elementalist"
+    },
+    {
+      "plan": "storm",
+      "seed": 101,
+      "level": 10,
+      "warmupSeconds": 164,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 3
+        },
+        {
+          "id": "skill.mg.lightning_bolt",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.thunderstorm",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.frost_diver",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.storm"
+    },
+    {
+      "plan": "storm",
+      "seed": 102,
+      "level": 10,
+      "warmupSeconds": 163,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.thunderstorm",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.lightning_bolt",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 3
+        }
+      ],
+      "keystone": "keystone.mg.storm"
+    },
+    {
+      "plan": "storm",
+      "seed": 103,
+      "level": 10,
+      "warmupSeconds": 170,
+      "active": [
+        {
+          "id": "skill.mg.thunderstorm",
+          "rank": 3
+        },
+        {
+          "id": "skill.mg.lightning_bolt",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.frost_diver",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.storm"
+    },
+    {
+      "plan": "storm",
+      "seed": 104,
+      "level": 10,
+      "warmupSeconds": 168,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.lightning_bolt",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.thunderstorm",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.storm"
+    },
+    {
+      "plan": "storm",
+      "seed": 105,
+      "level": 10,
+      "warmupSeconds": 168,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 3
+        },
+        {
+          "id": "skill.mg.thunderstorm",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.lightning_bolt",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.storm"
+    },
+    {
+      "plan": "storm",
+      "seed": 106,
+      "level": 10,
+      "warmupSeconds": 165,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.frost_diver",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.lightning_bolt",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 2
+        }
+      ],
+      "keystone": "keystone.mg.storm"
+    },
+    {
+      "plan": "storm",
+      "seed": 107,
+      "level": 10,
+      "warmupSeconds": 166,
+      "active": [
+        {
+          "id": "skill.mg.thunderstorm",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 3
+        },
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.lightning_bolt",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.storm"
+    },
+    {
+      "plan": "storm",
+      "seed": 108,
+      "level": 10,
+      "warmupSeconds": 178,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 3
+        },
+        {
+          "id": "skill.mg.thunderstorm",
+          "rank": 3
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.frost_diver",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.storm"
+    },
+    {
+      "plan": "storm",
+      "seed": 109,
+      "level": 10,
+      "warmupSeconds": 173,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.lightning_bolt",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.fire_bolt",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.storm"
+    },
+    {
+      "plan": "storm",
+      "seed": 110,
+      "level": 10,
+      "warmupSeconds": 169,
+      "active": [
+        {
+          "id": "skill.mg.thunderstorm",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.frost_diver",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.lightning_bolt",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.storm"
+    },
+    {
+      "plan": "storm",
+      "seed": 111,
+      "level": 10,
+      "warmupSeconds": 157,
+      "active": [
+        {
+          "id": "skill.mg.thunderstorm",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 3
+        },
+        {
+          "id": "skill.mg.lightning_bolt",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.frost_diver",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.storm"
+    },
+    {
+      "plan": "storm",
+      "seed": 112,
+      "level": 10,
+      "warmupSeconds": 167,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.lightning_bolt",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.thunderstorm",
+          "rank": 3
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.storm"
+    },
+    {
+      "plan": "storm",
+      "seed": 113,
+      "level": 10,
+      "warmupSeconds": 168,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 3
+        },
+        {
+          "id": "skill.mg.lightning_bolt",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.frost_diver",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 2
+        }
+      ],
+      "keystone": "keystone.mg.storm"
+    },
+    {
+      "plan": "storm",
+      "seed": 114,
+      "level": 10,
+      "warmupSeconds": 166,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.lightning_bolt",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.frost_diver",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.storm"
+    },
+    {
+      "plan": "storm",
+      "seed": 115,
+      "level": 10,
+      "warmupSeconds": 171,
+      "active": [
+        {
+          "id": "skill.mg.thunderstorm",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.lightning_bolt",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.storm"
+    },
+    {
+      "plan": "storm",
+      "seed": 116,
+      "level": 10,
+      "warmupSeconds": 163,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 3
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.frost_diver",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.thunderstorm",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.storm"
+    },
+    {
+      "plan": "storm",
+      "seed": 117,
+      "level": 10,
+      "warmupSeconds": 164,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.thunderstorm",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.lightning_bolt",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.storm"
+    },
+    {
+      "plan": "storm",
+      "seed": 118,
+      "level": 10,
+      "warmupSeconds": 169,
+      "active": [
+        {
+          "id": "skill.mg.thunderstorm",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.frost_diver",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.storm"
+    },
+    {
+      "plan": "storm",
+      "seed": 119,
+      "level": 10,
+      "warmupSeconds": 163,
+      "active": [
+        {
+          "id": "skill.mg.thunderstorm",
+          "rank": 4
+        },
+        {
+          "id": "skill.mg.soul_strike",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.frost_diver",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.storm"
+    },
+    {
+      "plan": "storm",
+      "seed": 120,
+      "level": 10,
+      "warmupSeconds": 171,
+      "active": [
+        {
+          "id": "skill.mg.thunderstorm",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.soul_strike",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 2
+        }
+      ],
+      "keystone": "keystone.mg.storm"
+    },
+    {
+      "plan": "storm",
+      "seed": 121,
+      "level": 10,
+      "warmupSeconds": 165,
+      "active": [
+        {
+          "id": "skill.mg.thunderstorm",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.frost_diver",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.lightning_bolt",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.storm"
+    },
+    {
+      "plan": "storm",
+      "seed": 122,
+      "level": 10,
+      "warmupSeconds": 166,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 3
+        },
+        {
+          "id": "skill.mg.thunderstorm",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.lightning_bolt",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.storm"
+    },
+    {
+      "plan": "storm",
+      "seed": 123,
+      "level": 10,
+      "warmupSeconds": 165,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.thunderstorm",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.lightning_bolt",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 2
+        }
+      ],
+      "keystone": "keystone.mg.storm"
+    },
+    {
+      "plan": "storm",
+      "seed": 124,
+      "level": 10,
+      "warmupSeconds": 163,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.thunderstorm",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.lightning_bolt",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.storm"
+    },
+    {
+      "plan": "storm",
+      "seed": 125,
+      "level": 10,
+      "warmupSeconds": 165,
+      "active": [
+        {
+          "id": "skill.mg.thunderstorm",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.lightning_bolt",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.frost_diver",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.storm"
+    },
+    {
+      "plan": "storm",
+      "seed": 126,
+      "level": 10,
+      "warmupSeconds": 170,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.lightning_bolt",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.frost_diver",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 2
+        }
+      ],
+      "keystone": "keystone.mg.storm"
+    },
+    {
+      "plan": "storm",
+      "seed": 127,
+      "level": 10,
+      "warmupSeconds": 160,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.lightning_bolt",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.thunderstorm",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.frost_diver",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.storm"
+    },
+    {
+      "plan": "storm",
+      "seed": 128,
+      "level": 10,
+      "warmupSeconds": 167,
+      "active": [
+        {
+          "id": "skill.mg.thunderstorm",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.lightning_bolt",
+          "rank": 3
+        },
+        {
+          "id": "skill.mg.frost_diver",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.storm"
+    },
+    {
+      "plan": "storm",
+      "seed": 129,
+      "level": 10,
+      "warmupSeconds": 168,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 3
+        },
+        {
+          "id": "skill.mg.frost_diver",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.lightning_bolt",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.storm"
+    },
+    {
+      "plan": "storm",
+      "seed": 130,
+      "level": 10,
+      "warmupSeconds": 160,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.thunderstorm",
+          "rank": 3
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.lightning_bolt",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.storm"
+    },
+    {
+      "plan": "arcane",
+      "seed": 101,
+      "level": 10,
+      "warmupSeconds": 168,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.cold_bolt",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.soul_strike",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.arcane"
+    },
+    {
+      "plan": "arcane",
+      "seed": 102,
+      "level": 10,
+      "warmupSeconds": 165,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.frost_diver",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.soul_strike",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.arcane"
+    },
+    {
+      "plan": "arcane",
+      "seed": 103,
+      "level": 10,
+      "warmupSeconds": 171,
+      "active": [
+        {
+          "id": "skill.mg.thunderstorm",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.lightning_bolt",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.frost_diver",
+          "rank": 3
+        }
+      ],
+      "keystone": "keystone.mg.arcane"
+    },
+    {
+      "plan": "arcane",
+      "seed": 104,
+      "level": 10,
+      "warmupSeconds": 169,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.frost_diver",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.soul_strike",
+          "rank": 3
+        }
+      ],
+      "keystone": "keystone.mg.arcane"
+    },
+    {
+      "plan": "arcane",
+      "seed": 105,
+      "level": 10,
+      "warmupSeconds": 166,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.frost_diver",
+          "rank": 3
+        },
+        {
+          "id": "skill.mg.cold_bolt",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.arcane"
+    },
+    {
+      "plan": "arcane",
+      "seed": 106,
+      "level": 10,
+      "warmupSeconds": 167,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.frost_diver",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.cold_bolt",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.arcane"
+    },
+    {
+      "plan": "arcane",
+      "seed": 107,
+      "level": 10,
+      "warmupSeconds": 161,
+      "active": [
+        {
+          "id": "skill.mg.thunderstorm",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.cold_bolt",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.frost_diver",
+          "rank": 2
+        }
+      ],
+      "keystone": "keystone.mg.arcane"
+    },
+    {
+      "plan": "arcane",
+      "seed": 108,
+      "level": 10,
+      "warmupSeconds": 172,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.frost_diver",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.soul_strike",
+          "rank": 4
+        },
+        {
+          "id": "skill.mg.lightning_bolt",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.arcane"
+    },
+    {
+      "plan": "arcane",
+      "seed": 109,
+      "level": 10,
+      "warmupSeconds": 171,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.frost_diver",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.soul_strike",
+          "rank": 2
+        }
+      ],
+      "keystone": "keystone.mg.arcane"
+    },
+    {
+      "plan": "arcane",
+      "seed": 110,
+      "level": 10,
+      "warmupSeconds": 166,
+      "active": [
+        {
+          "id": "skill.mg.thunderstorm",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 3
+        },
+        {
+          "id": "skill.mg.frost_diver",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.soul_strike",
+          "rank": 2
+        }
+      ],
+      "keystone": "keystone.mg.arcane"
+    },
+    {
+      "plan": "arcane",
+      "seed": 111,
+      "level": 10,
+      "warmupSeconds": 159,
+      "active": [
+        {
+          "id": "skill.mg.thunderstorm",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.frost_diver",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.soul_strike",
+          "rank": 3
+        },
+        {
+          "id": "skill.mg.cold_bolt",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.arcane"
+    },
+    {
+      "plan": "arcane",
+      "seed": 112,
+      "level": 10,
+      "warmupSeconds": 172,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.frost_diver",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.soul_strike",
+          "rank": 3
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.arcane"
+    },
+    {
+      "plan": "arcane",
+      "seed": 113,
+      "level": 10,
+      "warmupSeconds": 170,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.soul_strike",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.cold_bolt",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.arcane"
+    },
+    {
+      "plan": "arcane",
+      "seed": 114,
+      "level": 10,
+      "warmupSeconds": 167,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.frost_diver",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.soul_strike",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.cold_bolt",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.arcane"
+    },
+    {
+      "plan": "arcane",
+      "seed": 115,
+      "level": 10,
+      "warmupSeconds": 172,
+      "active": [
+        {
+          "id": "skill.mg.thunderstorm",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.soul_strike",
+          "rank": 3
+        },
+        {
+          "id": "skill.mg.cold_bolt",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.arcane"
+    },
+    {
+      "plan": "arcane",
+      "seed": 116,
+      "level": 10,
+      "warmupSeconds": 166,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.frost_diver",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.soul_strike",
+          "rank": 3
+        },
+        {
+          "id": "skill.mg.cold_bolt",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.arcane"
+    },
+    {
+      "plan": "arcane",
+      "seed": 117,
+      "level": 10,
+      "warmupSeconds": 164,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.soul_strike",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.cold_bolt",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 2
+        }
+      ],
+      "keystone": "keystone.mg.arcane"
+    },
+    {
+      "plan": "arcane",
+      "seed": 118,
+      "level": 10,
+      "warmupSeconds": 167,
+      "active": [
+        {
+          "id": "skill.mg.thunderstorm",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.frost_diver",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.soul_strike",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.arcane"
+    },
+    {
+      "plan": "arcane",
+      "seed": 119,
+      "level": 10,
+      "warmupSeconds": 166,
+      "active": [
+        {
+          "id": "skill.mg.thunderstorm",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.soul_strike",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.frost_diver",
+          "rank": 3
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.arcane"
+    },
+    {
+      "plan": "arcane",
+      "seed": 120,
+      "level": 10,
+      "warmupSeconds": 170,
+      "active": [
+        {
+          "id": "skill.mg.thunderstorm",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.soul_strike",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.frost_diver",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.arcane"
+    },
+    {
+      "plan": "arcane",
+      "seed": 121,
+      "level": 10,
+      "warmupSeconds": 169,
+      "active": [
+        {
+          "id": "skill.mg.thunderstorm",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.soul_strike",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 3
+        },
+        {
+          "id": "skill.mg.frost_diver",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.arcane"
+    },
+    {
+      "plan": "arcane",
+      "seed": 122,
+      "level": 10,
+      "warmupSeconds": 167,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.soul_strike",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.frost_diver",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.cold_bolt",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.arcane"
+    },
+    {
+      "plan": "arcane",
+      "seed": 123,
+      "level": 10,
+      "warmupSeconds": 166,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.cold_bolt",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.soul_strike",
+          "rank": 2
+        }
+      ],
+      "keystone": "keystone.mg.arcane"
+    },
+    {
+      "plan": "arcane",
+      "seed": 124,
+      "level": 10,
+      "warmupSeconds": 165,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.soul_strike",
+          "rank": 3
+        },
+        {
+          "id": "skill.mg.cold_bolt",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.frost_diver",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.arcane"
+    },
+    {
+      "plan": "arcane",
+      "seed": 125,
+      "level": 10,
+      "warmupSeconds": 164,
+      "active": [
+        {
+          "id": "skill.mg.thunderstorm",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.soul_strike",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.frost_diver",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.arcane"
+    },
+    {
+      "plan": "arcane",
+      "seed": 126,
+      "level": 10,
+      "warmupSeconds": 169,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.cold_bolt",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.soul_strike",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 3
+        }
+      ],
+      "keystone": "keystone.mg.arcane"
+    },
+    {
+      "plan": "arcane",
+      "seed": 127,
+      "level": 10,
+      "warmupSeconds": 161,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.cold_bolt",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.soul_strike",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.safety_wall",
+          "rank": 2
+        }
+      ],
+      "keystone": "keystone.mg.arcane"
+    },
+    {
+      "plan": "arcane",
+      "seed": 128,
+      "level": 10,
+      "warmupSeconds": 168,
+      "active": [
+        {
+          "id": "skill.mg.thunderstorm",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.frost_diver",
+          "rank": 3
+        },
+        {
+          "id": "skill.mg.cold_bolt",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.arcane"
+    },
+    {
+      "plan": "arcane",
+      "seed": 129,
+      "level": 10,
+      "warmupSeconds": 164,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.frost_diver",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.soul_strike",
+          "rank": 3
+        },
+        {
+          "id": "skill.mg.cold_bolt",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.arcane"
+    },
+    {
+      "plan": "arcane",
+      "seed": 130,
+      "level": 10,
+      "warmupSeconds": 163,
+      "active": [
+        {
+          "id": "skill.mg.napalm_beat",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.soul_strike",
+          "rank": 2
+        },
+        {
+          "id": "skill.mg.cold_bolt",
+          "rank": 1
+        },
+        {
+          "id": "skill.mg.frost_diver",
+          "rank": 1
+        }
+      ],
+      "keystone": "keystone.mg.arcane"
+    }
+  ]
+}

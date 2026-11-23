@@ -19,11 +19,17 @@ import type { RunInput, RunState } from "./run.ts";
  * Deterministic headless test player (acceptance bots, balance runs). It only produces a movement
  * intent and draft choices — the same InputCommand stream a human adapter would send.
  */
-export type BuildPlan = "guardian" | "weapon" | "fury";
+export const SWORDSMAN_PLANS = ["guardian", "weapon", "fury"] as const;
+export const MAGE_PLANS = ["elementalist", "storm", "arcane"] as const;
+export type BuildPlan = (typeof SWORDSMAN_PLANS)[number] | (typeof MAGE_PLANS)[number];
 
 const PLAN: Record<BuildPlan, { keystone: string; actives: string[]; passives: string[] }> = {
   guardian: { keystone: "keystone.guardian", actives: ["skill.sw.shield_wave", "skill.sw.magnum_break", "skill.sw.endure", "skill.sw.bash", "skill.sw.provoke"], passives: ["passive.sw.hp_recovery", "passive.sw.sword_mastery", "passive.sw.moving_recovery", "skill.sw.auto_berserk"] },
   weapon: { keystone: "keystone.weapon", actives: ["skill.sw.magnum_break", "skill.sw.endure", "skill.sw.fatal_blow", "skill.sw.bash", "skill.sw.provoke"], passives: ["passive.sw.hp_recovery", "passive.sw.twohand_mastery", "passive.sw.moving_recovery", "passive.sw.sword_mastery"] },
+  // Mage (content/jobs/mage.json): single-target bolts, area storm, elite/MVP arcane control.
+  elementalist: { keystone: "keystone.mg.elementalist", actives: ["skill.mg.fire_bolt", "skill.mg.lightning_bolt", "skill.mg.napalm_beat", "skill.mg.cold_bolt", "skill.mg.safety_wall"], passives: ["passive.mg.arcane_focus", "passive.mg.srecovery", "passive.mg.quick_chant", "passive.mg.mana_shell"] },
+  storm: { keystone: "keystone.mg.storm", actives: ["skill.mg.napalm_beat", "skill.mg.thunderstorm", "skill.mg.safety_wall", "skill.mg.lightning_bolt", "skill.mg.frost_diver"], passives: ["passive.mg.srecovery", "passive.mg.mana_shell", "passive.mg.arcane_focus", "passive.mg.quick_chant"] },
+  arcane: { keystone: "keystone.mg.arcane", actives: ["skill.mg.soul_strike", "skill.mg.frost_diver", "skill.mg.napalm_beat", "skill.mg.safety_wall", "skill.mg.cold_bolt"], passives: ["passive.mg.arcane_focus", "passive.mg.srecovery", "passive.mg.mana_shell", "passive.mg.quick_chant"] },
   fury: { keystone: "keystone.fury", actives: ["skill.sw.magnum_break", "skill.sw.endure", "skill.sw.provoke", "skill.sw.bash", "skill.sw.fatal_blow"], passives: ["passive.sw.sword_mastery", "passive.sw.hp_recovery", "skill.sw.auto_berserk", "passive.sw.moving_recovery"] },
 };
 

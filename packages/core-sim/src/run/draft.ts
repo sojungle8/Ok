@@ -22,7 +22,16 @@ export interface BuildView {
   levelsSinceDefense: number;
 }
 
-export const DEFENSE_IDS = new Set(["skill.sw.endure", "passive.sw.hp_recovery", "passive.sw.moving_recovery"]);
+/**
+ * Defensive options (pity rule) are derived from content, not hard-coded per job: an active self-buff
+ * with damage reduction, or a passive that heals over time / while moving.
+ */
+export function isDefenseOption(content: RunContent, id: string): boolean {
+  const s = content.skills[id];
+  if (s) return s.effects.damageReductionPermille !== undefined;
+  const p = content.passives[id];
+  return !!p && (p.perRank.healPerSecondPpm !== undefined || p.movingRecoveryPermille !== undefined);
+}
 const WEIGHT: Record<DraftOption["kind"], number> = { "new-active": 30, "rank-active": 20, "new-passive": 14, "rank-passive": 10, "rank-basic": 12, keystone: 0, heal: 1 };
 
 export function optionKey(o: DraftOption): string {
@@ -86,7 +95,7 @@ export function generateDraft(content: RunContent, b: BuildView, rng: Rng, sourc
     take(na.length ? na[rng.nextInt(na.length)] : undefined);
   }
   if (b.levelsSinceDefense >= content.progression.pityDefense) {
-    const def = pool.filter((o) => DEFENSE_IDS.has(o.id));
+    const def = pool.filter((o) => isDefenseOption(content, o.id));
     take(def.length ? def[rng.nextInt(def.length)] : undefined);
   }
   const rest = pool.filter((o) => !picked.some((p) => optionKey(p) === optionKey(o)));

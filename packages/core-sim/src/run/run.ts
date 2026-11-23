@@ -3,7 +3,7 @@ import { hashState, type HashValue } from "../hash.ts";
 import { DIR12, DIR16, TRIG_SCALE } from "../trig.ts";
 import type { InputCommand } from "../sim.ts";
 import type { BossAttackDef, Geometry, MonsterDef, RunContent, SkillDef } from "./content.ts";
-import { DEFENSE_IDS, generateDraft, isAreaClear, optionKey, type BuildView, type DraftOption } from "./draft.ts";
+import { generateDraft, isDefenseOption, isAreaClear, optionKey, type BuildView, type DraftOption } from "./draft.ts";
 import { hits, unitToward, type Placed } from "./geometry.ts";
 
 /**
@@ -341,9 +341,11 @@ export function skillValue(c: RunContent, s: SkillDef, rank: number, keystone: s
   return { damage, hitLimit, cooldown: Math.max(6, cooldown), cast, duration, geometry, stunChance, reduction, armorDelta };
 }
 
-function passiveRank(st: RunState, id: string): number {
-  return st.player.passive.find((p) => p.id === id)?.rank ?? 0;
+/** A content-defined self buff (e.g. Endure): damage reduction, no hit geometry. */
+function isSelfBuff(s: SkillDef): boolean {
+  return s.effects.damageReductionPermille !== undefined;
 }
+
 
 function itemSum(c: RunContent, st: RunState, k: "damagePermille" | "maxHp" | "armorPermille" | "movePermille" | "regenPerSecond" | "pickupPermille"): number {
   return st.player.loadout.reduce((s, id) => s + (c.items[id]?.[k] ?? 0), 0);
@@ -729,7 +731,7 @@ function resolveSkill(c: RunContent, st: RunState, s: SkillDef, rank: number, dx
     geometry: v.geometry, rank, vfxCue: s.id, designOrigin: s.designOrigin,
   });
   if (isAreaClear(c, s.id) && st.stats.firstAreaClearCastTick < 0) st.stats.firstAreaClearCastTick = st.runTick;
-  if (s.id === "skill.sw.endure") {
+  if (isSelfBuff(s)) {
     p.endureUntil = st.runTick + v.duration;
     p.endureReduction = v.reduction;
   } else if (v.geometry) {
@@ -972,16 +974,18 @@ function regen(c: RunContent, st: RunState): void {
   const p = st.player;
   if (st.runTick % 60 !== 0 || p.hp <= 0) return;
   p.hp = Math.min(p.maxHp, p.hp + itemSum(c, st, "regenPerSecond"));
-  const rank = passiveRank(st, "passive.sw.hp_recovery");
-  if (rank === 0) return;
-  const def = c.passives["passive.sw.hp_recovery"];
-  let heal = Math.trunc((p.maxHp * (def?.perRank.healPerSecondPpm ?? 0) * rank) / 1_000_000);
-  heal = Math.min(heal, def?.combatHealCapPerSecond ?? heal);
-  if (p.moving) {
-    const mr = c.passives["passive.sw.moving_recovery"];
-    heal = passiveRank(st, "passive.sw.moving_recovery") > 0 ? permille(heal, mr?.movingRecoveryPermille ?? 0) : 0;
+  // Content-driven regeneration: every owned passive with a heal rate, then the moving rule.
+  for (const slot of p.passive) {
+    const def = c.passives[slot.id];
+    if (!def || def.perRank.healPerSecondPpm === undefined || slot.rank === 0) continue;
+    let heal = Math.trunc((p.maxHp * def.perRank.healPerSecondPpm * slot.rank) / 1_000_000);
+    heal = Math.min(heal, def.combatHealCapPerSecond ?? heal);
+    if (p.moving) {
+      const mover = p.passive.find((m) => m.rank > 0 && c.passives[m.id]?.movingRecoveryPermille !== undefined);
+      heal = mover ? permille(heal, c.passives[mover.id]?.movingRecoveryPermille ?? 0) : 0;
+    }
+    p.hp = Math.min(p.maxHp, p.hp + heal);
   }
-  p.hp = Math.min(p.maxHp, p.hp + heal);
 }
 
 function separate(c: RunContent, st: RunState, grid: RunGrid | null | undefined): void {
@@ -1082,7 +1086,7 @@ function applyOption(c: RunContent, st: RunState, o: DraftOption): void {
   }
   if (source === "level") {
     st.levelsSinceNewActive = o.kind === "new-active" ? 0 : st.levelsSinceNewActive + 1;
-    st.levelsSinceDefense = DEFENSE_IDS.has(o.id) ? 0 : st.levelsSinceDefense + 1;
+    st.levelsSinceDefense = isDefenseOption(c, o.id) ? 0 : st.levelsSinceDefense + 1;
   }
   st.events.push({ type: "draft-select", tick: st.runTick, source, optionKey: optionKey(o) });
   st.draft = null;

@@ -1,0 +1,460 @@
+{
+  "schemaVersion": 1,
+  "id": "mage",
+  "status": "draft-balance-v0.2",
+  "rightsProfile": "fan-local: skill names/icons are official RO; mechanics and numbers are this project's survivor adaptation",
+  "job": {
+    "runtimeId": "job.mage",
+    "sourceJobId": 2,
+    "sourceConstant": "JOB_MAGE",
+    "nameKey": "job.mage.name",
+    "role": "fragile ranged area caster",
+    "baseStats": {
+      "maxHp": 135,
+      "moveMetersPerSecond": 4.9,
+      "armorReduction": 0.07,
+      "pickupRadiusMeters": 1.8,
+      "baseAttackIntervalMs": 850,
+      "str": 1,
+      "agi": 6,
+      "vit": 4,
+      "int": 12,
+      "dex": 9,
+      "luk": 1
+    },
+    "slotRules": {
+      "activeSlots": 4,
+      "passiveSlots": 4,
+      "builtInSkillsDoNotConsumeSlot": true,
+      "keystoneLimit": 1
+    },
+    "startingSkillIds": [
+      "skill.mg.basic_bolt"
+    ],
+    "guaranteedEarlyOffer": {
+      "beforeElapsedSeconds": 60,
+      "oneOf": [
+        "skill.mg.napalm_beat",
+        "skill.mg.thunderstorm"
+      ]
+    }
+  },
+  "skills": [
+    {
+      "id": "skill.mg.basic_bolt",
+      "sourceSkill": {
+        "id": null,
+        "constant": "ORIGINAL_SURVIVOR_ADAPTATION",
+        "maxLevel": 5
+      },
+      "kind": "built-in",
+      "tags": [
+        "magic",
+        "ranged",
+        "front-arc"
+      ],
+      "trigger": "automatic-nearest-in-range",
+      "cooldownMs": 850,
+      "castMs": 0,
+      "geometry": {
+        "shape": "sector",
+        "rangeMeters": 5.2,
+        "angleDegrees": 24
+      },
+      "baseDamage": 18,
+      "hitLimit": 1,
+      "levelCurve": [
+        {
+          "rank": 1,
+          "damageMultiplier": 1.0,
+          "hitLimit": 1
+        },
+        {
+          "rank": 2,
+          "damageMultiplier": 1.18,
+          "hitLimit": 2
+        },
+        {
+          "rank": 3,
+          "damageMultiplier": 1.36,
+          "hitLimit": 2
+        },
+        {
+          "rank": 4,
+          "damageMultiplier": 1.55,
+          "hitLimit": 3
+        },
+        {
+          "rank": 5,
+          "damageMultiplier": 1.75,
+          "hitLimit": 3
+        }
+      ]
+    },
+    {
+      "id": "skill.mg.fire_bolt",
+      "sourceSkill": {
+        "id": 19,
+        "constant": "MG_FIREBOLT",
+        "maxLevel": 10
+      },
+      "kind": "active",
+      "tags": [
+        "magic",
+        "fire",
+        "bolt",
+        "pierce"
+      ],
+      "trigger": "automatic-nearest-in-range",
+      "cooldownMs": 2400,
+      "castMs": 250,
+      "geometry": {
+        "shape": "capsule",
+        "rangeMeters": 7.0,
+        "radiusMeters": 0.55
+      },
+      "baseDamage": 40,
+      "hitLimit": 4,
+      "rankDelta": {
+        "damage": 7,
+        "rank3HitLimit": 5,
+        "maxRank": 5
+      }
+    },
+    {
+      "id": "skill.mg.cold_bolt",
+      "sourceSkill": {
+        "id": 14,
+        "constant": "MG_COLDBOLT",
+        "maxLevel": 10
+      },
+      "kind": "active",
+      "tags": [
+        "magic",
+        "water",
+        "bolt",
+        "control"
+      ],
+      "trigger": "automatic-nearest-in-range",
+      "cooldownMs": 3000,
+      "castMs": 250,
+      "geometry": {
+        "shape": "capsule",
+        "rangeMeters": 7.0,
+        "radiusMeters": 0.55
+      },
+      "baseDamage": 26,
+      "hitLimit": 3,
+      "status": {
+        "type": "stun",
+        "chance": 0.35,
+        "durationMs": 900
+      },
+      "rankDelta": {
+        "damage": 5,
+        "stunChance": 0.05,
+        "rank3HitLimit": 4,
+        "maxRank": 5
+      }
+    },
+    {
+      "id": "skill.mg.lightning_bolt",
+      "sourceSkill": {
+        "id": 20,
+        "constant": "MG_LIGHTNINGBOLT",
+        "maxLevel": 10
+      },
+      "kind": "active",
+      "tags": [
+        "magic",
+        "wind",
+        "bolt",
+        "pierce"
+      ],
+      "trigger": "automatic-highest-density-sector",
+      "cooldownMs": 2800,
+      "castMs": 250,
+      "geometry": {
+        "shape": "capsule",
+        "rangeMeters": 8.0,
+        "radiusMeters": 0.6
+      },
+      "baseDamage": 30,
+      "hitLimit": 5,
+      "rankDelta": {
+        "damage": 6,
+        "rangeMeters": 0.3,
+        "maxRank": 5
+      }
+    },
+    {
+      "id": "skill.mg.napalm_beat",
+      "sourceSkill": {
+        "id": 11,
+        "constant": "MG_NAPALMBEAT",
+        "maxLevel": 10
+      },
+      "kind": "active",
+      "tags": [
+        "magic",
+        "ghost",
+        "area",
+        "early-clear"
+      ],
+      "trigger": "automatic-enemy-count-threshold",
+      "minimumTargets": 3,
+      "cooldownMs": 4500,
+      "castMs": 300,
+      "geometry": {
+        "shape": "circle",
+        "radiusMeters": 2.8
+      },
+      "baseDamage": 28,
+      "hitLimit": 12,
+      "rankDelta": {
+        "damage": 5,
+        "radiusMeters": 0.15,
+        "cooldownMs": -200,
+        "maxRank": 5
+      }
+    },
+    {
+      "id": "skill.mg.thunderstorm",
+      "sourceSkill": {
+        "id": 21,
+        "constant": "MG_THUNDERSTORM",
+        "maxLevel": 10
+      },
+      "kind": "active",
+      "tags": [
+        "magic",
+        "wind",
+        "area",
+        "area-clear"
+      ],
+      "trigger": "automatic-enemy-count-threshold",
+      "minimumTargets": 4,
+      "cooldownMs": 8000,
+      "castMs": 600,
+      "geometry": {
+        "shape": "circle",
+        "radiusMeters": 4.2
+      },
+      "baseDamage": 36,
+      "hitLimit": 20,
+      "rankDelta": {
+        "damage": 7,
+        "radiusMeters": 0.2,
+        "cooldownMs": -400,
+        "maxRank": 5
+      }
+    },
+    {
+      "id": "skill.mg.frost_diver",
+      "sourceSkill": {
+        "id": 15,
+        "constant": "MG_FROSTDIVER",
+        "maxLevel": 10
+      },
+      "kind": "active",
+      "tags": [
+        "magic",
+        "water",
+        "front-cone",
+        "control"
+      ],
+      "trigger": "automatic-highest-density-sector",
+      "cooldownMs": 7000,
+      "castMs": 300,
+      "geometry": {
+        "shape": "sector",
+        "rangeMeters": 4.5,
+        "angleDegrees": 50
+      },
+      "baseDamage": 34,
+      "hitLimit": 8,
+      "status": {
+        "type": "stun",
+        "chance": 1.0,
+        "durationMs": 1200
+      },
+      "rankDelta": {
+        "damage": 5,
+        "rangeMeters": 0.25,
+        "cooldownMs": -300,
+        "maxRank": 5
+      }
+    },
+    {
+      "id": "skill.mg.soul_strike",
+      "sourceSkill": {
+        "id": 13,
+        "constant": "MG_SOULSTRIKE",
+        "maxLevel": 10
+      },
+      "kind": "active",
+      "tags": [
+        "magic",
+        "ghost",
+        "elite-killer"
+      ],
+      "trigger": "automatic-elite-priority",
+      "cooldownMs": 3500,
+      "castMs": 350,
+      "geometry": {
+        "shape": "capsule",
+        "rangeMeters": 6.5,
+        "radiusMeters": 0.45
+      },
+      "baseDamage": 85,
+      "hitLimit": 1,
+      "eliteDamageMultiplier": 1.4,
+      "rankDelta": {
+        "damage": 14,
+        "castMs": -30,
+        "maxRank": 5
+      }
+    },
+    {
+      "id": "skill.mg.safety_wall",
+      "sourceSkill": {
+        "id": 12,
+        "constant": "MG_SAFETYWALL",
+        "maxLevel": 10
+      },
+      "kind": "active",
+      "tags": [
+        "defense",
+        "buff"
+      ],
+      "trigger": "automatic-on-damage-window",
+      "cooldownMs": 11000,
+      "castMs": 0,
+      "durationMs": 3500,
+      "effects": {
+        "damageReduction": 0.3,
+        "knockbackImmune": false,
+        "invulnerable": false
+      },
+      "rankDelta": {
+        "durationMs": 400,
+        "damageReduction": 0.03,
+        "maxRank": 5
+      }
+    }
+  ],
+  "passives": [
+    {
+      "id": "passive.mg.srecovery",
+      "sourceSkill": {
+        "id": 9,
+        "constant": "MG_SRECOVERY",
+        "maxLevel": 10
+      },
+      "maxRank": 5,
+      "perRank": {
+        "maxHpMultiplier": 0.04,
+        "healPerSecondMaxHp": 0.003
+      },
+      "combatHealCapPerSecond": 3.0
+    },
+    {
+      "id": "passive.mg.arcane_focus",
+      "sourceSkill": {
+        "id": null,
+        "constant": "ORIGINAL_SURVIVOR_ADAPTATION",
+        "maxLevel": 5
+      },
+      "maxRank": 5,
+      "perRank": {
+        "damageMultiplier": 0.06,
+        "basicArcDegrees": 3
+      }
+    },
+    {
+      "id": "passive.mg.quick_chant",
+      "sourceSkill": {
+        "id": null,
+        "constant": "ORIGINAL_SURVIVOR_ADAPTATION",
+        "maxLevel": 5
+      },
+      "maxRank": 5,
+      "perRank": {
+        "damageMultiplier": 0.03,
+        "attackIntervalMultiplier": -0.03
+      }
+    },
+    {
+      "id": "passive.mg.mana_shell",
+      "sourceSkill": {
+        "id": null,
+        "constant": "ORIGINAL_SURVIVOR_ADAPTATION",
+        "maxLevel": 5
+      },
+      "maxRank": 5,
+      "perRank": {
+        "maxHpMultiplier": 0.09
+      }
+    }
+  ],
+  "keystones": [
+    {
+      "id": "keystone.mg.elementalist",
+      "nameKey": "keystone.mg.elementalist.name",
+      "effects": {
+        "eliteDamageMultiplier": 1.2,
+        "frontArcRangeMultiplier": 1.2
+      },
+      "confirmationRequired": true
+    },
+    {
+      "id": "keystone.mg.storm",
+      "nameKey": "keystone.mg.storm.name",
+      "effects": {
+        "allDamageMultiplier": 1.12,
+        "moveMultiplier": 0.95,
+        "bossDamageMultiplier": 1.1
+      },
+      "confirmationRequired": true
+    },
+    {
+      "id": "keystone.mg.arcane",
+      "nameKey": "keystone.mg.arcane.name",
+      "effects": {
+        "bossDamageMultiplier": 1.2,
+        "eliteDamageMultiplier": 1.1,
+        "allDamageMultiplier": 1.1
+      },
+      "confirmationRequired": true
+    }
+  ],
+  "buildLoadouts": {
+    "elementalist": [
+      "equip.test.rod",
+      "equip.test.shirt",
+      "equip.test.hood",
+      "equip.test.sandals",
+      "equip.test.bandana",
+      "equip.test.clip",
+      "equip.test.ring"
+    ],
+    "storm": [
+      "equip.test.rod",
+      "equip.test.shirt",
+      "equip.test.hood",
+      "equip.test.sandals",
+      "equip.test.bandana",
+      "equip.test.clip",
+      "equip.test.ring"
+    ],
+    "arcane": [
+      "equip.test.rod",
+      "equip.test.shirt",
+      "equip.test.hood",
+      "equip.test.sandals",
+      "equip.test.bandana",
+      "equip.test.clip",
+      "equip.test.ring"
+    ]
+  }
+}

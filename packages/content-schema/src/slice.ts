@@ -146,6 +146,8 @@ export const TEST_EQUIPMENT: ItemDef[] = [
   { id: "equip.test.bandana", slot: "headgear", nameKey: "equip.test.bandana", damagePermille: 0, maxHp: 1500, armorPermille: 20, movePermille: 0, regenPerSecond: 0, pickupPermille: 0 },
   { id: "equip.test.clip", slot: "accessory", nameKey: "equip.test.clip", damagePermille: 0, maxHp: 0, armorPermille: 0, movePermille: 0, regenPerSecond: 60, pickupPermille: 0 },
   { id: "equip.test.ring", slot: "accessory", nameKey: "equip.test.ring", damagePermille: 80, maxHp: 0, armorPermille: 0, movePermille: 0, regenPerSecond: 0, pickupPermille: 0 },
+  // Mage test weapon: same HP budget as sword + guard (no shield slot used by casters).
+  { id: "equip.test.rod", slot: "weapon", nameKey: "equip.test.rod", damagePermille: 150, maxHp: 2000, armorPermille: 0, movePermille: 0, regenPerSecond: 0, pickupPermille: 0 },
   { id: "equip.test.glove", slot: "accessory", nameKey: "equip.test.glove", damagePermille: 0, maxHp: 0, armorPermille: 0, movePermille: 0, regenPerSecond: 0, pickupPermille: 400 },
 ];
 export const STANDARD_TEST_LOADOUT = ["equip.test.sword", "equip.test.guard", "equip.test.shirt", "equip.test.hood", "equip.test.sandals", "equip.test.bandana", "equip.test.clip", "equip.test.ring"];
@@ -234,6 +236,8 @@ export function compileSliceContent(raw: unknown): RunContent {
     const r = p.perRank ?? {};
     const def: PassiveDef = { id: p.id, requiresTags: p.requiresTags ?? [], maxRank: p.maxRank, tags: [], perRank: {} };
     if (r.physicalDamageMultiplier !== undefined) def.perRank.physicalDamagePermille = permille(r.physicalDamageMultiplier);
+    // Job-neutral alias (e.g. Mage passives): the runtime multiplier applies to all player damage.
+    if (r.damageMultiplier !== undefined) def.perRank.physicalDamagePermille = permille(r.damageMultiplier);
     if (r.basicArcDegrees !== undefined) def.perRank.basicArcDeg = r.basicArcDegrees;
     if (r.attackIntervalMultiplier !== undefined) def.perRank.attackIntervalPermille = permille(r.attackIntervalMultiplier);
     if (r.maxHpMultiplier !== undefined) def.perRank.maxHpPermille = permille(r.maxHpMultiplier);
@@ -259,6 +263,7 @@ export function compileSliceContent(raw: unknown): RunContent {
     if (num(e, "magnumRadiusMultiplier") !== undefined) out.magnumRadiusPermille = permille(num(e, "magnumRadiusMultiplier") as number);
     if (num(e, "magnumCooldownMultiplier") !== undefined) out.magnumCooldownPermille = permille(num(e, "magnumCooldownMultiplier") as number);
     if (num(e, "bossDamageMultiplier") !== undefined) out.bossDamagePermille = permille(num(e, "bossDamageMultiplier") as number);
+    if (num(e, "allDamageMultiplier") !== undefined) out.allDamagePermille = permille(num(e, "allDamageMultiplier") as number);
     const ko = SLICE_TUNING.keystoneOverrides[k.id];
     if (ko?.basicHitLimitBonus) out.basicHitLimitBonus = ko.basicHitLimitBonus;
     if (ko?.allDamagePermille) out.allDamagePermille = ko.allDamagePermille;
@@ -393,4 +398,31 @@ export function compileSliceContent(raw: unknown): RunContent {
     bossSpawnTick,
     enrageTick: seed.rules.bossEnrageTick,
   };
+}
+
+/** A job content pack layered on the signed slice seed: same stage, monsters and progression. */
+export const jobPackSchema = z.object({
+  schemaVersion: z.literal(1),
+  id: z.string().regex(/^[a-z]+$/u),
+  status: z.string(),
+  job: sliceSeedSchema.shape.job,
+  skills: z.array(skillSchema).min(1),
+  passives: sliceSeedSchema.shape.passives,
+  keystones: sliceSeedSchema.shape.keystones,
+  buildLoadouts: z.record(z.string(), z.array(z.string()).min(1)),
+}).passthrough();
+export type JobPack = z.infer<typeof jobPackSchema>;
+
+/**
+ * Compile a job pack against the immutable slice seed (stage/monsters/progression unchanged). The
+ * pack's skills, passives, keystones and per-plan test loadouts replace the Swordsman ones.
+ */
+export function compileJobContent(seedRaw: unknown, packRaw: unknown): RunContent {
+  const seed = sliceSeedSchema.parse(seedRaw);
+  const pack = jobPackSchema.parse(packRaw);
+  const content = compileSliceContent({ ...seed, contentVersion: `${seed.contentVersion}+${pack.id}.${pack.status}`, job: pack.job, skills: pack.skills, passives: pack.passives, keystones: pack.keystones });
+  for (const [plan, ids] of Object.entries(pack.buildLoadouts)) {
+    for (const id of ids) if (!content.items[id]) throw new Error(`job ${pack.id} loadout ${plan} references unknown item ${id}`);
+  }
+  return { ...content, standardLoadout: [...(Object.values(pack.buildLoadouts)[0] ?? [])], buildLoadouts: Object.fromEntries(Object.entries(pack.buildLoadouts).map(([k, v]) => [k, [...v]])) };
 }

@@ -6,7 +6,7 @@ import {
   botCommand, createRun, Rng, stepRun, TRIG_SCALE, type BuildPlan, type Enemy, type RunConfig, type RunContent,
   type RunState,
 } from "@ro-survivor/core-sim";
-import { sliceConfig, sliceContent } from "./slice-fixture.ts";
+import { jobConfig, sliceContent } from "./slice-fixture.ts";
 
 export const SCENARIOS = ["clear", "mvp", "survival", "mobility", "control"] as const;
 export type ScenarioId = (typeof SCENARIOS)[number];
@@ -22,6 +22,8 @@ export const MOBILITY_WAYPOINTS_MM: readonly (readonly [number, number])[] = [[1
 const WAYPOINT_REACH_MM = 1_000;
 
 export interface Kit {
+  /** Compiled job content the kit was drafted with. */
+  content: RunContent;
   plan: BuildPlan;
   seed: number;
   level: number;
@@ -55,16 +57,16 @@ const rolesOf = (c: RunContent, test: (role: string) => boolean): string[] =>
   Object.entries(c.monsters).filter(([, m]) => test(m.role)).map(([id]) => id).sort();
 
 /** Play the real stage with the bot until the level budget; return the drafted kit. */
-export function warmupKit(seed: number, plan: BuildPlan): Kit {
-  const cfg = sliceConfig(seed, plan);
+export function warmupKit(seed: number, plan: BuildPlan, base: RunContent = sliceContent): Kit {
+  const cfg = jobConfig(base, seed, plan);
   const st = createRun(cfg);
   let seq = 0;
   while (st.phase !== "victory" && st.phase !== "defeat" && st.runTick < SCENARIO_WARMUP_MAX_TICKS) {
     if (st.player.level >= SCENARIO_LEVEL_BUDGET && st.phase === "running") break;
-    stepRun(st, cfg, botCommand(sliceContent, st, plan, seq++, (x, y) => ({ moveX: x, moveY: y })));
+    stepRun(st, cfg, botCommand(base, st, plan, seq++, (x, y) => ({ moveX: x, moveY: y })));
   }
   return {
-    plan, seed, level: st.player.level, warmupTicks: st.runTick, reachedBudget: st.player.level >= SCENARIO_LEVEL_BUDGET,
+    content: base, plan, seed, level: st.player.level, warmupTicks: st.runTick, reachedBudget: st.player.level >= SCENARIO_LEVEL_BUDGET,
     active: st.player.active.map((s) => ({ id: s.id, rank: s.rank })),
     passive: st.player.passive.map((s) => ({ id: s.id, rank: s.rank })),
     keystone: st.player.keystone,
@@ -94,14 +96,14 @@ function ring(c: RunContent, st: RunState, rng: Rng, pool: readonly string[], co
   st.stats.maxEnemies = Math.max(st.stats.maxEnemies, st.enemies.length);
 }
 
-export function scenarioContent(): RunContent {
-  return { ...sliceContent, timeline: [] };
+export function scenarioContent(base: RunContent = sliceContent): RunContent {
+  return { ...base, timeline: [] };
 }
 
 /** Isolated scenario state: fresh run, empty timeline, the warm-up kit at full HP. */
 export function scenarioState(kit: Kit, scenario: ScenarioId): { st: RunState; cfg: RunConfig } {
-  const content = scenarioContent();
-  const cfg: RunConfig = { ...sliceConfig(kit.seed, kit.plan), content, runSeed: kit.seed * 1000 + SCENARIOS.indexOf(scenario) };
+  const content = scenarioContent(kit.content);
+  const cfg: RunConfig = { ...jobConfig(kit.content, kit.seed, kit.plan), content, runSeed: kit.seed * 1000 + SCENARIOS.indexOf(scenario) };
   const st = createRun(cfg);
   st.enemies.splice(0);
   st.player.level = kit.level;
