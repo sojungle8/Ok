@@ -35,9 +35,10 @@
     "dev:fan-local": "node tools/dev/fan-local.ts",
     "assets:synthetic-demo": "node tools/assets/synthetic-demo.ts",
     "slice:acceptance": "node tools/slice/acceptance.ts",
-    "slice:acceptance:check": "node tools/slice/acceptance.ts --check && node tools/slice/scenarios.ts --check && node tools/slice/scenarios.ts --check --job=mage && node tools/slice/job-acceptance.ts --check --job=mage",
+    "slice:acceptance:check": "node tools/slice/acceptance.ts --check && node tools/slice/scenarios.ts --check && node tools/slice/scenarios.ts --check --job=mage && node tools/slice/job-acceptance.ts --check --job=mage && node tools/slice/difficulty.ts --check",
     "slice:scenarios": "node tools/slice/scenarios.ts",
-    "slice:job-acceptance": "node tools/slice/job-acceptance.ts"
+    "slice:job-acceptance": "node tools/slice/job-acceptance.ts",
+    "slice:difficulty": "node tools/slice/difficulty.ts"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

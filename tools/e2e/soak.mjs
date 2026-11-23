@@ -35,6 +35,7 @@ await new Promise((r) => server.listen(0, "127.0.0.1", r));
 const base = `http://127.0.0.1:${server.address().port}/`;
 const browser = await playwright.chromium.launch({ args: ["--enable-unsafe-swiftshader", "--js-flags=--expose-gc"] });
 const samples = [];
+const progression = [];
 const errors = [];
 let status;
 try {
@@ -44,7 +45,11 @@ try {
   await page.getByTestId("start").click({ timeout: 20_000 });
   await page.getByTestId("job-swordsman").click();
   for (let run = 1; run <= RUNS; run += 1) {
-    await page.getByTestId("stage-prt_fild08").click({ timeout: 20_000 });
+    await page.getByTestId("stage-select").waitFor({ timeout: 20_000 });
+    await page.waitForTimeout(300);
+    const hardButton = await page.getByTestId("stage-prt_fild08-hard").count();
+    progression.push({ beforeRun: run, hardUnlocked: hardButton === 1, baseLevel: (await page.getByTestId("base-level").innerText().catch(() => "")).trim() });
+    await page.getByTestId(run === 2 && hardButton === 1 ? "stage-prt_fild08-hard" : "stage-prt_fild08").click({ timeout: 20_000 });
     await page.getByTestId("run-hud").waitFor({ timeout: 30_000 });
     await page.getByTestId("results").waitFor({ timeout: 420_000 });
     await page.waitForTimeout(300);
@@ -59,11 +64,16 @@ try {
   }
   const gpu = samples.map((s) => s.render && `${s.render.geometries}/${s.render.textures}/${s.render.programs}`);
   const heaps = samples.map((s) => s.heapMb ?? 0);
-  const stableGpu = gpu.every((g) => g !== null && g === gpu[0]);
+  // A defeat and a victory leave different live presentation objects; runs that end the same way
+  // must leave identical GPU counters (a leak would grow them run over run).
+  const stableGpu = gpu.every((g, i) => g !== null && samples.every((s, j) => s.outcome !== samples[i]?.outcome || gpu[j] === g));
   const monotonicGrowth = heaps.every((h, i) => i === 0 || h > (heaps[i - 1] ?? 0) + 2);
   const heapGrowthMb = Math.round(((heaps.at(-1) ?? 0) - (heaps[0] ?? 0)) * 10) / 10;
-  status = samples.length === RUNS && stableGpu && !monotonicGrowth && heapGrowthMb < 16 && errors.length === 0 ? "PASS" : "FAIL";
-  const report = { status, runs: RUNS, samples, stableGpu, heapGrowthMb, monotonicGrowth, errors };
+  // Meta progression: the first victory unlocks the hard stage, and Base XP is shown before each run.
+  const hardAfterVictory = samples[0]?.outcome !== "victory" || progression[1]?.hardUnlocked === true;
+  const progressShown = progression.every((p) => /^Base Lv \d+/u.test(p.baseLevel));
+  status = samples.length === RUNS && hardAfterVictory && progressShown && progression[0]?.hardUnlocked === false && stableGpu && !monotonicGrowth && heapGrowthMb < 16 && errors.length === 0 ? "PASS" : "FAIL";
+  const report = { status, runs: RUNS, samples, progression, hardAfterVictory, stableGpu, heapGrowthMb, monotonicGrowth, errors };
   mkdirSync(join(root, "reports/phase3"), { recursive: true });
   writeFileSync(join(root, "reports/phase3/soak-three-runs.json"), JSON.stringify(report, null, 2) + "\n");
   console.log(JSON.stringify(report, null, 1));

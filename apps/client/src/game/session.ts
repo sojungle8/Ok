@@ -36,6 +36,8 @@ export class RunSession {
   readonly #autoplay: BuildPlan | null;
   readonly #manualDraft: boolean;
   readonly #speed: number;
+  readonly #job: string;
+  readonly #stage: string;
   #queued: Partial<Pick<RunInput, "draftIndex" | "confirm" | "cancel">> = {};
   #seq = 0;
   #raf = 0;
@@ -44,7 +46,9 @@ export class RunSession {
   #terminalEndAt = 0;
   paused = false;
 
-  constructor(content: RunContent, runSeed: number, renderer: RunRenderer, cb: SessionCallbacks, opts: { loadout: string[]; autoplay: BuildPlan | null; manualDraft?: boolean; speed: number; grid?: RunConfig["grid"]; start?: { x: number; y: number } }) {
+  constructor(content: RunContent, runSeed: number, renderer: RunRenderer, cb: SessionCallbacks, opts: { loadout: string[]; autoplay: BuildPlan | null; manualDraft?: boolean; speed: number; grid?: RunConfig["grid"]; start?: { x: number; y: number }; job?: string; stage?: string }) {
+    this.#job = opts.job ?? "job.swordsman";
+    this.#stage = opts.stage ?? "stage.prt_fild08.slice";
     this.cfg = { content, runSeed, loadout: opts.loadout, ...(opts.grid ? { grid: opts.grid } : {}), ...(opts.start ? { start: opts.start } : {}) };
     this.state = createRun(this.cfg);
     this.#renderer = renderer;
@@ -123,6 +127,6 @@ export class RunSession {
   }
 
   result(meta: { profileId: string; runId: string; buildId: string }) {
-    return buildRunResult(this.cfg.content, this.state, { ...meta, job: "job.swordsman", stage: "stage.prt_fild08.slice" });
+    return buildRunResult(this.cfg.content, this.state, { ...meta, job: this.#job, stage: this.#stage });
   }
 }

@@ -15,12 +15,12 @@
     {
       "run": 2,
       "render": {
-        "geometries": 15,
+        "geometries": 19,
         "textures": 13,
-        "programs": 4
+        "programs": 6
       },
       "heapMb": 10.7,
-      "outcome": "victory"
+      "outcome": "defeat"
     },
     {
       "run": 3,
@@ -33,6 +33,24 @@
       "outcome": "victory"
     }
   ],
+  "progression": [
+    {
+      "beforeRun": 1,
+      "hardUnlocked": false,
+      "baseLevel": "Base Lv 0 · HP +0% · 傷害 +0%"
+    },
+    {
+      "beforeRun": 2,
+      "hardUnlocked": true,
+      "baseLevel": "Base Lv 2 · HP +6% · 傷害 +4%"
+    },
+    {
+      "beforeRun": 3,
+      "hardUnlocked": true,
+      "baseLevel": "Base Lv 3 · HP +9% · 傷害 +6%"
+    }
+  ],
+  "hardAfterVictory": true,
   "stableGpu": true,
   "heapGrowthMb": 0,
   "monotonicGrowth": false,

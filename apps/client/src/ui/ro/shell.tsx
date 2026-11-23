@@ -157,13 +157,13 @@ export function RoCharacterSelectShell(props: { rasters: RasterRegistry; actorPr
   );
 }
 
-export function RoStageSelectShell(props: { rasters: RasterRegistry; onChoose: () => void; onBack: () => void }) {
+export function RoStageSelectShell(props: { rasters: RasterRegistry; onChoose: () => void; onBack: () => void; progressLine?: string; hardUnlocked?: boolean; onChooseHard?: () => void }) {
   return (
     <div class="ro-shell-screen" data-testid="stage-select" data-ro-shell="original-ro-raster">
       {RoWindow({
         rasters: props.rasters,
         width: 360,
-        height: 338,
+        height: props.hardUnlocked ? 384 : 358,
         title: "選擇關卡",
         children: <div class="ro-shell-content ro-shell-stage-content">
           <div class="ro-shell-stage-preview">
@@ -174,7 +174,9 @@ export function RoStageSelectShell(props: { rasters: RasterRegistry; onChoose: (
               <span class="ro-shell-small">10 分鐘 · Mastering</span>
             </div>
           </div>
+          {props.progressLine ? <span class="ro-shell-small" data-testid="base-level">{props.progressLine}</span> : null}
           <ShellButton rasters={props.rasters} width={176} label="進入原野" testId="stage-prt_fild08" onPress={props.onChoose} />
+          {props.hardUnlocked && props.onChooseHard ? <ShellButton rasters={props.rasters} width={176} label="困難模式" testId="stage-prt_fild08-hard" onPress={props.onChooseHard} /> : null}
           <ShellButton rasters={props.rasters} width={96} label="返回" compact testId="stage-back" onPress={props.onBack} />
         </div>,
       })}

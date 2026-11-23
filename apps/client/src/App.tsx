@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import { CANONICAL_WHITELIST_SHA256, UI_PROFILE_ID } from "@ro-survivor/asset-contracts";
 import { compileSliceContent } from "@ro-survivor/content-schema";
+import { applyRunModifiers, baseLevelBonus, baseLevelFromXp } from "@ro-survivor/core-sim";
 import { flowTransition, type BuildPlan, type FlowEvent, type FlowState, type RunState } from "@ro-survivor/core-sim";
 import { IndexedDbBackend, idempotencyKey, recordPending, settle, settleAllPending, type CharacterRecord, type RunResult } from "@ro-survivor/persistence";
 import seedJson from "../../../docs/product-plan/handoff/vertical-slice-content-seed.json?raw";
@@ -83,6 +84,8 @@ export function App() {
   /** Test-fixture builds only: world factory from the dynamically imported fixture module. */
   const fixtureWorld = useRef<((g: GroundData) => WorldLayer) | null>(null);
   const db = useRef<IndexedDbBackend | null>(null);
+  // Local meta progression: settled Base XP of the character and the hard-stage unlock.
+  const [progress, setProgress] = useState<{ baseXp: number; hardUnlocked: boolean }>({ baseXp: 0, hardUnlocked: false });
   const session = useRef<RunSession | null>(null);
   const renderer = useRef<RunRenderer | null>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -90,6 +93,8 @@ export function App() {
   const flowRef = useRef(flow);
   flowRef.current = flow;
   const settingsRef = useRef(settings);
+  const progressRef = useRef(progress);
+  progressRef.current = progress;
   settingsRef.current = settings;
   const inRunScreen = flow.screen === "running" || flow.screen === "draft-paused" || flow.screen === "boss-intro" || flow.screen === "victory" || flow.screen === "defeat";
   const worldSurface = inRunScreen || (flow.screen === "results" && assets !== null && st !== null);
@@ -300,7 +305,9 @@ export function App() {
     const world: WorldLayer | null = assets.formal ? new FormalWorld(assets.formal, assets.ground, nearestTexture) : (fixtureWorld.current?.(assets.ground) ?? null);
     if (!world) return;
     const shadow = assets.formal ? new OfficialShadowLayer(assets.formal, nearestTexture, 441) : null;
-    const r = new RunRenderer(canvas.current, content, assets.player, assets.enemies, settingsRef.current, world, shadow);
+    const difficulty = f.stage.endsWith(".hard") ? "hard" : "normal";
+    const runContent = applyRunModifiers(content, { difficulty, baseLevel: baseLevelFromXp(progressRef.current.baseXp) });
+    const r = new RunRenderer(canvas.current, runContent, assets.player, assets.enemies, settingsRef.current, world, shadow);
     const a = audio.current;
     if (a && !a.tryStart()) setAudioGate(true);
     renderer.current = r;
@@ -308,7 +315,7 @@ export function App() {
     resize();
     window.addEventListener("resize", resize);
     const plan: BuildPlan = autoplay ?? "guardian";
-    const s = new RunSession(content, runSeed, r, {
+    const s = new RunSession(runContent, runSeed, r, {
       onFrame: (state) => {
         setSt({ ...state });
         a?.playEvents(state.events);
@@ -354,7 +361,7 @@ export function App() {
           markSettledIfVisible();
         })();
       },
-    }, { loadout: content.buildLoadouts[plan] ?? content.standardLoadout, autoplay, manualDraft, speed, grid: assets.grid ? { width: assets.grid.width, height: assets.grid.height, cellMm: assets.grid.cellMm, reachable: assets.grid.walkable } : null, start: assets.start });
+    }, { job: f.job, stage: f.stage, loadout: content.buildLoadouts[plan] ?? content.standardLoadout, autoplay, manualDraft, speed, grid: assets.grid ? { width: assets.grid.width, height: assets.grid.height, cellMm: assets.grid.cellMm, reachable: assets.grid.walkable } : null, start: assets.start });
     if (stick.current) {
       const el = stick.current;
       const rect = (): DOMRect => el.getBoundingClientRect();
@@ -446,6 +453,26 @@ export function App() {
     return () => cancelAnimationFrame(raf);
   }, [flow.screen, st]);
 
+  // Refresh meta progression whenever the player is back in the pre-run screens.
+  const preRunScreen = flow.screen === "title" || flow.screen === "character-select" || flow.screen === "stage-select";
+  useEffect(() => {
+    if (!preRunScreen || !db.current) return;
+    const backend = db.current;
+    void (async () => {
+      try {
+        const character = (await backend.getAll<CharacterRecord>("characters")).find(([k]) => k === `${PROFILE}:job.swordsman`)?.[1] ?? null;
+        const hard = (await backend.getAll<{ unlocked: boolean }>("stageProgress")).some(([k, v]) => k === `${PROFILE}:stage.prt_fild08.slice.hard` && v.unlocked);
+        setProgress({ baseXp: character?.baseXp ?? 0, hardUnlocked: hard });
+      } catch {
+        /* progress display is best effort; the run itself never depends on it */
+      }
+    })();
+  }, [preRunScreen, conn]);
+  const baseLevel = baseLevelFromXp(progress.baseXp);
+  const bonus = baseLevelBonus(baseLevel);
+  const newRunSeed = (): number => Number(params.get("seed") ?? (crypto.getRandomValues(new Uint32Array(1))[0] ?? 1));
+  const progressLine = `Base Lv ${baseLevel} · HP +${(bonus.maxHpPermille - 1000) / 10}% · 傷害 +${(bonus.damagePermille - 1000) / 10}%`;
+
   const updateSettings = (s: Settings): void => {
     setSettings(s);
     saveSettings(s);
@@ -505,12 +532,17 @@ export function App() {
       {flow.screen === "stage-select" ? (
         shellUi ? <RoStageSelectShell
           rasters={shellUi.rasters}
-          onChoose={() => send({ type: "choose-stage", stage: "stage.prt_fild08.slice", runSeed: Number(params.get("seed") ?? (crypto.getRandomValues(new Uint32Array(1))[0] ?? 1)) })}
+          progressLine={progressLine}
+          hardUnlocked={progress.hardUnlocked}
+          onChooseHard={() => send({ type: "choose-stage", stage: "stage.prt_fild08.slice.hard", runSeed: newRunSeed() })}
+          onChoose={() => send({ type: "choose-stage", stage: "stage.prt_fild08.slice", runSeed: newRunSeed() })}
           onBack={() => send({ type: "back" })}
         /> : FIXTURE_BUILD ? (
           <section class="panel" data-testid="stage-select">
             <h2>選擇關卡</h2>
-            <button class="card" onClick={() => send({ type: "choose-stage", stage: "stage.prt_fild08.slice", runSeed: Number(params.get("seed") ?? (crypto.getRandomValues(new Uint32Array(1))[0] ?? 1)) })} data-testid="stage-prt_fild08">普隆德拉原野（10 分鐘）</button>
+            <p data-testid="base-level">{progressLine}</p>
+            <button class="card" onClick={() => send({ type: "choose-stage", stage: "stage.prt_fild08.slice", runSeed: newRunSeed() })} data-testid="stage-prt_fild08">普隆德拉原野（10 分鐘）</button>
+            {progress.hardUnlocked ? <button class="card" onClick={() => send({ type: "choose-stage", stage: "stage.prt_fild08.slice.hard", runSeed: newRunSeed() })} data-testid="stage-prt_fild08-hard">普隆德拉原野・困難</button> : null}
             <button onClick={() => send({ type: "back" })}>返回</button>
           </section>
         ) : <section class="panel blocked" data-testid="stage-select"><p>原始 RO 介面素材尚未就緒。</p><button onClick={() => send({ type: "back" })}>返回</button></section>

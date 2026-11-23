@@ -2,6 +2,15 @@
 
 ## Unreleased — original assets, RO UI and D-032 skills (2026-11-17–18)
 
+- Meta progression (Phase 4.4 first cut, existing RO assets only): hard difficulty and Base level are pure content
+  transforms applied before a run (normal Base-0 runs are byte-identical; every slice hash and report digest is
+  unchanged). Hard (enemy HP ×1.3, enemy damage ×1.15, waves ×0.9 interval, XP ×1.25) unlocks through the existing
+  settlement `stage.prt_fild08.slice.hard` reward after the first victory; settled Base XP gives Base level 0–20
+  (400·n(n+1)/2 XP), each +3 % max HP and +2 % skill damage. The original-RO stage-select window shows the Base level
+  and a `困難模式` button once unlocked. `slice:difficulty` gates both jobs (hard never easier than normal; with Base 10
+  every build wins ≥ 5/10 on hard) and is recomputed by `slice:acceptance:check`. Browser check G now proves the
+  unlock and the Base-level display across three real runs (victory → hard → victory) with outcome-matched stable
+  GPU counters. The formal stage-select layout change is `DEFERRED_LOCAL` for real-raster visual review.
 - Phase 4.1 Mage (simulation + balance): the shared skill pipeline no longer hard-codes Swordsman ids (defense pity,
   self-buff and regeneration are derived from content; every Swordsman hash and report digest is unchanged).
   `content/jobs/mage.json` layers a Magician kit on the signed seed (same stage, monsters, progression): basic bolt,
