@@ -2,6 +2,10 @@
 
 ## Unreleased — original assets, RO UI and D-032 skills (2026-11-17–18)
 
+- PWA icon (user rule: assets are RO assets): once the formal UI rasters are verified, the client renders the
+  original `ui.skill.sm_bash.icon` with exact 8×/16× nearest-neighbour scaling (192/384 px) into a runtime blob
+  manifest and the iOS touch icon. The pixels exist only in the browser; the static manifest stays icon-less and
+  no RO-derived image enters Git. Fixture builds never install an icon. Real installability is `DEFERRED_LOCAL`.
 - Phase 3.2.5: opt-in performance HUD (`?perf=1` only, off by default in every build) showing frame-time
   percentiles over a bounded 240-frame window plus live draw calls, textures and geometries.
 - Phase 3.2.6 soak: browser check G plays three consecutive autoplay runs on the test-fixture build and, at each

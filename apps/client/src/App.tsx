@@ -22,6 +22,7 @@ import { DraftModal } from "./screens/Draft.tsx";
 import { Hud } from "./screens/Hud.tsx";
 import { ResultsScreen } from "./screens/Results.tsx";
 import { FrameTimes, perfEnabled } from "./game/perf.ts";
+import { installRoAppIcon, PWA_ICON_ASSET_ID } from "./pwa.ts";
 import { loadSettings, saveSettings, type Settings } from "./settings.ts";
 import { RoCharacterSelectShell, RoMobileControlHint, RoStageSelectShell, RoTitleShell } from "./ui/ro/index.ts";
 
@@ -282,6 +283,13 @@ export function App() {
 
   useEffect(() => () => {
     shellUi?.dispose();
+  }, [shellUi]);
+
+  // Installable icon from the verified original RO raster (formal UI only; never a drawn substitute).
+  useEffect(() => {
+    if (!shellUi || FIXTURE_BUILD) return;
+    void installRoAppIcon(shellUi.rasters.has(PWA_ICON_ASSET_ID) ? shellUi.rasters.get(PWA_ICON_ASSET_ID) : undefined)
+      .then((ok) => { document.documentElement.dataset.roAppIcon = ok ? PWA_ICON_ASSET_ID : "none"; });
   }, [shellUi]);
 
   // Running: create renderer + session once the canvas exists.

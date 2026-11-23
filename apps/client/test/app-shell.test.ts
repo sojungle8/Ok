@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { APP_MANIFEST, serviceWorkerSource, shellFiles } from "../pwa/app-shell.ts";
-import { renderPixelRatio } from "../src/pwa.ts";
+import { PWA_ICON_ASSET_ID, PWA_ICON_SCALES, renderPixelRatio, runtimeManifest } from "../src/pwa.ts";
 
 describe("offline app shell", () => {
   it("precaches only built HTML/JS/CSS/manifest, never RO data, local assets or the worker itself", () => {
@@ -32,5 +32,13 @@ describe("offline app shell", () => {
     expect(renderPixelRatio(3, false)).toBe(2);
     expect(renderPixelRatio(1, true)).toBe(1);
     expect(renderPixelRatio(Number.NaN, false)).toBe(1);
+  });
+
+  it("builds the runtime manifest with absolute URLs and icons from the verified RO raster only", () => {
+    const icons = [{ src: "data:image/png;base64,AA==", sizes: "192x192", type: "image/png" as const, purpose: "any" as const }];
+    const m = runtimeManifest(APP_MANIFEST, "https://host.test/game/index.html?x=1", icons);
+    expect(m).toMatchObject({ start_url: "https://host.test/game/", scope: "https://host.test/game/", name: APP_MANIFEST.name, icons });
+    expect(PWA_ICON_ASSET_ID).toBe("ui.skill.sm_bash.icon");
+    expect(PWA_ICON_SCALES.map((s) => 24 * s)).toEqual([192, 384]);
   });
 });
