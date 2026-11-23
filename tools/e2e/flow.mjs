@@ -158,8 +158,25 @@ async function enterRun(page, query) {
   results.keyboard = { x0, x1, errors, pass: x1 > x0 && errors.length === 0 };
   await ctx.close();
 }
+// M. Mage job (test-fixture sprites): the selected job's content drives the run.
+{
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.goto(`${base}?autoplay=storm&speed=20&seed=4`);
+  await page.getByTestId("start").click({ timeout: 20_000 });
+  await page.getByTestId("job-mage").click();
+  await page.getByTestId("stage-prt_fild08").click();
+  await page.getByTestId("run-hud").waitFor({ timeout: 30_000 });
+  await page.waitForFunction(() => Object.keys(window.__run?.()?.stats.damageBySource ?? {}).some((k) => k.startsWith("skill.mg.")), null, { timeout: 30_000 }).catch(() => undefined);
+  const sources = await page.evaluate(() => Object.keys(window.__run?.()?.stats.damageBySource ?? {}));
+  results.mage = { sources, errors, pass: sources.some((k) => k.startsWith("skill.mg.")) && !sources.some((k) => k.startsWith("skill.sw.")) && errors.length === 0 };
+  await ctx.close();
+}
 await browser.close();
 server.close();
+
 writeFileSync(join(out, "flow-results.json"), JSON.stringify(results, null, 2) + "\n");
 console.log(JSON.stringify(results, null, 1));
 if (!Object.values(results).every((r) => r.pass)) process.exitCode = 1;

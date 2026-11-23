@@ -8,6 +8,23 @@ import type { AssetWhitelist } from "./whitelist.ts";
  */
 export const FORMAL_PLAYER_LAYERS = ["player.swordsman.male.body", "player.hair01.male", "player.swordsman.male.sword", "player.swordsman.male.guard"] as const;
 export const FORMAL_PLAYER_PALETTES = ["palette.body.swordsman.male", "palette.hair01.male"] as const;
+/**
+ * Player layer sets per job (body first, then hair, then overlays). The Swordsman set is always
+ * required; any other job is offered only when every one of its IDs is whitelisted (fail closed).
+ */
+export const FORMAL_JOB_PLAYERS: Readonly<Record<string, { layers: readonly string[]; palettes: readonly string[] }>> = {
+  "job.swordsman": { layers: FORMAL_PLAYER_LAYERS, palettes: FORMAL_PLAYER_PALETTES },
+  "job.mage": { layers: ["player.mage.male.body", "player.hair01.male", "player.mage.male.rod"], palettes: ["palette.body.mage.male", "palette.hair01.male"] },
+};
+export function jobPlayerIds(job: string): string[] {
+  const set = FORMAL_JOB_PLAYERS[job];
+  if (!set) throw new Error(`unknown job ${job}`);
+  return [...set.layers.flatMap((l) => [`${l}.spr`, `${l}.act`]), ...set.palettes];
+}
+/** A job is selectable on the formal screen only when its whole player set is whitelisted. */
+export function jobAvailable(list: { has(id: string): boolean }, job: string): boolean {
+  return FORMAL_JOB_PLAYERS[job] !== undefined && jobPlayerIds(job).every((id) => list.has(id));
+}
 export const FORMAL_MONSTERS = ["monster.1002", "monster.1113", "monster.1007", "monster.1063", "monster.1011", "monster.1010", "monster.1052", "monster.1020", "monster.1167", "monster.1031", "monster.1088", "monster.1090"] as const;
 export const FORMAL_MAP_CORE = ["map.prt_fild08.rsw", "map.prt_fild08.gnd", "map.prt_fild08.gat"] as const;
 /**

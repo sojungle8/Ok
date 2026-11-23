@@ -2,6 +2,13 @@
 
 ## Unreleased — original assets, RO UI and D-032 skills (2026-11-17–18)
 
+- Mage formal wiring (fail closed): `FORMAL_JOB_PLAYERS` / `jobAvailable()` define per-job player layer sets; the
+  Mage (body + hair + rod, original palettes) is offered on the original-RO character-select window only when its
+  whole set is whitelisted, the extractor emits its three-layer atlas only then, and the loader / layer check require
+  exactly that set. Run content, default plan, HUD/draft names (official Traditional Chinese skill names) and the
+  settled result follow the chosen job; Base XP is account-wide. Browser check C now runs a Mage autoplay on the
+  test-fixture build and proves only `skill.mg.*` damage sources. Until canonical v6 adds the Mage rows the formal
+  game shows the Swordsman only.
 - Meta progression (Phase 4.4 first cut, existing RO assets only): hard difficulty and Base level are pure content
   transforms applied before a run (normal Base-0 runs are byte-identical; every slice hash and report digest is
   unchanged). Hard (enemy HP ×1.3, enemy damage ×1.15, waves ×0.9 interval, XP ×1.25) unlocks through the existing

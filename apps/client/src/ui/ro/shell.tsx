@@ -132,13 +132,13 @@ export function RoTitleShell(props: {
   );
 }
 
-export function RoCharacterSelectShell(props: { rasters: RasterRegistry; actorPreview: ComponentChildren; onChoose: () => void; onBack: () => void }) {
+export function RoCharacterSelectShell(props: { rasters: RasterRegistry; actorPreview: ComponentChildren; onChoose: () => void; onBack: () => void; onChooseMage?: () => void }) {
   return (
     <div class="ro-shell-screen" data-testid="character-select" data-ro-shell="original-ro-raster">
       {RoWindow({
         rasters: props.rasters,
         width: 360,
-        height: 318,
+        height: props.onChooseMage ? 362 : 318,
         title: "選擇職業",
         children: <div class="ro-shell-content ro-shell-choice-content">
           <div class="ro-shell-choice-preview">
@@ -150,6 +150,7 @@ export function RoCharacterSelectShell(props: { rasters: RasterRegistry; actorPr
             </div>
           </div>
           <ShellButton rasters={props.rasters} width={160} label="選擇劍士" testId="job-swordsman" onPress={props.onChoose} />
+          {props.onChooseMage ? <ShellButton rasters={props.rasters} width={160} label="選擇法師" testId="job-mage" onPress={props.onChooseMage} /> : null}
           <ShellButton rasters={props.rasters} width={96} label="返回" compact testId="character-back" onPress={props.onBack} />
         </div>,
       })}

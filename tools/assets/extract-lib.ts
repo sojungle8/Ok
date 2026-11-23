@@ -342,6 +342,16 @@ export function spriteGroups(rows: readonly WhitelistRow[]): { id: string; kind:
       ].filter((l) => ids.has(l.spr) && ids.has(l.act)),
     });
   }
+  // Additional jobs: emitted only when the whole layer set is whitelisted (body, hair, overlays).
+  for (const sex of ["male", "female"] as const) {
+    const body = `player.mage.${sex}.body`;
+    const layers = [
+      { spr: `${body}.spr`, act: `${body}.act`, palette: `palette.body.mage.${sex}` },
+      { spr: `player.hair01.${sex}.spr`, act: `player.hair01.${sex}.act`, palette: `palette.hair01.${sex}` },
+      { spr: `player.mage.${sex}.rod.spr`, act: `player.mage.${sex}.rod.act` },
+    ];
+    if (layers.every((l) => ids.has(l.spr) && ids.has(l.act))) out.push({ id: `player.mage.${sex}`, kind: "player", layers });
+  }
   for (const r of rows) {
     const m = /^(monster\.\d+)\.spr$/u.exec(r.asset_id);
     if (m && ids.has(`${m[1] as string}.act`)) out.push({ id: m[1] as string, kind: "monster", layers: [{ spr: r.asset_id, act: `${m[1] as string}.act` }] });

@@ -1,5 +1,5 @@
 import type { WalkGrid } from "@ro-survivor/core-sim";
-import { CANONICAL_WHITELIST_SHA256, formalRequiredIds, formalUiRequiredIds, missingFromWhitelist, resolveMapClosure, UI_PROFILE_ID, type HttpAssetGatewayClient } from "@ro-survivor/asset-contracts";
+import { CANONICAL_WHITELIST_SHA256, FORMAL_JOB_PLAYERS, formalRequiredIds, jobPlayerIds, formalUiRequiredIds, missingFromWhitelist, resolveMapClosure, UI_PROFILE_ID, type HttpAssetGatewayClient } from "@ro-survivor/asset-contracts";
 import { whitelist } from "../gateway.ts";
 import { disposeFormalScene, loadFormalScene, type FormalDecoders, type FormalSceneData } from "./formal/load.ts";
 import { loadFormalUiAssets, type FormalUiAssets } from "./formal/ui.ts";
@@ -33,15 +33,13 @@ interface MapMeta {
  * The swordsman atlas must be composed from all four layer sets with the original palettes
  * (body, hair, sword, guard). A body-only sheet is never accepted on the formal screen.
  */
-export function checkPlayerLayers(data: SheetData, list = whitelist): MissingAsset[] {
-  const [body, hair, sword, guard] = FORMAL_SCENE.player.layers;
-  const [bodyPal, hairPal] = FORMAL_SCENE.player.palettes;
-  const expected: { spr: string; palette: string | null }[] = [
-    { spr: `${body}.spr`, palette: bodyPal },
-    { spr: `${hair}.spr`, palette: hairPal },
-    { spr: `${sword}.spr`, palette: null },
-    { spr: `${guard}.spr`, palette: null },
-  ];
+export function checkPlayerLayers(data: SheetData, list = whitelist, job = "job.swordsman"): MissingAsset[] {
+  const set = job === "job.swordsman" ? FORMAL_SCENE.player : FORMAL_JOB_PLAYERS[job];
+  if (!set) return [{ assetId: null, container: "data.grf", canonicalPath: "(unknown job)", reason: `job ${job} has no formal player layer set` }];
+  const [body] = set.layers;
+  // Body and hair carry their original palettes; weapon / shield overlays use their own.
+  const expected: { spr: string; palette: string | null }[] = set.layers.map((layer, i) => ({ spr: `${layer}.spr`, palette: set.palettes[i] ?? null }));
+  const n = expected.length;
   const got = data.layers ?? [];
   const problems: MissingAsset[] = [];
   expected.forEach((e, i) => {
@@ -49,8 +47,9 @@ export function checkPlayerLayers(data: SheetData, list = whitelist): MissingAss
     if (!l || l.spr !== e.spr) problems.push(missingWhitelisted(list, e.spr, `player atlas layer ${i} is ${l?.spr ?? "absent"} (re-run pnpm assets:extract --profile fan-local)`));
     else if (e.palette && l.palette !== e.palette) problems.push(missingWhitelisted(list, e.palette, `player layer ${e.spr} was composed without its original palette`));
   });
-  if (!data.layerOrder || data.layerOrder.length !== 8 || data.layerOrder.some((o) => [...o].sort().join() !== "0,1,2,3")) {
-    problems.push(missingWhitelisted(list, `${body}.act`, "player atlas has no per-direction layer order for all four layers"));
+  const all = Array.from({ length: n }, (_, i) => i).join();
+  if (!data.layerOrder || data.layerOrder.length !== 8 || data.layerOrder.some((o) => [...o].sort().join() !== all)) {
+    problems.push(missingWhitelisted(list, `${body ?? "player"}.act`, `player atlas has no per-direction layer order for all ${n} layers`));
   }
   return problems;
 }
@@ -69,8 +68,10 @@ const browserDecoders: FormalDecoders = {
  * layers. `fixtureMode` (automated tests only) skips the source, closure and formal-scene steps that
  * synthetic fixtures cannot satisfy.
  */
-export async function loadFormalAssets(gateway: HttpAssetGatewayClient, fixtureMode: boolean, decoders: FormalDecoders = browserDecoders): Promise<LoadedAssets> {
-  const required = [...formalRequiredIds(whitelist), ...formalUiRequiredIds(whitelist)];
+export async function loadFormalAssets(gateway: HttpAssetGatewayClient, fixtureMode: boolean, decoders: FormalDecoders = browserDecoders, job = "job.swordsman"): Promise<LoadedAssets> {
+  // Test-fixture builds have no synthetic sprites per job; they reuse the Swordsman fixture sheet.
+  const jobIds = job === "job.swordsman" || fixtureMode ? [] : jobPlayerIds(job);
+  const required = [...formalRequiredIds(whitelist), ...formalUiRequiredIds(whitelist), ...jobIds];
   const missing: MissingAsset[] = missingFromWhitelist(whitelist, required).map((m) => ({ ...m }));
   if (missing.length > 0) throw new MissingAssetsError(missing);
   if (!fixtureMode) {
@@ -92,10 +93,10 @@ export async function loadFormalAssets(gateway: HttpAssetGatewayClient, fixtureM
       return null;
     }
   };
-  const playerBody = FORMAL_SCENE.player.layers[0];
+  const playerBody = (job === "job.swordsman" || fixtureMode ? FORMAL_SCENE.player.layers : FORMAL_JOB_PLAYERS[job]?.layers ?? [])[0] as string;
   const playerData = await derived(() => gateway.getJson<SheetData>(`${playerBody}.act`), [`${playerBody}.act`]);
   const player = playerData ? await derived(async () => sheetFromDerived(await gateway.getDerivedImage(`${playerBody}.spr`), playerData), [`${playerBody}.spr`]) : null;
-  if (playerData && !fixtureMode) missing.push(...checkPlayerLayers(playerData));
+  if (playerData && !fixtureMode) missing.push(...checkPlayerLayers(playerData, whitelist, job));
   const enemies: Record<string, SpriteSheet> = {};
   for (const ref of FORMAL_SCENE.enemies) {
     const sheet = await derived(async () => sheetFromDerived(await gateway.getDerivedImage(`${ref}.spr`), await gateway.getJson<SheetData>(`${ref}.act`)), [`${ref}.spr`, `${ref}.act`]);

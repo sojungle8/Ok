@@ -227,6 +227,28 @@ describe("four-layer swordsman", () => {
   });
 });
 
+describe("three-layer mage", () => {
+  const mage: SheetData = {
+    atlas: { width: 1, height: 1 }, slots: {} as SheetData["slots"], frames: [],
+    layers: [
+      { spr: "player.mage.male.body.spr", act: "player.mage.male.body.act", palette: "palette.body.mage.male" },
+      { spr: "player.hair01.male.spr", act: "player.hair01.male.act", palette: "palette.hair01.male" },
+      { spr: "player.mage.male.rod.spr", act: "player.mage.male.rod.act", palette: null },
+    ],
+    layerOrder: [[0, 1, 2], [0, 1, 2], [0, 1, 2], [2, 0, 1], [2, 0, 1], [2, 0, 1], [0, 1, 2], [0, 1, 2]],
+  };
+  it("accepts body + hair + rod with original palettes and a three-layer order", () => {
+    expect(checkPlayerLayers(mage, undefined, "job.mage")).toEqual([]);
+  });
+  it("rejects a Swordsman atlas, a missing rod, a missing palette and an unknown job", () => {
+    expect(checkPlayerLayers(mage).length).toBeGreaterThan(0);
+    expect(checkPlayerLayers({ ...mage, layers: mage.layers?.slice(0, 2) }, undefined, "job.mage").map((m) => m.assetId)).toContain("player.mage.male.rod.spr");
+    const noPal = mage.layers?.map((l, i) => (i === 0 ? { ...l, palette: null } : l));
+    expect(checkPlayerLayers({ ...mage, layers: noPal }, undefined, "job.mage").map((m) => m.assetId)).toEqual(["palette.body.mage.male"]);
+    expect(checkPlayerLayers(mage, undefined, "job.unknown")[0]?.reason).toMatch(/no formal player layer set/u);
+  });
+});
+
 function fakeCtx(state: "suspended" | "running") {
   const log: string[] = [];
   const param = () => ({ value: 0 });

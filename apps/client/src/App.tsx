@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import { CANONICAL_WHITELIST_SHA256, UI_PROFILE_ID } from "@ro-survivor/asset-contracts";
-import { compileSliceContent } from "@ro-survivor/content-schema";
+import { compileJobContent, compileSliceContent } from "@ro-survivor/content-schema";
+import { jobAvailable } from "@ro-survivor/asset-contracts";
 import { applyRunModifiers, baseLevelBonus, baseLevelFromXp } from "@ro-survivor/core-sim";
-import { flowTransition, type BuildPlan, type FlowEvent, type FlowState, type RunState } from "@ro-survivor/core-sim";
+import { flowTransition, type BuildPlan, type FlowEvent, type FlowState, type RunContent, type RunState } from "@ro-survivor/core-sim";
 import { IndexedDbBackend, idempotencyKey, recordPending, settle, settleAllPending, type CharacterRecord, type RunResult } from "@ro-survivor/persistence";
 import seedJson from "../../../docs/product-plan/handoff/vertical-slice-content-seed.json?raw";
+import mageJson from "../../../content/jobs/mage.json?raw";
 import { connectFormalGateway, FIXTURE_BUILD, type GatewayConnection } from "./gateway.ts";
 import { loadFormalAssets, type LoadedAssets } from "./game/assets.ts";
 import { FormalAudio, prepareFormalAudio, type AudioContextLike } from "./game/formal/audio.ts";
@@ -28,6 +30,10 @@ import { loadSettings, saveSettings, type Settings } from "./settings.ts";
 import { RoCharacterSelectShell, RoMobileControlHint, RoStageSelectShell, RoTitleShell } from "./ui/ro/index.ts";
 
 const content = compileSliceContent(JSON.parse(seedJson));
+const mageContent = compileJobContent(JSON.parse(seedJson), JSON.parse(mageJson));
+/** Compiled content per selectable job (same signed stage/monsters/progression). */
+const JOB_CONTENT: Readonly<Record<string, RunContent>> = { "job.swordsman": content, "job.mage": mageContent };
+const DEFAULT_PLAN: Readonly<Record<string, BuildPlan>> = { "job.swordsman": "guardian", "job.mage": "storm" };
 const params = new URLSearchParams(location.search);
 // Test-fixture builds only: the acceptance bot can drive a run end to end for browser checks.
 const autoplay = FIXTURE_BUILD && params.get("autoplay") ? (params.get("autoplay") as BuildPlan) : null;
@@ -227,7 +233,7 @@ export function App() {
         return;
       }
       try {
-        loaded = await loadFormalAssets(conn.client, conn.health.fixture === true);
+        loaded = await loadFormalAssets(conn.client, conn.health.fixture === true, undefined, "job" in flow ? flow.job : "job.swordsman");
         if (loaded.formal) {
           if (!loaded.ui) throw new Error("formal scene loaded without the verified RO UI registry");
           nextFonts = await installFormalFonts(loaded.ui, whitelist);
@@ -306,7 +312,8 @@ export function App() {
     if (!world) return;
     const shadow = assets.formal ? new OfficialShadowLayer(assets.formal, nearestTexture, 441) : null;
     const difficulty = f.stage.endsWith(".hard") ? "hard" : "normal";
-    const runContent = applyRunModifiers(content, { difficulty, baseLevel: baseLevelFromXp(progressRef.current.baseXp) });
+    const jobContent = JOB_CONTENT[f.job] ?? content;
+    const runContent = applyRunModifiers(jobContent, { difficulty, baseLevel: baseLevelFromXp(progressRef.current.baseXp) });
     const r = new RunRenderer(canvas.current, runContent, assets.player, assets.enemies, settingsRef.current, world, shadow);
     const a = audio.current;
     if (a && !a.tryStart()) setAudioGate(true);
@@ -314,7 +321,7 @@ export function App() {
     const resize = (): void => r.resize(canvas.current?.clientWidth ?? 1, canvas.current?.clientHeight ?? 1);
     resize();
     window.addEventListener("resize", resize);
-    const plan: BuildPlan = autoplay ?? "guardian";
+    const plan: BuildPlan = autoplay ?? DEFAULT_PLAN[f.job] ?? "guardian";
     const s = new RunSession(runContent, runSeed, r, {
       onFrame: (state) => {
         setSt({ ...state });
@@ -351,7 +358,7 @@ export function App() {
             if (db.current) {
               await recordPending(db.current, result);
               applied = (await settle(db.current, idempotencyKey(result))).applied;
-              character = (await db.current.getAll<CharacterRecord>("characters")).find(([k]) => k === `${PROFILE}:job.swordsman`)?.[1] ?? null;
+              character = (await db.current.getAll<CharacterRecord>("characters")).find(([k]) => k === `${PROFILE}:${f.job}`)?.[1] ?? null;
             }
           } catch {
             db.current = null;
@@ -361,7 +368,7 @@ export function App() {
           markSettledIfVisible();
         })();
       },
-    }, { job: f.job, stage: f.stage, loadout: content.buildLoadouts[plan] ?? content.standardLoadout, autoplay, manualDraft, speed, grid: assets.grid ? { width: assets.grid.width, height: assets.grid.height, cellMm: assets.grid.cellMm, reachable: assets.grid.walkable } : null, start: assets.start });
+    }, { job: f.job, stage: f.stage, loadout: jobContent.buildLoadouts[plan] ?? jobContent.standardLoadout, autoplay, manualDraft, speed, grid: assets.grid ? { width: assets.grid.width, height: assets.grid.height, cellMm: assets.grid.cellMm, reachable: assets.grid.walkable } : null, start: assets.start });
     if (stick.current) {
       const el = stick.current;
       const rect = (): DOMRect => el.getBoundingClientRect();
@@ -460,14 +467,18 @@ export function App() {
     const backend = db.current;
     void (async () => {
       try {
-        const character = (await backend.getAll<CharacterRecord>("characters")).find(([k]) => k === `${PROFILE}:job.swordsman`)?.[1] ?? null;
+        // Base level is account-wide: the settled Base XP of every job of this profile.
+        const baseXp = (await backend.getAll<CharacterRecord>("characters")).filter(([k]) => k.startsWith(`${PROFILE}:`)).reduce((sum, [, c]) => sum + c.baseXp, 0);
         const hard = (await backend.getAll<{ unlocked: boolean }>("stageProgress")).some(([k, v]) => k === `${PROFILE}:stage.prt_fild08.slice.hard` && v.unlocked);
-        setProgress({ baseXp: character?.baseXp ?? 0, hardUnlocked: hard });
+        setProgress({ baseXp, hardUnlocked: hard });
       } catch {
         /* progress display is best effort; the run itself never depends on it */
       }
     })();
   }, [preRunScreen, conn]);
+  // Mage is offered on the formal screen only when its whole RO player set is whitelisted; the
+  // explicitly labelled test-fixture build may always exercise the flow (with fixture sprites).
+  const mageSelectable = FIXTURE_BUILD || jobAvailable(whitelist, "job.mage");
   const baseLevel = baseLevelFromXp(progress.baseXp);
   const bonus = baseLevelBonus(baseLevel);
   const newRunSeed = (): number => Number(params.get("seed") ?? (crypto.getRandomValues(new Uint32Array(1))[0] ?? 1));
@@ -516,11 +527,12 @@ export function App() {
           )
       ) : null}
       {flow.screen === "character-select" ? (
-        shellUi && shellPlayerPreview ? <RoCharacterSelectShell rasters={shellUi.rasters} actorPreview={<FormalPlayerPreview preview={shellPlayerPreview} />} onChoose={() => send({ type: "choose-character", job: "job.swordsman" })} onBack={() => send({ type: "back" })} />
+        shellUi && shellPlayerPreview ? <RoCharacterSelectShell rasters={shellUi.rasters} actorPreview={<FormalPlayerPreview preview={shellPlayerPreview} />} onChoose={() => send({ type: "choose-character", job: "job.swordsman" })} {...(mageSelectable ? { onChooseMage: () => send({ type: "choose-character", job: "job.mage" }) } : {})} onBack={() => send({ type: "back" })} />
           : FIXTURE_BUILD ? (
             <section class="panel" data-testid="character-select">
               <h2>選擇職業</h2>
               <button class="card" onClick={() => send({ type: "choose-character", job: "job.swordsman" })} data-testid="job-swordsman">劍士</button>
+              {mageSelectable ? <button class="card" onClick={() => send({ type: "choose-character", job: "job.mage" })} data-testid="job-mage">法師</button> : null}
               <button onClick={() => send({ type: "back" })}>返回</button>
             </section>
           ) : <section class="panel blocked" data-testid="character-select" data-testid-state={shellUiStatus !== "ready" ? shellUiStatus : shellPlayerPreviewStatus}>
@@ -560,13 +572,13 @@ export function App() {
         </section>
       ) : null}
       {inRun && st ? <Hud
-        content={content}
+        content={session.current?.cfg.content ?? content}
         st={st}
         rasters={assets?.ui?.rasters ?? null}
         {...(assets?.grid ? { mapExtent: { widthMm: assets.grid.width * assets.grid.cellMm, heightMm: assets.grid.height * assets.grid.cellMm } } : {})}
       /> : null}
       {inRun && st && session.current && (st.phase === "draft" || st.phase === "keystone-confirm") && (!autoplay || manualDraft) ? (
-        <DraftModal content={content} st={st} rasters={assets?.ui?.rasters ?? null} onChoose={(i) => session.current?.choose(i)} onConfirm={() => session.current?.confirm()} onCancel={() => session.current?.cancel()} />
+        <DraftModal content={session.current?.cfg.content ?? content} st={st} rasters={assets?.ui?.rasters ?? null} onChoose={(i) => session.current?.choose(i)} onConfirm={() => session.current?.confirm()} onCancel={() => session.current?.cancel()} />
       ) : null}
       {(flow.screen === "victory" || flow.screen === "defeat") && !assets?.ui ? <div class="banner big" data-testid="outcome">{flow.screen === "victory" ? "勝利！" : "倒下了…"}</div> : null}
       {flow.screen === "results" && results ? (
