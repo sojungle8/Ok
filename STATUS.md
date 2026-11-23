@@ -68,7 +68,7 @@ skill-VFX count is still **0**. Canonical v5 instead verifies 12 original KRO ef
 complete; Shield Wave and Endure are LOCAL_PASS, and Bash, Magnum Break and Provoke are connected with real-local
 evidence DEFERRED_LOCAL. Characters, monsters/MVPs,
 NPCs, maps, formal UI and audio remain original-RO-only under D-022; AI or closed-source-derived skill art remains
-forbidden. The dedicated five-scenario balance gate now passes for all three Swordsman builds (`reports/phase2/d032-five-scenarios.md`); its control-axis finding stays open. Human/device review and every job beyond Swordsman remain open.
+forbidden. The dedicated five-scenario balance gate now passes for all three Swordsman builds (`reports/phase2/d032-five-scenarios.md`); its control-axis finding stays open. The Mage job pack passes the same automated gates in simulation (`reports/phase2/job-acceptance-mage.md`, `reports/phase2/d032-five-scenarios-mage.md`) but is not on the formal screen until its RO assets are whitelisted from the user's client. Human/device review and jobs beyond Mage remain open.
 
 ---
 

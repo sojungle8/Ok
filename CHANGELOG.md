@@ -2,6 +2,15 @@
 
 ## Unreleased — original assets, RO UI and D-032 skills (2026-11-17–18)
 
+- Phase 4.1 Mage (simulation + balance): the shared skill pipeline no longer hard-codes Swordsman ids (defense pity,
+  self-buff and regeneration are derived from content; every Swordsman hash and report digest is unchanged).
+  `content/jobs/mage.json` layers a Magician kit on the signed seed (same stage, monsters, progression): basic bolt,
+  Fire/Cold/Lightning Bolt, Napalm Beat, Thunderstorm, Frost Diver, Soul Strike, Safety Wall, four passives, three
+  keystones, three bot plans and a test rod. `slice:job-acceptance -- --job=mage`: every build 7–9/10 wins on
+  keyboard, touch and gamepad and effective area clear within 60 s in every run; the Mage five-scenario report passes
+  all gates (control coverage again recorded, not gated). Both are recomputed by `slice:acceptance:check`. The Mage
+  is not yet on the formal screen: its RO sprites/icons/effects/WAVs must first be whitelisted from the user's client
+  (`pnpm assets:propose -- tools/assets/candidates/mage.json`).
 - `pnpm assets:propose -- tools/assets/candidates/mage.json` (local only): resolves candidate RO paths in the user's
   verified `data.grf` (case-insensitive), records exact entry bytes, SHA-256, ACT version/actions and rdata
   overrides, discovers real WAV/effect filenames by pattern, and writes *proposed* whitelist rows to git-ignored
