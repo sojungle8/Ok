@@ -2,6 +2,11 @@
 
 ## Unreleased — original assets, RO UI and D-032 skills (2026-11-17–18)
 
+- `pnpm assets:propose -- tools/assets/candidates/mage.json` (local only): resolves candidate RO paths in the user's
+  verified `data.grf` (case-insensitive), records exact entry bytes, SHA-256, ACT version/actions and rdata
+  overrides, discovers real WAV/effect filenames by pattern, and writes *proposed* whitelist rows to git-ignored
+  `reports/local/propose/` for Codex review. It never edits the hash-locked whitelist or copies asset bytes. The
+  first candidate file lists the Magician body/rod/palette (male + female) and 13 official skill icons.
 - PWA icon (user rule: assets are RO assets): once the formal UI rasters are verified, the client renders the
   original `ui.skill.sm_bash.icon` with exact 8×/16× nearest-neighbour scaling (192/384 px) into a runtime blob
   manifest and the iOS touch icon. The pixels exist only in the browser; the static manifest stays icon-less and

@@ -29,6 +29,7 @@
     "maint:cp949-generate": "node tools/cp949/generate.ts",
     "gateway": "node apps/asset-gateway/src/main.ts",
     "assets:audit-whitelist": "node tools/assets/audit-whitelist.ts",
+    "assets:propose": "node tools/assets/propose.ts",
     "assets:extract": "node tools/assets/extract.ts",
     "assets:ui-manifest": "node tools/assets/ui-manifest.ts",
     "dev:fan-local": "node tools/dev/fan-local.ts",

@@ -1,0 +1,184 @@
+{
+  "job": "mage",
+  "description": "Magician (first-class) on prt_fild08: body/rod/palette, 13 skill icons; WAV and effect sources are discovered by name because their exact filenames must come from the user's client.",
+  "candidates": [
+    {
+      "asset_id": "player.mage.male.body.spr",
+      "category": "player_body",
+      "canonical_cp949_path": "data\\sprite\\인간족\\몸통\\남\\마법사_남.spr",
+      "notes": "Official RO Magician body; ACT overlay set verified together"
+    },
+    {
+      "asset_id": "player.mage.male.rod.spr",
+      "category": "player_weapon",
+      "canonical_cp949_path": "data\\sprite\\인간족\\마법사\\마법사_남_롯드.spr",
+      "notes": "Official RO Magician rod overlay; ACT overlay set verified together"
+    },
+    {
+      "asset_id": "player.mage.male.body.act",
+      "category": "player_body",
+      "canonical_cp949_path": "data\\sprite\\인간족\\몸통\\남\\마법사_남.act",
+      "notes": "Official RO Magician body; ACT overlay set verified together"
+    },
+    {
+      "asset_id": "player.mage.male.rod.act",
+      "category": "player_weapon",
+      "canonical_cp949_path": "data\\sprite\\인간족\\마법사\\마법사_남_롯드.act",
+      "notes": "Official RO Magician rod overlay; ACT overlay set verified together"
+    },
+    {
+      "asset_id": "palette.body.mage.male",
+      "category": "palette",
+      "canonical_cp949_path": "data\\palette\\몸\\마법사_남_0.pal",
+      "notes": "Default palette"
+    },
+    {
+      "asset_id": "player.mage.female.body.spr",
+      "category": "player_body",
+      "canonical_cp949_path": "data\\sprite\\인간족\\몸통\\여\\마법사_여.spr",
+      "notes": "Official RO Magician body; ACT overlay set verified together"
+    },
+    {
+      "asset_id": "player.mage.female.rod.spr",
+      "category": "player_weapon",
+      "canonical_cp949_path": "data\\sprite\\인간족\\마법사\\마법사_여_롯드.spr",
+      "notes": "Official RO Magician rod overlay; ACT overlay set verified together"
+    },
+    {
+      "asset_id": "player.mage.female.body.act",
+      "category": "player_body",
+      "canonical_cp949_path": "data\\sprite\\인간족\\몸통\\여\\마법사_여.act",
+      "notes": "Official RO Magician body; ACT overlay set verified together"
+    },
+    {
+      "asset_id": "player.mage.female.rod.act",
+      "category": "player_weapon",
+      "canonical_cp949_path": "data\\sprite\\인간족\\마법사\\마법사_여_롯드.act",
+      "notes": "Official RO Magician rod overlay; ACT overlay set verified together"
+    },
+    {
+      "asset_id": "palette.body.mage.female",
+      "category": "palette",
+      "canonical_cp949_path": "data\\palette\\몸\\마법사_여_0.pal",
+      "notes": "Default palette"
+    },
+    {
+      "asset_id": "ui.skill.mg_napalmbeat.icon",
+      "category": "ui_skill_icon",
+      "canonical_cp949_path": "data\\texture\\유저인터페이스\\item\\mg_napalmbeat.bmp",
+      "source_id": "11",
+      "source_key": "MG_NAPALMBEAT",
+      "notes": "profile=KRO2021_CLASSIC_V0_FAN; Official RO Magician skill icon MG_NAPALMBEAT; 24x24 BMP expected"
+    },
+    {
+      "asset_id": "ui.skill.mg_soulstrike.icon",
+      "category": "ui_skill_icon",
+      "canonical_cp949_path": "data\\texture\\유저인터페이스\\item\\mg_soulstrike.bmp",
+      "source_id": "13",
+      "source_key": "MG_SOULSTRIKE",
+      "notes": "profile=KRO2021_CLASSIC_V0_FAN; Official RO Magician skill icon MG_SOULSTRIKE; 24x24 BMP expected"
+    },
+    {
+      "asset_id": "ui.skill.mg_coldbolt.icon",
+      "category": "ui_skill_icon",
+      "canonical_cp949_path": "data\\texture\\유저인터페이스\\item\\mg_coldbolt.bmp",
+      "source_id": "14",
+      "source_key": "MG_COLDBOLT",
+      "notes": "profile=KRO2021_CLASSIC_V0_FAN; Official RO Magician skill icon MG_COLDBOLT; 24x24 BMP expected"
+    },
+    {
+      "asset_id": "ui.skill.mg_frostdiver.icon",
+      "category": "ui_skill_icon",
+      "canonical_cp949_path": "data\\texture\\유저인터페이스\\item\\mg_frostdiver.bmp",
+      "source_id": "15",
+      "source_key": "MG_FROSTDIVER",
+      "notes": "profile=KRO2021_CLASSIC_V0_FAN; Official RO Magician skill icon MG_FROSTDIVER; 24x24 BMP expected"
+    },
+    {
+      "asset_id": "ui.skill.mg_stonecurse.icon",
+      "category": "ui_skill_icon",
+      "canonical_cp949_path": "data\\texture\\유저인터페이스\\item\\mg_stonecurse.bmp",
+      "source_id": "16",
+      "source_key": "MG_STONECURSE",
+      "notes": "profile=KRO2021_CLASSIC_V0_FAN; Official RO Magician skill icon MG_STONECURSE; 24x24 BMP expected"
+    },
+    {
+      "asset_id": "ui.skill.mg_fireball.icon",
+      "category": "ui_skill_icon",
+      "canonical_cp949_path": "data\\texture\\유저인터페이스\\item\\mg_fireball.bmp",
+      "source_id": "17",
+      "source_key": "MG_FIREBALL",
+      "notes": "profile=KRO2021_CLASSIC_V0_FAN; Official RO Magician skill icon MG_FIREBALL; 24x24 BMP expected"
+    },
+    {
+      "asset_id": "ui.skill.mg_firewall.icon",
+      "category": "ui_skill_icon",
+      "canonical_cp949_path": "data\\texture\\유저인터페이스\\item\\mg_firewall.bmp",
+      "source_id": "18",
+      "source_key": "MG_FIREWALL",
+      "notes": "profile=KRO2021_CLASSIC_V0_FAN; Official RO Magician skill icon MG_FIREWALL; 24x24 BMP expected"
+    },
+    {
+      "asset_id": "ui.skill.mg_firebolt.icon",
+      "category": "ui_skill_icon",
+      "canonical_cp949_path": "data\\texture\\유저인터페이스\\item\\mg_firebolt.bmp",
+      "source_id": "19",
+      "source_key": "MG_FIREBOLT",
+      "notes": "profile=KRO2021_CLASSIC_V0_FAN; Official RO Magician skill icon MG_FIREBOLT; 24x24 BMP expected"
+    },
+    {
+      "asset_id": "ui.skill.mg_lightningbolt.icon",
+      "category": "ui_skill_icon",
+      "canonical_cp949_path": "data\\texture\\유저인터페이스\\item\\mg_lightningbolt.bmp",
+      "source_id": "20",
+      "source_key": "MG_LIGHTNINGBOLT",
+      "notes": "profile=KRO2021_CLASSIC_V0_FAN; Official RO Magician skill icon MG_LIGHTNINGBOLT; 24x24 BMP expected"
+    },
+    {
+      "asset_id": "ui.skill.mg_thunderstorm.icon",
+      "category": "ui_skill_icon",
+      "canonical_cp949_path": "data\\texture\\유저인터페이스\\item\\mg_thunderstorm.bmp",
+      "source_id": "21",
+      "source_key": "MG_THUNDERSTORM",
+      "notes": "profile=KRO2021_CLASSIC_V0_FAN; Official RO Magician skill icon MG_THUNDERSTORM; 24x24 BMP expected"
+    },
+    {
+      "asset_id": "ui.skill.mg_srecovery.icon",
+      "category": "ui_skill_icon",
+      "canonical_cp949_path": "data\\texture\\유저인터페이스\\item\\mg_srecovery.bmp",
+      "source_id": "9",
+      "source_key": "MG_SRECOVERY",
+      "notes": "profile=KRO2021_CLASSIC_V0_FAN; Official RO Magician skill icon MG_SRECOVERY; 24x24 BMP expected"
+    },
+    {
+      "asset_id": "ui.skill.mg_sight.icon",
+      "category": "ui_skill_icon",
+      "canonical_cp949_path": "data\\texture\\유저인터페이스\\item\\mg_sight.bmp",
+      "source_id": "10",
+      "source_key": "MG_SIGHT",
+      "notes": "profile=KRO2021_CLASSIC_V0_FAN; Official RO Magician skill icon MG_SIGHT; 24x24 BMP expected"
+    },
+    {
+      "asset_id": "ui.skill.mg_safetywall.icon",
+      "category": "ui_skill_icon",
+      "canonical_cp949_path": "data\\texture\\유저인터페이스\\item\\mg_safetywall.bmp",
+      "source_id": "12",
+      "source_key": "MG_SAFETYWALL",
+      "notes": "profile=KRO2021_CLASSIC_V0_FAN; Official RO Magician skill icon MG_SAFETYWALL; 24x24 BMP expected"
+    }
+  ],
+  "discover": [
+    {
+      "label": "mage-skill-wav",
+      "pattern": "^data\\\\wav\\\\.*(fire|cold|frost|ice|lightning|thunder|napalm|soul|sight|safety|stone|magic)[^\\\\]*\\.wav$"
+    },
+    {
+      "label": "mage-skill-effects",
+      "pattern": "^data\\\\texture\\\\effect\\\\.*(fire|ice|cold|frost|lightning|thunder|napalm|soul|sight|stone|magic|bolt)[^\\\\]*\\.(str|bmp|tga)$"
+    },
+    {
+      "label": "mage-sprites",
+      "pattern": "^data\\\\sprite\\\\인간족\\\\.*마법사"
+    }
+  ]
+}
