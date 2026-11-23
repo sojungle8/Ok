@@ -1,0 +1,10 @@
+$ printf "Master of Magic\0synthetic" > test.grf && pnpm rights:check   # test.grf is git-ignored
+rights:check scanned index=24 untracked=94 worktree-files=119 history-paths=27 dist-files=3
+rights:check FAIL [worktree] blocked-extension: test.grf (RO client format .grf)
+rights:check FAIL: 1 finding(s)
+exit=1
+
+$ rm test.grf && pnpm rights:check
+rights:check scanned index=24 untracked=94 worktree-files=118 history-paths=27 dist-files=3
+rights:check PASS: no RO assets, raw audio, secrets or unreviewed large binaries found
+exit=0

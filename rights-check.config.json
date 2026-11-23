@@ -1,0 +1,7 @@
+{
+  "trustedHistoryBaseline": "b6d70c2fd5271dae32e926210ea7d49fdea9023c",
+  "distDirs": ["apps/client/dist"],
+  "localAssetDirs": [".local-assets"],
+  "maxUnknownBinaryBytes": 524288,
+  "allowLargeBinaries": []
+}

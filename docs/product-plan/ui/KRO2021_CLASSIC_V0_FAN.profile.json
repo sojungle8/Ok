@@ -1,0 +1,273 @@
+{
+  "profile_id": "KRO2021_CLASSIC_V0_FAN",
+  "status": "DISCOVERED",
+  "client_build_identifier": {
+    "lockId": "kro2021-2026-11-17",
+    "dataGrfSha256": "FA3B7BBDBD650C3468ECA5E978A44E7A848D533F2735E6F5AF2B668E1D1DC3B6",
+    "rdataGrfSha256": "FA6367B8ABC5D1297DE742A127CFF4E1DA626AB3D6B1B0A81BA563CB3CB5124E"
+  },
+  "skin_name": "default (classic BasicInfoV0)",
+  "source_container_priority": [
+    "rdata.grf",
+    "data.grf",
+    "filesystem:System"
+  ],
+  "capture_date": null,
+  "capture_viewport": null,
+  "capture_dpi_scale": null,
+  "locale_codepage": "ko-KR / CP949",
+  "component_version_map": {
+    "BasicInfo": {
+      "version": "BasicInfoV0",
+      "reference_kind": "LOCAL-ORIGINAL",
+      "assetIds": [
+        "ui.hud.basic.background",
+        "ui.hud.basic.background.mini",
+        "ui.gauge.empty.left",
+        "ui.gauge.empty.mid",
+        "ui.gauge.empty.right",
+        "ui.gauge.hp.left",
+        "ui.gauge.hp.mid",
+        "ui.gauge.hp.right",
+        "ui.gauge.sp.left",
+        "ui.gauge.sp.mid",
+        "ui.gauge.sp.right",
+        "ui.control.base.normal",
+        "ui.control.base.hover",
+        "ui.control.minimize.normal",
+        "ui.control.minimize.hover",
+        "ui.control.close.normal",
+        "ui.control.close.hover",
+        "ui.menu.status.normal",
+        "ui.menu.status.active",
+        "ui.menu.equipment.normal",
+        "ui.menu.equipment.active",
+        "ui.menu.inventory.normal",
+        "ui.menu.inventory.active",
+        "ui.menu.map.normal",
+        "ui.menu.map.active",
+        "ui.menu.skill.normal",
+        "ui.menu.skill.active",
+        "ui.menu.option.normal",
+        "ui.menu.option.active",
+        "ui.menu.friends.normal",
+        "ui.menu.friends.active",
+        "ui.menu.chat.normal",
+        "ui.menu.chat.active"
+      ],
+      "note": "basewin_bg / basewin_mini, gze*/gzered*/gzeblue* gauges, sys_* controls and the eight btn_*_off/on menu buttons, all under basic_interface."
+    },
+    "Shortcut": {
+      "version": "classic 9-slot shortitem",
+      "reference_kind": "LOCAL-ORIGINAL",
+      "assetIds": [
+        "ui.hotbar.background",
+        "ui.window.resize",
+        "ui.slot.selection",
+        "ui.skill.sm_sword.icon",
+        "ui.skill.sm_twohand.icon",
+        "ui.skill.sm_recovery.icon",
+        "ui.skill.sm_bash.icon",
+        "ui.skill.sm_provoke.icon",
+        "ui.skill.sm_magnum.icon",
+        "ui.skill.sm_endure.icon",
+        "ui.skill.sm_movingrecovery.icon",
+        "ui.skill.sm_fatalblow.icon",
+        "ui.skill.sm_autoberserk.icon",
+        "ui.skill.cr_shieldboomerang.icon",
+        "ui.numbers.inventory.icon_num"
+      ],
+      "note": "shortitem_bg + btn_resize + item_invert; Swordsman icons plus the approved CR_SHIELDBOOMERANG reuse for skill.sw.shield_wave (GAP-UI-002)."
+    },
+    "MiniMap": {
+      "version": "classic map_plus/map_minus",
+      "reference_kind": "LOCAL-ORIGINAL",
+      "assetIds": [
+        "ui.minimap.map.prt_fild08",
+        "ui.minimap.player_arrow",
+        "ui.minimap.control.zoom_in.normal",
+        "ui.minimap.control.zoom_in.hover",
+        "ui.minimap.control.zoom_out.normal",
+        "ui.minimap.control.zoom_out.hover"
+      ],
+      "note": "Minimap V2 i_* controls are excluded by the compatibility test."
+    },
+    "Chat": {
+      "version": "classic chatwin0/chatwin1",
+      "reference_kind": "LOCAL-ORIGINAL",
+      "assetIds": [
+        "ui.chat.window.background",
+        "ui.chat.window.left",
+        "ui.chat.window.mid",
+        "ui.chat.window.right",
+        "ui.chat.window.divider",
+        "ui.chat.mode.on",
+        "ui.chat.mode.off",
+        "ui.chat.battle.primary.normal",
+        "ui.chat.battle.primary.active",
+        "ui.chat.battle.secondary.normal",
+        "ui.chat.battle.secondary.active",
+        "ui.chat.stick.off",
+        "ui.chat.stick.on",
+        "ui.chat.window.minimize.normal",
+        "ui.chat.window.minimize.active",
+        "ui.chat.drag.locked",
+        "ui.chat.drag.unlocked",
+        "ui.chat.input.background",
+        "ui.chat.recipient.normal",
+        "ui.chat.recipient.hover",
+        "ui.chat.recipient.pressed",
+        "ui.chat.scroll.up",
+        "ui.chat.scroll.down",
+        "ui.chat.scroll.track",
+        "ui.chat.scroll.thumb"
+      ],
+      "note": "Chat / System Log background, three-part frame, divider, input, mode, battle, stick, lock, minimize and scroll controls."
+    },
+    "Cursor": {
+      "version": "cursors.spr/act ACT 2.5 (14 actions)",
+      "reference_kind": "LOCAL-ORIGINAL",
+      "assetIds": [
+        "ui.cursor.spr",
+        "ui.cursor.act"
+      ],
+      "note": "Hotspots come from the local ACT; nothing is hard-coded."
+    },
+    "CommonWindow": {
+      "version": "titlebar/itemwin/btnbar three-part",
+      "reference_kind": "LOCAL-ORIGINAL",
+      "assetIds": [
+        "ui.window.title.left",
+        "ui.window.title.mid",
+        "ui.window.title.right",
+        "ui.window.body.left",
+        "ui.window.body.mid",
+        "ui.window.body.right",
+        "ui.window.footer.left",
+        "ui.window.footer.mid",
+        "ui.window.footer.right",
+        "ui.arrow.left",
+        "ui.arrow.right",
+        "ui.arrow.up",
+        "ui.arrow.down",
+        "ui.window.resize"
+      ],
+      "note": "Generic RO window chrome reused by Survivors windows (ORIGINAL-DESIGN layouts)."
+    },
+    "Button": {
+      "version": "btn_out/over/press/disable three-part",
+      "reference_kind": "LOCAL-ORIGINAL",
+      "assetIds": [
+        "ui.button.normal.left",
+        "ui.button.normal.mid",
+        "ui.button.normal.right",
+        "ui.button.hover.left",
+        "ui.button.hover.mid",
+        "ui.button.hover.right",
+        "ui.button.pressed.left",
+        "ui.button.pressed.mid",
+        "ui.button.pressed.right",
+        "ui.button.disabled.left",
+        "ui.button.disabled.mid",
+        "ui.button.disabled.right"
+      ],
+      "note": "normal/hover/pressed/disabled each have their own source; no CSS state is synthesised."
+    },
+    "Tooltip": {
+      "version": "undecided",
+      "reference_kind": "LOCAL-ORIGINAL",
+      "assetIds": [],
+      "note": "No dedicated tooltip bitmap in the 108-row closure; see undecided UI-Q1. Until decided, tooltips are not shown in the formal build."
+    },
+    "Status": {
+      "version": "CommonWindow (no dedicated bitmap)",
+      "reference_kind": "LOCAL-ORIGINAL",
+      "assetIds": [],
+      "note": "Not shown during a run in Phase 1; see undecided UI-Q2."
+    },
+    "Inventory": {
+      "version": "CommonWindow (no dedicated bitmap)",
+      "reference_kind": "LOCAL-ORIGINAL",
+      "assetIds": [],
+      "note": "Not shown during a run in Phase 1; see undecided UI-Q2."
+    },
+    "Skill": {
+      "version": "CommonWindow (no dedicated bitmap)",
+      "reference_kind": "LOCAL-ORIGINAL",
+      "assetIds": [],
+      "note": "Not shown during a run in Phase 1; see undecided UI-Q2."
+    },
+    "PauseMessageBox": {
+      "version": "CommonWindow + Button",
+      "reference_kind": "LOCAL-ORIGINAL",
+      "assetIds": [
+        "ui.window.title.left",
+        "ui.window.title.mid",
+        "ui.window.title.right",
+        "ui.window.body.left",
+        "ui.window.body.mid",
+        "ui.window.body.right",
+        "ui.window.footer.left",
+        "ui.window.footer.mid",
+        "ui.window.footer.right",
+        "ui.button.normal.left",
+        "ui.button.normal.mid",
+        "ui.button.normal.right",
+        "ui.button.hover.left",
+        "ui.button.hover.mid",
+        "ui.button.hover.right",
+        "ui.button.pressed.left",
+        "ui.button.pressed.mid",
+        "ui.button.pressed.right",
+        "ui.button.disabled.left",
+        "ui.button.disabled.mid",
+        "ui.button.disabled.right"
+      ],
+      "note": "Pause / level-up / result windows are ORIGINAL-DESIGN layouts composed only of these V0 parts."
+    },
+    "Font": {
+      "version": "System\\Font SCDream4/6",
+      "reference_kind": "LOCAL-ORIGINAL",
+      "assetIds": [
+        "ui.font.scdream4",
+        "ui.font.scdream6"
+      ],
+      "note": "Read from the client's System\\Font via the exact filesystem:System allowlist; never an OS font."
+    }
+  },
+  "undecided": [
+    {
+      "id": "UI-Q1",
+      "question": "Tooltip surface: the closure has no tooltip bitmap.",
+      "options": [
+        "Compose tooltips from CommonWindow title/body slices",
+        "Add the client's tooltip bitmap rows after a local audit",
+        "No tooltip in the formal build (text in a CommonWindow on click)"
+      ]
+    },
+    {
+      "id": "UI-Q2",
+      "question": "Status / Inventory / Skill windows have no dedicated bitmaps in the closure.",
+      "options": [
+        "Keep them out of Phase 1 runs (plaza-only, later phase)",
+        "Extend the whitelist with the V0 status/inventory/skill window rows after a local audit"
+      ]
+    },
+    {
+      "id": "UI-Q3",
+      "question": "UI font weights: which text uses SCDream4 (regular) vs SCDream6 (bold), and at what px size.",
+      "options": [
+        "Measure from a local 1024x768 client capture (required before LOCKED)",
+        "Regular for body text, bold for window titles, size from capture"
+      ]
+    },
+    {
+      "id": "UI-Q4",
+      "question": "Survivors HUD extras (timer, kills, Boss HP) have no direct V0 equivalent.",
+      "options": [
+        "Narrow CommonWindow + gauge slices (ORIGINAL-DESIGN)",
+        "Text only inside an existing window frame"
+      ]
+    }
+  ]
+}

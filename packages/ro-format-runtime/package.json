@@ -1,0 +1,22 @@
+{
+  "name": "@ro-survivor/ro-format-runtime",
+  "version": "0.0.0",
+  "private": true,
+  "license": "GPL-3.0-only",
+  "type": "module",
+  "description": "Clean-room parsers for RO client formats (SPR, ACT, PAL, GAT, GND, RSW). No RO data is shipped.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./grf": "./src/grf.ts",
+    "./str": "./src/str.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json && tsc -p test/tsconfig.json"
+  },
+  "dependencies": {
+    "@ro-survivor/asset-contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "@ro-survivor/testkit": "workspace:*"
+  }
+}

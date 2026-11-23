@@ -1,0 +1,41 @@
+.combat-presentation {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.combat-flash {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.combat-flash--player { background: rgb(255 58 48 / 55%); }
+.combat-flash--skill { background: rgb(255 255 255 / 70%); }
+
+.combat-damage {
+  position: absolute;
+  color: #fff;
+  font-family: "RO SCDream", "Noto Sans TC", sans-serif;
+  font-size: clamp(16px, 1.3vw, 22px);
+  font-weight: 800;
+  letter-spacing: -.035em;
+  line-height: 1;
+  text-shadow: -2px -2px 0 #171717, 2px -2px 0 #171717, -2px 2px 0 #171717, 2px 2px 0 #171717, 0 3px 2px rgb(0 0 0 / 55%);
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+  will-change: top, opacity;
+}
+
+.combat-damage--player { color: #ff6a5f; }
+.combat-damage--heavy { color: #ffe27a; font-size: clamp(20px, 1.65vw, 28px); }
+.combat-damage--lethal { color: #ff9b43; font-size: clamp(23px, 1.95vw, 32px); }
+
+@media (max-width: 640px) {
+  .combat-damage { font-size: 17px; }
+  .combat-damage--heavy { font-size: 21px; }
+  .combat-damage--lethal { font-size: 24px; }
+}

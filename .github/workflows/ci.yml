@@ -1,0 +1,36 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  phase0:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      BUILD_ID: ci-${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history so rights:check can scan every path ever recorded in Git objects.
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm slice:acceptance:check
+      - run: pnpm build
+      - run: pnpm rights:check
+      - run: pnpm assets:test-synthetic
+      - run: pnpm reference:validate
+      - run: pnpm assets:validate-handoff
+      - run: pnpm skills:validate-vfx

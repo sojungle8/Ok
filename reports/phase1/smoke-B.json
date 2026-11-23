@@ -1,0 +1,54 @@
+[
+  {
+    "browser": "chromium 151.0.7922.34",
+    "viewport": "desktop",
+    "expect": "blocked",
+    "status": "PASS",
+    "buildId": "0.0.0+e23466f23959.20261118",
+    "profile": "fan-local",
+    "reason": "載入 RO 介面\n\ngateway 提供的是自動測試用 synthetic fixture，正式畫面拒絕使用",
+    "worldCanvas": 0,
+    "missingRows": 0,
+    "errors": [],
+    "screenshot": "reports\\phase1\\smoke-B-formal-refuses-fixture-chromium-desktop.png"
+  },
+  {
+    "browser": "chromium 151.0.7922.34",
+    "viewport": "mobile",
+    "expect": "blocked",
+    "status": "PASS",
+    "buildId": "0.0.0+e23466f23959.20261118",
+    "profile": "fan-local",
+    "reason": "載入 RO 介面\n\ngateway 提供的是自動測試用 synthetic fixture，正式畫面拒絕使用",
+    "worldCanvas": 0,
+    "missingRows": 0,
+    "errors": [],
+    "screenshot": "reports\\phase1\\smoke-B-formal-refuses-fixture-chromium-mobile.png"
+  },
+  {
+    "browser": "webkit 26.5",
+    "viewport": "desktop",
+    "expect": "blocked",
+    "status": "PASS",
+    "buildId": "0.0.0+e23466f23959.20261118",
+    "profile": "fan-local",
+    "reason": "載入 RO 介面\n\ngateway 提供的是自動測試用 synthetic fixture，正式畫面拒絕使用",
+    "worldCanvas": 0,
+    "missingRows": 0,
+    "errors": [],
+    "screenshot": "reports\\phase1\\smoke-B-formal-refuses-fixture-webkit-desktop.png"
+  },
+  {
+    "browser": "webkit 26.5",
+    "viewport": "mobile",
+    "expect": "blocked",
+    "status": "PASS",
+    "buildId": "0.0.0+e23466f23959.20261118",
+    "profile": "fan-local",
+    "reason": "載入 RO 介面\n\ngateway 提供的是自動測試用 synthetic fixture，正式畫面拒絕使用",
+    "worldCanvas": 0,
+    "missingRows": 0,
+    "errors": [],
+    "screenshot": "reports\\phase1\\smoke-B-formal-refuses-fixture-webkit-mobile.png"
+  }
+]

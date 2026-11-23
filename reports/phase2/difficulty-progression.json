@@ -1,0 +1,364 @@
+{
+  "generator": "tools/slice/difficulty.ts",
+  "seeds": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+  ],
+  "modes": [
+    {
+      "id": "normal-bl0",
+      "difficulty": "normal",
+      "baseLevel": 0
+    },
+    {
+      "id": "hard-bl0",
+      "difficulty": "hard",
+      "baseLevel": 0
+    },
+    {
+      "id": "hard-bl10",
+      "difficulty": "hard",
+      "baseLevel": 10
+    }
+  ],
+  "rowsSha256": "46AA419173DD97BAAE3C1CF7EB6937815689EAF7D6334FF6A0F469C1553F2FE2",
+  "gates": {
+    "hard is never easier than normal (per build)": true,
+    "hard + Base 10: every build of every job wins >= 5/10": true,
+    "Base 10 never lowers hard wins (per build)": true
+  },
+  "rows": [
+    {
+      "job": "swordsman",
+      "plan": "guardian",
+      "mode": "normal-bl0",
+      "wins": 9,
+      "outcomes": [
+        "victory",
+        "victory",
+        "victory",
+        "victory",
+        "victory",
+        "victory",
+        "victory",
+        "victory",
+        "victory",
+        "defeat"
+      ]
+    },
+    {
+      "job": "swordsman",
+      "plan": "weapon",
+      "mode": "normal-bl0",
+      "wins": 9,
+      "outcomes": [
+        "victory",
+        "victory",
+        "victory",
+        "victory",
+        "victory",
+        "victory",
+        "defeat",
+        "victory",
+        "victory",
+        "victory"
+      ]
+    },
+    {
+      "job": "swordsman",
+      "plan": "fury",
+      "mode": "normal-bl0",
+      "wins": 8,
+      "outcomes": [
+        "victory",
+        "victory",
+        "victory",
+        "victory",
+        "victory",
+        "victory",
+        "defeat",
+        "victory",
+        "victory",
+        "defeat"
+      ]
+    },
+    {
+      "job": "swordsman",
+      "plan": "guardian",
+      "mode": "hard-bl0",
+      "wins": 4,
+      "outcomes": [
+        "victory",
+        "victory",
+        "victory",
+        "defeat",
+        "victory",
+        "defeat",
+        "defeat",
+        "defeat",
+        "defeat",
+        "defeat"
+      ]
+    },
+    {
+      "job": "swordsman",
+      "plan": "weapon",
+      "mode": "hard-bl0",
+      "wins": 4,
+      "outcomes": [
+        "defeat",
+        "defeat",
+        "defeat",
+        "victory",
+        "victory",
+        "victory",
+        "defeat",
+        "victory",
+        "defeat",
+        "defeat"
+      ]
+    },
+    {
+      "job": "swordsman",
+      "plan": "fury",
+      "mode": "hard-bl0",
+      "wins": 3,
+      "outcomes": [
+        "victory",
+        "victory",
+        "defeat",
+        "defeat",
+        "defeat",
+        "defeat",
+        "defeat",
+        "victory",
+        "defeat",
+        "defeat"
+      ]
+    },
+    {
+      "job": "swordsman",
+      "plan": "guardian",
+      "mode": "hard-bl10",
+      "wins": 8,
+      "outcomes": [
+        "victory",
+        "victory",
+        "victory",
+        "victory",
+        "victory",
+        "victory",
+        "victory",
+        "victory",
+        "defeat",
+        "defeat"
+      ]
+    },
+    {
+      "job": "swordsman",
+      "plan": "weapon",
+      "mode": "hard-bl10",
+      "wins": 9,
+      "outcomes": [
+        "victory",
+        "victory",
+        "victory",
+        "victory",
+        "victory",
+        "victory",
+        "defeat",
+        "victory",
+        "victory",
+        "victory"
+      ]
+    },
+    {
+      "job": "swordsman",
+      "plan": "fury",
+      "mode": "hard-bl10",
+      "wins": 7,
+      "outcomes": [
+        "victory",
+        "victory",
+        "victory",
+        "victory",
+        "victory",
+        "victory",
+        "defeat",
+        "defeat",
+        "victory",
+        "defeat"
+      ]
+    },
+    {
+      "job": "mage",
+      "plan": "elementalist",
+      "mode": "normal-bl0",
+      "wins": 10,
+      "outcomes": [
+        "victory",
+        "victory",
+        "victory",
+        "victory",
+        "victory",
+        "victory",
+        "victory",
+        "victory",
+        "victory",
+        "victory"
+      ]
+    },
+    {
+      "job": "mage",
+      "plan": "storm",
+      "mode": "normal-bl0",
+      "wins": 10,
+      "outcomes": [
+        "victory",
+        "victory",
+        "victory",
+        "victory",
+        "victory",
+        "victory",
+        "victory",
+        "victory",
+        "victory",
+        "victory"
+      ]
+    },
+    {
+      "job": "mage",
+      "plan": "arcane",
+      "mode": "normal-bl0",
+      "wins": 7,
+      "outcomes": [
+        "victory",
+        "defeat",
+        "defeat",
+        "victory",
+        "victory",
+        "defeat",
+        "victory",
+        "victory",
+        "victory",
+        "victory"
+      ]
+    },
+    {
+      "job": "mage",
+      "plan": "elementalist",
+      "mode": "hard-bl0",
+      "wins": 0,
+      "outcomes": [
+        "defeat",
+        "defeat",
+        "defeat",
+        "defeat",
+        "defeat",
+        "defeat",
+        "defeat",
+        "defeat",
+        "defeat",
+        "defeat"
+      ]
+    },
+    {
+      "job": "mage",
+      "plan": "storm",
+      "mode": "hard-bl0",
+      "wins": 5,
+      "outcomes": [
+        "defeat",
+        "victory",
+        "victory",
+        "defeat",
+        "victory",
+        "defeat",
+        "defeat",
+        "victory",
+        "defeat",
+        "victory"
+      ]
+    },
+    {
+      "job": "mage",
+      "plan": "arcane",
+      "mode": "hard-bl0",
+      "wins": 2,
+      "outcomes": [
+        "defeat",
+        "defeat",
+        "defeat",
+        "defeat",
+        "victory",
+        "defeat",
+        "defeat",
+        "defeat",
+        "victory",
+        "defeat"
+      ]
+    },
+    {
+      "job": "mage",
+      "plan": "elementalist",
+      "mode": "hard-bl10",
+      "wins": 8,
+      "outcomes": [
+        "victory",
+        "defeat",
+        "victory",
+        "victory",
+        "victory",
+        "defeat",
+        "victory",
+        "victory",
+        "victory",
+        "victory"
+      ]
+    },
+    {
+      "job": "mage",
+      "plan": "storm",
+      "mode": "hard-bl10",
+      "wins": 8,
+      "outcomes": [
+        "victory",
+        "victory",
+        "victory",
+        "defeat",
+        "victory",
+        "victory",
+        "victory",
+        "victory",
+        "defeat",
+        "victory"
+      ]
+    },
+    {
+      "job": "mage",
+      "plan": "arcane",
+      "mode": "hard-bl10",
+      "wins": 5,
+      "outcomes": [
+        "victory",
+        "defeat",
+        "victory",
+        "defeat",
+        "victory",
+        "defeat",
+        "victory",
+        "defeat",
+        "victory",
+        "defeat"
+      ]
+    }
+  ]
+}

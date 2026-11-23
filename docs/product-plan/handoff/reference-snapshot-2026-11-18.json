@@ -1,0 +1,246 @@
+{
+  "schemaVersion": 2,
+  "snapshotId": "ro-reference-2026-11-18-taipei",
+  "supersedesSnapshotId": "ro-reference-2026-11-17-taipei",
+  "observedAt": "2026-11-18T22:45:00+08:00",
+  "owner": "Codex research maintainer",
+  "consumer": "Claude implementation agent",
+  "cleanRoomPolicy": {
+    "rawClosedSourceIncluded": false,
+    "sourceMapsFetched": false,
+    "authenticationUsed": false,
+    "privateEndpointsUsed": false,
+    "rawAnnouncementTextRetained": false,
+    "runtimeNetworkDependencyAllowed": false,
+    "instruction": "Treat every public observation as evidence only. Only an accepted fan-local decision with tests may affect runtime content."
+  },
+  "variantPolicy": {
+    "variants": ["official", "hans", "fan-local"],
+    "officialIsBaselineReference": true,
+    "hansIsDerivativeReference": true,
+    "externalVariantsMayOverwriteEachOther": false,
+    "announcementsAutoApplyToRuntime": false,
+    "conflictsRequireFanLocalDecision": true
+  },
+  "sources": [
+    {
+      "sourceId": "official.home.20261118",
+      "variant": "official",
+      "sourceType": "site",
+      "url": "https://ro-survivors.com/",
+      "observedAt": "2026-11-18T22:45:00+08:00",
+      "locale": "es/en/zh",
+      "httpStatus": 200,
+      "lastModified": "Wed, 18 Nov 2026 08:39:33 GMT",
+      "contentBytesUtf8": 46767,
+      "contentSha256": "305041A7AFBD285040592B474D4BD91E15508058AE0DE7BE6F85393CB2D8268D",
+      "authority": "primary"
+    },
+    {
+      "sourceId": "official.legal.20261118",
+      "variant": "official",
+      "sourceType": "legal",
+      "url": "https://ro-survivors.com/legal.html",
+      "observedAt": "2026-11-18T22:45:00+08:00",
+      "locale": "es/en/zh",
+      "httpStatus": 200,
+      "lastModified": "Wed, 18 Nov 2026 08:39:30 GMT",
+      "contentBytesUtf8": 62978,
+      "contentSha256": "0DDB89372497B70054803FDA0492AD59B25FA448B855548B86945A42E3090E58",
+      "authority": "primary"
+    },
+    {
+      "sourceId": "official.manifest.20261118",
+      "variant": "official",
+      "sourceType": "manifest",
+      "url": "https://ro-survivors.com/app-manifest.json",
+      "observedAt": "2026-11-18T22:45:00+08:00",
+      "locale": "es",
+      "httpStatus": 200,
+      "etag": "W/\"6afd643e-299\"",
+      "lastModified": "Wed, 18 Nov 2026 08:39:26 GMT",
+      "contentBytesUtf8": 665,
+      "contentSha256": "3167B51F260B1420158CDF282F3101D1C0A82334BF42684CBAB1EB5B970A675A",
+      "authority": "primary"
+    },
+    {
+      "sourceId": "official.status.20261118",
+      "variant": "official",
+      "sourceType": "status",
+      "url": "https://ro-survivors.com/status.json",
+      "observedAt": "2026-11-18T22:45:00+08:00",
+      "locale": "neutral",
+      "httpStatus": 200,
+      "etag": "\"6afd7450-f\"",
+      "lastModified": "Wed, 18 Nov 2026 09:48:00 GMT",
+      "contentBytesUtf8": 15,
+      "contentSha256": "E47B517F1FB8854534E930AE957E991D7F97C9E267EBD77A3E8BFBC494221938",
+      "authority": "primary"
+    },
+    {
+      "sourceId": "hans.home.20261118",
+      "variant": "hans",
+      "sourceType": "site",
+      "url": "https://ro.hans-webgametw.com/",
+      "observedAt": "2026-11-18T22:45:00+08:00",
+      "locale": "zh-TW",
+      "httpStatus": 200,
+      "contentBytesUtf8": 45505,
+      "contentSha256": "60834AA4BAAF6B757FDD707F46DA98A3171917E363CFFC5424DB63D16CD624FD",
+      "authority": "primary"
+    },
+    {
+      "sourceId": "hans.news.20261118-v0135",
+      "variant": "hans",
+      "sourceType": "news",
+      "url": "https://ro.hans-webgametw.com/hans-news.json",
+      "observedAt": "2026-11-18T22:45:00+08:00",
+      "publishedAt": "2026-11-18",
+      "versionLabel": "V0.13.5",
+      "locale": "zh-TW",
+      "httpStatus": 200,
+      "etag": "W/\"nf-mwlyoptk\"",
+      "lastModified": "Wed, 18 Nov 2026 10:11:34 GMT",
+      "contentBytesUtf8": 843,
+      "contentSha256": "05442D69A27D0F9D1CAB682F87F20C52CC34A4516E5171B0BFA10F76C43FF4BC",
+      "authority": "primary"
+    },
+    {
+      "sourceId": "hans.notice.20261118-r29",
+      "variant": "hans",
+      "sourceType": "notice",
+      "url": "https://ro.hans-webgametw.com/api/notice",
+      "observedAt": "2026-11-18T22:45:00+08:00",
+      "publishedAt": "2026-11-18T21:38:27.912+08:00",
+      "versionLabel": "rev-29",
+      "locale": "zh-TW",
+      "httpStatus": 200,
+      "contentBytesUtf8": 887,
+      "contentSha256": "F49FDCCEAC32136F4823A915137A66A5FA1EC8CE0EF8B7BB5586A463F9DCBC23",
+      "authority": "primary"
+    },
+    {
+      "sourceId": "hans.status.20261118",
+      "variant": "hans",
+      "sourceType": "status",
+      "url": "https://ro.hans-webgametw.com/status.json",
+      "observedAt": "2026-11-18T22:45:00+08:00",
+      "locale": "neutral",
+      "httpStatus": 200,
+      "contentBytesUtf8": 14,
+      "contentSha256": "D90B46008510D95001237F407C5545003329155A5DAB6EDAA4336A646797C12E",
+      "authority": "primary"
+    },
+    {
+      "sourceId": "hans.guest-status.20261118",
+      "variant": "hans",
+      "sourceType": "status",
+      "url": "https://ro.hans-webgametw.com/api/guest-status",
+      "observedAt": "2026-11-18T22:45:00+08:00",
+      "locale": "neutral",
+      "httpStatus": 200,
+      "contentBytesUtf8": 12,
+      "contentSha256": "6539AEEA0E559372359595CDF9EAF2B9C5ABD5033F4CDEF03AF1AA57F8DB26DE",
+      "authority": "primary"
+    }
+  ],
+  "announcements": [
+    {
+      "announcementId": "hans-20261118-v0135",
+      "sourceId": "hans.news.20261118-v0135",
+      "sourceVersion": "V0.13.5",
+      "titleSummary": "節慶內容、雙王與闖入者、角色改名、待選升級保存、聊天泡泡及連線限制更新",
+      "factSummaries": [
+        "節慶關卡加入雙王與闖入者事件，並擴充活動裝備。",
+        "一周目後提供角色改名流程。",
+        "暫停選單可保存尚未處理的升級選擇與寶箱。",
+        "主城和組隊遠征加入聊天泡泡及配裝查看入口。",
+        "營運公告調整同網路同時遊玩與新帳號開放量。"
+      ],
+      "categories": ["content", "account", "persistence", "social", "multiplayer"],
+      "confidence": "observed",
+      "copyrightClass": "text-do-not-copy",
+      "supersedesObservationIds": ["OBS-20261117-HANS-002"]
+    },
+    {
+      "announcementId": "hans-20261118-notice-r29",
+      "sourceId": "hans.notice.20261118-r29",
+      "sourceVersion": "rev-29",
+      "revision": 29,
+      "titleSummary": "周目暫停擴張並轉向新章節與爬塔，同時調整拾取、信件與穩定性",
+      "factSummaries": [
+        "營運方表示目前進度到六周目，短期不再增加周目與裝備。",
+        "後續內容方向轉向新章節與爬塔。",
+        "一般怪裝備件數改為實際拾取後計入。",
+        "信件依是否有附件設定不同保留期限。",
+        "公告列出存檔、掉落、載入與重新連線後升級流程的修正。"
+      ],
+      "categories": ["content", "economy", "mail", "bugfix", "performance"],
+      "confidence": "observed",
+      "copyrightClass": "text-do-not-copy",
+      "supersedesObservationIds": []
+    }
+  ],
+  "currentPublicFacts": [
+    {
+      "factId": "official-pwa-any-orientation",
+      "sourceIds": ["official.manifest.20261118"],
+      "summary": "官方 manifest 仍採 standalone PWA、相對 start/scope 與任意方向。",
+      "decision": "adapt",
+      "testIds": ["QA-PWA-002"]
+    },
+    {
+      "factId": "official-closed-system-boundary",
+      "sourceIds": ["official.legal.20261118"],
+      "summary": "官方公開法律頁保留遊戲程式、介面、伺服器、系統與文字權利；本作只能做乾淨室行為參考。",
+      "decision": "adopt",
+      "testIds": ["QA-RIGHTS-001"]
+    },
+    {
+      "factId": "hans-guest-disabled",
+      "sourceIds": ["hans.guest-status.20261118"],
+      "summary": "HANS 公開狀態端點在觀察時回報訪客模式關閉。",
+      "decision": "watch",
+      "testIds": ["QA-REF-002"]
+    }
+  ],
+  "proposedDesignCandidates": [
+    {
+      "candidateId": "candidate.run.pending-choice-bank",
+      "observationIds": ["OBS-20261118-HANS-003"],
+      "action": "adapt",
+      "status": "proposed",
+      "rationale": "可改善手機中斷與大量連續升級，但需用本作自己的 checkpoint 與 UI 重做。"
+    },
+    {
+      "candidateId": "candidate.stage.multi-boss-intruder",
+      "observationIds": ["OBS-20261118-HANS-001"],
+      "action": "test",
+      "status": "proposed",
+      "rationale": "只採事件類型；時序、技能、數值及美術需獨立設計。"
+    },
+    {
+      "candidateId": "candidate.social.chat-bubble-loadout",
+      "observationIds": ["OBS-20261118-HANS-004"],
+      "action": "watch",
+      "status": "proposed",
+      "rationale": "首版為單機，保留未來社交 UI contract。"
+    },
+    {
+      "candidateId": "candidate.meta.chapter-tower",
+      "observationIds": ["OBS-20261118-HANS-006", "OBS-20261117-TOWER-001"],
+      "action": "watch",
+      "status": "proposed",
+      "rationale": "先完成 deterministic replay 與單機內容，再考慮章節、爬塔與排行。"
+    }
+  ],
+  "variantComparisons": [],
+  "runtimeImportPolicy": {
+    "activeSnapshotIsBuildInput": false,
+    "networkFetchDuringBuildTestOrRuntime": false,
+    "acceptedDecisionRequired": true,
+    "acceptedDecisionMustHaveTestIds": true,
+    "externalTextMayBeDisplayedInGame": false,
+    "externalNumbersMayAutoReplaceBalance": false
+  }
+}

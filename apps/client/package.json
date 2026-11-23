@@ -1,0 +1,30 @@
+{
+  "name": "@ro-survivor/client",
+  "version": "0.0.0",
+  "private": true,
+  "license": "GPL-3.0-only",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "typecheck": "tsc -p tsconfig.json && tsc -p test/tsconfig.json",
+    "build:test-fixture": "vite build --mode fixture"
+  },
+  "dependencies": {
+    "@ro-survivor/asset-contracts": "workspace:*",
+    "preact": "10.29.8",
+    "@ro-survivor/core-sim": "workspace:*",
+    "three": "0.186.1",
+    "@ro-survivor/content-schema": "workspace:*",
+    "@ro-survivor/input": "workspace:*",
+    "@ro-survivor/persistence": "workspace:*",
+    "@ro-survivor/ro-format-runtime": "workspace:*"
+  },
+  "devDependencies": {
+    "@preact/preset-vite": "2.10.6",
+    "vite": "8.3.8",
+    "@types/three": "0.186.0",
+    "@ro-survivor/testkit": "workspace:*"
+  }
+}

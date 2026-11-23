@@ -1,0 +1,22 @@
+{
+  "name": "@ro-survivor/asset-gateway",
+  "version": "0.0.0",
+  "private": true,
+  "license": "GPL-3.0-only",
+  "type": "module",
+  "description": "Local, loopback-only, read-only RO asset gateway (whitelisted asset IDs only).",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json && tsc -p test/tsconfig.json"
+  },
+  "dependencies": {
+    "@ro-survivor/asset-contracts": "workspace:*",
+    "@ro-survivor/content-schema": "workspace:*",
+    "@ro-survivor/ro-format-runtime": "workspace:*"
+  },
+  "devDependencies": {
+    "@ro-survivor/testkit": "workspace:*"
+  }
+}

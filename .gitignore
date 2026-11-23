@@ -1,0 +1,51 @@
+# RO client and derived local assets must never be committed
+.local-assets/
+local-assets/
+asset-cache/
+*.grf
+*.spr
+*.act
+*.rsm
+*.rsm2
+*.gnd
+*.gat
+*.rsw
+*.str
+*.pal
+*.wav
+*.mp3
+*.ogg
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+*登入資料*
+*.pem
+*.key
+
+# Build output
+dist/
+coverage/
+node_modules/
+*.gpf
+*.rgz
+*.thor
+*.imf
+*.bgm
+assets/raw-audio/
+
+# Local-only locks and reports (contain absolute paths / machine data)
+assets/source-lock.local.json
+local-asset-lock.json
+reports/local/
+
+# Test output
+test-results/
+playwright-report/
+
+# Client test builds (synthetic fixtures; never released)
+apps/client/dist-test/
+apps/client/dist-formal-gw/
+apps/client/dist-formal-local/
+.scratch/

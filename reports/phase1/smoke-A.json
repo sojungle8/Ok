@@ -1,0 +1,54 @@
+[
+  {
+    "browser": "chromium 151.0.7922.34",
+    "viewport": "desktop",
+    "expect": "blocked",
+    "status": "PASS",
+    "buildId": "0.0.0+e23466f23959.20261118",
+    "profile": "fan-local",
+    "reason": "載入 RO 介面\n\n未設定 asset gateway（請用 pnpm dev:fan-local 啟動，需本機 RO 客戶端）",
+    "worldCanvas": 0,
+    "missingRows": 0,
+    "errors": [],
+    "screenshot": "reports\\phase1\\smoke-A-formal-no-gateway-chromium-desktop.png"
+  },
+  {
+    "browser": "chromium 151.0.7922.34",
+    "viewport": "mobile",
+    "expect": "blocked",
+    "status": "PASS",
+    "buildId": "0.0.0+e23466f23959.20261118",
+    "profile": "fan-local",
+    "reason": "載入 RO 介面\n\n未設定 asset gateway（請用 pnpm dev:fan-local 啟動，需本機 RO 客戶端）",
+    "worldCanvas": 0,
+    "missingRows": 0,
+    "errors": [],
+    "screenshot": "reports\\phase1\\smoke-A-formal-no-gateway-chromium-mobile.png"
+  },
+  {
+    "browser": "webkit 26.5",
+    "viewport": "desktop",
+    "expect": "blocked",
+    "status": "PASS",
+    "buildId": "0.0.0+e23466f23959.20261118",
+    "profile": "fan-local",
+    "reason": "載入 RO 介面\n\n未設定 asset gateway（請用 pnpm dev:fan-local 啟動，需本機 RO 客戶端）",
+    "worldCanvas": 0,
+    "missingRows": 0,
+    "errors": [],
+    "screenshot": "reports\\phase1\\smoke-A-formal-no-gateway-webkit-desktop.png"
+  },
+  {
+    "browser": "webkit 26.5",
+    "viewport": "mobile",
+    "expect": "blocked",
+    "status": "PASS",
+    "buildId": "0.0.0+e23466f23959.20261118",
+    "profile": "fan-local",
+    "reason": "載入 RO 介面\n\n未設定 asset gateway（請用 pnpm dev:fan-local 啟動，需本機 RO 客戶端）",
+    "worldCanvas": 0,
+    "missingRows": 0,
+    "errors": [],
+    "screenshot": "reports\\phase1\\smoke-A-formal-no-gateway-webkit-mobile.png"
+  }
+]
